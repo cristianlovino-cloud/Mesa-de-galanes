@@ -6,23 +6,6 @@
 <title>Mesa de Galanes ☕</title>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 
-<!-- ══════════════════════════════════════════════
-     🔥 CONFIGURACIÓN FIREBASE
-     
-     1. Ir a https://console.firebase.google.com
-     2. Crear proyecto (ej: "mesa-galanes")
-     3. Agregar app Web (</>)
-     4. Copiar el objeto firebaseConfig y reemplazar abajo
-     5. Ir a Realtime Database → Crear base de datos
-     6. En Reglas pegar:
-        {
-          "rules": {
-            ".read": true,
-            ".write": true
-          }
-        }
-     ══════════════════════════════════════════════ -->
-
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
   import { getDatabase, ref, set, onValue, remove, push, get }
@@ -38,67 +21,49 @@
     appId:             "1:501258939600:web:148124c66cfd41741e82d5"
   };
 
+  const ADMIN_NAME = 'Cris'; // único que puede editar/borrar categorías
+
   const app = initializeApp(firebaseConfig);
   const db  = getDatabase(app);
 
-  // ── Detectar si la config fue reemplazada ──────────────
-  const configured = !firebaseConfig.apiKey.startsWith("TU_");
-
-  // ── Refs ───────────────────────────────────────────────
   const ordersRef  = ref(db, 'pedido/orders');
   const drinksRef  = ref(db, 'pedido/drinks');
   const sessionRef = ref(db, 'pedido/session');
 
-  // ── Estado local ───────────────────────────────────────
-  let myName      = localStorage.getItem('galan_name') || null;
-  let orders      = {};   // { firebaseKey: { player, drink, icon, ts } }
-  let drinks      = [];   // [{ name, icon }]
-  let sessionDate = null;
+  let myName = localStorage.getItem('galan_name') || null;
+  let orders = {};
+  let drinks = [];
 
   const DEFAULT_DRINKS = [
-    { name:'Café jarra',    icon:'☕' },
-    { name:'Corrado jarra', icon:'🪵' },
-    { name:'Desayuno',      icon:'🥐' },
-    { name:'Mate cocido',   icon:'🧉' },
-    { name:'Té',            icon:'🍵' },
-    { name:'Cortado',       icon:'☕' },
+    { name:'Café jarra',                    icon:'☕'  },
+    { name:'Corrado jarra',                 icon:'🪵'  },
+    { name:'Cortado',                       icon:'☕'  },
+    { name:'Mate cocido / Té',              icon:'🧉'  },
+    { name:'Desayuno',                      icon:'🥐'  },
+    { name:'Café c/2 medialunas saladas',   icon:'☕🥐' },
+    { name:'Café c/2 medialunas dulces',    icon:'☕🍯' },
+    { name:'Cortado c/2 saladas',           icon:'☕🥐' },
+    { name:'Cortado c/2 dulces',            icon:'☕🍯' },
+    { name:'Café c/tostadas',               icon:'☕🍞' },
+    { name:'Huevos revueltos',              icon:'🍳'  },
   ];
 
-  // ── Bootstrap ──────────────────────────────────────────
   window.addEventListener('DOMContentLoaded', () => {
     updateClock();
     setInterval(updateClock, 30000);
 
-    if (!configured) {
-      showSetupBanner();
-      // Demo mode: usar datos locales
-      drinks = [...DEFAULT_DRINKS];
-      renderDrinks();
-      if (myName) renderMyName();
-      renderOrders();
-      return;
-    }
-
-    // Cargar bebidas; si no existen, inicializar con defaults
     onValue(drinksRef, snap => {
-      if (snap.exists()) {
-        drinks = snap.val();
-      } else {
-        drinks = [...DEFAULT_DRINKS];
-        set(drinksRef, drinks);
-      }
+      drinks = snap.exists() ? snap.val() : [...DEFAULT_DRINKS];
+      if (!snap.exists()) set(drinksRef, drinks);
       renderDrinks();
     });
 
-    // Escuchar pedidos en tiempo real
     onValue(ordersRef, snap => {
       orders = snap.exists() ? snap.val() : {};
       renderOrders();
     });
 
-    // Sesión del día (para limpiar pedidos viejos)
     checkSession();
-
     if (myName) renderMyName();
   });
 
@@ -106,107 +71,109 @@
     const today = new Date().toISOString().slice(0,10);
     const snap  = await get(sessionRef);
     if (!snap.exists() || snap.val() !== today) {
-      // Nuevo día → limpiar pedidos
       await set(ordersRef, null);
       await set(sessionRef, today);
     }
-    sessionDate = today;
   }
 
-  // ── Nombre ─────────────────────────────────────────────
+  // ── Nombre ───────────────────────────────────────────────
   window.setName = function(name) {
     myName = name.trim();
     if (!myName) return;
     localStorage.setItem('galan_name', myName);
-    document.getElementById('modal-name').classList.remove('open');
+    closeModal('modal-name');
     renderMyName();
+    renderDrinks();
   };
 
   window.changeName = function() {
     document.getElementById('modal-name-input').value = myName || '';
-    document.getElementById('modal-name').classList.add('open');
-    setTimeout(() => document.getElementById('modal-name-input').focus(), 100);
+    openModal('modal-name');
   };
 
+  function isAdmin() { return myName === ADMIN_NAME; }
+
   function renderMyName() {
-    document.getElementById('my-name-badge').textContent = '👤 ' + myName;
-    document.getElementById('my-name-badge').style.display = 'inline-flex';
+    const badge = document.getElementById('my-name-badge');
+    badge.innerHTML = (isAdmin() ? '⚙️ ' : '👤 ') + myName +
+      (isAdmin() ? ' <span style="font-size:0.6rem;background:var(--caramel);color:white;border-radius:4px;padding:1px 5px;margin-left:3px;font-family:DM Mono,monospace">ADMIN</span>' : '');
+    badge.style.display = 'inline-flex';
+    if (isAdmin()) badge.style.background = 'rgba(192,120,48,0.22)';
     document.getElementById('name-prompt').style.display = 'none';
   }
 
-  // ── Pedido ─────────────────────────────────────────────
+  // ── Pedidos ──────────────────────────────────────────────
   window.addOrder = async function(drinkName, icon) {
     if (!myName) { openNameModal(); return; }
-
-    // Si ya tiene ese pedido, quitarlo (toggle)
     const existing = Object.entries(orders).find(
       ([, v]) => v.player === myName && v.drink === drinkName
     );
     if (existing) {
-      if (configured) await remove(ref(db, `pedido/orders/${existing[0]}`));
-      else { delete orders[existing[0]]; renderOrders(); }
+      await remove(ref(db, `pedido/orders/${existing[0]}`));
       return;
     }
-
-    const order = { player: myName, drink: drinkName, icon, ts: Date.now() };
-    if (configured) {
-      await push(ordersRef, order);
-    } else {
-      orders['local_' + Date.now()] = order;
-      renderOrders();
-    }
+    await push(ordersRef, { player: myName, drink: drinkName, icon, ts: Date.now() });
   };
 
   window.removeOrder = async function(key) {
-    if (configured) await remove(ref(db, `pedido/orders/${key}`));
-    else { delete orders[key]; renderOrders(); }
+    await remove(ref(db, `pedido/orders/${key}`));
   };
 
   window.clearAll = async function() {
     if (!confirm('¿Limpiar todos los pedidos?')) return;
-    if (configured) await set(ordersRef, null);
-    else { orders = {}; renderOrders(); }
+    await set(ordersRef, null);
   };
 
-  // ── Drinks ─────────────────────────────────────────────
+  // ── Drinks (solo admin) ──────────────────────────────────
   window.addDrink = async function() {
     const name = document.getElementById('new-drink-name').value.trim();
     const icon = document.getElementById('new-drink-icon').value.trim() || '☕';
     if (!name) return;
-    const newDrinks = [...drinks, { name, icon }];
-    if (configured) await set(drinksRef, newDrinks);
-    else { drinks = newDrinks; renderDrinks(); }
+    await set(drinksRef, [...drinks, { name, icon }]);
     closeModal('modal-drink');
     document.getElementById('new-drink-name').value = '';
     document.getElementById('new-drink-icon').value = '';
   };
 
-  // ── Renders ────────────────────────────────────────────
-  function renderMyBadge() {}
+  window.deleteDrink = async function(i, e) {
+    e.stopPropagation();
+    if (!isAdmin()) return;
+    if (!confirm(`¿Eliminar "${drinks[i].name}"?`)) return;
+    await set(drinksRef, drinks.filter((_, idx) => idx !== i));
+  };
 
+  window.resetDrinks = async function() {
+    if (!confirm('¿Restaurar las categorías originales?')) return;
+    await set(drinksRef, DEFAULT_DRINKS);
+  };
+
+  // ── Renders ──────────────────────────────────────────────
   function renderDrinks() {
     const myOrders = Object.values(orders).filter(o => o.player === myName).map(o => o.drink);
-    document.getElementById('drinks-grid').innerHTML = drinks.map((d, i) => {
-      const active = myOrders.includes(d.name);
-      return `<div class="drink-card ${active ? 'selected' : ''}" onclick="addOrder('${esc(d.name)}','${esc(d.icon)}')">
-        <div class="drink-icon">${d.icon}</div>
-        <div class="drink-name">${d.name}</div>
-        ${active ? '<div class="drink-check">✓</div>' : ''}
-      </div>`;
-    }).join('') +
-    `<div class="add-drink-btn" onclick="openModal('modal-drink')">
-      <span>+</span> Otra infusión
-    </div>`;
+    const admin = isAdmin();
+
+    document.getElementById('drinks-grid').innerHTML =
+      drinks.map((d, i) => {
+        const active = myOrders.includes(d.name);
+        return `<div class="drink-card ${active ? 'selected' : ''}" onclick="addOrder('${esc(d.name)}','${esc(d.icon)}')">
+          ${admin ? `<span class="delete-drink" onclick="deleteDrink(${i}, event)">✕</span>` : ''}
+          <div class="drink-icon">${d.icon}</div>
+          <div class="drink-name">${d.name}</div>
+          ${active ? '<div class="drink-check">✓</div>' : ''}
+        </div>`;
+      }).join('') +
+      (admin
+        ? `<div class="add-drink-btn" onclick="openModal('modal-drink')"><span>+</span> Nueva categoría</div>
+           <div class="add-drink-btn reset-btn" onclick="resetDrinks()">↺ Restaurar originales</div>`
+        : ''
+      );
   }
 
   function renderOrders() {
-    // Re-render drinks para actualizar selección
     renderDrinks();
-
     const total = Object.keys(orders).length;
     document.getElementById('total-badge').textContent = total > 0 ? `${total} pedidos` : '';
 
-    // Agrupar por bebida
     const groups = {};
     Object.entries(orders).sort((a,b) => a[1].ts - b[1].ts).forEach(([key, o]) => {
       if (!groups[o.drink]) groups[o.drink] = { icon: o.icon, items: [] };
@@ -214,7 +181,7 @@
     });
 
     const panel = document.getElementById('summary-panel');
-    if (Object.keys(groups).length === 0) {
+    if (!Object.keys(groups).length) {
       panel.innerHTML = '<div class="empty-state">Nadie pidió nada todavía 👀</div>';
     } else {
       panel.innerHTML = Object.entries(groups).map(([drink, data]) => `
@@ -228,53 +195,45 @@
             ${data.items.map(item => `
               <span class="person-chip ${item.player === myName ? 'mine' : ''}">
                 ${item.player}
-                ${item.player === myName ? `<span class="remove-chip" onclick="removeOrder('${item.key}')">✕</span>` : ''}
+                ${(item.player === myName || isAdmin())
+                  ? `<span class="remove-chip" onclick="removeOrder('${item.key}')">✕</span>`
+                  : ''}
               </span>`).join('')}
           </div>
         </div>`).join('');
     }
-
-    // WS btn
     document.getElementById('ws-btn').disabled = total === 0;
   }
 
-  // ── WhatsApp ───────────────────────────────────────────
+  // ── WhatsApp ─────────────────────────────────────────────
   window.enviarWS = function() {
     const now   = new Date();
     const fecha = now.toLocaleDateString('es-AR', { weekday:'long', day:'numeric', month:'long' });
     const hora  = now.toLocaleTimeString('es-AR', { hour:'2-digit', minute:'2-digit' });
-
     const groups = {};
     Object.values(orders).sort((a,b) => a.ts - b.ts).forEach(o => {
       if (!groups[o.drink]) groups[o.drink] = { icon: o.icon, players: [] };
       groups[o.drink].players.push(o.player);
     });
-
     let msg = `☕ *Pedido Mesa de Galanes*\n📅 ${fecha} · ${hora}\n\n`;
     Object.entries(groups).forEach(([drink, data]) => {
-      msg += `${data.icon} *${drink}* (${data.players.length})\n`;
-      msg += `   → ${data.players.join(', ')}\n`;
+      msg += `${data.icon} *${drink}* (${data.players.length})\n   → ${data.players.join(', ')}\n`;
     });
     msg += `\n_Total: ${Object.keys(orders).length} pedidos_`;
-
     window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
   };
 
-  // ── Utils ──────────────────────────────────────────────
+  // ── Utils ────────────────────────────────────────────────
   function esc(s) { return s.replace(/'/g, "\\'"); }
 
   function updateClock() {
-    const now = new Date();
-    const dias = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+    const now  = new Date();
+    const dias  = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
     const meses = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
     document.getElementById('fecha-header').textContent =
       `${dias[now.getDay()]} ${now.getDate()} ${meses[now.getMonth()]}`;
     document.getElementById('hora-header').textContent =
       now.toLocaleTimeString('es-AR', { hour:'2-digit', minute:'2-digit' });
-  }
-
-  function showSetupBanner() {
-    document.getElementById('setup-banner').style.display = 'flex';
   }
 
   window.openModal = function(id) {
@@ -290,23 +249,18 @@
     document.getElementById('modal-name-input').value = myName || '';
     openModal('modal-name');
   }
+  window.openNameModal = openNameModal;
 
-  // Cerrar modals con Enter
   document.addEventListener('keydown', e => {
     if (e.key === 'Enter') {
-      if (document.getElementById('modal-name').classList.contains('open')) {
+      if (document.getElementById('modal-name').classList.contains('open'))
         setName(document.getElementById('modal-name-input').value);
-      }
-      if (document.getElementById('modal-drink').classList.contains('open')) {
+      if (document.getElementById('modal-drink').classList.contains('open'))
         addDrink();
-      }
     }
-    if (e.key === 'Escape') {
+    if (e.key === 'Escape')
       document.querySelectorAll('.modal-overlay.open').forEach(m => m.classList.remove('open'));
-    }
   });
-
-  window.openNameModal = openNameModal;
 </script>
 
 <style>
@@ -319,413 +273,119 @@
     --bark: #6b3d22;
     --steam: #e2d4c4;
     --ink: #1a0d06;
-    --success: #2d7a4f;
   }
-
   * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--cream); color: var(--ink); font-family: 'DM Sans', sans-serif; min-height: 100vh; }
 
-  body {
-    background: var(--cream);
-    color: var(--ink);
-    font-family: 'DM Sans', sans-serif;
-    min-height: 100vh;
-  }
-
-  /* SETUP BANNER */
-  #setup-banner {
-    display: none;
-    background: #fff3cd;
-    border-bottom: 2px solid #f0a500;
-    padding: 12px 16px;
-    gap: 10px;
-    align-items: flex-start;
-    font-size: 0.82rem;
-    line-height: 1.5;
-  }
-  #setup-banner strong { display: block; margin-bottom: 2px; color: #7a4f00; }
-  #setup-banner code {
-    background: rgba(0,0,0,0.07);
-    padding: 1px 5px;
-    border-radius: 4px;
-    font-family: 'DM Mono', monospace;
-    font-size: 0.78rem;
-  }
-
-  /* HEADER */
   header {
-    background: var(--espresso);
-    color: var(--cream);
-    padding: 20px 20px 16px;
-    position: relative;
-    overflow: hidden;
+    background: var(--espresso); color: var(--cream);
+    padding: 20px 20px 16px; position: relative; overflow: hidden;
   }
   header::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: repeating-linear-gradient(
-      -55deg, transparent, transparent 18px,
-      rgba(192,120,48,0.05) 18px, rgba(192,120,48,0.05) 19px
-    );
+    content: ''; position: absolute; inset: 0;
+    background: repeating-linear-gradient(-55deg, transparent, transparent 18px, rgba(192,120,48,0.05) 18px, rgba(192,120,48,0.05) 19px);
   }
-  .header-top {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    position: relative;
-  }
-  header h1 {
-    font-family: 'Playfair Display', serif;
-    font-size: 1.6rem;
-    font-weight: 900;
-    line-height: 1;
-  }
+  .header-top { display: flex; align-items: center; justify-content: space-between; position: relative; }
+  header h1 { font-family: 'Playfair Display', serif; font-size: 1.6rem; font-weight: 900; line-height: 1; }
   header h1 span { color: var(--caramel); }
+  .header-meta { font-family: 'DM Mono', monospace; font-size: 0.68rem; opacity: 0.55; letter-spacing: 0.06em; text-align: right; line-height: 1.6; }
 
-  .header-meta {
-    font-family: 'DM Mono', monospace;
-    font-size: 0.68rem;
-    opacity: 0.55;
-    letter-spacing: 0.06em;
-    text-align: right;
-    line-height: 1.6;
-  }
-
-  /* NAME BADGE */
-  .name-zone {
-    position: relative;
-    margin-top: 12px;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
+  .name-zone { margin-top: 12px; display: flex; align-items: center; gap: 8px; }
   #name-prompt {
-    font-size: 0.82rem;
-    opacity: 0.6;
-    cursor: pointer;
-    border: 1px dashed rgba(255,255,255,0.3);
-    border-radius: 100px;
-    padding: 5px 14px;
-    transition: all 0.15s;
+    font-size: 0.82rem; opacity: 0.6; cursor: pointer;
+    border: 1px dashed rgba(255,255,255,0.3); border-radius: 100px; padding: 5px 14px; transition: all 0.15s;
   }
   #name-prompt:hover { opacity: 1; border-color: var(--latte); }
-
   #my-name-badge {
-    display: none;
-    align-items: center;
-    gap: 6px;
-    background: rgba(255,255,255,0.1);
-    border: 1px solid rgba(255,255,255,0.2);
-    border-radius: 100px;
-    padding: 5px 14px;
-    font-size: 0.82rem;
-    cursor: pointer;
-    transition: all 0.15s;
-    backdrop-filter: blur(4px);
+    display: none; align-items: center; gap: 6px;
+    background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);
+    border-radius: 100px; padding: 5px 14px; font-size: 0.82rem; cursor: pointer; transition: all 0.15s;
   }
   #my-name-badge:hover { background: rgba(255,255,255,0.18); }
+  #total-badge { margin-left: auto; font-family: 'DM Mono', monospace; font-size: 0.7rem; color: var(--caramel); letter-spacing: 0.05em; }
 
-  #total-badge {
-    margin-left: auto;
-    font-family: 'DM Mono', monospace;
-    font-size: 0.7rem;
-    color: var(--caramel);
-    letter-spacing: 0.05em;
-  }
-
-  /* MAIN */
   .main { max-width: 640px; margin: 0 auto; padding: 16px 14px 110px; }
 
   .section-label {
-    font-family: 'DM Mono', monospace;
-    font-size: 0.68rem;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: var(--caramel);
-    margin: 20px 0 10px;
-    display: flex;
-    align-items: center;
-    gap: 8px;
+    font-family: 'DM Mono', monospace; font-size: 0.68rem; letter-spacing: 0.12em;
+    text-transform: uppercase; color: var(--caramel); margin: 20px 0 10px;
+    display: flex; align-items: center; gap: 8px;
   }
-  .section-label::after {
-    content: '';
-    flex: 1;
-    height: 1px;
-    background: linear-gradient(to right, var(--steam), transparent);
-  }
+  .section-label::after { content: ''; flex: 1; height: 1px; background: linear-gradient(to right, var(--steam), transparent); }
 
-  /* DRINKS */
-  .drinks-grid {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 9px;
-  }
+  .drinks-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 9px; }
 
   .drink-card {
-    background: white;
-    border: 1.5px solid var(--steam);
-    border-radius: 14px;
-    padding: 14px 12px;
-    cursor: pointer;
-    transition: all 0.15s ease;
-    position: relative;
-    user-select: none;
+    background: white; border: 1.5px solid var(--steam); border-radius: 14px;
+    padding: 14px 12px; cursor: pointer; transition: all 0.15s ease; position: relative; user-select: none;
   }
-  .drink-card:hover {
-    border-color: var(--latte);
-    box-shadow: 0 4px 14px rgba(107,61,34,0.08);
-    transform: translateY(-1px);
-  }
-  .drink-card.selected {
-    border-color: var(--caramel);
-    background: linear-gradient(135deg, #fff9f3, #fff);
-    box-shadow: 0 4px 18px rgba(192,120,48,0.14);
-  }
-  .drink-check {
-    position: absolute;
-    top: 8px; right: 8px;
-    width: 20px; height: 20px;
-    background: var(--caramel);
-    color: white;
-    border-radius: 50%;
+  .drink-card:hover { border-color: var(--latte); box-shadow: 0 4px 14px rgba(107,61,34,0.08); transform: translateY(-1px); }
+  .drink-card.selected { border-color: var(--caramel); background: linear-gradient(135deg,#fff9f3,#fff); box-shadow: 0 4px 18px rgba(192,120,48,0.14); }
+  .drink-check { position: absolute; top: 8px; right: 8px; width: 20px; height: 20px; background: var(--caramel); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.68rem; font-weight: 800; }
+  .drink-icon { font-size: 1.4rem; margin-bottom: 4px; }
+  .drink-name { font-weight: 600; font-size: 0.83rem; color: var(--espresso); line-height: 1.3; }
+
+  .delete-drink {
+    position: absolute; top: 6px; left: 8px; width: 20px; height: 20px;
+    background: #e74c3c; color: white; border-radius: 50%;
     display: flex; align-items: center; justify-content: center;
-    font-size: 0.68rem; font-weight: 800;
+    font-size: 0.62rem; font-weight: 800; z-index: 2; opacity: 0.85; transition: opacity 0.1s;
   }
-  .drink-icon { font-size: 1.6rem; margin-bottom: 4px; }
-  .drink-name { font-weight: 600; font-size: 0.87rem; color: var(--espresso); }
+  .delete-drink:hover { opacity: 1; }
 
   .add-drink-btn {
-    background: var(--foam);
-    border: 1.5px dashed var(--steam);
-    border-radius: 14px;
-    padding: 14px 12px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-    font-size: 0.83rem;
-    color: var(--bark);
-    font-weight: 500;
-    transition: all 0.15s;
-    grid-column: span 2;
+    background: var(--foam); border: 1.5px dashed var(--steam); border-radius: 14px;
+    padding: 13px 12px; cursor: pointer; display: flex; align-items: center; justify-content: center;
+    gap: 6px; font-size: 0.83rem; color: var(--bark); font-weight: 500; transition: all 0.15s; grid-column: span 2;
   }
   .add-drink-btn:hover { border-style: solid; border-color: var(--caramel); color: var(--caramel); }
+  .reset-btn { margin-top: -4px; font-size: 0.78rem; opacity: 0.65; }
 
-  /* SUMMARY */
-  .summary-panel {
-    background: white;
-    border: 1.5px solid var(--steam);
-    border-radius: 18px;
-    padding: 4px 0;
-    overflow: hidden;
-  }
-
-  .summary-group {
-    padding: 12px 16px;
-    border-bottom: 1px solid var(--foam);
-  }
+  .summary-panel { background: white; border: 1.5px solid var(--steam); border-radius: 18px; padding: 4px 0; overflow: hidden; }
+  .summary-group { padding: 12px 16px; border-bottom: 1px solid var(--foam); }
   .summary-group:last-child { border-bottom: none; }
-
-  .summary-group-header {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-bottom: 8px;
-  }
+  .summary-group-header { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
   .summary-icon { font-size: 1.1rem; }
-  .summary-drink {
-    font-weight: 700;
-    font-size: 0.9rem;
-    color: var(--espresso);
-    flex: 1;
-  }
-  .summary-count {
-    background: var(--caramel);
-    color: white;
-    border-radius: 100px;
-    padding: 2px 10px;
-    font-size: 0.75rem;
-    font-weight: 700;
-    font-family: 'DM Mono', monospace;
-  }
-
+  .summary-drink { font-weight: 700; font-size: 0.88rem; color: var(--espresso); flex: 1; }
+  .summary-count { background: var(--caramel); color: white; border-radius: 100px; padding: 2px 10px; font-size: 0.75rem; font-weight: 700; font-family: 'DM Mono', monospace; }
   .summary-people { display: flex; flex-wrap: wrap; gap: 5px; }
-
-  .person-chip {
-    background: var(--foam);
-    border: 1px solid var(--steam);
-    border-radius: 100px;
-    padding: 3px 10px;
-    font-size: 0.78rem;
-    font-weight: 500;
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-  }
-  .person-chip.mine {
-    background: #fff3e6;
-    border-color: var(--latte);
-    color: var(--bark);
-    font-weight: 600;
-  }
-  .remove-chip {
-    cursor: pointer;
-    color: var(--latte);
-    font-size: 0.7rem;
-    transition: color 0.1s;
-    margin-left: 2px;
-  }
+  .person-chip { background: var(--foam); border: 1px solid var(--steam); border-radius: 100px; padding: 3px 10px; font-size: 0.78rem; font-weight: 500; display: inline-flex; align-items: center; gap: 4px; }
+  .person-chip.mine { background: #fff3e6; border-color: var(--latte); color: var(--bark); font-weight: 600; }
+  .remove-chip { cursor: pointer; color: var(--latte); font-size: 0.7rem; transition: color 0.1s; }
   .remove-chip:hover { color: #c0392b; }
+  .empty-state { text-align: center; padding: 24px; color: var(--bark); opacity: 0.45; font-size: 0.85rem; font-style: italic; }
 
-  .empty-state {
-    text-align: center;
-    padding: 24px;
-    color: var(--bark);
-    opacity: 0.45;
-    font-size: 0.85rem;
-    font-style: italic;
-  }
-
-  /* CLEAR BTN */
-  .clear-btn {
-    background: none;
-    border: none;
-    font-size: 0.75rem;
-    color: var(--bark);
-    opacity: 0.4;
-    cursor: pointer;
-    padding: 2px 6px;
-    transition: opacity 0.15s;
-  }
+  .clear-btn { background: none; border: none; font-size: 0.75rem; color: var(--bark); opacity: 0.4; cursor: pointer; padding: 2px 6px; transition: opacity 0.15s; }
   .clear-btn:hover { opacity: 0.9; color: #c0392b; }
 
-  /* WS BTN */
   .ws-btn {
-    position: fixed;
-    bottom: 20px;
-    left: 50%;
-    transform: translateX(-50%);
-    background: #25d366;
-    color: white;
-    border: none;
-    border-radius: 100px;
-    padding: 15px 28px;
-    font-family: 'DM Sans', sans-serif;
-    font-size: 0.92rem;
-    font-weight: 600;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    box-shadow: 0 8px 28px rgba(37,211,102,0.32);
-    transition: all 0.2s ease;
-    white-space: nowrap;
-    z-index: 100;
+    position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+    background: #25d366; color: white; border: none; border-radius: 100px; padding: 15px 28px;
+    font-family: 'DM Sans', sans-serif; font-size: 0.92rem; font-weight: 600; cursor: pointer;
+    display: flex; align-items: center; gap: 10px;
+    box-shadow: 0 8px 28px rgba(37,211,102,0.32); transition: all 0.2s ease; white-space: nowrap; z-index: 100;
   }
   .ws-btn:hover { transform: translateX(-50%) translateY(-2px); box-shadow: 0 12px 36px rgba(37,211,102,0.4); }
   .ws-btn:disabled { background: var(--steam); color: #aaa; box-shadow: none; cursor: not-allowed; }
   .ws-btn:disabled:hover { transform: translateX(-50%); }
 
-  /* MODALS */
-  .modal-overlay {
-    display: none;
-    position: fixed;
-    inset: 0;
-    background: rgba(30,15,8,0.55);
-    z-index: 200;
-    align-items: center;
-    justify-content: center;
-    backdrop-filter: blur(3px);
-  }
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(30,15,8,0.55); z-index: 200; align-items: center; justify-content: center; backdrop-filter: blur(3px); }
   .modal-overlay.open { display: flex; }
-
-  .modal {
-    background: white;
-    border-radius: 22px;
-    padding: 24px;
-    width: min(320px, 90vw);
-    box-shadow: 0 30px 80px rgba(30,15,8,0.25);
-    animation: popIn 0.2s ease;
-  }
-  @keyframes popIn {
-    from { opacity: 0; transform: scale(0.94) translateY(8px); }
-    to   { opacity: 1; transform: scale(1) translateY(0); }
-  }
-
-  .modal h3 {
-    font-family: 'Playfair Display', serif;
-    font-size: 1.15rem;
-    margin-bottom: 16px;
-    color: var(--espresso);
-  }
-  .modal input {
-    width: 100%;
-    border: 1.5px solid var(--steam);
-    border-radius: 11px;
-    padding: 11px 14px;
-    font-family: 'DM Sans', sans-serif;
-    font-size: 0.9rem;
-    margin-bottom: 10px;
-    outline: none;
-    color: var(--ink);
-    transition: border-color 0.15s;
-  }
+  .modal { background: white; border-radius: 22px; padding: 24px; width: min(320px,90vw); box-shadow: 0 30px 80px rgba(30,15,8,0.25); animation: popIn 0.2s ease; }
+  @keyframes popIn { from { opacity:0; transform:scale(0.94) translateY(8px); } to { opacity:1; transform:scale(1) translateY(0); } }
+  .modal h3 { font-family: 'Playfair Display', serif; font-size: 1.15rem; margin-bottom: 16px; color: var(--espresso); }
+  .modal input { width: 100%; border: 1.5px solid var(--steam); border-radius: 11px; padding: 11px 14px; font-family: 'DM Sans', sans-serif; font-size: 0.9rem; margin-bottom: 10px; outline: none; color: var(--ink); transition: border-color 0.15s; }
   .modal input:focus { border-color: var(--caramel); }
-
   .modal-actions { display: flex; gap: 8px; }
-  .btn-primary {
-    flex: 1;
-    background: var(--espresso);
-    color: white;
-    border: none;
-    border-radius: 11px;
-    padding: 11px;
-    font-family: 'DM Sans', sans-serif;
-    font-weight: 600;
-    cursor: pointer;
-    font-size: 0.88rem;
-    transition: opacity 0.15s;
-  }
+  .btn-primary { flex:1; background:var(--espresso); color:white; border:none; border-radius:11px; padding:11px; font-family:'DM Sans',sans-serif; font-weight:600; cursor:pointer; font-size:0.88rem; transition:opacity 0.15s; }
   .btn-primary:hover { opacity: 0.82; }
-  .btn-secondary {
-    flex: 1;
-    background: var(--foam);
-    color: var(--bark);
-    border: 1.5px solid var(--steam);
-    border-radius: 11px;
-    padding: 11px;
-    font-family: 'DM Sans', sans-serif;
-    font-weight: 500;
-    cursor: pointer;
-    font-size: 0.88rem;
-  }
+  .btn-secondary { flex:1; background:var(--foam); color:var(--bark); border:1.5px solid var(--steam); border-radius:11px; padding:11px; font-family:'DM Sans',sans-serif; font-weight:500; cursor:pointer; font-size:0.88rem; }
 
-  /* LIVE INDICATOR */
-  .live-dot {
-    display: inline-block;
-    width: 7px; height: 7px;
-    background: #2ecc71;
-    border-radius: 50%;
-    margin-right: 5px;
-    animation: pulse 2s infinite;
-  }
-  @keyframes pulse {
-    0%, 100% { opacity: 1; transform: scale(1); }
-    50% { opacity: 0.5; transform: scale(0.8); }
-  }
+  .live-dot { display:inline-block; width:7px; height:7px; background:#2ecc71; border-radius:50%; margin-right:5px; animation:pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.5;transform:scale(0.8)} }
 </style>
 </head>
 <body>
-
-<!-- Setup banner (solo si no configuraste Firebase) -->
-<div id="setup-banner">
-  <div>
-    <strong>⚙️ Falta configurar Firebase</strong>
-    Abrí el HTML, buscá <code>firebaseConfig</code> y pegá tu config de Firebase.
-    La app funciona en modo demo hasta que lo hagas.
-  </div>
-</div>
 
 <header>
   <div class="header-top">
@@ -743,7 +403,6 @@
 </header>
 
 <div class="main">
-
   <div class="section-label">☕ ¿Qué tomás?</div>
   <div class="drinks-grid" id="drinks-grid">
     <div class="empty-state" style="grid-column:span 2">Cargando...</div>
@@ -756,10 +415,8 @@
   <div class="summary-panel" id="summary-panel">
     <div class="empty-state">Nadie pidió nada todavía 👀</div>
   </div>
-
 </div>
 
-<!-- BTN WS -->
 <button class="ws-btn" id="ws-btn" onclick="enviarWS()" disabled>
   <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
     <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
@@ -767,12 +424,10 @@
   Mandar al bar
 </button>
 
-<!-- MODAL NOMBRE -->
 <div class="modal-overlay" id="modal-name" onclick="if(event.target===this)closeModal('modal-name')">
   <div class="modal">
     <h3>¿Quién sos, crack? 🕶️</h3>
-    <input type="text" id="modal-name-input" placeholder="Tu nombre o apodo" maxlength="20"
-           autocomplete="off" autocorrect="off">
+    <input type="text" id="modal-name-input" placeholder="Tu nombre o apodo" maxlength="20" autocomplete="off" autocorrect="off">
     <div class="modal-actions">
       <button class="btn-secondary" onclick="closeModal('modal-name')">Cancelar</button>
       <button class="btn-primary" onclick="setName(document.getElementById('modal-name-input').value)">Dale</button>
@@ -780,11 +435,10 @@
   </div>
 </div>
 
-<!-- MODAL NUEVA BEBIDA -->
 <div class="modal-overlay" id="modal-drink" onclick="if(event.target===this)closeModal('modal-drink')">
   <div class="modal">
-    <h3>Nueva infusión ☕</h3>
-    <input type="text" id="new-drink-name" placeholder="Ej: Té verde, Submarino..." maxlength="25" autocomplete="off">
+    <h3>Nueva categoría ☕</h3>
+    <input type="text" id="new-drink-name" placeholder="Ej: Submarino, Té verde..." maxlength="35" autocomplete="off">
     <input type="text" id="new-drink-icon" placeholder="Emoji (opcional) 🍵🧉☕" maxlength="4">
     <div class="modal-actions">
       <button class="btn-secondary" onclick="closeModal('modal-drink')">Cancelar</button>
