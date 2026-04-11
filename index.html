@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Mesa de Galanes ☕</title>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
-
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
   import { getDatabase, ref, set, onValue, remove, push, get }
@@ -22,19 +21,16 @@
   };
 
   const ADMIN_NAME = 'Cris';
-
   const EXTRAS = ['Sin acompañamiento', '2 medialunas saladas', '2 medialunas dulces', 'Tostadas'];
-
   const DEFAULT_DRINKS = [
-    { id:'cafe',     name:'Café jarra',     icon:'☕', sub:'' },
-    { id:'cortado',  name:'Cortado jarra',  icon:'☕', sub:'' },
-    { id:'desayuno', name:'Desayuno',        icon:'🥐', sub:'Café con leche' },
-    { id:'te',       name:'Té / Mate cocido',icon:'🍵', sub:'' },
+    { id:'cafe',     name:'Cafe jarra',      icon:'☕', sub:'' },
+    { id:'cortado',  name:'Cortado jarra',   icon:'☕', sub:'' },
+    { id:'desayuno', name:'Desayuno',        icon:'🥐', sub:'Cafe con leche' },
+    { id:'te',       name:'Te / Mate cocido',icon:'🍵', sub:'' },
   ];
 
   const app = initializeApp(firebaseConfig);
   const db  = getDatabase(app);
-
   const ordersRef  = ref(db, 'pedido/orders');
   const drinksRef  = ref(db, 'pedido/drinks');
   const sessionRef = ref(db, 'pedido/session');
@@ -44,18 +40,17 @@
   let drinks       = [];
   let pendingDrink = null;
 
-  // ── Bootstrap ────────────────────────────────────────────
-  window.addEventListener('DOMContentLoaded', () => {
+  window.addEventListener('DOMContentLoaded', function() {
     updateClock();
     setInterval(updateClock, 30000);
 
-    onValue(drinksRef, snap => {
-      drinks = snap.exists() ? snap.val() : [...DEFAULT_DRINKS];
+    onValue(drinksRef, function(snap) {
+      drinks = snap.exists() ? snap.val() : DEFAULT_DRINKS.slice();
       if (!snap.exists()) set(drinksRef, drinks);
       renderDrinks();
     });
 
-    onValue(ordersRef, snap => {
+    onValue(ordersRef, function(snap) {
       orders = snap.exists() ? snap.val() : {};
       renderOrders();
     });
@@ -65,15 +60,14 @@
   });
 
   async function checkSession() {
-    const today = new Date().toISOString().slice(0,10);
-    const snap  = await get(sessionRef);
+    var today = new Date().toISOString().slice(0,10);
+    var snap  = await get(sessionRef);
     if (!snap.exists() || snap.val() !== today) {
       await set(ordersRef, null);
       await set(sessionRef, today);
     }
   }
 
-  // ── Nombre ───────────────────────────────────────────────
   window.setName = function(name) {
     myName = name.trim();
     if (!myName) return;
@@ -82,70 +76,70 @@
     renderMyName();
     renderDrinks();
   };
+
   window.changeName = function() {
     document.getElementById('modal-name-input').value = myName || '';
     openModal('modal-name');
   };
-  function isAdmin() { return myName === ADMIN_NAME; }
-
-  function renderMyName() {
-    const badge = document.getElementById('my-name-badge');
-    badge.innerHTML = (isAdmin() ? '⚙️ ' : '👤 ') + myName +
-      \`<span onclick="logout(event)" title="Cerrar sesión"
-        style="margin-left:8px;opacity:0.45;font-size:0.8rem;cursor:pointer;line-height:1"
-        onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.45">✕</span>\`;
-    badge.style.display = 'inline-flex';
-    badge.style.alignItems = 'center';
-    if (isAdmin()) badge.style.background = 'rgba(192,120,48,0.22)';
-    document.getElementById('name-prompt').style.display = 'none';
-  }
 
   window.logout = function(e) {
     e.stopPropagation();
     myName = null;
     localStorage.removeItem('galan_name');
-    const badge = document.getElementById('my-name-badge');
+    var badge = document.getElementById('my-name-badge');
     badge.style.display = 'none';
     badge.style.background = 'rgba(255,255,255,0.1)';
     document.getElementById('name-prompt').style.display = 'inline-flex';
     renderDrinks();
   };
 
-  // ── Selección de bebida → popup acompañamiento ───────────
+  function isAdmin() { return myName === ADMIN_NAME; }
+
+  function renderMyName() {
+    var badge = document.getElementById('my-name-badge');
+    var icon  = isAdmin() ? '⚙️ ' : '👤 ';
+    badge.innerHTML = icon + myName + ' <span class="logout-x" onclick="logout(event)">✕</span>';
+    badge.style.display = 'inline-flex';
+    badge.style.alignItems = 'center';
+    if (isAdmin()) badge.style.background = 'rgba(192,120,48,0.22)';
+    document.getElementById('name-prompt').style.display = 'none';
+  }
+
   window.selectDrink = function(idx) {
     if (!myName) { openNameModal(); return; }
-    const drink = drinks[idx];
-
-    // Toggle si ya lo pidió
-    const existing = Object.entries(orders).find(
-      ([, v]) => v.player === myName && v.drinkIdx === idx
-    );
+    var drink = drinks[idx];
+    var existing = null;
+    var entries = Object.entries(orders);
+    for (var i = 0; i < entries.length; i++) {
+      if (entries[i][1].player === myName && entries[i][1].drinkIdx === idx) {
+        existing = entries[i];
+        break;
+      }
+    }
     if (existing) {
-      remove(ref(db, `pedido/orders/${existing[0]}`));
+      remove(ref(db, 'pedido/orders/' + existing[0]));
       return;
     }
-
-    // Siempre pregunta acompañamiento
-    pendingDrink = { ...drink, idx };
-    const grid = document.getElementById('extras-grid');
-    grid.innerHTML = EXTRAS.map(e =>
-      `<button class="extra-btn" onclick="confirmOrder('${esc(e)}')">${e}</button>`
-    ).join('');
+    pendingDrink = Object.assign({}, drink, { idx: idx });
+    var grid = document.getElementById('extras-grid');
+    var html = '';
+    for (var j = 0; j < EXTRAS.length; j++) {
+      html += '<button class="extra-btn" onclick="confirmOrder(' + "'" + EXTRAS[j] + "'" + ')">' + EXTRAS[j] + '</button>';
+    }
+    grid.innerHTML = html;
     document.getElementById('modal-extra-title').textContent = drink.icon + ' ' + drink.name;
     openModal('modal-extra');
   };
 
   window.confirmOrder = async function(extra) {
     if (!pendingDrink) return;
-    const label = extra === 'Sin acompañamiento'
-      ? pendingDrink.name
-      : `${pendingDrink.name} + ${extra}`;
+    var label = (extra === 'Sin acompañamiento') ? pendingDrink.name : pendingDrink.name + ' + ' + extra;
     await push(ordersRef, {
       player:   myName,
       drinkIdx: pendingDrink.idx,
       drink:    label,
       icon:     pendingDrink.icon,
-      extra:    extra === 'Sin acompañamiento' ? null : extra,
+      extra:    (extra === 'Sin acompañamiento') ? null : extra,
       ts:       Date.now()
     });
     pendingDrink = null;
@@ -153,22 +147,21 @@
   };
 
   window.removeOrder = async function(key) {
-    await remove(ref(db, `pedido/orders/${key}`));
+    await remove(ref(db, 'pedido/orders/' + key));
   };
 
   window.clearAll = async function() {
-    if (!confirm('¿Limpiar todos los pedidos?')) return;
+    if (!confirm('Limpiar todos los pedidos?')) return;
     await set(ordersRef, null);
   };
 
-  // ── Drinks — cualquiera agrega, admin borra ──────────────
   window.addDrink = async function() {
-    const name = document.getElementById('new-drink-name').value.trim();
-    const icon = document.getElementById('new-drink-icon').value.trim() || '☕';
-    const sub  = document.getElementById('new-drink-sub').value.trim();
+    var name = document.getElementById('new-drink-name').value.trim();
+    var icon = document.getElementById('new-drink-icon').value.trim() || '☕';
+    var sub  = document.getElementById('new-drink-sub').value.trim();
     if (!name) return;
-    const newDrink = { id: 'custom_' + Date.now(), name, icon, sub };
-    await set(drinksRef, [...drinks, newDrink]);
+    var newDrink = { id: 'custom_' + Date.now(), name: name, icon: icon, sub: sub };
+    await set(drinksRef, drinks.concat([newDrink]));
     closeModal('modal-drink');
     document.getElementById('new-drink-name').value = '';
     document.getElementById('new-drink-icon').value = '';
@@ -178,114 +171,122 @@
   window.deleteDrink = async function(idx, e) {
     e.stopPropagation();
     if (!isAdmin()) return;
-    if (!confirm(`¿Eliminar "${drinks[idx].name}"?`)) return;
-    await set(drinksRef, drinks.filter((_, i) => i !== idx));
+    if (!confirm('Eliminar "' + drinks[idx].name + '"?')) return;
+    await set(drinksRef, drinks.filter(function(_, i) { return i !== idx; }));
   };
 
   window.resetDrinks = async function() {
-    if (!confirm('¿Restaurar las 4 categorías originales?')) return;
+    if (!confirm('Restaurar las 4 categorias originales?')) return;
     await set(drinksRef, DEFAULT_DRINKS);
   };
 
-  // ── Renders ──────────────────────────────────────────────
   function renderDrinks() {
-    const myDrinkIdxs = Object.values(orders)
-      .filter(o => o.player === myName)
-      .map(o => o.drinkIdx);
-
-    const admin = isAdmin();
-
-    document.getElementById('drinks-grid').innerHTML =
-      drinks.map((d, i) => {
-        const active   = myDrinkIdxs.includes(i);
-        const myOrder  = Object.values(orders).find(o => o.player === myName && o.drinkIdx === i);
-        return `
-          <div class="drink-card ${active ? 'selected' : ''}" onclick="selectDrink(${i})">
-            ${active ? '<div class="drink-check">✓</div>' : ''}
-            ${admin ? `<span class="delete-drink" onclick="deleteDrink(${i},event)">✕</span>` : ''}
-            <div class="drink-icon">${d.icon}</div>
-            <div class="drink-name">${d.name}</div>
-            ${d.sub ? `<div class="drink-sub">${d.sub}</div>` : ''}
-            ${active && myOrder && myOrder.extra
-              ? `<div class="drink-extra-tag">+ ${myOrder.extra}</div>`
-              : `<div class="drink-has-extras">+ acompañamiento</div>`}
-          </div>`;
-      }).join('') +
-      `<div class="add-drink-btn" onclick="openModal('modal-drink')"><span>+</span> Otra infusión</div>` +
-      (admin ? `<div class="add-drink-btn reset-btn" onclick="resetDrinks()">↺ Restaurar originales</div>` : '');
+    var myDrinkIdxs = Object.values(orders)
+      .filter(function(o) { return o.player === myName; })
+      .map(function(o) { return o.drinkIdx; });
+    var admin = isAdmin();
+    var html = '';
+    for (var i = 0; i < drinks.length; i++) {
+      var d = drinks[i];
+      var active = myDrinkIdxs.indexOf(i) !== -1;
+      var myOrder = null;
+      var vals = Object.values(orders);
+      for (var j = 0; j < vals.length; j++) {
+        if (vals[j].player === myName && vals[j].drinkIdx === i) { myOrder = vals[j]; break; }
+      }
+      html += '<div class="drink-card' + (active ? ' selected' : '') + '" onclick="selectDrink(' + i + ')">';
+      if (active)  html += '<div class="drink-check">✓</div>';
+      if (admin)   html += '<span class="delete-drink" onclick="deleteDrink(' + i + ',event)">✕</span>';
+      html += '<div class="drink-icon">' + d.icon + '</div>';
+      html += '<div class="drink-name">' + d.name + '</div>';
+      if (d.sub)   html += '<div class="drink-sub">' + d.sub + '</div>';
+      if (active && myOrder && myOrder.extra) {
+        html += '<div class="drink-extra-tag">+ ' + myOrder.extra + '</div>';
+      } else {
+        html += '<div class="drink-has-extras">+ acompañamiento</div>';
+      }
+      html += '</div>';
+    }
+    html += '<div class="add-drink-btn" onclick="openModal(\'modal-drink\')"><span>+</span> Otra infusion</div>';
+    if (admin) html += '<div class="add-drink-btn reset-btn" onclick="resetDrinks()">↺ Restaurar originales</div>';
+    document.getElementById('drinks-grid').innerHTML = html;
   }
 
   function renderOrders() {
     renderDrinks();
-    const total = Object.keys(orders).length;
-    document.getElementById('total-badge').textContent = total > 0 ? `${total} pedidos` : '';
+    var total = Object.keys(orders).length;
+    document.getElementById('total-badge').textContent = total > 0 ? total + ' pedidos' : '';
 
-    const groups = {};
-    Object.entries(orders).sort((a,b) => a[1].ts - b[1].ts).forEach(([key, o]) => {
+    var groups = {};
+    var entries = Object.entries(orders).sort(function(a,b){ return a[1].ts - b[1].ts; });
+    for (var i = 0; i < entries.length; i++) {
+      var key = entries[i][0], o = entries[i][1];
       if (!groups[o.drink]) groups[o.drink] = { icon: o.icon, items: [] };
-      groups[o.drink].items.push({ key, player: o.player });
-    });
+      groups[o.drink].items.push({ key: key, player: o.player });
+    }
 
-    const panel = document.getElementById('summary-panel');
-    if (!Object.keys(groups).length) {
-      panel.innerHTML = '<div class="empty-state">Nadie pidió nada todavía 👀</div>';
+    var panel = document.getElementById('summary-panel');
+    var gkeys = Object.keys(groups);
+    if (!gkeys.length) {
+      panel.innerHTML = '<div class="empty-state">Nadie pidio nada todavia 👀</div>';
     } else {
-      panel.innerHTML = Object.entries(groups).map(([drink, data]) => `
-        <div class="summary-group">
-          <div class="summary-group-header">
-            <span class="summary-icon">${data.icon}</span>
-            <span class="summary-drink">${drink}</span>
-            <span class="summary-count">${data.items.length}</span>
-          </div>
-          <div class="summary-people">
-            ${data.items.map(item => `
-              <span class="person-chip ${item.player === myName ? 'mine' : ''}">
-                ${item.player}
-                ${(item.player === myName || isAdmin())
-                  ? `<span class="remove-chip" onclick="removeOrder('${item.key}')">✕</span>`
-                  : ''}
-              </span>`).join('')}
-          </div>
-        </div>`).join('');
+      var html = '';
+      for (var k = 0; k < gkeys.length; k++) {
+        var drink = gkeys[k], data = groups[drink];
+        html += '<div class="summary-group">';
+        html += '<div class="summary-group-header">';
+        html += '<span class="summary-icon">' + data.icon + '</span>';
+        html += '<span class="summary-drink">' + drink + '</span>';
+        html += '<span class="summary-count">' + data.items.length + '</span>';
+        html += '</div><div class="summary-people">';
+        for (var m = 0; m < data.items.length; m++) {
+          var item = data.items[m];
+          var mine = item.player === myName;
+          var canRemove = mine || isAdmin();
+          html += '<span class="person-chip' + (mine ? ' mine' : '') + '">' + item.player;
+          if (canRemove) html += '<span class="remove-chip" onclick="removeOrder(\'' + item.key + '\')">✕</span>';
+          html += '</span>';
+        }
+        html += '</div></div>';
+      }
+      panel.innerHTML = html;
     }
     document.getElementById('ws-btn').disabled = total === 0;
   }
 
-  // ── WhatsApp ─────────────────────────────────────────────
   window.enviarWS = function() {
-    const now   = new Date();
-    const fecha = now.toLocaleDateString('es-AR', { weekday:'long', day:'numeric', month:'long' });
-    const hora  = now.toLocaleTimeString('es-AR', { hour:'2-digit', minute:'2-digit' });
-    const groups = {};
-    Object.values(orders).sort((a,b) => a.ts - b.ts).forEach(o => {
+    var now   = new Date();
+    var fecha = now.toLocaleDateString('es-AR', { weekday:'long', day:'numeric', month:'long' });
+    var hora  = now.toLocaleTimeString('es-AR', { hour:'2-digit', minute:'2-digit' });
+    var groups = {};
+    var vals = Object.values(orders).sort(function(a,b){ return a.ts - b.ts; });
+    for (var i = 0; i < vals.length; i++) {
+      var o = vals[i];
       if (!groups[o.drink]) groups[o.drink] = { icon: o.icon, players: [] };
       groups[o.drink].players.push(o.player);
-    });
-    let msg = `☕ *Pedido Mesa de Galanes*\n📅 ${fecha} · ${hora}\n\n`;
-    Object.entries(groups).forEach(([drink, data]) => {
-      msg += `${data.icon} *${drink}* (${data.players.length})\n   → ${data.players.join(', ')}\n`;
-    });
-    msg += `\n_Total: ${Object.keys(orders).length} pedidos_`;
-    window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
+    }
+    var msg = '☕ *Pedido Mesa de Galanes*\n📅 ' + fecha + ' · ' + hora + '\n\n';
+    var gkeys = Object.keys(groups);
+    for (var k = 0; k < gkeys.length; k++) {
+      var d = gkeys[k], g = groups[d];
+      msg += g.icon + ' *' + d + '* (' + g.players.length + ')\n   → ' + g.players.join(', ') + '\n';
+    }
+    msg += '\n_Total: ' + Object.keys(orders).length + ' pedidos_';
+    window.open('https://wa.me/?text=' + encodeURIComponent(msg), '_blank');
   };
 
-  // ── Utils ────────────────────────────────────────────────
-  function esc(s) { return (s||'').replace(/'/g, "\\'"); }
-
   function updateClock() {
-    const now   = new Date();
-    const dias  = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
-    const meses = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
-    document.getElementById('fecha-header').textContent =
-      `${dias[now.getDay()]} ${now.getDate()} ${meses[now.getMonth()]}`;
-    document.getElementById('hora-header').textContent =
-      now.toLocaleTimeString('es-AR', { hour:'2-digit', minute:'2-digit' });
+    var now   = new Date();
+    var dias  = ['Dom','Lun','Mar','Mie','Jue','Vie','Sab'];
+    var meses = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+    document.getElementById('fecha-header').textContent = dias[now.getDay()] + ' ' + now.getDate() + ' ' + meses[now.getMonth()];
+    document.getElementById('hora-header').textContent  = now.toLocaleTimeString('es-AR', { hour:'2-digit', minute:'2-digit' });
   }
 
   window.openModal = function(id) {
     document.getElementById(id).classList.add('open');
-    const inp = document.querySelector(`#${id} input`);
-    if (inp) setTimeout(() => inp.focus(), 100);
+    var inp = document.querySelector('#' + id + ' input');
+    if (inp) setTimeout(function(){ inp.focus(); }, 100);
   };
   window.closeModal = function(id) {
     document.getElementById(id).classList.remove('open');
@@ -297,25 +298,21 @@
   }
   window.openNameModal = openNameModal;
 
-  document.addEventListener('keydown', e => {
+  document.addEventListener('keydown', function(e) {
     if (e.key === 'Enter' && document.getElementById('modal-name').classList.contains('open'))
-      setName(document.getElementById('modal-name-input').value);
+      window.setName(document.getElementById('modal-name-input').value);
     if (e.key === 'Enter' && document.getElementById('modal-drink').classList.contains('open'))
-      addDrink();
+      window.addDrink();
     if (e.key === 'Escape')
-      document.querySelectorAll('.modal-overlay.open').forEach(m => m.classList.remove('open'));
+      document.querySelectorAll('.modal-overlay.open').forEach(function(m){ m.classList.remove('open'); });
   });
 </script>
-
 <style>
-  :root {
-    --cream: #f4ede3; --espresso: #1e0f08; --caramel: #c07830;
-    --latte: #d4a06a; --foam: #faf5ef; --bark: #6b3d22; --steam: #e2d4c4; --ink: #1a0d06;
-  }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { background: var(--cream); color: var(--ink); font-family: 'DM Sans', sans-serif; min-height: 100vh; }
+  :root { --cream:#f4ede3; --espresso:#1e0f08; --caramel:#c07830; --latte:#d4a06a; --foam:#faf5ef; --bark:#6b3d22; --steam:#e2d4c4; --ink:#1a0d06; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { background:var(--cream); color:var(--ink); font-family:'DM Sans',sans-serif; min-height:100vh; }
 
-  header { background: var(--espresso); color: var(--cream); padding: 20px 20px 16px; position: relative; overflow: hidden; }
+  header { background:var(--espresso); color:var(--cream); padding:20px 20px 16px; position:relative; overflow:hidden; }
   header::before { content:''; position:absolute; inset:0; background:repeating-linear-gradient(-55deg,transparent,transparent 18px,rgba(192,120,48,0.05) 18px,rgba(192,120,48,0.05) 19px); }
   .header-top { display:flex; align-items:center; justify-content:space-between; position:relative; }
   header h1 { font-family:'Playfair Display',serif; font-size:1.6rem; font-weight:900; line-height:1; }
@@ -327,28 +324,26 @@
   #name-prompt:hover { opacity:1; border-color:var(--latte); }
   #my-name-badge { display:none; align-items:center; gap:6px; background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.2); border-radius:100px; padding:5px 14px; font-size:0.82rem; cursor:pointer; transition:all 0.15s; }
   #my-name-badge:hover { background:rgba(255,255,255,0.18); }
+  .logout-x { opacity:0.45; font-size:0.8rem; margin-left:4px; transition:opacity 0.1s; }
+  .logout-x:hover { opacity:1; }
   #total-badge { margin-left:auto; font-family:'DM Mono',monospace; font-size:0.7rem; color:var(--caramel); letter-spacing:0.05em; }
 
   .main { max-width:640px; margin:0 auto; padding:16px 14px 110px; }
-
   .section-label { font-family:'DM Mono',monospace; font-size:0.68rem; letter-spacing:0.12em; text-transform:uppercase; color:var(--caramel); margin:20px 0 12px; display:flex; align-items:center; gap:8px; }
   .section-label::after { content:''; flex:1; height:1px; background:linear-gradient(to right,var(--steam),transparent); }
 
   .drinks-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:10px; }
-
   .drink-card { background:white; border:1.5px solid var(--steam); border-radius:16px; padding:16px 14px 14px; cursor:pointer; transition:all 0.15s ease; position:relative; user-select:none; min-height:110px; display:flex; flex-direction:column; gap:3px; }
   .drink-card:hover { border-color:var(--latte); box-shadow:0 4px 16px rgba(107,61,34,0.09); transform:translateY(-1px); }
   .drink-card.selected { border-color:var(--caramel); background:linear-gradient(135deg,#fff9f3,#fff); box-shadow:0 4px 20px rgba(192,120,48,0.15); }
-
   .drink-check { position:absolute; top:10px; right:10px; width:22px; height:22px; background:var(--caramel); color:white; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:0.7rem; font-weight:800; }
-  .delete-drink { position:absolute; top:6px; left:8px; width:20px; height:20px; background:#e74c3c; color:white; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:0.62rem; font-weight:800; z-index:2; opacity:0.85; transition:opacity 0.1s; }
+  .delete-drink { position:absolute; top:6px; left:8px; width:20px; height:20px; background:#e74c3c; color:white; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:0.62rem; font-weight:800; z-index:2; opacity:0.85; }
   .delete-drink:hover { opacity:1; }
-
   .drink-icon { font-size:1.7rem; }
   .drink-name { font-weight:700; font-size:0.92rem; color:var(--espresso); line-height:1.2; margin-top:4px; }
   .drink-sub { font-size:0.72rem; color:var(--bark); opacity:0.65; }
-  .drink-has-extras { margin-top:auto; font-size:0.7rem; color:var(--caramel); font-family:'DM Mono',monospace; letter-spacing:0.03em; opacity:0.75; }
-  .drink-extra-tag { margin-top:auto; font-size:0.75rem; font-weight:600; color:var(--bark); background:#fff3e0; border-radius:6px; padding:2px 7px; display:inline-block; width:fit-content; }
+  .drink-has-extras { margin-top:auto; font-size:0.7rem; color:var(--caramel); font-family:'DM Mono',monospace; opacity:0.75; }
+  .drink-extra-tag { margin-top:auto; font-size:0.75rem; font-weight:600; color:var(--bark); background:#fff3e0; border-radius:6px; padding:2px 7px; display:inline-block; }
 
   .add-drink-btn { background:var(--foam); border:1.5px dashed var(--steam); border-radius:14px; padding:13px 12px; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px; font-size:0.83rem; color:var(--bark); font-weight:500; transition:all 0.15s; grid-column:span 2; }
   .add-drink-btn:hover { border-style:solid; border-color:var(--caramel); color:var(--caramel); }
@@ -364,15 +359,14 @@
   .summary-people { display:flex; flex-wrap:wrap; gap:5px; }
   .person-chip { background:var(--foam); border:1px solid var(--steam); border-radius:100px; padding:3px 10px; font-size:0.78rem; font-weight:500; display:inline-flex; align-items:center; gap:4px; }
   .person-chip.mine { background:#fff3e6; border-color:var(--latte); color:var(--bark); font-weight:600; }
-  .remove-chip { cursor:pointer; color:var(--latte); font-size:0.7rem; transition:color 0.1s; }
+  .remove-chip { cursor:pointer; color:var(--latte); font-size:0.7rem; }
   .remove-chip:hover { color:#c0392b; }
   .empty-state { text-align:center; padding:24px; color:var(--bark); opacity:0.45; font-size:0.85rem; font-style:italic; }
-
-  .clear-btn { background:none; border:none; font-size:0.75rem; color:var(--bark); opacity:0.4; cursor:pointer; padding:2px 6px; transition:opacity 0.15s; }
+  .clear-btn { background:none; border:none; font-size:0.75rem; color:var(--bark); opacity:0.4; cursor:pointer; padding:2px 6px; }
   .clear-btn:hover { opacity:0.9; color:#c0392b; }
 
   .ws-btn { position:fixed; bottom:20px; left:50%; transform:translateX(-50%); background:#25d366; color:white; border:none; border-radius:100px; padding:15px 28px; font-family:'DM Sans',sans-serif; font-size:0.92rem; font-weight:600; cursor:pointer; display:flex; align-items:center; gap:10px; box-shadow:0 8px 28px rgba(37,211,102,0.32); transition:all 0.2s ease; white-space:nowrap; z-index:100; }
-  .ws-btn:hover { transform:translateX(-50%) translateY(-2px); box-shadow:0 12px 36px rgba(37,211,102,0.4); }
+  .ws-btn:hover { transform:translateX(-50%) translateY(-2px); }
   .ws-btn:disabled { background:var(--steam); color:#aaa; box-shadow:none; cursor:not-allowed; }
   .ws-btn:disabled:hover { transform:translateX(-50%); }
 
@@ -382,23 +376,22 @@
   @keyframes popIn { from{opacity:0;transform:scale(0.94) translateY(8px)} to{opacity:1;transform:scale(1) translateY(0)} }
   .modal h3 { font-family:'Playfair Display',serif; font-size:1.1rem; margin-bottom:6px; color:var(--espresso); }
   .modal-sub { font-size:0.8rem; color:var(--bark); opacity:0.7; margin-bottom:16px; }
-  .modal input { width:100%; border:1.5px solid var(--steam); border-radius:11px; padding:11px 14px; font-family:'DM Sans',sans-serif; font-size:0.9rem; margin-bottom:10px; outline:none; color:var(--ink); transition:border-color 0.15s; }
+  .modal input { width:100%; border:1.5px solid var(--steam); border-radius:11px; padding:11px 14px; font-family:'DM Sans',sans-serif; font-size:0.9rem; margin-bottom:10px; outline:none; color:var(--ink); }
   .modal input:focus { border-color:var(--caramel); }
   .modal-actions { display:flex; gap:8px; margin-top:4px; }
-  .btn-primary { flex:1; background:var(--espresso); color:white; border:none; border-radius:11px; padding:11px; font-family:'DM Sans',sans-serif; font-weight:600; cursor:pointer; font-size:0.88rem; transition:opacity 0.15s; }
+  .btn-primary { flex:1; background:var(--espresso); color:white; border:none; border-radius:11px; padding:11px; font-family:'DM Sans',sans-serif; font-weight:600; cursor:pointer; font-size:0.88rem; }
   .btn-primary:hover { opacity:0.82; }
   .btn-secondary { flex:1; background:var(--foam); color:var(--bark); border:1.5px solid var(--steam); border-radius:11px; padding:11px; font-family:'DM Sans',sans-serif; font-weight:500; cursor:pointer; font-size:0.88rem; }
 
   .extras-grid { display:flex; flex-direction:column; gap:8px; }
   .extra-btn { background:var(--foam); border:1.5px solid var(--steam); border-radius:12px; padding:12px 16px; font-family:'DM Sans',sans-serif; font-size:0.9rem; font-weight:500; color:var(--ink); cursor:pointer; text-align:left; transition:all 0.15s; }
-  .extra-btn:hover { border-color:var(--caramel); background:#fff9f3; color:var(--bark); transform:translateX(3px); }
+  .extra-btn:hover { border-color:var(--caramel); background:#fff9f3; }
 
   .live-dot { display:inline-block; width:7px; height:7px; background:#2ecc71; border-radius:50%; margin-right:5px; animation:pulse 2s infinite; }
-  @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.5;transform:scale(0.8)} }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
 </style>
 </head>
 <body>
-
 <header>
   <div class="header-top">
     <h1>Mesa de <span>Galanes</span> ☕</h1>
@@ -408,36 +401,32 @@
     </div>
   </div>
   <div class="name-zone">
-    <div id="name-prompt" onclick="openNameModal()">👤 ¿Quién sos?</div>
+    <div id="name-prompt" onclick="openNameModal()">👤 Quien sos?</div>
     <div id="my-name-badge" onclick="changeName()"></div>
     <span id="total-badge"></span>
   </div>
 </header>
 
 <div class="main">
-  <div class="section-label">☕ ¿Qué tomás?</div>
+  <div class="section-label">☕ Que tomas?</div>
   <div class="drinks-grid" id="drinks-grid"></div>
-
   <div class="section-label" style="margin-top:24px">
     <span class="live-dot"></span>Pedidos en vivo
     <button class="clear-btn" onclick="clearAll()">limpiar todo</button>
   </div>
   <div class="summary-panel" id="summary-panel">
-    <div class="empty-state">Nadie pidió nada todavía 👀</div>
+    <div class="empty-state">Nadie pidio nada todavia 👀</div>
   </div>
 </div>
 
 <button class="ws-btn" id="ws-btn" onclick="enviarWS()" disabled>
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
-  </svg>
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
   Mandar al bar
 </button>
 
-<!-- MODAL NOMBRE -->
 <div class="modal-overlay" id="modal-name" onclick="if(event.target===this)closeModal('modal-name')">
   <div class="modal">
-    <h3>¿Quién sos, crack? 🕶️</h3>
+    <h3>Quien sos, crack? 🕶️</h3>
     <input type="text" id="modal-name-input" placeholder="Tu nombre o apodo" maxlength="20" autocomplete="off" autocorrect="off">
     <div class="modal-actions">
       <button class="btn-secondary" onclick="closeModal('modal-name')">Cancelar</button>
@@ -446,11 +435,10 @@
   </div>
 </div>
 
-<!-- MODAL ACOMPAÑAMIENTO -->
 <div class="modal-overlay" id="modal-extra" onclick="if(event.target===this)closeModal('modal-extra')">
   <div class="modal">
     <h3 id="modal-extra-title">☕</h3>
-    <p class="modal-sub">¿Con qué acompañamiento?</p>
+    <p class="modal-sub">Con que acompañamiento?</p>
     <div class="extras-grid" id="extras-grid"></div>
     <div class="modal-actions" style="margin-top:12px">
       <button class="btn-secondary" onclick="closeModal('modal-extra')">Cancelar</button>
@@ -458,19 +446,17 @@
   </div>
 </div>
 
-<!-- MODAL NUEVA INFUSIÓN -->
 <div class="modal-overlay" id="modal-drink" onclick="if(event.target===this)closeModal('modal-drink')">
   <div class="modal">
-    <h3>Nueva infusión ☕</h3>
+    <h3>Nueva infusion ☕</h3>
     <input type="text" id="new-drink-name" placeholder="Nombre (ej: Submarino)" maxlength="30" autocomplete="off">
     <input type="text" id="new-drink-icon" placeholder="Emoji (opcional) 🍵🧉☕" maxlength="4">
-    <input type="text" id="new-drink-sub"  placeholder="Descripción opcional" maxlength="30">
+    <input type="text" id="new-drink-sub"  placeholder="Descripcion opcional" maxlength="30">
     <div class="modal-actions">
       <button class="btn-secondary" onclick="closeModal('modal-drink')">Cancelar</button>
       <button class="btn-primary" onclick="addDrink()">Agregar</button>
     </div>
   </div>
 </div>
-
 </body>
 </html>
