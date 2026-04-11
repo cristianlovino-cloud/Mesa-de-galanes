@@ -90,6 +90,7 @@
     badge.style.display = 'none';
     badge.style.background = 'rgba(255,255,255,0.1)';
     document.getElementById('name-prompt').style.display = 'inline-flex';
+    document.getElementById('ws-btn').style.display = 'none';
     renderDrinks();
   };
 
@@ -103,6 +104,8 @@
     badge.style.alignItems = 'center';
     if (isAdmin()) badge.style.background = 'rgba(192,120,48,0.22)';
     document.getElementById('name-prompt').style.display = 'none';
+    // mostrar boton WS solo al admin
+    document.getElementById('ws-btn').style.display = isAdmin() ? 'flex' : 'none';
   }
 
   window.selectDrink = function(idx) {
@@ -251,7 +254,9 @@
       }
       panel.innerHTML = html;
     }
-    document.getElementById('ws-btn').disabled = total === 0;
+    var wsBtn = document.getElementById('ws-btn');
+    wsBtn.disabled = total === 0;
+    wsBtn.style.display = isAdmin() ? 'flex' : 'none';
   }
 
   window.enviarWS = function() {
