@@ -256,7 +256,7 @@
     }
     var wsBtn = document.getElementById('ws-btn');
     wsBtn.disabled = total === 0;
-    wsBtn.style.display = isAdmin() ? 'flex' : 'none';
+    wsBtn.style.display = isAdmin() && total > 0 ? 'flex' : 'none';
   }
 
   window.enviarWS = function() {
