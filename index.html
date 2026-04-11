@@ -90,11 +90,26 @@
 
   function renderMyName() {
     const badge = document.getElementById('my-name-badge');
-    badge.innerHTML = (isAdmin() ? '⚙️ ' : '👤 ') + myName;
+    badge.innerHTML = (isAdmin() ? '⚙️ ' : '👤 ') + myName +
+      \`<span onclick="logout(event)" title="Cerrar sesión"
+        style="margin-left:8px;opacity:0.45;font-size:0.8rem;cursor:pointer;line-height:1"
+        onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.45">✕</span>\`;
     badge.style.display = 'inline-flex';
+    badge.style.alignItems = 'center';
     if (isAdmin()) badge.style.background = 'rgba(192,120,48,0.22)';
     document.getElementById('name-prompt').style.display = 'none';
   }
+
+  window.logout = function(e) {
+    e.stopPropagation();
+    myName = null;
+    localStorage.removeItem('galan_name');
+    const badge = document.getElementById('my-name-badge');
+    badge.style.display = 'none';
+    badge.style.background = 'rgba(255,255,255,0.1)';
+    document.getElementById('name-prompt').style.display = 'inline-flex';
+    renderDrinks();
+  };
 
   // ── Selección de bebida → popup acompañamiento ───────────
   window.selectDrink = function(idx) {
