@@ -23,49 +23,37 @@
 
   const ADMIN_NAME = 'Cris';
 
-  const DRINKS = [
-    {
-      id: 'cafe',
-      name: 'Café jarra',
-      icon: '☕',
-      extras: null  // sin acompañamiento
-    },
-    {
-      id: 'cortado',
-      name: 'Cortado jarra',
-      icon: '☕',
-      extras: null
-    },
-    {
-      id: 'desayuno',
-      name: 'Desayuno',
-      icon: '🥐',
-      sub: 'Café con leche',
-      extras: ['Sin acompañamiento', '2 medialunas saladas', '2 medialunas dulces', 'Tostadas']
-    },
-    {
-      id: 'te',
-      name: 'Té / Mate cocido',
-      icon: '🍵',
-      extras: ['Sin acompañamiento', '2 medialunas saladas', '2 medialunas dulces', 'Tostadas']
-    },
+  const EXTRAS = ['Sin acompañamiento', '2 medialunas saladas', '2 medialunas dulces', 'Tostadas'];
+
+  const DEFAULT_DRINKS = [
+    { id:'cafe',     name:'Café jarra',     icon:'☕', sub:'' },
+    { id:'cortado',  name:'Cortado jarra',  icon:'☕', sub:'' },
+    { id:'desayuno', name:'Desayuno',        icon:'🥐', sub:'Café con leche' },
+    { id:'te',       name:'Té / Mate cocido',icon:'🍵', sub:'' },
   ];
 
   const app = initializeApp(firebaseConfig);
   const db  = getDatabase(app);
 
   const ordersRef  = ref(db, 'pedido/orders');
+  const drinksRef  = ref(db, 'pedido/drinks');
   const sessionRef = ref(db, 'pedido/session');
 
-  let myName    = localStorage.getItem('galan_name') || null;
-  let orders    = {};
-  let pendingDrink = null; // bebida esperando selección de extra
+  let myName       = localStorage.getItem('galan_name') || null;
+  let orders       = {};
+  let drinks       = [];
+  let pendingDrink = null;
 
   // ── Bootstrap ────────────────────────────────────────────
   window.addEventListener('DOMContentLoaded', () => {
     updateClock();
     setInterval(updateClock, 30000);
-    renderDrinks();
+
+    onValue(drinksRef, snap => {
+      drinks = snap.exists() ? snap.val() : [...DEFAULT_DRINKS];
+      if (!snap.exists()) set(drinksRef, drinks);
+      renderDrinks();
+    });
 
     onValue(ordersRef, snap => {
       orders = snap.exists() ? snap.val() : {};
@@ -99,60 +87,55 @@
     openModal('modal-name');
   };
   function isAdmin() { return myName === ADMIN_NAME; }
+
   function renderMyName() {
     const badge = document.getElementById('my-name-badge');
     badge.innerHTML = (isAdmin() ? '⚙️ ' : '👤 ') + myName;
     badge.style.display = 'inline-flex';
+    if (isAdmin()) badge.style.background = 'rgba(192,120,48,0.22)';
     document.getElementById('name-prompt').style.display = 'none';
   }
 
-  // ── Selección de bebida ──────────────────────────────────
-  window.selectDrink = function(id) {
+  // ── Selección de bebida → popup acompañamiento ───────────
+  window.selectDrink = function(idx) {
     if (!myName) { openNameModal(); return; }
+    const drink = drinks[idx];
 
-    const drink = DRINKS.find(d => d.id === id);
-
-    // Toggle: si ya tiene ese pedido (sin importar extra), lo quita
+    // Toggle si ya lo pidió
     const existing = Object.entries(orders).find(
-      ([, v]) => v.player === myName && v.drinkId === id
+      ([, v]) => v.player === myName && v.drinkIdx === idx
     );
     if (existing) {
       remove(ref(db, `pedido/orders/${existing[0]}`));
       return;
     }
 
-    if (drink.extras) {
-      // Mostrar popup de extras
-      pendingDrink = drink;
-      const grid = document.getElementById('extras-grid');
-      grid.innerHTML = drink.extras.map(e =>
-        `<button class="extra-btn" onclick="confirmOrder('${esc(e)}')">${e}</button>`
-      ).join('');
-      document.getElementById('modal-extra-title').textContent = drink.icon + ' ' + drink.name;
-      openModal('modal-extra');
-    } else {
-      pushOrder(drink, null);
-    }
+    // Siempre pregunta acompañamiento
+    pendingDrink = { ...drink, idx };
+    const grid = document.getElementById('extras-grid');
+    grid.innerHTML = EXTRAS.map(e =>
+      `<button class="extra-btn" onclick="confirmOrder('${esc(e)}')">${e}</button>`
+    ).join('');
+    document.getElementById('modal-extra-title').textContent = drink.icon + ' ' + drink.name;
+    openModal('modal-extra');
   };
 
-  window.confirmOrder = function(extra) {
+  window.confirmOrder = async function(extra) {
     if (!pendingDrink) return;
-    pushOrder(pendingDrink, extra === 'Sin acompañamiento' ? null : extra);
+    const label = extra === 'Sin acompañamiento'
+      ? pendingDrink.name
+      : `${pendingDrink.name} + ${extra}`;
+    await push(ordersRef, {
+      player:   myName,
+      drinkIdx: pendingDrink.idx,
+      drink:    label,
+      icon:     pendingDrink.icon,
+      extra:    extra === 'Sin acompañamiento' ? null : extra,
+      ts:       Date.now()
+    });
     pendingDrink = null;
     closeModal('modal-extra');
   };
-
-  async function pushOrder(drink, extra) {
-    const label = extra ? `${drink.name} + ${extra}` : drink.name;
-    await push(ordersRef, {
-      player:  myName,
-      drinkId: drink.id,
-      drink:   label,
-      icon:    drink.icon,
-      extra:   extra || null,
-      ts:      Date.now()
-    });
-  }
 
   window.removeOrder = async function(key) {
     await remove(ref(db, `pedido/orders/${key}`));
@@ -163,28 +146,58 @@
     await set(ordersRef, null);
   };
 
+  // ── Drinks — cualquiera agrega, admin borra ──────────────
+  window.addDrink = async function() {
+    const name = document.getElementById('new-drink-name').value.trim();
+    const icon = document.getElementById('new-drink-icon').value.trim() || '☕';
+    const sub  = document.getElementById('new-drink-sub').value.trim();
+    if (!name) return;
+    const newDrink = { id: 'custom_' + Date.now(), name, icon, sub };
+    await set(drinksRef, [...drinks, newDrink]);
+    closeModal('modal-drink');
+    document.getElementById('new-drink-name').value = '';
+    document.getElementById('new-drink-icon').value = '';
+    document.getElementById('new-drink-sub').value  = '';
+  };
+
+  window.deleteDrink = async function(idx, e) {
+    e.stopPropagation();
+    if (!isAdmin()) return;
+    if (!confirm(`¿Eliminar "${drinks[idx].name}"?`)) return;
+    await set(drinksRef, drinks.filter((_, i) => i !== idx));
+  };
+
+  window.resetDrinks = async function() {
+    if (!confirm('¿Restaurar las 4 categorías originales?')) return;
+    await set(drinksRef, DEFAULT_DRINKS);
+  };
+
   // ── Renders ──────────────────────────────────────────────
   function renderDrinks() {
-    const myDrinkIds = Object.values(orders)
+    const myDrinkIdxs = Object.values(orders)
       .filter(o => o.player === myName)
-      .map(o => o.drinkId);
+      .map(o => o.drinkIdx);
 
-    document.getElementById('drinks-grid').innerHTML = DRINKS.map(d => {
-      const active = myDrinkIds.includes(d.id);
-      // Si tiene pedido, mostrar qué pidió
-      const myOrder = Object.values(orders).find(o => o.player === myName && o.drinkId === d.id);
-      return `
-        <div class="drink-card ${active ? 'selected' : ''}" onclick="selectDrink('${d.id}')">
-          ${active ? '<div class="drink-check">✓</div>' : ''}
-          <div class="drink-icon">${d.icon}</div>
-          <div class="drink-name">${d.name}</div>
-          ${d.sub ? `<div class="drink-sub">${d.sub}</div>` : ''}
-          ${active && myOrder && myOrder.extra
-            ? `<div class="drink-extra-tag">+ ${myOrder.extra}</div>`
-            : ''}
-          ${d.extras ? '<div class="drink-has-extras">+ acompañamiento</div>' : ''}
-        </div>`;
-    }).join('');
+    const admin = isAdmin();
+
+    document.getElementById('drinks-grid').innerHTML =
+      drinks.map((d, i) => {
+        const active   = myDrinkIdxs.includes(i);
+        const myOrder  = Object.values(orders).find(o => o.player === myName && o.drinkIdx === i);
+        return `
+          <div class="drink-card ${active ? 'selected' : ''}" onclick="selectDrink(${i})">
+            ${active ? '<div class="drink-check">✓</div>' : ''}
+            ${admin ? `<span class="delete-drink" onclick="deleteDrink(${i},event)">✕</span>` : ''}
+            <div class="drink-icon">${d.icon}</div>
+            <div class="drink-name">${d.name}</div>
+            ${d.sub ? `<div class="drink-sub">${d.sub}</div>` : ''}
+            ${active && myOrder && myOrder.extra
+              ? `<div class="drink-extra-tag">+ ${myOrder.extra}</div>`
+              : `<div class="drink-has-extras">+ acompañamiento</div>`}
+          </div>`;
+      }).join('') +
+      `<div class="add-drink-btn" onclick="openModal('modal-drink')"><span>+</span> Otra infusión</div>` +
+      (admin ? `<div class="add-drink-btn reset-btn" onclick="resetDrinks()">↺ Restaurar originales</div>` : '');
   }
 
   function renderOrders() {
@@ -192,7 +205,6 @@
     const total = Object.keys(orders).length;
     document.getElementById('total-badge').textContent = total > 0 ? `${total} pedidos` : '';
 
-    // Agrupar por drink label completo
     const groups = {};
     Object.entries(orders).sort((a,b) => a[1].ts - b[1].ts).forEach(([key, o]) => {
       if (!groups[o.drink]) groups[o.drink] = { icon: o.icon, items: [] };
@@ -273,6 +285,8 @@
   document.addEventListener('keydown', e => {
     if (e.key === 'Enter' && document.getElementById('modal-name').classList.contains('open'))
       setName(document.getElementById('modal-name-input').value);
+    if (e.key === 'Enter' && document.getElementById('modal-drink').classList.contains('open'))
+      addDrink();
     if (e.key === 'Escape')
       document.querySelectorAll('.modal-overlay.open').forEach(m => m.classList.remove('open'));
   });
@@ -280,134 +294,90 @@
 
 <style>
   :root {
-    --cream: #f4ede3;
-    --espresso: #1e0f08;
-    --caramel: #c07830;
-    --latte: #d4a06a;
-    --foam: #faf5ef;
-    --bark: #6b3d22;
-    --steam: #e2d4c4;
-    --ink: #1a0d06;
+    --cream: #f4ede3; --espresso: #1e0f08; --caramel: #c07830;
+    --latte: #d4a06a; --foam: #faf5ef; --bark: #6b3d22; --steam: #e2d4c4; --ink: #1a0d06;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { background: var(--cream); color: var(--ink); font-family: 'DM Sans', sans-serif; min-height: 100vh; }
 
-  header {
-    background: var(--espresso); color: var(--cream);
-    padding: 20px 20px 16px; position: relative; overflow: hidden;
-  }
-  header::before {
-    content: ''; position: absolute; inset: 0;
-    background: repeating-linear-gradient(-55deg, transparent, transparent 18px,
-      rgba(192,120,48,0.05) 18px, rgba(192,120,48,0.05) 19px);
-  }
-  .header-top { display: flex; align-items: center; justify-content: space-between; position: relative; }
-  header h1 { font-family: 'Playfair Display', serif; font-size: 1.6rem; font-weight: 900; line-height: 1; }
-  header h1 span { color: var(--caramel); }
-  .header-meta { font-family: 'DM Mono', monospace; font-size: 0.68rem; opacity: 0.55; letter-spacing: 0.06em; text-align: right; line-height: 1.6; }
+  header { background: var(--espresso); color: var(--cream); padding: 20px 20px 16px; position: relative; overflow: hidden; }
+  header::before { content:''; position:absolute; inset:0; background:repeating-linear-gradient(-55deg,transparent,transparent 18px,rgba(192,120,48,0.05) 18px,rgba(192,120,48,0.05) 19px); }
+  .header-top { display:flex; align-items:center; justify-content:space-between; position:relative; }
+  header h1 { font-family:'Playfair Display',serif; font-size:1.6rem; font-weight:900; line-height:1; }
+  header h1 span { color:var(--caramel); }
+  .header-meta { font-family:'DM Mono',monospace; font-size:0.68rem; opacity:0.55; letter-spacing:0.06em; text-align:right; line-height:1.6; }
 
-  .name-zone { margin-top: 12px; display: flex; align-items: center; gap: 8px; }
-  #name-prompt { font-size: 0.82rem; opacity: 0.6; cursor: pointer; border: 1px dashed rgba(255,255,255,0.3); border-radius: 100px; padding: 5px 14px; transition: all 0.15s; }
-  #name-prompt:hover { opacity: 1; border-color: var(--latte); }
-  #my-name-badge { display: none; align-items: center; gap: 6px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); border-radius: 100px; padding: 5px 14px; font-size: 0.82rem; cursor: pointer; transition: all 0.15s; }
-  #my-name-badge:hover { background: rgba(255,255,255,0.18); }
-  #total-badge { margin-left: auto; font-family: 'DM Mono', monospace; font-size: 0.7rem; color: var(--caramel); letter-spacing: 0.05em; }
+  .name-zone { margin-top:12px; display:flex; align-items:center; gap:8px; }
+  #name-prompt { font-size:0.82rem; opacity:0.6; cursor:pointer; border:1px dashed rgba(255,255,255,0.3); border-radius:100px; padding:5px 14px; transition:all 0.15s; }
+  #name-prompt:hover { opacity:1; border-color:var(--latte); }
+  #my-name-badge { display:none; align-items:center; gap:6px; background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.2); border-radius:100px; padding:5px 14px; font-size:0.82rem; cursor:pointer; transition:all 0.15s; }
+  #my-name-badge:hover { background:rgba(255,255,255,0.18); }
+  #total-badge { margin-left:auto; font-family:'DM Mono',monospace; font-size:0.7rem; color:var(--caramel); letter-spacing:0.05em; }
 
-  .main { max-width: 640px; margin: 0 auto; padding: 16px 14px 110px; }
+  .main { max-width:640px; margin:0 auto; padding:16px 14px 110px; }
 
-  .section-label {
-    font-family: 'DM Mono', monospace; font-size: 0.68rem; letter-spacing: 0.12em;
-    text-transform: uppercase; color: var(--caramel); margin: 20px 0 12px;
-    display: flex; align-items: center; gap: 8px;
-  }
-  .section-label::after { content: ''; flex: 1; height: 1px; background: linear-gradient(to right, var(--steam), transparent); }
+  .section-label { font-family:'DM Mono',monospace; font-size:0.68rem; letter-spacing:0.12em; text-transform:uppercase; color:var(--caramel); margin:20px 0 12px; display:flex; align-items:center; gap:8px; }
+  .section-label::after { content:''; flex:1; height:1px; background:linear-gradient(to right,var(--steam),transparent); }
 
-  /* DRINKS GRID — 2 columnas */
-  .drinks-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .drinks-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:10px; }
 
-  .drink-card {
-    background: white; border: 1.5px solid var(--steam); border-radius: 16px;
-    padding: 16px 14px 14px; cursor: pointer; transition: all 0.15s ease;
-    position: relative; user-select: none; min-height: 110px;
-    display: flex; flex-direction: column; gap: 3px;
-  }
-  .drink-card:hover { border-color: var(--latte); box-shadow: 0 4px 16px rgba(107,61,34,0.09); transform: translateY(-1px); }
-  .drink-card.selected { border-color: var(--caramel); background: linear-gradient(135deg,#fff9f3,#fff); box-shadow: 0 4px 20px rgba(192,120,48,0.15); }
+  .drink-card { background:white; border:1.5px solid var(--steam); border-radius:16px; padding:16px 14px 14px; cursor:pointer; transition:all 0.15s ease; position:relative; user-select:none; min-height:110px; display:flex; flex-direction:column; gap:3px; }
+  .drink-card:hover { border-color:var(--latte); box-shadow:0 4px 16px rgba(107,61,34,0.09); transform:translateY(-1px); }
+  .drink-card.selected { border-color:var(--caramel); background:linear-gradient(135deg,#fff9f3,#fff); box-shadow:0 4px 20px rgba(192,120,48,0.15); }
 
-  .drink-check {
-    position: absolute; top: 10px; right: 10px;
-    width: 22px; height: 22px; background: var(--caramel); color: white;
-    border-radius: 50%; display: flex; align-items: center; justify-content: center;
-    font-size: 0.7rem; font-weight: 800;
-  }
-  .drink-icon { font-size: 1.7rem; }
-  .drink-name { font-weight: 700; font-size: 0.92rem; color: var(--espresso); line-height: 1.2; margin-top: 4px; }
-  .drink-sub { font-size: 0.72rem; color: var(--bark); opacity: 0.65; }
-  .drink-has-extras {
-    margin-top: auto; font-size: 0.7rem; color: var(--caramel);
-    font-family: 'DM Mono', monospace; letter-spacing: 0.03em; opacity: 0.8;
-  }
-  .drink-extra-tag {
-    margin-top: auto; font-size: 0.75rem; font-weight: 600;
-    color: var(--bark); background: #fff3e0; border-radius: 6px;
-    padding: 2px 7px; display: inline-block; width: fit-content;
-  }
+  .drink-check { position:absolute; top:10px; right:10px; width:22px; height:22px; background:var(--caramel); color:white; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:0.7rem; font-weight:800; }
+  .delete-drink { position:absolute; top:6px; left:8px; width:20px; height:20px; background:#e74c3c; color:white; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:0.62rem; font-weight:800; z-index:2; opacity:0.85; transition:opacity 0.1s; }
+  .delete-drink:hover { opacity:1; }
 
-  /* SUMMARY */
-  .summary-panel { background: white; border: 1.5px solid var(--steam); border-radius: 18px; padding: 4px 0; overflow: hidden; }
-  .summary-group { padding: 12px 16px; border-bottom: 1px solid var(--foam); }
-  .summary-group:last-child { border-bottom: none; }
-  .summary-group-header { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
-  .summary-icon { font-size: 1.1rem; }
-  .summary-drink { font-weight: 700; font-size: 0.88rem; color: var(--espresso); flex: 1; }
-  .summary-count { background: var(--caramel); color: white; border-radius: 100px; padding: 2px 10px; font-size: 0.75rem; font-weight: 700; font-family: 'DM Mono', monospace; }
-  .summary-people { display: flex; flex-wrap: wrap; gap: 5px; }
-  .person-chip { background: var(--foam); border: 1px solid var(--steam); border-radius: 100px; padding: 3px 10px; font-size: 0.78rem; font-weight: 500; display: inline-flex; align-items: center; gap: 4px; }
-  .person-chip.mine { background: #fff3e6; border-color: var(--latte); color: var(--bark); font-weight: 600; }
-  .remove-chip { cursor: pointer; color: var(--latte); font-size: 0.7rem; transition: color 0.1s; }
-  .remove-chip:hover { color: #c0392b; }
-  .empty-state { text-align: center; padding: 24px; color: var(--bark); opacity: 0.45; font-size: 0.85rem; font-style: italic; }
+  .drink-icon { font-size:1.7rem; }
+  .drink-name { font-weight:700; font-size:0.92rem; color:var(--espresso); line-height:1.2; margin-top:4px; }
+  .drink-sub { font-size:0.72rem; color:var(--bark); opacity:0.65; }
+  .drink-has-extras { margin-top:auto; font-size:0.7rem; color:var(--caramel); font-family:'DM Mono',monospace; letter-spacing:0.03em; opacity:0.75; }
+  .drink-extra-tag { margin-top:auto; font-size:0.75rem; font-weight:600; color:var(--bark); background:#fff3e0; border-radius:6px; padding:2px 7px; display:inline-block; width:fit-content; }
 
-  .clear-btn { background: none; border: none; font-size: 0.75rem; color: var(--bark); opacity: 0.4; cursor: pointer; padding: 2px 6px; transition: opacity 0.15s; }
-  .clear-btn:hover { opacity: 0.9; color: #c0392b; }
+  .add-drink-btn { background:var(--foam); border:1.5px dashed var(--steam); border-radius:14px; padding:13px 12px; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px; font-size:0.83rem; color:var(--bark); font-weight:500; transition:all 0.15s; grid-column:span 2; }
+  .add-drink-btn:hover { border-style:solid; border-color:var(--caramel); color:var(--caramel); }
+  .reset-btn { margin-top:-4px; font-size:0.78rem; opacity:0.65; }
 
-  /* WS BTN */
-  .ws-btn {
-    position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
-    background: #25d366; color: white; border: none; border-radius: 100px; padding: 15px 28px;
-    font-family: 'DM Sans', sans-serif; font-size: 0.92rem; font-weight: 600; cursor: pointer;
-    display: flex; align-items: center; gap: 10px;
-    box-shadow: 0 8px 28px rgba(37,211,102,0.32); transition: all 0.2s ease; white-space: nowrap; z-index: 100;
-  }
-  .ws-btn:hover { transform: translateX(-50%) translateY(-2px); box-shadow: 0 12px 36px rgba(37,211,102,0.4); }
-  .ws-btn:disabled { background: var(--steam); color: #aaa; box-shadow: none; cursor: not-allowed; }
-  .ws-btn:disabled:hover { transform: translateX(-50%); }
+  .summary-panel { background:white; border:1.5px solid var(--steam); border-radius:18px; padding:4px 0; overflow:hidden; }
+  .summary-group { padding:12px 16px; border-bottom:1px solid var(--foam); }
+  .summary-group:last-child { border-bottom:none; }
+  .summary-group-header { display:flex; align-items:center; gap:8px; margin-bottom:8px; }
+  .summary-icon { font-size:1.1rem; }
+  .summary-drink { font-weight:700; font-size:0.88rem; color:var(--espresso); flex:1; }
+  .summary-count { background:var(--caramel); color:white; border-radius:100px; padding:2px 10px; font-size:0.75rem; font-weight:700; font-family:'DM Mono',monospace; }
+  .summary-people { display:flex; flex-wrap:wrap; gap:5px; }
+  .person-chip { background:var(--foam); border:1px solid var(--steam); border-radius:100px; padding:3px 10px; font-size:0.78rem; font-weight:500; display:inline-flex; align-items:center; gap:4px; }
+  .person-chip.mine { background:#fff3e6; border-color:var(--latte); color:var(--bark); font-weight:600; }
+  .remove-chip { cursor:pointer; color:var(--latte); font-size:0.7rem; transition:color 0.1s; }
+  .remove-chip:hover { color:#c0392b; }
+  .empty-state { text-align:center; padding:24px; color:var(--bark); opacity:0.45; font-size:0.85rem; font-style:italic; }
 
-  /* MODALS */
-  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(30,15,8,0.55); z-index: 200; align-items: center; justify-content: center; backdrop-filter: blur(3px); }
-  .modal-overlay.open { display: flex; }
-  .modal { background: white; border-radius: 22px; padding: 24px; width: min(320px,90vw); box-shadow: 0 30px 80px rgba(30,15,8,0.25); animation: popIn 0.2s ease; }
+  .clear-btn { background:none; border:none; font-size:0.75rem; color:var(--bark); opacity:0.4; cursor:pointer; padding:2px 6px; transition:opacity 0.15s; }
+  .clear-btn:hover { opacity:0.9; color:#c0392b; }
+
+  .ws-btn { position:fixed; bottom:20px; left:50%; transform:translateX(-50%); background:#25d366; color:white; border:none; border-radius:100px; padding:15px 28px; font-family:'DM Sans',sans-serif; font-size:0.92rem; font-weight:600; cursor:pointer; display:flex; align-items:center; gap:10px; box-shadow:0 8px 28px rgba(37,211,102,0.32); transition:all 0.2s ease; white-space:nowrap; z-index:100; }
+  .ws-btn:hover { transform:translateX(-50%) translateY(-2px); box-shadow:0 12px 36px rgba(37,211,102,0.4); }
+  .ws-btn:disabled { background:var(--steam); color:#aaa; box-shadow:none; cursor:not-allowed; }
+  .ws-btn:disabled:hover { transform:translateX(-50%); }
+
+  .modal-overlay { display:none; position:fixed; inset:0; background:rgba(30,15,8,0.55); z-index:200; align-items:center; justify-content:center; backdrop-filter:blur(3px); }
+  .modal-overlay.open { display:flex; }
+  .modal { background:white; border-radius:22px; padding:24px; width:min(320px,90vw); box-shadow:0 30px 80px rgba(30,15,8,0.25); animation:popIn 0.2s ease; }
   @keyframes popIn { from{opacity:0;transform:scale(0.94) translateY(8px)} to{opacity:1;transform:scale(1) translateY(0)} }
-  .modal h3 { font-family: 'Playfair Display', serif; font-size: 1.1rem; margin-bottom: 6px; color: var(--espresso); }
-  .modal-sub { font-size: 0.8rem; color: var(--bark); opacity: 0.7; margin-bottom: 16px; }
-  .modal input { width: 100%; border: 1.5px solid var(--steam); border-radius: 11px; padding: 11px 14px; font-family: 'DM Sans', sans-serif; font-size: 0.9rem; margin-bottom: 10px; outline: none; color: var(--ink); transition: border-color 0.15s; }
-  .modal input:focus { border-color: var(--caramel); }
-  .modal-actions { display: flex; gap: 8px; margin-top: 4px; }
+  .modal h3 { font-family:'Playfair Display',serif; font-size:1.1rem; margin-bottom:6px; color:var(--espresso); }
+  .modal-sub { font-size:0.8rem; color:var(--bark); opacity:0.7; margin-bottom:16px; }
+  .modal input { width:100%; border:1.5px solid var(--steam); border-radius:11px; padding:11px 14px; font-family:'DM Sans',sans-serif; font-size:0.9rem; margin-bottom:10px; outline:none; color:var(--ink); transition:border-color 0.15s; }
+  .modal input:focus { border-color:var(--caramel); }
+  .modal-actions { display:flex; gap:8px; margin-top:4px; }
   .btn-primary { flex:1; background:var(--espresso); color:white; border:none; border-radius:11px; padding:11px; font-family:'DM Sans',sans-serif; font-weight:600; cursor:pointer; font-size:0.88rem; transition:opacity 0.15s; }
-  .btn-primary:hover { opacity: 0.82; }
+  .btn-primary:hover { opacity:0.82; }
   .btn-secondary { flex:1; background:var(--foam); color:var(--bark); border:1.5px solid var(--steam); border-radius:11px; padding:11px; font-family:'DM Sans',sans-serif; font-weight:500; cursor:pointer; font-size:0.88rem; }
 
-  /* EXTRAS GRID */
-  .extras-grid { display: flex; flex-direction: column; gap: 8px; }
-  .extra-btn {
-    background: var(--foam); border: 1.5px solid var(--steam); border-radius: 12px;
-    padding: 12px 16px; font-family: 'DM Sans', sans-serif; font-size: 0.9rem;
-    font-weight: 500; color: var(--ink); cursor: pointer; text-align: left;
-    transition: all 0.15s;
-  }
-  .extra-btn:hover { border-color: var(--caramel); background: #fff9f3; color: var(--bark); transform: translateX(3px); }
+  .extras-grid { display:flex; flex-direction:column; gap:8px; }
+  .extra-btn { background:var(--foam); border:1.5px solid var(--steam); border-radius:12px; padding:12px 16px; font-family:'DM Sans',sans-serif; font-size:0.9rem; font-weight:500; color:var(--ink); cursor:pointer; text-align:left; transition:all 0.15s; }
+  .extra-btn:hover { border-color:var(--caramel); background:#fff9f3; color:var(--bark); transform:translateX(3px); }
 
-  /* LIVE */
   .live-dot { display:inline-block; width:7px; height:7px; background:#2ecc71; border-radius:50%; margin-right:5px; animation:pulse 2s infinite; }
   @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.5;transform:scale(0.8)} }
 </style>
@@ -464,11 +434,25 @@
 <!-- MODAL ACOMPAÑAMIENTO -->
 <div class="modal-overlay" id="modal-extra" onclick="if(event.target===this)closeModal('modal-extra')">
   <div class="modal">
-    <h3 id="modal-extra-title">☕ Desayuno</h3>
+    <h3 id="modal-extra-title">☕</h3>
     <p class="modal-sub">¿Con qué acompañamiento?</p>
     <div class="extras-grid" id="extras-grid"></div>
     <div class="modal-actions" style="margin-top:12px">
       <button class="btn-secondary" onclick="closeModal('modal-extra')">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL NUEVA INFUSIÓN -->
+<div class="modal-overlay" id="modal-drink" onclick="if(event.target===this)closeModal('modal-drink')">
+  <div class="modal">
+    <h3>Nueva infusión ☕</h3>
+    <input type="text" id="new-drink-name" placeholder="Nombre (ej: Submarino)" maxlength="30" autocomplete="off">
+    <input type="text" id="new-drink-icon" placeholder="Emoji (opcional) 🍵🧉☕" maxlength="4">
+    <input type="text" id="new-drink-sub"  placeholder="Descripción opcional" maxlength="30">
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="closeModal('modal-drink')">Cancelar</button>
+      <button class="btn-primary" onclick="addDrink()">Agregar</button>
     </div>
   </div>
 </div>
