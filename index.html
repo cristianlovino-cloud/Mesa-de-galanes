@@ -21,42 +21,51 @@
     appId:             "1:501258939600:web:148124c66cfd41741e82d5"
   };
 
-  const ADMIN_NAME = 'Cris'; // único que puede editar/borrar categorías
+  const ADMIN_NAME = 'Cris';
+
+  const DRINKS = [
+    {
+      id: 'cafe',
+      name: 'Café jarra',
+      icon: '☕',
+      extras: null  // sin acompañamiento
+    },
+    {
+      id: 'cortado',
+      name: 'Cortado jarra',
+      icon: '☕',
+      extras: null
+    },
+    {
+      id: 'desayuno',
+      name: 'Desayuno',
+      icon: '🥐',
+      sub: 'Café con leche',
+      extras: ['Sin acompañamiento', '2 medialunas saladas', '2 medialunas dulces', 'Tostadas']
+    },
+    {
+      id: 'te',
+      name: 'Té / Mate cocido',
+      icon: '🍵',
+      extras: ['Sin acompañamiento', '2 medialunas saladas', '2 medialunas dulces', 'Tostadas']
+    },
+  ];
 
   const app = initializeApp(firebaseConfig);
   const db  = getDatabase(app);
 
   const ordersRef  = ref(db, 'pedido/orders');
-  const drinksRef  = ref(db, 'pedido/drinks');
   const sessionRef = ref(db, 'pedido/session');
 
-  let myName = localStorage.getItem('galan_name') || null;
-  let orders = {};
-  let drinks = [];
+  let myName    = localStorage.getItem('galan_name') || null;
+  let orders    = {};
+  let pendingDrink = null; // bebida esperando selección de extra
 
-  const DEFAULT_DRINKS = [
-    { name:'Café jarra',                    icon:'☕'  },
-    { name:'Corrado jarra',                 icon:'🪵'  },
-    { name:'Cortado',                       icon:'☕'  },
-    { name:'Mate cocido / Té',              icon:'🧉'  },
-    { name:'Desayuno',                      icon:'🥐'  },
-    { name:'Café c/2 medialunas saladas',   icon:'☕🥐' },
-    { name:'Café c/2 medialunas dulces',    icon:'☕🍯' },
-    { name:'Cortado c/2 saladas',           icon:'☕🥐' },
-    { name:'Cortado c/2 dulces',            icon:'☕🍯' },
-    { name:'Café c/tostadas',               icon:'☕🍞' },
-    { name:'Huevos revueltos',              icon:'🍳'  },
-  ];
-
+  // ── Bootstrap ────────────────────────────────────────────
   window.addEventListener('DOMContentLoaded', () => {
     updateClock();
     setInterval(updateClock, 30000);
-
-    onValue(drinksRef, snap => {
-      drinks = snap.exists() ? snap.val() : [...DEFAULT_DRINKS];
-      if (!snap.exists()) set(drinksRef, drinks);
-      renderDrinks();
-    });
+    renderDrinks();
 
     onValue(ordersRef, snap => {
       orders = snap.exists() ? snap.val() : {};
@@ -85,35 +94,65 @@
     renderMyName();
     renderDrinks();
   };
-
   window.changeName = function() {
     document.getElementById('modal-name-input').value = myName || '';
     openModal('modal-name');
   };
-
   function isAdmin() { return myName === ADMIN_NAME; }
-
   function renderMyName() {
     const badge = document.getElementById('my-name-badge');
-    badge.innerHTML = (isAdmin() ? '⚙️ ' : '👤 ') + myName +
-      (isAdmin() ? ' <span style="font-size:0.6rem;background:var(--caramel);color:white;border-radius:4px;padding:1px 5px;margin-left:3px;font-family:DM Mono,monospace">ADMIN</span>' : '');
+    badge.innerHTML = (isAdmin() ? '⚙️ ' : '👤 ') + myName;
     badge.style.display = 'inline-flex';
-    if (isAdmin()) badge.style.background = 'rgba(192,120,48,0.22)';
     document.getElementById('name-prompt').style.display = 'none';
   }
 
-  // ── Pedidos ──────────────────────────────────────────────
-  window.addOrder = async function(drinkName, icon) {
+  // ── Selección de bebida ──────────────────────────────────
+  window.selectDrink = function(id) {
     if (!myName) { openNameModal(); return; }
+
+    const drink = DRINKS.find(d => d.id === id);
+
+    // Toggle: si ya tiene ese pedido (sin importar extra), lo quita
     const existing = Object.entries(orders).find(
-      ([, v]) => v.player === myName && v.drink === drinkName
+      ([, v]) => v.player === myName && v.drinkId === id
     );
     if (existing) {
-      await remove(ref(db, `pedido/orders/${existing[0]}`));
+      remove(ref(db, `pedido/orders/${existing[0]}`));
       return;
     }
-    await push(ordersRef, { player: myName, drink: drinkName, icon, ts: Date.now() });
+
+    if (drink.extras) {
+      // Mostrar popup de extras
+      pendingDrink = drink;
+      const grid = document.getElementById('extras-grid');
+      grid.innerHTML = drink.extras.map(e =>
+        `<button class="extra-btn" onclick="confirmOrder('${esc(e)}')">${e}</button>`
+      ).join('');
+      document.getElementById('modal-extra-title').textContent = drink.icon + ' ' + drink.name;
+      openModal('modal-extra');
+    } else {
+      pushOrder(drink, null);
+    }
   };
+
+  window.confirmOrder = function(extra) {
+    if (!pendingDrink) return;
+    pushOrder(pendingDrink, extra === 'Sin acompañamiento' ? null : extra);
+    pendingDrink = null;
+    closeModal('modal-extra');
+  };
+
+  async function pushOrder(drink, extra) {
+    const label = extra ? `${drink.name} + ${extra}` : drink.name;
+    await push(ordersRef, {
+      player:  myName,
+      drinkId: drink.id,
+      drink:   label,
+      icon:    drink.icon,
+      extra:   extra || null,
+      ts:      Date.now()
+    });
+  }
 
   window.removeOrder = async function(key) {
     await remove(ref(db, `pedido/orders/${key}`));
@@ -124,49 +163,28 @@
     await set(ordersRef, null);
   };
 
-  // ── Drinks (solo admin) ──────────────────────────────────
-  window.addDrink = async function() {
-    const name = document.getElementById('new-drink-name').value.trim();
-    const icon = document.getElementById('new-drink-icon').value.trim() || '☕';
-    if (!name) return;
-    await set(drinksRef, [...drinks, { name, icon }]);
-    closeModal('modal-drink');
-    document.getElementById('new-drink-name').value = '';
-    document.getElementById('new-drink-icon').value = '';
-  };
-
-  window.deleteDrink = async function(i, e) {
-    e.stopPropagation();
-    if (!isAdmin()) return;
-    if (!confirm(`¿Eliminar "${drinks[i].name}"?`)) return;
-    await set(drinksRef, drinks.filter((_, idx) => idx !== i));
-  };
-
-  window.resetDrinks = async function() {
-    if (!confirm('¿Restaurar las categorías originales?')) return;
-    await set(drinksRef, DEFAULT_DRINKS);
-  };
-
   // ── Renders ──────────────────────────────────────────────
   function renderDrinks() {
-    const myOrders = Object.values(orders).filter(o => o.player === myName).map(o => o.drink);
-    const admin = isAdmin();
+    const myDrinkIds = Object.values(orders)
+      .filter(o => o.player === myName)
+      .map(o => o.drinkId);
 
-    document.getElementById('drinks-grid').innerHTML =
-      drinks.map((d, i) => {
-        const active = myOrders.includes(d.name);
-        return `<div class="drink-card ${active ? 'selected' : ''}" onclick="addOrder('${esc(d.name)}','${esc(d.icon)}')">
-          ${admin ? `<span class="delete-drink" onclick="deleteDrink(${i}, event)">✕</span>` : ''}
+    document.getElementById('drinks-grid').innerHTML = DRINKS.map(d => {
+      const active = myDrinkIds.includes(d.id);
+      // Si tiene pedido, mostrar qué pidió
+      const myOrder = Object.values(orders).find(o => o.player === myName && o.drinkId === d.id);
+      return `
+        <div class="drink-card ${active ? 'selected' : ''}" onclick="selectDrink('${d.id}')">
+          ${active ? '<div class="drink-check">✓</div>' : ''}
           <div class="drink-icon">${d.icon}</div>
           <div class="drink-name">${d.name}</div>
-          ${active ? '<div class="drink-check">✓</div>' : ''}
+          ${d.sub ? `<div class="drink-sub">${d.sub}</div>` : ''}
+          ${active && myOrder && myOrder.extra
+            ? `<div class="drink-extra-tag">+ ${myOrder.extra}</div>`
+            : ''}
+          ${d.extras ? '<div class="drink-has-extras">+ acompañamiento</div>' : ''}
         </div>`;
-      }).join('') +
-      (admin
-        ? `<div class="add-drink-btn" onclick="openModal('modal-drink')"><span>+</span> Nueva categoría</div>
-           <div class="add-drink-btn reset-btn" onclick="resetDrinks()">↺ Restaurar originales</div>`
-        : ''
-      );
+    }).join('');
   }
 
   function renderOrders() {
@@ -174,6 +192,7 @@
     const total = Object.keys(orders).length;
     document.getElementById('total-badge').textContent = total > 0 ? `${total} pedidos` : '';
 
+    // Agrupar por drink label completo
     const groups = {};
     Object.entries(orders).sort((a,b) => a[1].ts - b[1].ts).forEach(([key, o]) => {
       if (!groups[o.drink]) groups[o.drink] = { icon: o.icon, items: [] };
@@ -224,10 +243,10 @@
   };
 
   // ── Utils ────────────────────────────────────────────────
-  function esc(s) { return s.replace(/'/g, "\\'"); }
+  function esc(s) { return (s||'').replace(/'/g, "\\'"); }
 
   function updateClock() {
-    const now  = new Date();
+    const now   = new Date();
     const dias  = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
     const meses = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
     document.getElementById('fecha-header').textContent =
@@ -243,8 +262,8 @@
   };
   window.closeModal = function(id) {
     document.getElementById(id).classList.remove('open');
+    if (id === 'modal-extra') pendingDrink = null;
   };
-
   function openNameModal() {
     document.getElementById('modal-name-input').value = myName || '';
     openModal('modal-name');
@@ -252,12 +271,8 @@
   window.openNameModal = openNameModal;
 
   document.addEventListener('keydown', e => {
-    if (e.key === 'Enter') {
-      if (document.getElementById('modal-name').classList.contains('open'))
-        setName(document.getElementById('modal-name-input').value);
-      if (document.getElementById('modal-drink').classList.contains('open'))
-        addDrink();
-    }
+    if (e.key === 'Enter' && document.getElementById('modal-name').classList.contains('open'))
+      setName(document.getElementById('modal-name-input').value);
     if (e.key === 'Escape')
       document.querySelectorAll('.modal-overlay.open').forEach(m => m.classList.remove('open'));
   });
@@ -283,7 +298,8 @@
   }
   header::before {
     content: ''; position: absolute; inset: 0;
-    background: repeating-linear-gradient(-55deg, transparent, transparent 18px, rgba(192,120,48,0.05) 18px, rgba(192,120,48,0.05) 19px);
+    background: repeating-linear-gradient(-55deg, transparent, transparent 18px,
+      rgba(192,120,48,0.05) 18px, rgba(192,120,48,0.05) 19px);
   }
   .header-top { display: flex; align-items: center; justify-content: space-between; position: relative; }
   header h1 { font-family: 'Playfair Display', serif; font-size: 1.6rem; font-weight: 900; line-height: 1; }
@@ -291,16 +307,9 @@
   .header-meta { font-family: 'DM Mono', monospace; font-size: 0.68rem; opacity: 0.55; letter-spacing: 0.06em; text-align: right; line-height: 1.6; }
 
   .name-zone { margin-top: 12px; display: flex; align-items: center; gap: 8px; }
-  #name-prompt {
-    font-size: 0.82rem; opacity: 0.6; cursor: pointer;
-    border: 1px dashed rgba(255,255,255,0.3); border-radius: 100px; padding: 5px 14px; transition: all 0.15s;
-  }
+  #name-prompt { font-size: 0.82rem; opacity: 0.6; cursor: pointer; border: 1px dashed rgba(255,255,255,0.3); border-radius: 100px; padding: 5px 14px; transition: all 0.15s; }
   #name-prompt:hover { opacity: 1; border-color: var(--latte); }
-  #my-name-badge {
-    display: none; align-items: center; gap: 6px;
-    background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);
-    border-radius: 100px; padding: 5px 14px; font-size: 0.82rem; cursor: pointer; transition: all 0.15s;
-  }
+  #my-name-badge { display: none; align-items: center; gap: 6px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); border-radius: 100px; padding: 5px 14px; font-size: 0.82rem; cursor: pointer; transition: all 0.15s; }
   #my-name-badge:hover { background: rgba(255,255,255,0.18); }
   #total-badge { margin-left: auto; font-family: 'DM Mono', monospace; font-size: 0.7rem; color: var(--caramel); letter-spacing: 0.05em; }
 
@@ -308,39 +317,43 @@
 
   .section-label {
     font-family: 'DM Mono', monospace; font-size: 0.68rem; letter-spacing: 0.12em;
-    text-transform: uppercase; color: var(--caramel); margin: 20px 0 10px;
+    text-transform: uppercase; color: var(--caramel); margin: 20px 0 12px;
     display: flex; align-items: center; gap: 8px;
   }
   .section-label::after { content: ''; flex: 1; height: 1px; background: linear-gradient(to right, var(--steam), transparent); }
 
-  .drinks-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 9px; }
+  /* DRINKS GRID — 2 columnas */
+  .drinks-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
 
   .drink-card {
-    background: white; border: 1.5px solid var(--steam); border-radius: 14px;
-    padding: 14px 12px; cursor: pointer; transition: all 0.15s ease; position: relative; user-select: none;
+    background: white; border: 1.5px solid var(--steam); border-radius: 16px;
+    padding: 16px 14px 14px; cursor: pointer; transition: all 0.15s ease;
+    position: relative; user-select: none; min-height: 110px;
+    display: flex; flex-direction: column; gap: 3px;
   }
-  .drink-card:hover { border-color: var(--latte); box-shadow: 0 4px 14px rgba(107,61,34,0.08); transform: translateY(-1px); }
-  .drink-card.selected { border-color: var(--caramel); background: linear-gradient(135deg,#fff9f3,#fff); box-shadow: 0 4px 18px rgba(192,120,48,0.14); }
-  .drink-check { position: absolute; top: 8px; right: 8px; width: 20px; height: 20px; background: var(--caramel); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.68rem; font-weight: 800; }
-  .drink-icon { font-size: 1.4rem; margin-bottom: 4px; }
-  .drink-name { font-weight: 600; font-size: 0.83rem; color: var(--espresso); line-height: 1.3; }
+  .drink-card:hover { border-color: var(--latte); box-shadow: 0 4px 16px rgba(107,61,34,0.09); transform: translateY(-1px); }
+  .drink-card.selected { border-color: var(--caramel); background: linear-gradient(135deg,#fff9f3,#fff); box-shadow: 0 4px 20px rgba(192,120,48,0.15); }
 
-  .delete-drink {
-    position: absolute; top: 6px; left: 8px; width: 20px; height: 20px;
-    background: #e74c3c; color: white; border-radius: 50%;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 0.62rem; font-weight: 800; z-index: 2; opacity: 0.85; transition: opacity 0.1s;
+  .drink-check {
+    position: absolute; top: 10px; right: 10px;
+    width: 22px; height: 22px; background: var(--caramel); color: white;
+    border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    font-size: 0.7rem; font-weight: 800;
   }
-  .delete-drink:hover { opacity: 1; }
-
-  .add-drink-btn {
-    background: var(--foam); border: 1.5px dashed var(--steam); border-radius: 14px;
-    padding: 13px 12px; cursor: pointer; display: flex; align-items: center; justify-content: center;
-    gap: 6px; font-size: 0.83rem; color: var(--bark); font-weight: 500; transition: all 0.15s; grid-column: span 2;
+  .drink-icon { font-size: 1.7rem; }
+  .drink-name { font-weight: 700; font-size: 0.92rem; color: var(--espresso); line-height: 1.2; margin-top: 4px; }
+  .drink-sub { font-size: 0.72rem; color: var(--bark); opacity: 0.65; }
+  .drink-has-extras {
+    margin-top: auto; font-size: 0.7rem; color: var(--caramel);
+    font-family: 'DM Mono', monospace; letter-spacing: 0.03em; opacity: 0.8;
   }
-  .add-drink-btn:hover { border-style: solid; border-color: var(--caramel); color: var(--caramel); }
-  .reset-btn { margin-top: -4px; font-size: 0.78rem; opacity: 0.65; }
+  .drink-extra-tag {
+    margin-top: auto; font-size: 0.75rem; font-weight: 600;
+    color: var(--bark); background: #fff3e0; border-radius: 6px;
+    padding: 2px 7px; display: inline-block; width: fit-content;
+  }
 
+  /* SUMMARY */
   .summary-panel { background: white; border: 1.5px solid var(--steam); border-radius: 18px; padding: 4px 0; overflow: hidden; }
   .summary-group { padding: 12px 16px; border-bottom: 1px solid var(--foam); }
   .summary-group:last-child { border-bottom: none; }
@@ -358,6 +371,7 @@
   .clear-btn { background: none; border: none; font-size: 0.75rem; color: var(--bark); opacity: 0.4; cursor: pointer; padding: 2px 6px; transition: opacity 0.15s; }
   .clear-btn:hover { opacity: 0.9; color: #c0392b; }
 
+  /* WS BTN */
   .ws-btn {
     position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
     background: #25d366; color: white; border: none; border-radius: 100px; padding: 15px 28px;
@@ -369,18 +383,31 @@
   .ws-btn:disabled { background: var(--steam); color: #aaa; box-shadow: none; cursor: not-allowed; }
   .ws-btn:disabled:hover { transform: translateX(-50%); }
 
+  /* MODALS */
   .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(30,15,8,0.55); z-index: 200; align-items: center; justify-content: center; backdrop-filter: blur(3px); }
   .modal-overlay.open { display: flex; }
   .modal { background: white; border-radius: 22px; padding: 24px; width: min(320px,90vw); box-shadow: 0 30px 80px rgba(30,15,8,0.25); animation: popIn 0.2s ease; }
-  @keyframes popIn { from { opacity:0; transform:scale(0.94) translateY(8px); } to { opacity:1; transform:scale(1) translateY(0); } }
-  .modal h3 { font-family: 'Playfair Display', serif; font-size: 1.15rem; margin-bottom: 16px; color: var(--espresso); }
+  @keyframes popIn { from{opacity:0;transform:scale(0.94) translateY(8px)} to{opacity:1;transform:scale(1) translateY(0)} }
+  .modal h3 { font-family: 'Playfair Display', serif; font-size: 1.1rem; margin-bottom: 6px; color: var(--espresso); }
+  .modal-sub { font-size: 0.8rem; color: var(--bark); opacity: 0.7; margin-bottom: 16px; }
   .modal input { width: 100%; border: 1.5px solid var(--steam); border-radius: 11px; padding: 11px 14px; font-family: 'DM Sans', sans-serif; font-size: 0.9rem; margin-bottom: 10px; outline: none; color: var(--ink); transition: border-color 0.15s; }
   .modal input:focus { border-color: var(--caramel); }
-  .modal-actions { display: flex; gap: 8px; }
+  .modal-actions { display: flex; gap: 8px; margin-top: 4px; }
   .btn-primary { flex:1; background:var(--espresso); color:white; border:none; border-radius:11px; padding:11px; font-family:'DM Sans',sans-serif; font-weight:600; cursor:pointer; font-size:0.88rem; transition:opacity 0.15s; }
   .btn-primary:hover { opacity: 0.82; }
   .btn-secondary { flex:1; background:var(--foam); color:var(--bark); border:1.5px solid var(--steam); border-radius:11px; padding:11px; font-family:'DM Sans',sans-serif; font-weight:500; cursor:pointer; font-size:0.88rem; }
 
+  /* EXTRAS GRID */
+  .extras-grid { display: flex; flex-direction: column; gap: 8px; }
+  .extra-btn {
+    background: var(--foam); border: 1.5px solid var(--steam); border-radius: 12px;
+    padding: 12px 16px; font-family: 'DM Sans', sans-serif; font-size: 0.9rem;
+    font-weight: 500; color: var(--ink); cursor: pointer; text-align: left;
+    transition: all 0.15s;
+  }
+  .extra-btn:hover { border-color: var(--caramel); background: #fff9f3; color: var(--bark); transform: translateX(3px); }
+
+  /* LIVE */
   .live-dot { display:inline-block; width:7px; height:7px; background:#2ecc71; border-radius:50%; margin-right:5px; animation:pulse 2s infinite; }
   @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.5;transform:scale(0.8)} }
 </style>
@@ -404,9 +431,7 @@
 
 <div class="main">
   <div class="section-label">☕ ¿Qué tomás?</div>
-  <div class="drinks-grid" id="drinks-grid">
-    <div class="empty-state" style="grid-column:span 2">Cargando...</div>
-  </div>
+  <div class="drinks-grid" id="drinks-grid"></div>
 
   <div class="section-label" style="margin-top:24px">
     <span class="live-dot"></span>Pedidos en vivo
@@ -424,6 +449,7 @@
   Mandar al bar
 </button>
 
+<!-- MODAL NOMBRE -->
 <div class="modal-overlay" id="modal-name" onclick="if(event.target===this)closeModal('modal-name')">
   <div class="modal">
     <h3>¿Quién sos, crack? 🕶️</h3>
@@ -435,14 +461,14 @@
   </div>
 </div>
 
-<div class="modal-overlay" id="modal-drink" onclick="if(event.target===this)closeModal('modal-drink')">
+<!-- MODAL ACOMPAÑAMIENTO -->
+<div class="modal-overlay" id="modal-extra" onclick="if(event.target===this)closeModal('modal-extra')">
   <div class="modal">
-    <h3>Nueva categoría ☕</h3>
-    <input type="text" id="new-drink-name" placeholder="Ej: Submarino, Té verde..." maxlength="35" autocomplete="off">
-    <input type="text" id="new-drink-icon" placeholder="Emoji (opcional) 🍵🧉☕" maxlength="4">
-    <div class="modal-actions">
-      <button class="btn-secondary" onclick="closeModal('modal-drink')">Cancelar</button>
-      <button class="btn-primary" onclick="addDrink()">Agregar</button>
+    <h3 id="modal-extra-title">☕ Desayuno</h3>
+    <p class="modal-sub">¿Con qué acompañamiento?</p>
+    <div class="extras-grid" id="extras-grid"></div>
+    <div class="modal-actions" style="margin-top:12px">
+      <button class="btn-secondary" onclick="closeModal('modal-extra')">Cancelar</button>
     </div>
   </div>
 </div>
