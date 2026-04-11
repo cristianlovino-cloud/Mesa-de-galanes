@@ -34,6 +34,7 @@
   const ordersRef  = ref(db, 'pedido/orders');
   const drinksRef  = ref(db, 'pedido/drinks');
   const sessionRef = ref(db, 'pedido/session');
+  const favRef     = ref(db, 'pedido/favorito');
 
   let myName       = localStorage.getItem('galan_name') || null;
   let orders       = {};
@@ -91,6 +92,7 @@
     badge.style.background = 'rgba(255,255,255,0.1)';
     document.getElementById('name-prompt').style.display = 'inline-flex';
     document.getElementById('ws-btn').style.display = 'none';
+    document.getElementById('fav-bar').style.display = 'none';
     renderDrinks();
   };
 
@@ -106,6 +108,7 @@
     document.getElementById('name-prompt').style.display = 'none';
     // mostrar boton WS solo al admin
     document.getElementById('ws-btn').style.display = isAdmin() ? 'flex' : 'none';
+    document.getElementById('fav-bar').style.display = isAdmin() ? 'flex' : 'none';
   }
 
   window.selectDrink = function(idx) {
@@ -259,6 +262,32 @@
     wsBtn.style.display = isAdmin() && total > 0 ? 'flex' : 'none';
   }
 
+  window.grabarFavorito = async function() {
+    var myOrders = Object.values(orders).filter(function(o){ return o.player === myName; });
+    if (!myOrders.length) { alert('Primero hace tu pedido!'); return; }
+    var fav = myOrders.map(function(o){ return { drink: o.drink, icon: o.icon, drinkIdx: o.drinkIdx, extra: o.extra }; });
+    await set(favRef, fav);
+    alert('Favorito guardado! ' + fav.map(function(f){ return f.drink; }).join(', '));
+  };
+
+  window.cargarFavorito = async function() {
+    var snap = await get(favRef);
+    if (!snap.exists()) { alert('No hay favorito guardado todavia'); return; }
+    var favs = snap.val();
+    // borrar pedidos actuales de Cris
+    var entries = Object.entries(orders);
+    for (var i = 0; i < entries.length; i++) {
+      if (entries[i][1].player === myName) {
+        await remove(ref(db, 'pedido/orders/' + entries[i][0]));
+      }
+    }
+    // cargar favoritos
+    for (var j = 0; j < favs.length; j++) {
+      var f = favs[j];
+      await push(ordersRef, { player: myName, drinkIdx: f.drinkIdx, drink: f.drink, icon: f.icon, extra: f.extra || null, ts: Date.now() });
+    }
+  };
+
   window.enviarWS = function() {
     var now   = new Date();
     var fecha = now.toLocaleDateString('es-AR', { weekday:'long', day:'numeric', month:'long' });
@@ -315,9 +344,9 @@
 <style>
   :root { --cream:#f4ede3; --espresso:#1e0f08; --caramel:#c07830; --latte:#d4a06a; --foam:#faf5ef; --bark:#6b3d22; --steam:#e2d4c4; --ink:#1a0d06; }
   * { box-sizing:border-box; margin:0; padding:0; }
-  body { background:var(--cream); color:var(--ink); font-family:'DM Sans',sans-serif; min-height:100vh; }
+  body { background:var(--cream); color:var(--ink); font-family:'DM Sans',sans-serif; min-height:100vh; overflow-x:hidden; }
 
-  header { background:var(--espresso); color:var(--cream); padding:20px 20px 16px; position:relative; overflow:hidden; }
+  header { background:var(--espresso); color:var(--cream); padding:20px 16px 16px; position:relative; overflow:hidden; width:100%; }
   header::before { content:''; position:absolute; inset:0; background:repeating-linear-gradient(-55deg,transparent,transparent 18px,rgba(192,120,48,0.05) 18px,rgba(192,120,48,0.05) 19px); }
   .header-top { display:flex; align-items:center; justify-content:space-between; position:relative; }
   header h1 { font-family:'Playfair Display',serif; font-size:1.6rem; font-weight:900; line-height:1; }
@@ -333,11 +362,11 @@
   .logout-x:hover { opacity:1; }
   #total-badge { margin-left:auto; font-family:'DM Mono',monospace; font-size:0.7rem; color:var(--caramel); letter-spacing:0.05em; }
 
-  .main { max-width:640px; margin:0 auto; padding:16px 14px 110px; }
+  .main { max-width:640px; margin:0 auto; padding:16px 12px 110px; width:100%; }
   .section-label { font-family:'DM Mono',monospace; font-size:0.68rem; letter-spacing:0.12em; text-transform:uppercase; color:var(--caramel); margin:20px 0 12px; display:flex; align-items:center; gap:8px; }
   .section-label::after { content:''; flex:1; height:1px; background:linear-gradient(to right,var(--steam),transparent); }
 
-  .drinks-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:10px; }
+  .drinks-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:8px; width:100%; }
   .drink-card { background:white; border:1.5px solid var(--steam); border-radius:16px; padding:16px 14px 14px; cursor:pointer; transition:all 0.15s ease; position:relative; user-select:none; min-height:110px; display:flex; flex-direction:column; gap:3px; }
   .drink-card:hover { border-color:var(--latte); box-shadow:0 4px 16px rgba(107,61,34,0.09); transform:translateY(-1px); }
   .drink-card.selected { border-color:var(--caramel); background:linear-gradient(135deg,#fff9f3,#fff); box-shadow:0 4px 20px rgba(192,120,48,0.15); }
@@ -428,6 +457,11 @@
   <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
   Mandar al bar
 </button>
+
+<div id="fav-bar" style="display:none;position:fixed;bottom:76px;left:50%;transform:translateX(-50%);display:none;gap:8px;z-index:99;">
+  <button onclick="cargarFavorito()" style="background:var(--espresso);color:var(--cream);border:none;border-radius:100px;padding:10px 18px;font-family:'DM Sans',sans-serif;font-size:0.82rem;font-weight:600;cursor:pointer;white-space:nowrap;box-shadow:0 4px 14px rgba(30,15,8,0.2);">⭐ Mi pedido habitual</button>
+  <button onclick="grabarFavorito()" style="background:var(--foam);color:var(--bark);border:1.5px solid var(--steam);border-radius:100px;padding:10px 14px;font-family:'DM Sans',sans-serif;font-size:0.82rem;font-weight:500;cursor:pointer;white-space:nowrap;">Grabar</button>
+</div>
 
 <div class="modal-overlay" id="modal-name" onclick="if(event.target===this)closeModal('modal-name')">
   <div class="modal">
