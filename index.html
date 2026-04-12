@@ -424,6 +424,13 @@
   .live-dot { display:inline-block; width:7px; height:7px; background:#2ecc71; border-radius:50%; margin-right:5px; animation:pulse 2s infinite; }
   @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
 </style>
+
+<meta name="theme-color" content="#1e0f08">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Mesa Galanes">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="manifest" href="manifest.json">
 </head>
 <body>
 <header>
@@ -497,5 +504,17 @@
     </div>
   </div>
 </div>
+
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function() {
+      navigator.serviceWorker.register('sw.js').then(function(reg) {
+        console.log('SW registrado');
+      }).catch(function(err) {
+        console.log('SW error:', err);
+      });
+    });
+  }
+</script>
 </body>
 </html>
