@@ -238,26 +238,43 @@
       if (!groups[o.drink]) groups[o.drink]={icon:o.icon,items:[]};
       groups[o.drink].items.push({key:key,player:o.player});
     }
+    // Agrupar por persona
+    var byPlayer = {};
+    var entries2 = Object.entries(orders).sort(function(a,b){ return a[1].ts-b[1].ts; });
+    for (var i2 = 0; i2 < entries2.length; i2++) {
+      var k2=entries2[i2][0], o2=entries2[i2][1];
+      if (!byPlayer[o2.player]) byPlayer[o2.player] = [];
+      byPlayer[o2.player].push({ key:k2, drink:o2.drink, icon:o2.icon });
+    }
     var panel = document.getElementById('summary-panel');
-    var gkeys = Object.keys(groups);
-    if (!gkeys.length) {
-      panel.innerHTML = '<div class="empty-state">Nadie pidio nada todavia 👀</div>';
+    var players = Object.keys(byPlayer);
+    if (!players.length) {
+      panel.innerHTML = '<div class="empty-state">Nadie pidio nada todavia \u{1F440}</div>';
     } else {
       var html = '';
-      for (var k = 0; k < gkeys.length; k++) {
-        var drink=gkeys[k], data=groups[drink];
+      for (var p = 0; p < players.length; p++) {
+        var player = players[p];
+        var pitems = byPlayer[player];
+        var mine   = player === myName;
+        var canDel = mine || isAdmin();
         html += '<div class="order-row">';
-        html += '<div class="order-row-top"><span class="order-icon">'+data.icon+'</span><span class="order-name">'+drink+'</span><span class="order-qty">'+data.items.length+'</span></div>';
-        html += '<div class="order-chips">';
-        for (var m = 0; m < data.items.length; m++) {
-          var item=data.items[m], mine=item.player===myName, canDel=mine||isAdmin();
-          html += '<span class="chip'+(mine?' chip-mine':'')+'">'+item.player;
-          if (canDel) html += '<span class="chip-del" onclick="removeOrder(\''+item.key+'\')">✕</span>';
-          html += '</span>';
+        html += '<div class="order-row-top">';
+        html += '<div class="player-avatar-sm" style="background:'+avatarColor(player)+'">'+initials(player)+'</div>';
+        html += '<span class="order-name'+(mine?' order-name-mine':'')+'">'+player+(mine?' <span class=\"you-tag\">vos</span>':'')+'</span>';
+        html += '<span class="order-qty">'+pitems.length+'</span>';
+        html += '</div>';
+        html += '<div class="player-drinks">';
+        for (var d2 = 0; d2 < pitems.length; d2++) {
+          var it = pitems[d2];
+          html += '<div class="player-drink-item">';
+          html += '<span class="player-drink-text">'+it.icon+' '+it.drink+'</span>';
+          if (canDel) html += '<span class="chip-del" onclick="removeOrder(\''+it.key+'\')">\u00d7</span>';
+          html += '</div>';
         }
         html += '</div></div>';
       }
       panel.innerHTML = html;
+    }
     }
     var wsBtn = document.getElementById('ws-btn');
     wsBtn.style.display = isAdmin() && total > 0 ? 'flex' : 'none';
@@ -695,6 +712,13 @@
     color: var(--border2);
     font-style: italic;
   }
+
+
+  .player-avatar-sm { width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-family:'Bebas Neue',sans-serif; font-size:0.85rem; color:white; flex-shrink:0; box-shadow:0 2px 6px rgba(0,0,0,0.12); }
+  .order-name-mine { color:var(--gold) !important; font-weight:800 !important; }
+  .player-drinks { margin-left:46px; display:flex; flex-direction:column; gap:5px; margin-top:6px; }
+  .player-drink-item { display:flex; align-items:center; justify-content:space-between; background:var(--bg); border-radius:8px; padding:7px 12px; border:1px solid var(--border); }
+  .player-drink-text { font-size:0.82rem; color:var(--muted); font-weight:500; }
 
   /* ── EMPTY ───────────────────────────── */
   .empty-state { text-align:center; padding:28px; color:var(--muted); font-size:0.84rem; font-style:italic; opacity:0.7; }
