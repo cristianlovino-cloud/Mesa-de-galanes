@@ -355,12 +355,14 @@
       if (!groups[o.drink]) groups[o.drink] = { icon: o.icon, players: [] };
       groups[o.drink].players.push(o.player);
     });
-    var msg = "☕ *Pedido Mesa de Galanes*\n📅 " + fecha + " · " + hora + "\n\n";
+    var msg = "☕ *Mesa de Galanes — " + fecha + " · " + hora + "*\n";
+    msg += "━━━━━━━━━━━━━━━━━━━━\n";
     Object.keys(groups).forEach(function(d) {
       var g = groups[d];
-      msg += g.icon + " *" + d + "* (" + g.players.length + ")\n   → " + g.players.join(", ") + "\n";
+      msg += g.icon + " " + d + " x" + g.players.length + " (" + g.players.join(", ") + ")\n";
     });
-    msg += "\n_Total: " + Object.keys(orders).length + " pedidos_";
+    msg += "━━━━━━━━━━━━━━━━━━━━\n";
+    msg += "_" + Object.keys(orders).length + " pedidos en total_";
     window.open("https://wa.me/?text=" + encodeURIComponent(msg), "_blank");
   };
 
