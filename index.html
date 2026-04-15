@@ -11,7 +11,6 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="manifest" href="manifest.json">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
   import { getDatabase, ref, set, onValue, remove, push, get }
@@ -27,20 +26,15 @@
     appId:             "1:501258939600:web:148124c66cfd41741e82d5"
   };
 
-  const ADMIN_NAME = 'Cris';
-  const EXTRAS = ['Sin acompañamiento', '2 medialunas saladas', '2 medialunas dulces', 'Tostadas'];
+  const ADMIN_NAME = "Cris";
+  const EXTRAS = ["Sin acompanamiento", "2 medialunas saladas", "2 medialunas dulces", "Tostadas"];
   const DEFAULT_DRINKS = [
-    { id:'cafe',     name:'Cafe jarra',       icon:'☕', sub:'' },
-    { id:'cortado',  name:'Cortado jarra',    icon:'☕', sub:'' },
-    { id:'desayuno', name:'Desayuno',         icon:'🥐', sub:'Cafe con leche' },
-    { id:'te',       name:'Te / Mate cocido', icon:'🍵', sub:'' },
+    { id:"cafe",     name:"Cafe jarra",       icon:"☕", sub:"" },
+    { id:"cortado",  name:"Cortado jarra",    icon:"☕", sub:"" },
+    { id:"desayuno", name:"Desayuno",         icon:"🥐", sub:"Cafe con leche" },
+    { id:"te",       name:"Te / Mate cocido", icon:"🍵", sub:"" }
   ];
-
-  // Colores para avatares — generados del nombre
-  const AVATAR_COLORS = [
-    '#c8922a','#b85c2a','#7a4a8a','#2a6a9a','#2a8a5a',
-    '#9a2a4a','#4a6a2a','#5a4a9a','#9a6a2a','#2a8a8a'
-  ];
+  const AVATAR_COLORS = ["#c8922a","#b85c2a","#7a4a8a","#2a6a9a","#2a8a5a","#9a2a4a","#4a6a2a","#5a4a9a","#9a6a2a","#2a8a8a"];
 
   function avatarColor(name) {
     var h = 0;
@@ -48,25 +42,25 @@
     return AVATAR_COLORS[Math.abs(h) % AVATAR_COLORS.length];
   }
   function initials(name) {
-    var parts = name.trim().split(' ');
+    var parts = name.trim().split(" ");
     if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
     return name.slice(0,2).toUpperCase();
   }
 
   const app = initializeApp(firebaseConfig);
   const db  = getDatabase(app);
-  const ordersRef  = ref(db, 'pedido/orders');
-  const drinksRef  = ref(db, 'pedido/drinks');
-  const sessionRef = ref(db, 'pedido/session');
-  const favRef     = ref(db, 'pedido/favorito');
+  const ordersRef  = ref(db, "pedido/orders");
+  const drinksRef  = ref(db, "pedido/drinks");
+  const sessionRef = ref(db, "pedido/session");
+  const favRef     = ref(db, "pedido/favorito");
 
-  let myName = localStorage.getItem('galan_name') || null;
-  let orders = {}, drinks = [], pendingDrink = null;
+  var myName = localStorage.getItem("galan_name") || null;
+  var orders = {}, drinks = [], pendingDrink = null;
 
-  window.addEventListener('DOMContentLoaded', function() {
+  window.addEventListener("DOMContentLoaded", function() {
     updateClock();
     setInterval(updateClock, 30000);
-    renderTabs();
+    switchTab("pedir");
 
     onValue(drinksRef, function(snap) {
       drinks = snap.exists() ? snap.val() : DEFAULT_DRINKS.slice();
@@ -91,703 +85,441 @@
     }
   }
 
-  // ── Nombre ──────────────────────────────────────────────
   window.setName = function(name) {
     myName = name.trim();
     if (!myName) return;
-    localStorage.setItem('galan_name', myName);
-    closeModal('modal-name');
+    localStorage.setItem("galan_name", myName);
+    closeModal("modal-name");
     renderMyName();
     renderDrinks();
     renderAttendees();
   };
+
   window.changeName = function() {
-    document.getElementById('modal-name-input').value = myName || '';
-    openModal('modal-name');
+    document.getElementById("modal-name-input").value = myName || "";
+    openModal("modal-name");
   };
+
   window.logout = function(e) {
     e.stopPropagation();
     myName = null;
-    localStorage.removeItem('galan_name');
-    document.getElementById('my-name-badge').style.display = 'none';
-    document.getElementById('name-prompt').style.display = 'flex';
-    document.getElementById('ws-btn').style.display = 'none';
-    document.getElementById('fav-bar').style.display = 'none';
+    localStorage.removeItem("galan_name");
+    document.getElementById("my-name-badge").style.display = "none";
+    document.getElementById("name-prompt").style.display = "flex";
+    document.getElementById("ws-btn").style.display = "none";
+    document.getElementById("fav-bar").style.display = "none";
     renderDrinks();
     renderAttendees();
   };
+
   function isAdmin() { return myName === ADMIN_NAME; }
+
   function renderMyName() {
-    var badge = document.getElementById('my-name-badge');
-    badge.innerHTML = (isAdmin() ? '⚙️ ' : '') + myName + '<span class="logout-x" onclick="logout(event)">✕</span>';
-    badge.style.display = 'flex';
-    document.getElementById('name-prompt').style.display = 'none';
-    document.getElementById('ws-btn').style.display = isAdmin() ? 'flex' : 'none';
-    document.getElementById('fav-bar').style.display = isAdmin() ? 'flex' : 'none';
+    var badge = document.getElementById("my-name-badge");
+    var txt = (isAdmin() ? "⚙️ " : "") + myName;
+    badge.innerHTML = txt + '<span class="logout-x" onclick="logout(event)">✕</span>';
+    badge.style.display = "flex";
+    document.getElementById("name-prompt").style.display = "none";
+    document.getElementById("ws-btn").style.display = isAdmin() ? "flex" : "none";
+    document.getElementById("fav-bar").style.display = isAdmin() ? "flex" : "none";
   }
 
-  // ── Tabs ─────────────────────────────────────────────────
-  var activeTab = 'pedir';
   window.switchTab = function(tab) {
-    activeTab = tab;
-    document.querySelectorAll('.tab-btn').forEach(function(b) {
-      b.classList.toggle('active', b.dataset.tab === tab);
+    ["pedir","resumen","mesa"].forEach(function(t) {
+      document.getElementById("view-" + t).style.display = t === tab ? "block" : "none";
+      var btn = document.querySelector('[data-tab="' + t + '"]');
+      if (btn) btn.classList.toggle("active", t === tab);
     });
-    document.getElementById('view-pedir').style.display   = tab === 'pedir'    ? 'block' : 'none';
-    document.getElementById('view-resumen').style.display = tab === 'resumen'  ? 'block' : 'none';
-    document.getElementById('view-mesa').style.display    = tab === 'mesa'     ? 'block' : 'none';
   };
-  function renderTabs() { switchTab('pedir'); }
 
-  // ── Pedidos ──────────────────────────────────────────────
   window.selectDrink = function(idx) {
     if (!myName) { openNameModal(); return; }
     var drink = drinks[idx];
     var existing = null;
     var entries = Object.entries(orders);
     for (var i = 0; i < entries.length; i++) {
-      if (entries[i][1].player === myName && entries[i][1].drinkIdx === idx) { existing = entries[i]; break; }
+      if (entries[i][1].player === myName && entries[i][1].drinkIdx === idx) {
+        existing = entries[i]; break;
+      }
     }
-    if (existing) { remove(ref(db, 'pedido/orders/' + existing[0])); return; }
+    if (existing) { remove(ref(db, "pedido/orders/" + existing[0])); return; }
     pendingDrink = Object.assign({}, drink, { idx: idx });
-    var html = '';
+    var html = "";
     for (var j = 0; j < EXTRAS.length; j++) {
-      html += '<button class="extra-btn" onclick="confirmOrder(\'' + EXTRAS[j].replace(/'/g,"\\'") + '\')">' + EXTRAS[j] + '</button>';
+      html += "<button class='extra-btn' onclick=\"confirmOrder('" + EXTRAS[j] + "')\">" + EXTRAS[j] + "</button>";
     }
-    document.getElementById('extras-grid').innerHTML = html;
-    document.getElementById('modal-extra-title').textContent = drink.icon + '  ' + drink.name;
-    openModal('modal-extra');
+    document.getElementById("extras-grid").innerHTML = html;
+    document.getElementById("modal-extra-title").textContent = drink.icon + "  " + drink.name;
+    openModal("modal-extra");
   };
 
   window.confirmOrder = async function(extra) {
     if (!pendingDrink) return;
-    var label = (extra === 'Sin acompañamiento') ? pendingDrink.name : pendingDrink.name + ' + ' + extra;
-    await push(ordersRef, { player:myName, drinkIdx:pendingDrink.idx, drink:label, icon:pendingDrink.icon, extra:(extra==='Sin acompañamiento'?null:extra), ts:Date.now() });
+    var label = (extra === "Sin acompanamiento") ? pendingDrink.name : pendingDrink.name + " + " + extra;
+    await push(ordersRef, {
+      player: myName, drinkIdx: pendingDrink.idx, drink: label,
+      icon: pendingDrink.icon, extra: (extra === "Sin acompanamiento" ? null : extra), ts: Date.now()
+    });
     pendingDrink = null;
-    closeModal('modal-extra');
+    closeModal("modal-extra");
   };
 
-  window.removeOrder = async function(key) { await remove(ref(db, 'pedido/orders/' + key)); };
+  window.removeOrder = async function(key) {
+    await remove(ref(db, "pedido/orders/" + key));
+  };
+
   window.clearAll = async function() {
-    if (!confirm('Limpiar todos los pedidos?')) return;
+    if (!confirm("Limpiar todos los pedidos?")) return;
     await set(ordersRef, null);
   };
 
-  // ── Drinks ───────────────────────────────────────────────
   window.addDrink = async function() {
-    var name = document.getElementById('new-drink-name').value.trim();
-    var icon = document.getElementById('new-drink-icon').value.trim() || '☕';
-    var sub  = document.getElementById('new-drink-sub').value.trim();
+    var name = document.getElementById("new-drink-name").value.trim();
+    var icon = document.getElementById("new-drink-icon").value.trim() || "☕";
+    var sub  = document.getElementById("new-drink-sub").value.trim();
     if (!name) return;
-    await set(drinksRef, drinks.concat([{ id:'custom_'+Date.now(), name:name, icon:icon, sub:sub }]));
-    closeModal('modal-drink');
-    document.getElementById('new-drink-name').value = '';
-    document.getElementById('new-drink-icon').value = '';
-    document.getElementById('new-drink-sub').value  = '';
+    await set(drinksRef, drinks.concat([{ id: "custom_" + Date.now(), name: name, icon: icon, sub: sub }]));
+    closeModal("modal-drink");
+    document.getElementById("new-drink-name").value = "";
+    document.getElementById("new-drink-icon").value = "";
+    document.getElementById("new-drink-sub").value  = "";
   };
+
   window.deleteDrink = async function(idx, e) {
     e.stopPropagation();
     if (!isAdmin()) return;
-    if (!confirm('Eliminar "' + drinks[idx].name + '"?')) return;
-    await set(drinksRef, drinks.filter(function(_,i){ return i!==idx; }));
+    if (!confirm("Eliminar " + drinks[idx].name + "?")) return;
+    await set(drinksRef, drinks.filter(function(_, i) { return i !== idx; }));
   };
+
   window.resetDrinks = async function() {
-    if (!confirm('Restaurar las 4 categorias originales?')) return;
+    if (!confirm("Restaurar las 4 categorias originales?")) return;
     await set(drinksRef, DEFAULT_DRINKS);
   };
 
-  // ── Render Drinks ────────────────────────────────────────
   function renderDrinks() {
-    var myIdxs = Object.values(orders).filter(function(o){ return o.player===myName; }).map(function(o){ return o.drinkIdx; });
+    var myIdxs = Object.values(orders)
+      .filter(function(o) { return o.player === myName; })
+      .map(function(o) { return o.drinkIdx; });
     var admin = isAdmin();
-    var html = '';
+    var html = "";
     for (var i = 0; i < drinks.length; i++) {
-      var d = drinks[i], active = myIdxs.indexOf(i) !== -1;
+      var d = drinks[i];
+      var active = myIdxs.indexOf(i) !== -1;
       var myOrder = null;
       var vals = Object.values(orders);
-      for (var j = 0; j < vals.length; j++) { if (vals[j].player===myName && vals[j].drinkIdx===i) { myOrder=vals[j]; break; } }
-      html += '<div class="drink-card' + (active?' selected':'') + '" onclick="selectDrink('+i+')">';
-      if (admin) html += '<span class="delete-drink" onclick="deleteDrink('+i+',event)">✕</span>';
-      html += '<div class="card-inner">';
-      html += '<div class="card-emoji">' + d.icon + '</div>';
-      html += '<div class="card-name">' + d.name + '</div>';
-      if (d.sub) html += '<div class="card-sub">' + d.sub + '</div>';
-      if (active && myOrder && myOrder.extra) {
-        html += '<div class="card-extra">+ ' + myOrder.extra + '</div>';
-      } else {
-        html += '<div class="card-hint">+ acompañamiento</div>';
+      for (var j = 0; j < vals.length; j++) {
+        if (vals[j].player === myName && vals[j].drinkIdx === i) { myOrder = vals[j]; break; }
       }
-      html += '</div>';
-      if (active) html += '<div class="card-check"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3.5"><polyline points="20 6 9 17 4 12"/></svg></div>';
-      html += '</div>';
+      html += "<div class='drink-card" + (active ? " selected" : "") + "' onclick='selectDrink(" + i + ")'>";
+      if (admin) html += "<span class='delete-drink' onclick='deleteDrink(" + i + ",event)'>✕</span>";
+      html += "<div class='card-inner'>";
+      html += "<div class='card-emoji'>" + d.icon + "</div>";
+      html += "<div class='card-name'>" + d.name + "</div>";
+      if (d.sub) html += "<div class='card-sub'>" + d.sub + "</div>";
+      if (active && myOrder && myOrder.extra) {
+        html += "<div class='card-extra'>+ " + myOrder.extra + "</div>";
+      } else {
+        html += "<div class='card-hint'>+ acompañamiento</div>";
+      }
+      html += "</div>";
+      if (active) html += "<div class='card-check'><svg width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3.5'><polyline points='20 6 9 17 4 12'/></svg></div>";
+      html += "</div>";
     }
-    html += '<div class="add-card" onclick="openModal(\'modal-drink\')"><span class="add-plus">+</span><span>Agregar</span></div>';
-    if (admin) html += '<div class="add-card reset-card" onclick="resetDrinks()"><span>↺</span><span>Restaurar</span></div>';
-    document.getElementById('drinks-grid').innerHTML = html;
+    html += "<div class='add-card' onclick=\"openModal('modal-drink')\"><span class='add-plus'>+</span><span>Agregar</span></div>";
+    if (admin) html += "<div class='add-card reset-card' onclick='resetDrinks()'><span>↺</span><span>Restaurar</span></div>";
+    document.getElementById("drinks-grid").innerHTML = html;
   }
 
-  // ── Render Orders (tab resumen) ──────────────────────────
+  // RESUMEN — agrupado por persona
   function renderOrders() {
     var total = Object.keys(orders).length;
-    document.getElementById('total-badge').textContent = total > 0 ? total + (total===1?' pedido':' pedidos') : '';
+    document.getElementById("total-badge").textContent = total > 0 ? total + (total === 1 ? " pedido" : " pedidos") : "";
 
-    var groups = {};
-    var entries = Object.entries(orders).sort(function(a,b){ return a[1].ts-b[1].ts; });
-    for (var i = 0; i < entries.length; i++) {
-      var key=entries[i][0], o=entries[i][1];
-      if (!groups[o.drink]) groups[o.drink]={icon:o.icon,items:[]};
-      groups[o.drink].items.push({key:key,player:o.player});
-    }
-    // Agrupar por persona
     var byPlayer = {};
-    var entries2 = Object.entries(orders).sort(function(a,b){ return a[1].ts-b[1].ts; });
-    for (var i2 = 0; i2 < entries2.length; i2++) {
-      var k2=entries2[i2][0], o2=entries2[i2][1];
-      if (!byPlayer[o2.player]) byPlayer[o2.player] = [];
-      byPlayer[o2.player].push({ key:k2, drink:o2.drink, icon:o2.icon });
+    var entries = Object.entries(orders).sort(function(a,b) { return a[1].ts - b[1].ts; });
+    for (var i = 0; i < entries.length; i++) {
+      var key = entries[i][0], o = entries[i][1];
+      if (!byPlayer[o.player]) byPlayer[o.player] = [];
+      byPlayer[o.player].push({ key: key, drink: o.drink, icon: o.icon });
     }
-    var panel = document.getElementById('summary-panel');
+
+    var panel = document.getElementById("summary-panel");
     var players = Object.keys(byPlayer);
+
     if (!players.length) {
-      panel.innerHTML = '<div class="empty-state">Nadie pidio nada todavia \u{1F440}</div>';
+      panel.innerHTML = "<div class='empty-state'>Nadie pidio nada todavia 👀</div>";
     } else {
-      var html = '';
+      var html = "";
       for (var p = 0; p < players.length; p++) {
         var player = players[p];
         var pitems = byPlayer[player];
         var mine   = player === myName;
         var canDel = mine || isAdmin();
-        html += '<div class="order-row">';
-        html += '<div class="order-row-top">';
-        html += '<div class="player-avatar-sm" style="background:'+avatarColor(player)+'">'+initials(player)+'</div>';
-        html += '<span class="order-name'+(mine?' order-name-mine':'')+'">'+player+(mine?' <span class=\"you-tag\">vos</span>':'')+'</span>';
-        html += '<span class="order-qty">'+pitems.length+'</span>';
-        html += '</div>';
-        html += '<div class="player-drinks">';
-        for (var d2 = 0; d2 < pitems.length; d2++) {
-          var it = pitems[d2];
-          html += '<div class="player-drink-item">';
-          html += '<span class="player-drink-text">'+it.icon+' '+it.drink+'</span>';
-          if (canDel) html += '<span class="chip-del" onclick="removeOrder(\''+it.key+'\')">\u00d7</span>';
-          html += '</div>';
+        var color  = avatarColor(player);
+        var ini    = initials(player);
+        var youTag = mine ? " <span class='you-tag'>vos</span>" : "";
+
+        html += "<div class='order-row'>";
+        html += "<div class='order-row-top'>";
+        html += "<div class='player-avatar-sm' style='background:" + color + "'>" + ini + "</div>";
+        html += "<span class='order-name" + (mine ? " order-name-mine" : "") + "'>" + player + youTag + "</span>";
+        html += "<span class='order-qty'>" + pitems.length + "</span>";
+        html += "</div>";
+        html += "<div class='player-drinks'>";
+        for (var d = 0; d < pitems.length; d++) {
+          var it = pitems[d];
+          html += "<div class='player-drink-item'>";
+          html += "<span class='player-drink-text'>" + it.icon + " " + it.drink + "</span>";
+          if (canDel) html += "<span class='chip-del' onclick='removeOrder(\"" + it.key + "\")'>✕</span>";
+          html += "</div>";
         }
-        html += '</div></div>';
+        html += "</div></div>";
       }
       panel.innerHTML = html;
     }
-    }
-    var wsBtn = document.getElementById('ws-btn');
-    wsBtn.style.display = isAdmin() && total > 0 ? 'flex' : 'none';
+
+    var wsBtn = document.getElementById("ws-btn");
+    wsBtn.style.display = isAdmin() && total > 0 ? "flex" : "none";
   }
 
-  // ── Render Attendees (tab mesa) ──────────────────────────
+  // LA MESA — cards de asistentes
   function renderAttendees() {
-    // Construir mapa player → pedidos
     var playerOrders = {};
     Object.values(orders).forEach(function(o) {
       if (!playerOrders[o.player]) playerOrders[o.player] = [];
       playerOrders[o.player].push({ drink: o.drink, icon: o.icon });
     });
 
-    var panel = document.getElementById('attendees-panel');
+    var panel = document.getElementById("attendees-panel");
     var players = Object.keys(playerOrders);
 
+    document.getElementById("mesa-count").textContent = players.length + (players.length === 1 ? " galan" : " galanes");
+
     if (!players.length) {
-      panel.innerHTML = '<div class="empty-state">Nadie se anotó todavía 👀</div>';
+      panel.innerHTML = "<div class='empty-state'>Nadie se anoto todavia 👀</div>";
       return;
     }
 
-    var html = '';
-    players.forEach(function(player) {
-      var color = avatarColor(player);
-      var ini   = initials(player);
-      var isMe  = player === myName;
-      var items = playerOrders[player];
+    var html = "";
+    for (var p = 0; p < players.length; p++) {
+      var player = players[p];
+      var color  = avatarColor(player);
+      var ini    = initials(player);
+      var isMe   = player === myName;
+      var items  = playerOrders[player];
 
-      html += '<div class="attendee-card' + (isMe ? ' attendee-me' : '') + '">';
-      // Avatar
-      html += '<div class="attendee-avatar" style="background:' + color + '">' + ini + '</div>';
-      // Info
-      html += '<div class="attendee-info">';
-      html += '<div class="attendee-name">' + player + (isMe ? ' <span class="you-tag">vos</span>' : '') + '</div>';
-      if (items.length) {
-        html += '<div class="attendee-order">';
-        items.forEach(function(it) {
-          html += '<span class="attendee-item">' + it.icon + ' ' + it.drink + '</span>';
-        });
-        html += '</div>';
-      } else {
-        html += '<div class="attendee-pending">Sin pedido aún...</div>';
+      html += "<div class='attendee-card" + (isMe ? " attendee-me" : "") + "'>";
+      html += "<div class='attendee-avatar' style='background:" + color + "'>" + ini + "</div>";
+      html += "<div class='attendee-info'>";
+      html += "<div class='attendee-name'>" + player + (isMe ? " <span class='you-tag'>vos</span>" : "") + "</div>";
+      html += "<div class='attendee-order'>";
+      for (var k = 0; k < items.length; k++) {
+        html += "<span class='attendee-item'>" + items[k].icon + " " + items[k].drink + "</span>";
       }
-      html += '</div>';
-      html += '</div>';
-    });
-
+      html += "</div></div></div>";
+    }
     panel.innerHTML = html;
-    document.getElementById('mesa-count').textContent = players.length + (players.length===1?' galán':' galanes');
   }
 
-  // ── Favorito ─────────────────────────────────────────────
   window.grabarFavorito = async function() {
-    var myOrders = Object.values(orders).filter(function(o){ return o.player===myName; });
-    if (!myOrders.length) { alert('Primero hace tu pedido!'); return; }
-    var fav = myOrders.map(function(o){ return {drink:o.drink,icon:o.icon,drinkIdx:o.drinkIdx,extra:o.extra}; });
+    var myOrders = Object.values(orders).filter(function(o) { return o.player === myName; });
+    if (!myOrders.length) { alert("Primero hace tu pedido!"); return; }
+    var fav = myOrders.map(function(o) { return { drink: o.drink, icon: o.icon, drinkIdx: o.drinkIdx, extra: o.extra }; });
     await set(favRef, fav);
-    alert('Guardado: ' + fav.map(function(f){ return f.drink; }).join(', '));
+    alert("Guardado: " + fav.map(function(f) { return f.drink; }).join(", "));
   };
+
   window.cargarFavorito = async function() {
     var snap = await get(favRef);
-    if (!snap.exists()) { alert('No hay favorito guardado'); return; }
+    if (!snap.exists()) { alert("No hay favorito guardado"); return; }
     var favs = snap.val();
     var entries = Object.entries(orders);
     for (var i = 0; i < entries.length; i++) {
-      if (entries[i][1].player===myName) await remove(ref(db,'pedido/orders/'+entries[i][0]));
+      if (entries[i][1].player === myName) await remove(ref(db, "pedido/orders/" + entries[i][0]));
     }
     for (var j = 0; j < favs.length; j++) {
-      var f=favs[j];
-      await push(ordersRef,{player:myName,drinkIdx:f.drinkIdx,drink:f.drink,icon:f.icon,extra:f.extra||null,ts:Date.now()});
+      var f = favs[j];
+      await push(ordersRef, { player: myName, drinkIdx: f.drinkIdx, drink: f.drink, icon: f.icon, extra: f.extra || null, ts: Date.now() });
     }
   };
 
-  // ── WhatsApp ─────────────────────────────────────────────
   window.enviarWS = function() {
-    var now=new Date();
-    var fecha=now.toLocaleDateString('es-AR',{weekday:'long',day:'numeric',month:'long'});
-    var hora=now.toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'});
-    var groups={};
-    Object.values(orders).sort(function(a,b){return a.ts-b.ts;}).forEach(function(o){
-      if (!groups[o.drink]) groups[o.drink]={icon:o.icon,players:[]};
+    var now   = new Date();
+    var fecha = now.toLocaleDateString("es-AR", { weekday:"long", day:"numeric", month:"long" });
+    var hora  = now.toLocaleTimeString("es-AR", { hour:"2-digit", minute:"2-digit" });
+
+    // Agrupar por bebida para el mensaje
+    var groups = {};
+    Object.values(orders).sort(function(a,b) { return a.ts - b.ts; }).forEach(function(o) {
+      if (!groups[o.drink]) groups[o.drink] = { icon: o.icon, players: [] };
       groups[o.drink].players.push(o.player);
     });
-    var msg='☕ *Pedido Mesa de Galanes*\n📅 '+fecha+' · '+hora+'\n\n';
-    Object.keys(groups).forEach(function(d){
-      var g=groups[d];
-      msg+=g.icon+' *'+d+'* ('+g.players.length+')\n   → '+g.players.join(', ')+'\n';
+    var msg = "☕ *Pedido Mesa de Galanes*\n📅 " + fecha + " · " + hora + "\n\n";
+    Object.keys(groups).forEach(function(d) {
+      var g = groups[d];
+      msg += g.icon + " *" + d + "* (" + g.players.length + ")\n   → " + g.players.join(", ") + "\n";
     });
-    msg+='\n_Total: '+Object.keys(orders).length+' pedidos_';
-    window.open('https://wa.me/?text='+encodeURIComponent(msg),'_blank');
+    msg += "\n_Total: " + Object.keys(orders).length + " pedidos_";
+    window.open("https://wa.me/?text=" + encodeURIComponent(msg), "_blank");
   };
 
   function updateClock() {
-    var now=new Date();
-    var dias=['Dom','Lun','Mar','Mie','Jue','Vie','Sab'];
-    var meses=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
-    document.getElementById('fecha-header').textContent=dias[now.getDay()]+' '+now.getDate()+' '+meses[now.getMonth()];
-    document.getElementById('hora-header').textContent=now.toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'});
+    var now   = new Date();
+    var dias  = ["Dom","Lun","Mar","Mie","Jue","Vie","Sab"];
+    var meses = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
+    document.getElementById("fecha-header").textContent = dias[now.getDay()] + " " + now.getDate() + " " + meses[now.getMonth()];
+    document.getElementById("hora-header").textContent  = now.toLocaleTimeString("es-AR", { hour:"2-digit", minute:"2-digit" });
   }
 
   window.openModal = function(id) {
-    document.getElementById(id).classList.add('open');
-    var inp=document.querySelector('#'+id+' input');
-    if (inp) setTimeout(function(){inp.focus();},100);
+    document.getElementById(id).classList.add("open");
+    var inp = document.querySelector("#" + id + " input");
+    if (inp) setTimeout(function() { inp.focus(); }, 100);
   };
   window.closeModal = function(id) {
-    document.getElementById(id).classList.remove('open');
-    if (id==='modal-extra') pendingDrink=null;
+    document.getElementById(id).classList.remove("open");
+    if (id === "modal-extra") pendingDrink = null;
   };
   function openNameModal() {
-    document.getElementById('modal-name-input').value=myName||'';
-    openModal('modal-name');
+    document.getElementById("modal-name-input").value = myName || "";
+    openModal("modal-name");
   }
-  window.openNameModal=openNameModal;
-  document.addEventListener('keydown', function(e) {
-    if (e.key==='Enter'&&document.getElementById('modal-name').classList.contains('open')) window.setName(document.getElementById('modal-name-input').value);
-    if (e.key==='Enter'&&document.getElementById('modal-drink').classList.contains('open')) window.addDrink();
-    if (e.key==='Escape') document.querySelectorAll('.modal-overlay.open').forEach(function(m){m.classList.remove('open');});
+  window.openNameModal = openNameModal;
+
+  document.addEventListener("keydown", function(e) {
+    if (e.key === "Enter" && document.getElementById("modal-name").classList.contains("open"))
+      window.setName(document.getElementById("modal-name-input").value);
+    if (e.key === "Enter" && document.getElementById("modal-drink").classList.contains("open"))
+      window.addDrink();
+    if (e.key === "Escape")
+      document.querySelectorAll(".modal-overlay.open").forEach(function(m) { m.classList.remove("open"); });
   });
 </script>
 
 <style>
   :root {
-    --bg:       #faf6f0;
-    --surface:  #ffffff;
-    --card:     #ffffff;
-    --header-bg:#1a0e04;
-    --gold:     #b8820a;
-    --gold2:    #d4a020;
+    --bg:        #faf6f0;
+    --surface:   #ffffff;
+    --card:      #ffffff;
+    --header-bg: #1a0e04;
+    --gold:      #b8820a;
+    --gold2:     #d4a020;
     --gold-light:#f0c84a;
-    --ink:      #1a0e04;
-    --muted:    #9a7a5a;
-    --border:   #e8dece;
-    --border2:  #d4c4aa;
-    --green:    #25d366;
-    --red:      #e74c3c;
-    --shadow:   rgba(26,14,4,0.08);
+    --ink:       #1a0e04;
+    --muted:     #9a7a5a;
+    --border:    #e8dece;
+    --border2:   #d4c4aa;
+    --green:     #25d366;
+    --red:       #e74c3c;
+    --shadow:    rgba(26,14,4,0.08);
   }
-
   * { box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent; }
+  body { background:var(--bg); color:var(--ink); font-family:"Inter",sans-serif; min-height:100vh; overflow-x:hidden; }
 
-  body {
-    background: var(--bg);
-    color: var(--ink);
-    font-family: 'Inter', sans-serif;
-    min-height: 100vh;
-    overflow-x: hidden;
-  }
-
-  /* ── HEADER ─────────────────────────── */
-  header {
-    position: relative;
-    background: var(--header-bg);
-    padding: 20px 16px 18px;
-    overflow: hidden;
-  }
-  header::before {
-    content: '7:45';
-    position: absolute;
-    right: -8px; top: 50%;
-    transform: translateY(-50%);
-    font-family: 'Bebas Neue', sans-serif;
-    font-size: 7rem;
-    color: rgba(200,146,42,0.08);
-    pointer-events: none;
-    user-select: none;
-    letter-spacing: -2px;
-    line-height: 1;
-  }
-
+  /* HEADER */
+  header { position:relative; background:var(--header-bg); padding:20px 16px 18px; overflow:hidden; }
+  header::before { content:"7:45"; position:absolute; right:-8px; top:50%; transform:translateY(-50%); font-family:"Bebas Neue",sans-serif; font-size:7rem; color:rgba(200,146,42,0.08); pointer-events:none; user-select:none; letter-spacing:-2px; line-height:1; }
   .header-top { display:flex; align-items:flex-start; justify-content:space-between; position:relative; }
-  .header-title {
-    font-family: 'Bebas Neue', sans-serif;
-    font-size: 2.4rem;
-    letter-spacing: 1px;
-    line-height: 1;
-    color: #f5ead6;
-  }
-  .header-title span { color: var(--gold2); }
+  .header-title { font-family:"Bebas Neue",sans-serif; font-size:2.4rem; letter-spacing:1px; line-height:1; color:#f5ead6; }
+  .header-title span { color:var(--gold2); }
   .header-meta { text-align:right; font-size:0.68rem; color:rgba(245,234,214,0.45); font-weight:500; letter-spacing:0.04em; line-height:1.6; margin-top:4px; }
-
-  .name-zone { display:flex; align-items:center; gap:8px; margin-top:12px; position:relative; }
-  #name-prompt {
-    display:flex; align-items:center; gap:6px;
-    background:rgba(200,146,42,0.15); border:1px solid rgba(200,146,42,0.35);
-    color:var(--gold-light); border-radius:100px; padding:7px 16px;
-    font-size:0.82rem; font-weight:600; cursor:pointer; transition:all 0.15s;
-  }
+  .name-zone { display:flex; align-items:center; gap:8px; margin-top:12px; }
+  #name-prompt { display:flex; align-items:center; gap:6px; background:rgba(200,146,42,0.15); border:1px solid rgba(200,146,42,0.35); color:var(--gold-light); border-radius:100px; padding:7px 16px; font-size:0.82rem; font-weight:600; cursor:pointer; transition:all 0.15s; }
   #name-prompt:hover { background:rgba(200,146,42,0.25); }
-  #my-name-badge {
-    display:none; align-items:center; gap:8px;
-    background:rgba(200,146,42,0.18); border:1px solid rgba(200,146,42,0.4);
-    color:var(--gold-light); border-radius:100px; padding:7px 14px;
-    font-size:0.84rem; font-weight:600; cursor:pointer;
-  }
+  #my-name-badge { display:none; align-items:center; gap:8px; background:rgba(200,146,42,0.18); border:1px solid rgba(200,146,42,0.4); color:var(--gold-light); border-radius:100px; padding:7px 14px; font-size:0.84rem; font-weight:600; cursor:pointer; }
   .logout-x { color:rgba(245,234,214,0.35); font-size:0.75rem; cursor:pointer; transition:color 0.1s; margin-left:2px; }
   .logout-x:hover { color:var(--red); }
   #total-badge { margin-left:auto; font-size:0.72rem; font-weight:700; color:var(--gold2); letter-spacing:0.06em; text-transform:uppercase; }
 
-  /* ── TABS ────────────────────────────── */
-  .tabs {
-    display: flex;
-    background: var(--surface);
-    border-bottom: 1px solid var(--border);
-    padding: 0 12px;
-    gap: 0;
-    position: sticky;
-    top: 0;
-    z-index: 10;
-    box-shadow: 0 2px 8px var(--shadow);
-  }
-  .tab-btn {
-    flex: 1;
-    padding: 13px 8px;
-    background: none;
-    border: none;
-    border-bottom: 2px solid transparent;
-    font-family: 'Inter', sans-serif;
-    font-size: 0.78rem;
-    font-weight: 600;
-    color: var(--muted);
-    cursor: pointer;
-    transition: all 0.15s;
-    letter-spacing: 0.02em;
-    text-transform: uppercase;
-  }
-  .tab-btn.active {
-    color: var(--gold);
-    border-bottom-color: var(--gold);
-  }
+  /* TABS */
+  .tabs { display:flex; background:var(--surface); border-bottom:1px solid var(--border); padding:0 12px; position:sticky; top:0; z-index:10; box-shadow:0 2px 8px var(--shadow); }
+  .tab-btn { flex:1; padding:13px 6px; background:none; border:none; border-bottom:2px solid transparent; font-family:"Inter",sans-serif; font-size:0.76rem; font-weight:600; color:var(--muted); cursor:pointer; transition:all 0.15s; letter-spacing:0.02em; text-transform:uppercase; }
+  .tab-btn.active { color:var(--gold); border-bottom-color:var(--gold); }
 
-  /* ── MAIN ────────────────────────────── */
-  .main { padding: 0 0 130px; width: 100%; }
+  .main { padding:0 0 130px; width:100%; }
 
-  .section-label {
-    font-family: 'Bebas Neue', sans-serif;
-    font-size: 0.85rem;
-    letter-spacing: 0.2em;
-    color: var(--gold);
-    padding: 18px 16px 12px;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-  }
-  .section-label::after { content:''; flex:1; height:1px; background:linear-gradient(to right,var(--border2),transparent); }
+  .section-label { font-family:"Bebas Neue",sans-serif; font-size:0.85rem; letter-spacing:0.2em; color:var(--gold); padding:18px 16px 12px; display:flex; align-items:center; gap:10px; }
+  .section-label::after { content:""; flex:1; height:1px; background:linear-gradient(to right,var(--border2),transparent); }
 
-  /* ── DRINK CARDS ─────────────────────── */
-  .drinks-grid {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 10px;
-    padding: 0 12px;
-  }
-
-  .drink-card {
-    background: var(--card);
-    border: 1.5px solid var(--border);
-    border-radius: 18px;
-    cursor: pointer;
-    transition: all 0.18s ease;
-    position: relative;
-    overflow: hidden;
-    aspect-ratio: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: 0 2px 8px var(--shadow);
-  }
-  .drink-card::before {
-    content: '7:45';
-    position: absolute;
-    bottom: -6px; right: -2px;
-    font-family: 'Bebas Neue', sans-serif;
-    font-size: 3rem;
-    color: rgba(184,130,10,0.06);
-    pointer-events: none;
-    user-select: none;
-    line-height: 1;
-  }
+  /* DRINK CARDS */
+  .drinks-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:10px; padding:0 12px; }
+  .drink-card { background:var(--card); border:1.5px solid var(--border); border-radius:18px; cursor:pointer; transition:all 0.18s ease; position:relative; overflow:hidden; aspect-ratio:1; display:flex; align-items:center; justify-content:center; box-shadow:0 2px 8px var(--shadow); }
+  .drink-card::before { content:"7:45"; position:absolute; bottom:-6px; right:-2px; font-family:"Bebas Neue",sans-serif; font-size:3rem; color:rgba(184,130,10,0.06); pointer-events:none; user-select:none; line-height:1; }
   .drink-card:hover { border-color:var(--gold2); transform:translateY(-2px); box-shadow:0 8px 24px rgba(184,130,10,0.14); }
-  .drink-card.selected {
-    border-color: var(--gold);
-    background: linear-gradient(135deg,#fffbf2,#fff);
-    box-shadow: 0 0 0 2px rgba(184,130,10,0.2), 0 8px 24px rgba(184,130,10,0.12);
-  }
-
-  .card-inner {
-    display:flex; flex-direction:column; align-items:center; justify-content:center;
-    text-align:center; padding:14px 10px; width:100%; height:100%; gap:6px; position:relative; z-index:1;
-  }
+  .drink-card.selected { border-color:var(--gold); background:linear-gradient(135deg,#fffbf2,#fff); box-shadow:0 0 0 2px rgba(184,130,10,0.2),0 8px 24px rgba(184,130,10,0.12); }
+  .card-inner { display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; padding:14px 10px; width:100%; height:100%; gap:6px; position:relative; z-index:1; }
   .card-emoji { font-size:2.8rem; line-height:1; }
   .card-name { font-weight:700; font-size:0.9rem; color:var(--ink); line-height:1.2; letter-spacing:-0.01em; }
   .card-sub { font-size:0.68rem; color:var(--muted); }
   .card-hint { font-size:0.65rem; color:var(--gold); opacity:0.7; font-weight:500; }
   .card-extra { background:rgba(184,130,10,0.1); color:var(--gold); border-radius:6px; padding:2px 8px; font-size:0.68rem; font-weight:600; }
-
-  .card-check {
-    position:absolute; top:10px; right:10px;
-    width:24px; height:24px; background:var(--gold);
-    border-radius:50%; display:flex; align-items:center; justify-content:center; z-index:2;
-  }
-  .delete-drink {
-    position:absolute; top:8px; left:8px; width:22px; height:22px;
-    background:var(--red); color:white; border-radius:50%;
-    display:flex; align-items:center; justify-content:center;
-    font-size:0.62rem; font-weight:800; z-index:3; cursor:pointer;
-  }
-  .add-card {
-    background:transparent; border:1.5px dashed var(--border2); border-radius:18px;
-    display:flex; flex-direction:column; align-items:center; justify-content:center;
-    gap:6px; cursor:pointer; transition:all 0.15s; color:var(--muted);
-    font-size:0.75rem; font-weight:500; aspect-ratio:1;
-  }
+  .card-check { position:absolute; top:10px; right:10px; width:24px; height:24px; background:var(--gold); border-radius:50%; display:flex; align-items:center; justify-content:center; z-index:2; }
+  .delete-drink { position:absolute; top:8px; left:8px; width:22px; height:22px; background:var(--red); color:white; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:0.62rem; font-weight:800; z-index:3; cursor:pointer; }
+  .add-card { background:transparent; border:1.5px dashed var(--border2); border-radius:18px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; cursor:pointer; transition:all 0.15s; color:var(--muted); font-size:0.75rem; font-weight:500; aspect-ratio:1; }
   .add-card:hover { border-color:var(--gold); color:var(--gold); }
   .add-plus { font-size:1.8rem; line-height:1; font-weight:200; color:var(--gold); }
   .reset-card { font-size:0.7rem; }
 
-  /* ── RESUMEN ─────────────────────────── */
-  .summary-panel {
-    margin:0 12px; background:var(--surface);
-    border:1.5px solid var(--border); border-radius:18px; overflow:hidden;
-    box-shadow:0 2px 12px var(--shadow);
-  }
+  /* RESUMEN */
+  .summary-panel { margin:0 12px; background:var(--surface); border:1.5px solid var(--border); border-radius:18px; overflow:hidden; box-shadow:0 2px 12px var(--shadow); }
   .order-row { padding:14px 16px; border-bottom:1px solid var(--border); }
   .order-row:last-child { border-bottom:none; }
-  .order-row-top { display:flex; align-items:center; gap:8px; margin-bottom:10px; }
-  .order-icon { font-size:1.1rem; }
-  .order-name { flex:1; font-weight:700; font-size:0.88rem; color:var(--ink); }
-  .order-qty {
-    background:var(--gold); color:white; border-radius:100px;
-    padding:2px 10px; font-size:0.72rem; font-weight:700;
-    font-family:'Bebas Neue',sans-serif; letter-spacing:0.05em;
-  }
-  .order-chips { display:flex; flex-wrap:wrap; gap:5px; }
-  .chip {
-    background:var(--bg); border:1px solid var(--border);
-    border-radius:100px; padding:3px 10px; font-size:0.75rem;
-    font-weight:500; color:var(--muted); display:inline-flex; align-items:center; gap:5px;
-  }
-  .chip-mine { background:rgba(184,130,10,0.08); border-color:rgba(184,130,10,0.3); color:var(--gold); font-weight:700; }
-  .chip-del { cursor:pointer; opacity:0.35; font-size:0.65rem; transition:opacity 0.1s; }
-  .chip-del:hover { opacity:1; color:var(--red); }
-
-  /* ── TABLERO DE MESA ─────────────────── */
-  .mesa-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 18px 16px 12px;
-  }
-  .mesa-title {
-    font-family: 'Bebas Neue', sans-serif;
-    font-size: 0.85rem;
-    letter-spacing: 0.2em;
-    color: var(--gold);
-  }
-  #mesa-count {
-    font-size: 0.72rem;
-    font-weight: 600;
-    color: var(--muted);
-    background: var(--border);
-    padding: 2px 10px;
-    border-radius: 100px;
-  }
-
-  .attendees-grid {
-    padding: 0 12px;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-  }
-
-  .attendee-card {
-    background: var(--surface);
-    border: 1.5px solid var(--border);
-    border-radius: 16px;
-    padding: 14px 16px;
-    display: flex;
-    align-items: center;
-    gap: 14px;
-    box-shadow: 0 2px 8px var(--shadow);
-    transition: all 0.15s;
-  }
-  .attendee-card.attendee-me {
-    border-color: var(--gold);
-    background: linear-gradient(135deg, #fffdf6, #fff);
-    box-shadow: 0 4px 16px rgba(184,130,10,0.1);
-  }
-
-  .attendee-avatar {
-    width: 48px; height: 48px;
-    border-radius: 50%;
-    display: flex; align-items: center; justify-content: center;
-    font-family: 'Bebas Neue', sans-serif;
-    font-size: 1.2rem;
-    color: white;
-    flex-shrink: 0;
-    box-shadow: 0 3px 10px rgba(0,0,0,0.15);
-    letter-spacing: 0.02em;
-  }
-
-  .attendee-info { flex: 1; min-width: 0; }
-  .attendee-name {
-    font-weight: 700;
-    font-size: 0.92rem;
-    color: var(--ink);
-    margin-bottom: 5px;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-  }
-  .you-tag {
-    background: rgba(184,130,10,0.12);
-    color: var(--gold);
-    font-size: 0.62rem;
-    font-weight: 700;
-    padding: 1px 7px;
-    border-radius: 100px;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-  }
-
-  .attendee-order { display:flex; flex-direction:column; gap:3px; }
-  .attendee-item {
-    font-size: 0.78rem;
-    color: var(--muted);
-    font-weight: 500;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  .attendee-pending {
-    font-size: 0.75rem;
-    color: var(--border2);
-    font-style: italic;
-  }
-
-
-  .player-avatar-sm { width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-family:'Bebas Neue',sans-serif; font-size:0.85rem; color:white; flex-shrink:0; box-shadow:0 2px 6px rgba(0,0,0,0.12); }
-  .order-name-mine { color:var(--gold) !important; font-weight:800 !important; }
-  .player-drinks { margin-left:46px; display:flex; flex-direction:column; gap:5px; margin-top:6px; }
+  .order-row-top { display:flex; align-items:center; gap:10px; margin-bottom:8px; }
+  .player-avatar-sm { width:34px; height:34px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-family:"Bebas Neue",sans-serif; font-size:0.9rem; color:white; flex-shrink:0; box-shadow:0 2px 6px rgba(0,0,0,0.12); }
+  .order-name { flex:1; font-weight:700; font-size:0.92rem; color:var(--ink); display:flex; align-items:center; gap:6px; }
+  .order-name-mine { color:var(--gold) !important; }
+  .order-qty { background:var(--gold); color:white; border-radius:100px; padding:2px 10px; font-size:0.72rem; font-weight:700; font-family:"Bebas Neue",sans-serif; letter-spacing:0.05em; }
+  .player-drinks { margin-left:44px; display:flex; flex-direction:column; gap:5px; }
   .player-drink-item { display:flex; align-items:center; justify-content:space-between; background:var(--bg); border-radius:8px; padding:7px 12px; border:1px solid var(--border); }
   .player-drink-text { font-size:0.82rem; color:var(--muted); font-weight:500; }
+  .chip-del { cursor:pointer; opacity:0.35; font-size:0.7rem; transition:opacity 0.1s; padding:2px 4px; }
+  .chip-del:hover { opacity:1; color:var(--red); }
 
-  /* ── EMPTY ───────────────────────────── */
+  /* LA MESA */
+  .mesa-header { display:flex; align-items:center; justify-content:space-between; padding:18px 16px 12px; }
+  .mesa-title { font-family:"Bebas Neue",sans-serif; font-size:0.85rem; letter-spacing:0.2em; color:var(--gold); display:flex; align-items:center; gap:8px; }
+  #mesa-count { font-size:0.72rem; font-weight:600; color:var(--muted); background:var(--border); padding:2px 10px; border-radius:100px; }
+  .attendees-grid { padding:0 12px; display:flex; flex-direction:column; gap:10px; }
+  .attendee-card { background:var(--surface); border:1.5px solid var(--border); border-radius:16px; padding:14px 16px; display:flex; align-items:center; gap:14px; box-shadow:0 2px 8px var(--shadow); }
+  .attendee-card.attendee-me { border-color:var(--gold); background:linear-gradient(135deg,#fffdf6,#fff); box-shadow:0 4px 16px rgba(184,130,10,0.1); }
+  .attendee-avatar { width:48px; height:48px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-family:"Bebas Neue",sans-serif; font-size:1.2rem; color:white; flex-shrink:0; box-shadow:0 3px 10px rgba(0,0,0,0.15); }
+  .attendee-info { flex:1; min-width:0; }
+  .attendee-name { font-weight:700; font-size:0.92rem; color:var(--ink); margin-bottom:5px; display:flex; align-items:center; gap:6px; }
+  .attendee-order { display:flex; flex-direction:column; gap:3px; }
+  .attendee-item { font-size:0.78rem; color:var(--muted); font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .you-tag { background:rgba(184,130,10,0.12); color:var(--gold); font-size:0.62rem; font-weight:700; padding:1px 7px; border-radius:100px; letter-spacing:0.04em; text-transform:uppercase; }
+
   .empty-state { text-align:center; padding:28px; color:var(--muted); font-size:0.84rem; font-style:italic; opacity:0.7; }
-
-  .clear-btn { background:none; border:none; font-size:0.72rem; color:var(--muted); cursor:pointer; padding:2px 6px; font-family:'Inter',sans-serif; transition:color 0.1s; }
+  .clear-btn { background:none; border:none; font-size:0.72rem; color:var(--muted); cursor:pointer; padding:2px 6px; font-family:"Inter",sans-serif; transition:color 0.1s; }
   .clear-btn:hover { color:var(--red); }
 
-  /* ── WS BTN ──────────────────────────── */
-  .ws-btn {
-    position:fixed; bottom:20px; left:50%; transform:translateX(-50%);
-    background:var(--green); color:white; border:none; border-radius:100px;
-    padding:15px 28px; font-family:'Inter',sans-serif; font-size:0.92rem; font-weight:700;
-    cursor:pointer; display:none; align-items:center; gap:10px;
-    box-shadow:0 8px 28px rgba(37,211,102,0.3); transition:all 0.2s ease;
-    white-space:nowrap; z-index:100;
-  }
+  /* BOTONES FIJOS */
+  .ws-btn { position:fixed; bottom:20px; left:50%; transform:translateX(-50%); background:var(--green); color:white; border:none; border-radius:100px; padding:15px 28px; font-family:"Inter",sans-serif; font-size:0.92rem; font-weight:700; cursor:pointer; display:none; align-items:center; gap:10px; box-shadow:0 8px 28px rgba(37,211,102,0.3); transition:all 0.2s ease; white-space:nowrap; z-index:100; }
   .ws-btn:hover { transform:translateX(-50%) translateY(-2px); }
+  #fav-bar { position:fixed; bottom:76px; left:50%; transform:translateX(-50%); display:none; gap:8px; z-index:99; }
+  .fav-load-btn { background:white; color:var(--gold); border:1.5px solid rgba(184,130,10,0.4); border-radius:100px; padding:10px 18px; font-family:"Inter",sans-serif; font-size:0.82rem; font-weight:700; cursor:pointer; white-space:nowrap; box-shadow:0 4px 14px var(--shadow); }
+  .fav-save-btn { background:white; color:var(--muted); border:1.5px solid var(--border); border-radius:100px; padding:10px 14px; font-family:"Inter",sans-serif; font-size:0.82rem; font-weight:500; cursor:pointer; white-space:nowrap; box-shadow:0 4px 14px var(--shadow); }
 
-  #fav-bar {
-    position:fixed; bottom:76px; left:50%; transform:translateX(-50%);
-    display:none; gap:8px; z-index:99;
-  }
-  .fav-load-btn {
-    background:white; color:var(--gold); border:1.5px solid rgba(184,130,10,0.4);
-    border-radius:100px; padding:10px 18px; font-family:'Inter',sans-serif;
-    font-size:0.82rem; font-weight:700; cursor:pointer; white-space:nowrap;
-    box-shadow:0 4px 14px var(--shadow);
-  }
-  .fav-save-btn {
-    background:white; color:var(--muted); border:1.5px solid var(--border);
-    border-radius:100px; padding:10px 14px; font-family:'Inter',sans-serif;
-    font-size:0.82rem; font-weight:500; cursor:pointer; white-space:nowrap;
-    box-shadow:0 4px 14px var(--shadow);
-  }
-
-  /* ── LIVE DOT ────────────────────────── */
-  .live-dot { width:7px; height:7px; background:#2ecc71; border-radius:50%; display:inline-block; margin-right:2px; animation:pulse 2s infinite; }
+  .live-dot { width:7px; height:7px; background:#2ecc71; border-radius:50%; display:inline-block; animation:pulse 2s infinite; }
   @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
 
-  /* ── MODALS ──────────────────────────── */
+  /* MODALS */
   .modal-overlay { display:none; position:fixed; inset:0; background:rgba(26,14,4,0.5); z-index:200; align-items:flex-end; justify-content:center; backdrop-filter:blur(4px); }
   .modal-overlay.open { display:flex; }
-  .modal {
-    background:var(--surface); border-radius:24px 24px 0 0;
-    border-top:1.5px solid var(--border); padding:24px 24px 36px;
-    width:100%; max-width:480px; animation:slideUp 0.25s ease;
-    box-shadow:0 -8px 40px rgba(26,14,4,0.12);
-  }
+  .modal { background:var(--surface); border-radius:24px 24px 0 0; border-top:1.5px solid var(--border); padding:24px 24px 36px; width:100%; max-width:480px; animation:slideUp 0.25s ease; box-shadow:0 -8px 40px rgba(26,14,4,0.12); }
   @keyframes slideUp { from{transform:translateY(100%)} to{transform:translateY(0)} }
   .modal-handle { width:40px; height:4px; background:var(--border2); border-radius:2px; margin:0 auto 20px; }
-  .modal h3 { font-family:'Bebas Neue',sans-serif; font-size:1.5rem; letter-spacing:0.05em; color:var(--ink); margin-bottom:4px; }
+  .modal h3 { font-family:"Bebas Neue",sans-serif; font-size:1.5rem; letter-spacing:0.05em; color:var(--ink); margin-bottom:4px; }
   .modal-sub { font-size:0.8rem; color:var(--muted); margin-bottom:18px; }
-  .modal input {
-    width:100%; background:var(--bg); border:1.5px solid var(--border);
-    border-radius:12px; padding:12px 16px; font-family:'Inter',sans-serif;
-    font-size:0.9rem; color:var(--ink); margin-bottom:10px; outline:none; transition:border-color 0.15s;
-  }
+  .modal input { width:100%; background:var(--bg); border:1.5px solid var(--border); border-radius:12px; padding:12px 16px; font-family:"Inter",sans-serif; font-size:0.9rem; color:var(--ink); margin-bottom:10px; outline:none; transition:border-color 0.15s; }
   .modal input:focus { border-color:var(--gold); }
   .modal input::placeholder { color:var(--muted); }
   .modal-actions { display:flex; gap:8px; margin-top:8px; }
-  .btn-primary { flex:1; background:var(--gold); color:white; border:none; border-radius:12px; padding:13px; font-family:'Inter',sans-serif; font-weight:700; cursor:pointer; font-size:0.9rem; }
-  .btn-secondary { flex:1; background:var(--bg); color:var(--muted); border:1.5px solid var(--border); border-radius:12px; padding:13px; font-family:'Inter',sans-serif; font-weight:500; cursor:pointer; font-size:0.9rem; }
-
+  .btn-primary { flex:1; background:var(--gold); color:white; border:none; border-radius:12px; padding:13px; font-family:"Inter",sans-serif; font-weight:700; cursor:pointer; font-size:0.9rem; }
+  .btn-secondary { flex:1; background:var(--bg); color:var(--muted); border:1.5px solid var(--border); border-radius:12px; padding:13px; font-family:"Inter",sans-serif; font-weight:500; cursor:pointer; font-size:0.9rem; }
   .extras-grid { display:flex; flex-direction:column; gap:8px; }
-  .extra-btn {
-    background:var(--bg); border:1.5px solid var(--border); border-radius:12px;
-    padding:14px 16px; font-family:'Inter',sans-serif; font-size:0.9rem;
-    font-weight:500; color:var(--ink); cursor:pointer; text-align:left; transition:all 0.15s;
-  }
+  .extra-btn { background:var(--bg); border:1.5px solid var(--border); border-radius:12px; padding:14px 16px; font-family:"Inter",sans-serif; font-size:0.9rem; font-weight:500; color:var(--ink); cursor:pointer; text-align:left; transition:all 0.15s; }
   .extra-btn:hover { border-color:var(--gold); color:var(--gold); background:rgba(184,130,10,0.05); }
 </style>
 </head>
@@ -808,22 +540,18 @@
   </div>
 </header>
 
-<!-- TABS -->
 <div class="tabs">
-  <button class="tab-btn active" data-tab="pedir" onclick="switchTab('pedir')">☕ Pedir</button>
+  <button class="tab-btn" data-tab="pedir"   onclick="switchTab('pedir')">☕ Pedir</button>
   <button class="tab-btn" data-tab="resumen" onclick="switchTab('resumen')">📋 Resumen</button>
-  <button class="tab-btn" data-tab="mesa" onclick="switchTab('mesa')">👥 La Mesa</button>
+  <button class="tab-btn" data-tab="mesa"    onclick="switchTab('mesa')">👥 La Mesa</button>
 </div>
 
 <div class="main">
-
-  <!-- TAB PEDIR -->
   <div id="view-pedir">
     <div class="section-label"><span class="live-dot"></span> Que tomas?</div>
     <div class="drinks-grid" id="drinks-grid"></div>
   </div>
 
-  <!-- TAB RESUMEN -->
   <div id="view-resumen" style="display:none">
     <div class="section-label">
       Pedidos en vivo
@@ -834,7 +562,6 @@
     </div>
   </div>
 
-  <!-- TAB MESA -->
   <div id="view-mesa" style="display:none">
     <div class="mesa-header">
       <div class="mesa-title"><span class="live-dot"></span> La Mesa hoy</div>
@@ -844,10 +571,8 @@
       <div class="empty-state">Nadie se anoto todavia 👀</div>
     </div>
   </div>
-
 </div>
 
-<!-- WS BTN -->
 <button class="ws-btn" id="ws-btn" onclick="enviarWS()">
   <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
   Mandar al bar
@@ -858,7 +583,6 @@
   <button class="fav-save-btn" onclick="grabarFavorito()">Grabar</button>
 </div>
 
-<!-- MODALS -->
 <div class="modal-overlay" id="modal-name" onclick="if(event.target===this)closeModal('modal-name')">
   <div class="modal">
     <div class="modal-handle"></div>
@@ -890,7 +614,7 @@
     <h3>Nueva infusion</h3>
     <p class="modal-sub">Agrega lo que falta</p>
     <input type="text" id="new-drink-name" placeholder="Nombre (ej: Submarino)" maxlength="30" autocomplete="off">
-    <input type="text" id="new-drink-icon" placeholder="Emoji (opcional) 🍵🧉☕" maxlength="4">
+    <input type="text" id="new-drink-icon" placeholder="Emoji (opcional)" maxlength="4">
     <input type="text" id="new-drink-sub"  placeholder="Descripcion opcional" maxlength="30">
     <div class="modal-actions">
       <button class="btn-secondary" onclick="closeModal('modal-drink')">Cancelar</button>
@@ -900,9 +624,9 @@
 </div>
 
 <script>
-  if ('serviceWorker' in navigator) {
-    window.addEventListener('load', function() {
-      navigator.serviceWorker.register('sw.js');
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", function() {
+      navigator.serviceWorker.register("sw.js");
     });
   }
 </script>
