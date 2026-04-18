@@ -641,6 +641,10 @@ header::before{content:"7:45";position:absolute;right:-8px;top:50%;transform:tra
 .ppl{display:flex;flex-direction:column;gap:6px;max-height:280px;overflow-y:auto;margin-bottom:4px;}
 .ppbtn{display:flex;align-items:center;gap:10px;background:var(--bg);border:1.5px solid var(--brd);border-radius:12px;padding:10px 14px;cursor:pointer;transition:all 0.15s;text-align:left;font-family:"Inter",sans-serif;width:100%;}
 .ppbtn:hover,.ppbtn.sel{border-color:var(--gold);background:rgba(184,130,10,0.05);}
+.sel-check{background:var(--gold);color:white;font-size:0.7rem;font-weight:800;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.multi-sel-info{font-size:0.82rem;color:var(--mut);margin-bottom:10px;line-height:1.4;}
+.multi-sel-info b{color:var(--ink);}
+#multi-confirm{margin-top:10px;}
 .ppbtn.ppya{opacity:0.75;}
 .ppini{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:"Bebas Neue",sans-serif;font-size:0.85rem;color:white;flex-shrink:0;}
 .ppname{flex:1;font-weight:600;font-size:0.88rem;color:var(--ink);}
@@ -785,6 +789,7 @@ header::before{content:"7:45";position:absolute;right:-8px;top:50%;transform:tra
     <h3>Cargar pedido</h3>
     <p class="msub">Selecciona al galan y que toma</p>
     <div class="ppl" id="player-list"></div>
+    <div id="multi-confirm" style="display:none"></div>
     <div id="drink-picker" style="display:none">
       <p class="dpt">Que toma?</p>
       <div class="odg" id="otro-drinks"></div>
