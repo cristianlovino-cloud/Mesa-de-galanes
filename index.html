@@ -158,12 +158,18 @@
     setTimeout(function(){document.getElementById("pago-input").focus();},100);
   };
   window.savePago=async function(){
-    if(!editPagoPlayer)return;
+    if(!editPagoPlayer||!editPagoTipo)return;
     var val=parseFloat(document.getElementById("pago-input").value)||0;
-    var cur=pagos[editPagoPlayer]||{};
+    // Copia del objeto para no mutar el estado local
+    var cur={};
+    if(pagos[editPagoPlayer]){
+      cur.cash=pagos[editPagoPlayer].cash||0;
+      cur.transfer=pagos[editPagoPlayer].transfer||0;
+    }
     cur[editPagoTipo]=val;
-    await set(ref(db,"pedido/pagos/"+editPagoPlayer),cur);
+    var playerKey=editPagoPlayer;
     editPagoPlayer=null;editPagoTipo=null;
+    await set(ref(db,"pedido/pagos/"+playerKey),cur);
     closeModal("modal-pago");
   };
 
