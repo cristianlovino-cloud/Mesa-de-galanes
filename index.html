@@ -296,6 +296,23 @@
   };
 
   // ── RENDERS ───────────────────────────────────────────────
+  var dragIdx=null;
+  window.dragStart=function(e,idx){dragIdx=idx;setTimeout(function(){e.target.classList.add("dragging");},0);};
+  window.dragOver=function(e){e.preventDefault();};
+  window.drop=async function(e,toIdx){
+    e.preventDefault();
+    if(dragIdx===null||dragIdx===toIdx)return;
+    var newDrinks=drinks.slice();
+    var moved=newDrinks.splice(dragIdx,1)[0];
+    newDrinks.splice(toIdx,0,moved);
+    await set(rD,newDrinks);
+    dragIdx=null;
+  };
+  window.dragEnd=function(){
+    document.querySelectorAll(".dc").forEach(function(el){el.classList.remove("dragging");});
+    dragIdx=null;
+  };
+
   function renderDrinks(){
     var myIdxs=Object.values(orders).filter(function(o){return o.player===me;}).map(function(o){return o.drinkIdx;});
     var admin=isAdmin(),h="";
@@ -303,8 +320,10 @@
       var d=drinks[i],active=myIdxs.indexOf(i)!==-1,mo=null;
       var vals=Object.values(orders);
       for(var j=0;j<vals.length;j++)if(vals[j].player===me&&vals[j].drinkIdx===i){mo=vals[j];break;}
-      h+="<div class='dc"+(active?" sel":"")+"' onclick='selectDrink("+i+")'>";
+      var dragAttrs=admin?" draggable='true' ondragstart='dragStart(event,"+i+")' ondragover='dragOver(event)' ondrop='drop(event,"+i+")' ondragend='dragEnd()'":"";
+      h+="<div class='dc"+(active?" sel":"")+"' onclick='selectDrink("+i+")'"+dragAttrs+">";
       if(admin)h+="<span class='ddel' onclick='delDrink("+i+",event)'>✕</span>";
+      if(admin)h+="<span class='dhandle'>⠿</span>";
       h+="<div class='ci'><div class='ce'>"+d.icon+"</div><div class='cn'>"+d.name+"</div>";
       if(d.sub)h+="<div class='cs'>"+d.sub+"</div>";
       if(admin&&d.createdBy)h+="<div class='ccreated'>+ "+d.createdBy+"</div>";
@@ -508,6 +527,8 @@ header::before{content:"7:45";position:absolute;right:-8px;top:50%;transform:tra
 .ap{font-size:1.8rem;line-height:1;font-weight:200;color:var(--gold);}
 .rc{font-size:0.7rem;}
 .ccreated{font-size:0.58rem;color:var(--mut);opacity:0.6;margin-top:1px;}
+.dc.dragging{opacity:0.4;transform:scale(0.96);}
+.dhandle{position:absolute;top:8px;right:36px;font-size:0.9rem;color:var(--b2);z-index:2;cursor:grab;user-select:none;}
 
 /* RESUMEN */
 .sp{margin:0 12px;background:var(--sur);border:1.5px solid var(--brd);border-radius:18px;overflow:hidden;box-shadow:0 2px 12px var(--sh);}
