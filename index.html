@@ -84,7 +84,7 @@
     e.stopPropagation(); me=null; localStorage.removeItem("galan_name");
     document.getElementById("badge").style.display="none";
     document.getElementById("prompt").style.display="flex";
-    ["ws-btn","fav-bar","admin-bar","confirm-wrap"].forEach(function(id){document.getElementById(id).style.display="none";});
+    ["admin-dock","confirm-wrap"].forEach(function(id){document.getElementById(id).style.display="none";});
     renderDrinks(); renderMesa();
   };
   function isAdmin(){return me===ADMIN;}
@@ -93,9 +93,7 @@
     b.innerHTML=(isAdmin()?"⚙️ ":"")+me+"<span class='lx' onclick='logout(event)'>✕</span>";
     b.style.display="flex";
     document.getElementById("prompt").style.display="none";
-    document.getElementById("ws-btn").style.display=isAdmin()?"flex":"none";
-    document.getElementById("fav-bar").style.display=isAdmin()?"flex":"none";
-    document.getElementById("admin-bar").style.display=isAdmin()?"flex":"none";
+    document.getElementById("admin-dock").style.display=isAdmin()?"flex":"none";
     renderConfirmBtn();
   }
 
@@ -340,7 +338,7 @@
       tk.forEach(function(d){th+="<div class='tr'><span>"+tots[d].icon+" "+d+"</span><span class='tq'>x"+tots[d].count+"</span></div>";});
       tp.innerHTML=th;tp.style.display="block";
     }else{tp.style.display="none";}
-    document.getElementById("ws-btn").style.display=isAdmin()&&total>0?"flex":"none";
+    if(isAdmin()){document.getElementById("ws-btn").style.display=total>0?"flex":"none";}
   }
 
   function renderMesa(){
@@ -416,7 +414,7 @@ header::before{content:"7:45";position:absolute;right:-8px;top:50%;transform:tra
 .tab{flex:1;padding:13px 6px;background:none;border:none;border-bottom:2px solid transparent;font-family:"Inter",sans-serif;font-size:0.76rem;font-weight:600;color:var(--mut);cursor:pointer;transition:all 0.15s;letter-spacing:0.02em;text-transform:uppercase;}
 .tab.active{color:var(--gold);border-bottom-color:var(--gold);}
 
-.main{padding:0 0 180px;width:100%;}
+.main{padding:0 0 200px;width:100%;}
 .slabel{font-family:"Bebas Neue",sans-serif;font-size:0.85rem;letter-spacing:0.2em;color:var(--gold);padding:18px 16px 12px;display:flex;align-items:center;gap:10px;}
 .slabel::after{content:"";flex:1;height:1px;background:linear-gradient(to right,var(--b2),transparent);}
 
@@ -581,24 +579,28 @@ header::before{content:"7:45";position:absolute;right:-8px;top:50%;transform:tra
   </div>
 </div>
 
+<!-- BARRA USUARIO: Enviar pedido -->
 <div id="confirm-wrap">
   <button class="cbtn" id="confirm-btn" onclick="toggleConfirm()">📤 Enviar mi pedido</button>
 </div>
 
-<button id="ws-btn" onclick="enviarWS()">
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
-  Mandar al bar
-</button>
-
-<div id="fav-bar">
-  <button class="fb1" onclick="cargarFav()">⭐ Mi habitual</button>
-  <button class="fb2" onclick="grabarFav()">Grabar</button>
+<!-- BARRA ADMIN fija abajo -->
+<div id="admin-dock" style="display:none">
+  <div class="adock-row">
+    <button class="adock-btn adock-sec" onclick="pedirPorOtro()">➕ Cargar otro</button>
+    <button class="adock-btn adock-sec" onclick="openTimerModal()">⏱ Timer</button>
+    <button class="adock-btn adock-sec" onclick="cargarFav()">⭐</button>
+    <button class="adock-btn adock-sec" onclick="grabarFav()">💾</button>
+  </div>
+  <button class="adock-ws" id="ws-btn" onclick="enviarWS()" style="display:none">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+    Mandar al bar
+  </button>
 </div>
 
-<div id="admin-bar">
-  <button class="abtn" onclick="pedirPorOtro()">➕ Cargar otro</button>
-  <button class="abtn" onclick="openTimerModal()">⏱ Timer</button>
-</div>
+<!-- mantener fav-bar y admin-bar ocultos para no romper JS -->
+<div id="fav-bar" style="display:none!important"></div>
+<div id="admin-bar" style="display:none!important"></div>
 
 <!-- MODAL NOMBRE (centrado) -->
 <div class="modal-overlay mc" id="modal-name" onclick="if(event.target===this)closeModal('modal-name')">
