@@ -96,6 +96,8 @@
     b.style.display="flex";
     document.getElementById("prompt").style.display="none";
     renderConfirmBtn();
+    renderOrders();
+    renderMesa();
   }
 
   // ── TABS ─────────────────────────────────────────────────
@@ -237,7 +239,7 @@
     var icon=document.getElementById("nd-icon").value.trim()||"☕";
     var sub=document.getElementById("nd-sub").value.trim();
     if(!name)return;
-    await set(rD,drinks.concat([{id:"c"+Date.now(),name:name,icon:icon,sub:sub}]));
+    await set(rD,drinks.concat([{id:"c"+Date.now(),name:name,icon:icon,sub:sub,createdBy:me||"?"}]));
     closeModal("modal-drink");
     ["nd-name","nd-icon","nd-sub"].forEach(function(id){document.getElementById(id).value="";});
   };
@@ -291,6 +293,7 @@
       if(admin)h+="<span class='ddel' onclick='delDrink("+i+",event)'>✕</span>";
       h+="<div class='ci'><div class='ce'>"+d.icon+"</div><div class='cn'>"+d.name+"</div>";
       if(d.sub)h+="<div class='cs'>"+d.sub+"</div>";
+      if(admin&&d.createdBy)h+="<div class='ccreated'>+ "+d.createdBy+"</div>";
       if(active&&mo&&mo.extra)h+="<div class='cx'>+ "+mo.extra+"</div>";
       else h+="<div class='ch'>+ acompañamiento</div>";
       h+="</div>";
@@ -489,6 +492,7 @@ header::before{content:"7:45";position:absolute;right:-8px;top:50%;transform:tra
 .ac:hover{border-color:var(--gold);color:var(--gold);}
 .ap{font-size:1.8rem;line-height:1;font-weight:200;color:var(--gold);}
 .rc{font-size:0.7rem;}
+.ccreated{font-size:0.58rem;color:var(--mut);opacity:0.6;margin-top:1px;}
 
 /* RESUMEN */
 .sp{margin:0 12px;background:var(--sur);border:1.5px solid var(--brd);border-radius:18px;overflow:hidden;box-shadow:0 2px 12px var(--sh);}
