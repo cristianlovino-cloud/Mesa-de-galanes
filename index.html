@@ -161,8 +161,10 @@
   // PAGOS (solo admin)
   window.togglePago=async function(player){
     if(!isAdmin())return;
-    if(pagos[player])await set(ref(db,"pedido/pagos/"+player),null);
-    else await set(ref(db,"pedido/pagos/"+player),true);
+    var actual=pagos[player]||null;
+    // Cicla: null -> "cash" -> "transfer" -> null
+    var next=actual===null?"cash":actual==="cash"?"transfer":null;
+    await set(ref(db,"pedido/pagos/"+player),next);
   };
 
   // PEDIDOS
