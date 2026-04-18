@@ -50,14 +50,16 @@
   const rT = ref(db,"pedido/timer");
   const rC = ref(db,"pedido/confirmed");
   const rP = ref(db,"pedido/pagos");   // {player: {cash:num, transfer:num}}
+  const rG = ref(db,"config/galanes");  // lista editable de galanes
 
   var me=localStorage.getItem("galan_name")||null;
-  var orders={},drinks=[],confirmed={},pagos={},pDrink=null,pFor=null,timerIv=null,timerD=null;
+  var orders={},drinks=[],confirmed={},pagos={},galanes=[],pDrink=null,pFor=null,timerIv=null,timerD=null;
   var editPagoPlayer=null, editPagoTipo=null;
 
   window.addEventListener("DOMContentLoaded",function(){
     updateClock(); setInterval(updateClock,30000);
     switchTab("pedir");
+    onValue(rG,function(s){galanes=s.exists()?s.val():KNOWN.slice();if(!s.exists())set(rG,galanes);});
     onValue(rD,function(s){drinks=s.exists()?s.val():DEF.slice();if(!s.exists())set(rD,drinks);renderDrinks();});
     onValue(rO,function(s){orders=s.exists()?s.val():{};renderDrinks();renderOrders();renderMesa();renderConfirmBtn();});
     onValue(rC,function(s){confirmed=s.exists()?s.val():{};renderConfirmBtn();renderMesa();renderOrders();});
@@ -206,7 +208,8 @@
   // ── PEDIDO POR OTRO (admin) ───────────────────────────────
   window.pedirPorOtro=function(){
     var h="";
-    KNOWN.forEach(function(p){
+    var lista=galanes.length>0?galanes.slice().sort():KNOWN.slice().sort();
+    lista.forEach(function(p){
       var ya=Object.values(orders).some(function(o){return o.player===p;});
       h+="<button class='ppbtn"+(ya?" ppya":"")+"' onclick='selOtro(\""+p+"\",this)'>";
       h+="<span class='ppini' style='background:"+col(p)+"'>"+ini(p)+"</span>";
@@ -234,6 +237,17 @@
   };
 
   // ── DRINKS ────────────────────────────────────────────────
+  window.addGalan=async function(){
+    var name=document.getElementById("ng-name").value.trim();
+    if(!name)return;
+    if(galanes.indexOf(name)!==-1){alert(name+" ya esta en la lista");return;}
+    var newList=galanes.concat([name]).sort();
+    await set(rG,newList);
+    closeModal("modal-galan");
+    document.getElementById("ng-name").value="";
+    showToast("✓ "+name+" agregado!");
+  };
+
   window.addDrink=async function(){
     var name=document.getElementById("nd-name").value.trim();
     var icon=document.getElementById("nd-icon").value.trim()||"☕";
@@ -310,7 +324,7 @@
     document.getElementById("total-badge").textContent=total>0?total+(total===1?" pedido":" pedidos"):"";
     var by={},en=Object.entries(orders).sort(function(a,b){return a[1].ts-b[1].ts;});
     for(var i=0;i<en.length;i++){var k=en[i][0],o=en[i][1];if(!by[o.player])by[o.player]=[];by[o.player].push({key:k,drink:o.drink,icon:o.icon});}
-    var panel=document.getElementById("sum-panel"),players=Object.keys(by),h="";
+    var panel=document.getElementById("sum-panel"),players=Object.keys(by).sort(),h="";
     if(!players.length){panel.innerHTML="<div class='es'>Nadie pidio nada todavia 👀</div>";}
     else{
       for(var p=0;p<players.length;p++){
@@ -358,7 +372,7 @@
     }else{tp.style.display="none";}
     // WS btn en resumen
     var wb=document.getElementById("ws-btn");
-    if(wb)wb.style.display=isAdmin()&&total>0?"flex":"none";
+    if(wb)wb.style.display=isAdmin()&&total>0?"inline-flex":"none";
   }
 
   function renderMesa(){
@@ -367,7 +381,7 @@
     if(ab)ab.style.display=isAdmin()?"flex":"none";
 
     var po={};Object.values(orders).forEach(function(o){if(!po[o.player])po[o.player]=[];po[o.player].push({drink:o.drink,icon:o.icon});});
-    var panel=document.getElementById("mesa-panel"),players=Object.keys(po);
+    var panel=document.getElementById("mesa-panel"),players=Object.keys(po).sort();
     document.getElementById("mesa-count").textContent=players.length+(players.length===1?" galan":" galanes");
 
     // Resumen de pagos
@@ -431,6 +445,7 @@
     if(e.key==="Enter"&&document.getElementById("modal-name").classList.contains("open"))window.setName(document.getElementById("inp-name").value);
     if(e.key==="Enter"&&document.getElementById("modal-drink").classList.contains("open"))window.addDrink();
     if(e.key==="Enter"&&document.getElementById("modal-pago").classList.contains("open"))window.savePago();
+    if(e.key==="Enter"&&document.getElementById("modal-galan").classList.contains("open"))window.addGalan();
     if(e.key==="Escape")document.querySelectorAll(".modal-overlay.open").forEach(function(m){m.classList.remove("open");});
   });
 </script>
@@ -664,6 +679,7 @@ header::before{content:"7:45";position:absolute;right:-8px;top:50%;transform:tra
     </div>
     <!-- ADMIN BAR sticky en La Mesa -->
     <div id="mesa-admin-bar">
+      <button class="mabtn" onclick="openModal('modal-galan')">👤 Nuevo galán</button>
       <button class="mabtn" onclick="pedirPorOtro()">➕ Cargar otro</button>
       <button class="mabtn" onclick="openTimerModal()">⏱ Timer</button>
       <button class="mabtn" onclick="cargarFav()">⭐ Mi habitual</button>
@@ -764,6 +780,18 @@ header::before{content:"7:45";position:absolute;right:-8px;top:50%;transform:tra
     <div class="ma">
       <button class="bs" onclick="closeModal('modal-pago')">Cancelar</button>
       <button class="bp" onclick="savePago()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay mc" id="modal-galan" onclick="if(event.target===this)closeModal('modal-galan')">
+  <div class="modal">
+    <h3>Nuevo galán 🕶️</h3>
+    <p class="msub">Se agrega a la lista para siempre</p>
+    <input type="text" id="ng-name" placeholder="Nombre o apodo" maxlength="20" autocomplete="off" autocorrect="off" style="font-size:1rem;text-align:center;padding:14px">
+    <div class="ma">
+      <button class="bs" style="flex:0.6" onclick="closeModal('modal-galan')">Cancelar</button>
+      <button class="bp" onclick="addGalan()">Agregar ✓</button>
     </div>
   </div>
 </div>
