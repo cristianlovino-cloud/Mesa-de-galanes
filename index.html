@@ -206,35 +206,87 @@
   };
 
   // ── PEDIDO POR OTRO (admin) ───────────────────────────────
+  var selPlayers=[];
+
   window.pedirPorOtro=function(){
-    var h="";
+    selPlayers=[];
+    renderMultiList();
+    document.getElementById("multi-confirm").style.display="none";
+    openModal("modal-otro");
+  };
+
+  function renderMultiList(){
     var lista=galanes.length>0?galanes.slice().sort():KNOWN.slice().sort();
+    var h="";
     lista.forEach(function(p){
       var ya=Object.values(orders).some(function(o){return o.player===p;});
-      h+="<button class='ppbtn"+(ya?" ppya":"")+"' onclick='selOtro(\""+p+"\",this)'>";
+      var sel=selPlayers.indexOf(p)!==-1;
+      h+="<button class='ppbtn"+(sel?" ppsel":"")+(ya&&!sel?" ppya":"")+"' onclick='togglePlayer(""+p+"")'>";
       h+="<span class='ppini' style='background:"+col(p)+"'>"+ini(p)+"</span>";
       h+="<span class='ppname'>"+p+"</span>";
-      if(ya)h+="<span class='ytag'>ya pidio</span>";
+      if(sel)h+="<span class='psel-ck'>✓</span>";
+      else if(ya)h+="<span class='ytag'>ya pidio</span>";
       h+="</button>";
     });
     document.getElementById("player-list").innerHTML=h;
-    document.getElementById("drink-picker").style.display="none";
-    pFor=null;openModal("modal-otro");
-  };
-  window.selOtro=function(name,el){
+    refreshDrinkPicker();
+  }
+
+  window.togglePlayer=function(name){
     var ya=Object.values(orders).some(function(o){return o.player===name;});
-    if(ya&&!confirm(name+" ya pidio. Agregar otro?"))return;
-    pFor=name;
-    document.querySelectorAll(".ppbtn").forEach(function(b){b.classList.remove("sel");});
-    if(el)el.classList.add("sel");
+    var idx=selPlayers.indexOf(name);
+    if(idx===-1){
+      if(ya&&!confirm(name+" ya pidio. Igual lo agregás?"))return;
+      selPlayers.push(name);
+    } else {
+      selPlayers.splice(idx,1);
+    }
+    renderMultiList();
+  };
+
+  function refreshDrinkPicker(){
+    var mc=document.getElementById("multi-confirm");
+    if(!selPlayers.length){mc.style.display="none";return;}
+    var info=selPlayers.length+" seleccionado"+(selPlayers.length>1?"s":"")
+      +": <b>"+selPlayers.join(", ")+"</b>";
     var h="";
-    for(var i=0;i<drinks.length;i++)h+="<button class='odbtn' onclick='selDrinkOtro("+i+")'>"+drinks[i].icon+" "+drinks[i].name+"</button>";
-    document.getElementById("otro-drinks").innerHTML=h;
-    document.getElementById("drink-picker").style.display="block";
+    for(var i=0;i<drinks.length;i++)
+      h+="<button class='odbtn' onclick='selDrinkMulti("+i+")'>"+drinks[i].icon+" "+drinks[i].name+"</button>";
+    mc.innerHTML="<div class='multi-info'>"+info+"</div><p class='dpt' style='margin-top:10px'>Que toman?</p><div class='odg'>"+h+"</div>";
+    mc.style.display="block";
+  }
+
+  window.selDrinkMulti=function(idx){
+    if(!selPlayers.length)return;
+    pDrink=Object.assign({},drinks[idx],{idx:idx});
+    pFor="__multi__";
+    showExtras(drinks[idx]);
   };
-  window.selDrinkOtro=function(idx){
-    pDrink=Object.assign({},drinks[idx],{idx:idx});closeModal("modal-otro");showExtras(drinks[idx]);
+
+  var _origConfirm=window.confirmOrder;
+  window.confirmOrder=async function(extra){
+    if(pFor==="__multi__"){
+      if(!pDrink)return;
+      var label=extra==="Sin acompanamiento"?pDrink.name:pDrink.name+" + "+extra;
+      var ps=selPlayers.slice();
+      await Promise.all(ps.map(function(player){
+        return push(rO,{player:player,drinkIdx:pDrink.idx,drink:label,icon:pDrink.icon,
+          extra:extra==="Sin acompanamiento"?null:extra,ts:Date.now()});
+      }));
+      var n=ps.length;
+      selPlayers=[];pDrink=null;pFor=null;
+      closeModal("modal-extra");
+      showToast("✓ "+n+" pedidos cargados!");
+    } else {
+      var player=pFor||me;
+      if(!pDrink)return;
+      var label=extra==="Sin acompanamiento"?pDrink.name:pDrink.name+" + "+extra;
+      await push(rO,{player:player,drinkIdx:pDrink.idx,drink:label,icon:pDrink.icon,
+        extra:extra==="Sin acompanamiento"?null:extra,ts:Date.now()});
+      pDrink=null;pFor=null;closeModal("modal-extra");
+    }
   };
+
 
   // ── DRINKS ────────────────────────────────────────────────
   window.addGalan=async function(){
@@ -250,9 +302,29 @@
 
   window.addDrink=async function(){
     var name=document.getElementById("nd-name").value.trim();
-    var icon=document.getElementById("nd-icon").value.trim()||"☕";
+    var iconInput=document.getElementById("nd-icon").value.trim();
     var sub=document.getElementById("nd-sub").value.trim();
     if(!name)return;
+    var n=name.toLowerCase();
+    var icon=iconInput||"";
+    if(!icon){
+      if(n.includes("cafe")||n.includes("café")||n.includes("cortado")||n.includes("expresso"))icon="☕";
+      else if(n.includes("te ")||n.includes("té ")||n.includes("verde")||n.includes("negro")||n==="te"||n==="té")icon="🍵";
+      else if(n.includes("mate"))icon="🧉";
+      else if(n.includes("submarino")||n.includes("chocolate"))icon="🍫";
+      else if(n.includes("leche"))icon="🥛";
+      else if(n.includes("jugo")||n.includes("zumo"))icon="🧃";
+      else if(n.includes("agua"))icon="💧";
+      else if(n.includes("huevo"))icon="🍳";
+      else if(n.includes("tostada")||n.includes("pan"))icon="🍞";
+      else if(n.includes("medialuna")||n.includes("croissant"))icon="🥐";
+      else if(n.includes("palta")||n.includes("avocado"))icon="🥑";
+      else if(n.includes("sandwich")||n.includes("sándwich"))icon="🥪";
+      else if(n.includes("desayuno"))icon="🥞";
+      else if(n.includes("yogur"))icon="🥣";
+      else if(n.includes("fruta"))icon="🍎";
+      else icon="☕";
+    }
     await set(rD,drinks.concat([{id:"c"+Date.now(),name:name,icon:icon,sub:sub,createdBy:me||"?"}]));
     closeModal("modal-drink");
     ["nd-name","nd-icon","nd-sub"].forEach(function(id){document.getElementById(id).value="";});
@@ -638,9 +710,13 @@ header::before{content:"7:45";position:absolute;right:-8px;top:50%;transform:tra
 .tob{background:var(--bg);border:1.5px solid var(--brd);border-radius:12px;padding:16px 8px;font-family:"Bebas Neue",sans-serif;font-size:1.4rem;color:var(--ink);cursor:pointer;text-align:center;transition:all 0.15s;}
 .tob:hover{border-color:var(--gold);color:var(--gold);}
 .tos{font-family:"Inter",sans-serif;font-size:0.65rem;color:var(--mut);margin-top:2px;}
-.ppl{display:flex;flex-direction:column;gap:6px;max-height:280px;overflow-y:auto;margin-bottom:4px;}
+.ppl{display:flex;flex-direction:column;gap:6px;max-height:340px;overflow-y:auto;margin-bottom:4px;}
 .ppbtn{display:flex;align-items:center;gap:10px;background:var(--bg);border:1.5px solid var(--brd);border-radius:12px;padding:10px 14px;cursor:pointer;transition:all 0.15s;text-align:left;font-family:"Inter",sans-serif;width:100%;}
-.ppbtn:hover,.ppbtn.sel{border-color:var(--gold);background:rgba(184,130,10,0.05);}
+.ppbtn:hover,.ppbtn.ppsel{border-color:var(--gold);background:rgba(184,130,10,0.06);}
+.psel-ck{background:var(--gold);color:white;font-size:0.7rem;font-weight:800;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.multi-info{font-size:0.82rem;color:var(--mut);line-height:1.4;}
+.multi-info b{color:var(--ink);}
+#multi-confirm{margin-top:10px;}
 .sel-check{background:var(--gold);color:white;font-size:0.7rem;font-weight:800;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
 .multi-sel-info{font-size:0.82rem;color:var(--mut);margin-bottom:10px;line-height:1.4;}
 .multi-sel-info b{color:var(--ink);}
@@ -794,7 +870,7 @@ header::before{content:"7:45";position:absolute;right:-8px;top:50%;transform:tra
       <p class="dpt">Que toma?</p>
       <div class="odg" id="otro-drinks"></div>
     </div>
-    <div class="ma" style="margin-top:12px"><button class="bs" onclick="closeModal('modal-otro')">Cancelar</button></div>
+    <div class="ma" style="margin-top:12px"><button class="bs" style="flex:0.5" onclick="closeModal('modal-otro')">Cancelar</button><button class="bp" onclick="closeModal('modal-otro')">Listo ✓</button></div>
   </div>
 </div>
 
