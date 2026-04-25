@@ -70,16 +70,75 @@
   const rC = ref(db,"pedido/confirmed");
   const rP = ref(db,"pedido/pagos");
   const rG = ref(db,"config/galanes");
+  const rB = ref(db,"pedido/totalBar");
+  const rR = ref(db,"reserva"); // {player: {pedidos:[...], ts:...}}  // total que informa el bar
 
   var me=localStorage.getItem("galan_name")||null;
-  var orders={}, drinks=[], confirmed={}, pagos={}, galanes=[];
+  var orders={}, drinks=[], confirmed={}, pagos={}, galanes=[], totalBar=0, reservas={};
   var pDrink=null, pFor=null, selPlayers=[];
   var timerIv=null, timerD=null;
   var editPagoPlayer=null, editPagoTipo=null;
   var dragIdx=null;
+  var vozActiva=localStorage.getItem("voz")==="1";
+  var vozSynth=window.speechSynthesis;
+
+  function hablar(texto){
+    if(!vozActiva||!vozSynth)return;
+    vozSynth.cancel();
+    var u=new SpeechSynthesisUtterance(texto);
+    u.lang="es-AR";
+    u.rate=1.05;
+    u.pitch=1;
+    // Buscar voz en español
+    var voces=vozSynth.getVoices();
+    var voz=voces.find(function(v){return v.lang.startsWith("es");});
+    if(voz)u.voice=voz;
+    vozSynth.speak(u);
+  }
+
+  window.toggleVoz=function(){
+    vozActiva=!vozActiva;
+    localStorage.setItem("voz",vozActiva?"1":"0");
+    var btn=document.getElementById("voz-btn");
+    if(btn){btn.textContent=vozActiva?"🔊 Voz ON":"🔇 Voz OFF";btn.classList.toggle("voz-on",vozActiva);}
+    if(vozActiva) hablar("Audio guía activada. Bienvenido a la Mesa de Galanes.");
+    else vozSynth.cancel();
+  };
+  var audioOn=localStorage.getItem("audio_on")==="1";
+
+  function speak(txt){
+    if(!audioOn||!window.speechSynthesis) return;
+    window.speechSynthesis.cancel();
+    var u=new SpeechSynthesisUtterance(txt);
+    u.lang="es-AR"; u.rate=1.05; u.pitch=1;
+    // Buscar voz en español
+    var voices=window.speechSynthesis.getVoices();
+    var es=voices.filter(function(v){ return v.lang.startsWith("es"); });
+    if(es.length) u.voice=es[0];
+    window.speechSynthesis.speak(u);
+  }
+
+  window.toggleAudio=function(){
+    audioOn=!audioOn;
+    localStorage.setItem("audio_on",audioOn?"1":"0");
+    var btn=document.getElementById("audio-btn");
+    if(btn){ btn.textContent=audioOn?"🔊":"🔇"; btn.title=audioOn?"Audio activado":"Audio desactivado"; }
+    if(audioOn) speak("Audio activado. Bienvenido a Mesa de Galanes.");
+  };
+
+  // Inicializar botón al cargar voces
+  window.speechSynthesis&&window.speechSynthesis.addEventListener&&
+    window.speechSynthesis.addEventListener("voiceschanged",function(){});
 
   window.addEventListener("DOMContentLoaded", function(){
     updateClock(); setInterval(updateClock,30000);
+    // Inicializar botón de voz
+    setTimeout(function(){
+      var btn=document.getElementById("voz-btn");
+      if(btn){btn.textContent=vozActiva?"🔊 Voz ON":"🔇 Voz";btn.classList.toggle("voz-on",vozActiva);}
+      // Precargar voces
+      if(vozSynth)vozSynth.getVoices();
+    },500);
     switchTab("pedir");
 
     onValue(rG, function(s){ galanes=s.exists()?s.val():KNOWN.slice(); if(!s.exists())set(rG,galanes); });
@@ -88,16 +147,78 @@
     onValue(rC, function(s){ confirmed=s.exists()?s.val():{};  renderConfirmBtn(); renderOrders(); renderMesa(); });
     onValue(rP, function(s){ pagos=s.exists()?s.val():{};  renderOrders(); renderMesa(); });
     onValue(rT, function(s){ timerD=s.exists()?s.val():null; renderTimer(); });
+    onValue(rR, function(s){ reservas=s.exists()?s.val():{};  renderReserva(); renderMesa(); });
+    onValue(rB, function(s){ totalBar=s.exists()?s.val():0; renderMesa(); });
+
+    // ── AUDIO GUÍA ─────────────────────────────────────────
+    var voiceOn = localStorage.getItem("voice")==="1";
+    var synth = window.speechSynthesis;
+    var esVoice = null;
+
+    function nextSaturday(){
+      var now=new Date();
+      var day=now.getDay(); // 0=Dom, 6=Sab
+      var daysUntil=day===6?7:(6-day); // si HOY es sábado, el próximo es en 7 días
+      var next=new Date(now);
+      next.setDate(now.getDate()+daysUntil);
+      return next.toISOString().slice(0,10); // YYYY-MM-DD
+    }
+    function isToday(dateStr){
+      return new Date().toISOString().slice(0,10)===dateStr;
+    }
+    function isSaturday(){
+      return new Date().getDay()===6;
+    }
+    function nextSaturdayLabel(){
+      var d=new Date(nextSaturday()+"T12:00:00");
+      var meses=["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
+      return "Sáb "+d.getDate()+" "+meses[d.getMonth()];
+    }
+
+    function loadVoice(){
+      var voices = synth.getVoices();
+      esVoice = voices.find(function(v){ return v.lang.startsWith("es"); }) || voices[0] || null;
+    }
+    if(synth.onvoiceschanged !== undefined) synth.onvoiceschanged = loadVoice;
+    loadVoice();
+
+    window.speak = function(text){
+      if(!voiceOn || !synth) return;
+      synth.cancel();
+      var utt = new SpeechSynthesisUtterance(text);
+      utt.lang = "es-AR";
+      utt.rate = 1.05;
+      utt.pitch = 1;
+      if(esVoice) utt.voice = esVoice;
+      synth.speak(utt);
+    };
+
+    window.toggleVoice = function(){
+      voiceOn = !voiceOn;
+      localStorage.setItem("voice", voiceOn ? "1" : "0");
+      var btn = document.getElementById("voice-btn");
+      if(btn){ btn.textContent = voiceOn ? "🔊" : "🔇"; btn.title = voiceOn ? "Audio ON" : "Audio OFF"; }
+      speak(voiceOn ? "Audio guía activada. Bienvenido a Mesa de Galanes." : "");
+    };
+
+    // Inicializar botón
+    setTimeout(function(){
+      var btn = document.getElementById("voice-btn");
+      if(btn){ btn.textContent = voiceOn ? "🔊" : "🔇"; btn.title = voiceOn ? "Audio ON" : "Audio OFF"; }
+    }, 300);
 
     checkSession();
     if(me) renderMyName(); else setTimeout(function(){ openModal("modal-name"); }, 400);
+    var abtn=document.getElementById("audio-btn");
+    if(abtn){ abtn.textContent=audioOn?"🔊":"🔇"; abtn.title=audioOn?"Audio activado":"Audio desactivado"; }
   });
 
   async function checkSession(){
     var today=new Date().toISOString().slice(0,10);
     var s=await get(rS);
     if(!s.exists()||s.val()!==today){
-      await set(rO,null); await set(rC,null); await set(rP,null); await set(rT,null); await set(rS,today);
+      await set(rO,null); await set(rC,null); await set(rP,null);
+    speak("Pedidos eliminados."); await set(rT,null); await set(rS,today);
     }
   }
 
@@ -107,6 +228,9 @@
     localStorage.setItem("galan_name",me);
     closeModal("modal-name");
     renderMyName(); renderDrinks(); renderOrders(); renderMesa(); renderConfirmBtn();
+    hablar("Bienvenido "+me+". Elegí tu infusión.");
+    speak("Hola " + me + "! Ya podés elegir tu infusión.");
+    speak("Hola "+me+"! Elegí tu infusión.");
   };
   window.changeName = function(){ document.getElementById("inp-name").value=me||""; openModal("modal-name"); };
   window.logout = function(e){
@@ -115,6 +239,7 @@
     document.getElementById("prompt").style.display="flex";
     document.getElementById("confirm-wrap").style.display="none";
     var mt=document.querySelector("[data-tab='mesa']"); if(mt) mt.style.display="none";
+    var lt=document.getElementById("tab-lista"); if(lt) lt.style.display="none";
     renderDrinks(); renderOrders(); renderMesa();
     switchTab("pedir");
   };
@@ -126,22 +251,25 @@
     document.getElementById("prompt").style.display="none";
     var mt=document.querySelector("[data-tab='mesa']");
     if(mt) mt.style.display=isAdmin()?"flex":"none";
+    var lt=document.getElementById("tab-lista");
+    if(lt) lt.style.display=isAdmin()?"flex":"none";
     renderConfirmBtn();
   }
 
   // ── TABS ──────────────────────────────────────────────────
   window.switchTab = function(tab){
     if(tab==="mesa"&&!isAdmin()){ showToast("Solo el admin puede ver La Mesa"); return; }
-    ["pedir","resumen","mesa"].forEach(function(t){
+    ["pedir","resumen","lista","mesa"].forEach(function(t){
       document.getElementById("v-"+t).style.display=t===tab?"block":"none";
       var b=document.querySelector("[data-tab='"+t+"']");
       if(b) b.classList.toggle("active",t===tab);
     });
+    if(tab==="lista") renderLista();
   };
 
   // ── TIMER ─────────────────────────────────────────────────
   window.openTimerModal = function(){ openModal("modal-timer"); };
-  window.startTimer = async function(min){ await set(rT,{endsAt:Date.now()+min*60000,minutes:min}); closeModal("modal-timer"); };
+  window.startTimer = async function(min){ await set(rT,{endsAt:Date.now()+min*60000,minutes:min}); closeModal("modal-timer"); speak("Timer iniciado. Tienen "+min+" minutos para pedir."); };
   window.cancelTimer = async function(){ await set(rT,null); };
   function renderTimer(){
     if(timerIv){ clearInterval(timerIv); timerIv=null; }
@@ -156,9 +284,13 @@
     if(rem<=0){
       document.getElementById("t-text").textContent="⏰ Pedido cerrado!";
       document.getElementById("t-count").textContent="";
-      bar.className="tbar tclosed"; clearInterval(timerIv); timerIv=null; return;
+      bar.className="tbar tclosed"; clearInterval(timerIv); timerIv=null; speak("El tiempo se agoto. El pedido está cerrado."); return;
     }
     var mins=Math.floor(rem/60000), secs=Math.floor((rem%60000)/1000), urg=rem<60000;
+    if(urg&&rem<61000&&rem>59000) speak("Atención! Último minuto para pedir.");
+    if(urg && secs===59) speak("Atención! Queda un minuto para cerrar el pedido.");
+    if(secs===0 && mins===0) speak("El tiempo se acabó. Pedido cerrado.");
+    if(urg&&Math.floor(rem/1000)===59) hablar("Atención! Queda un minuto para cerrar el pedido.");
     document.getElementById("t-text").textContent=urg?"⚠️ Ultimo minuto!":"⏱ Cierra en";
     document.getElementById("t-count").textContent=(mins>0?mins+"m ":"")+secs+"s";
     bar.className="tbar"+(urg?" turgent":"");
@@ -177,6 +309,9 @@
     if(!me||confirmado()) return;
     await set(ref(db,"pedido/confirmed/"+me),true);
     showToast("✓ Pedido enviado!");
+    hablar("Tu pedido fue enviado. Que lo disfrutes!");
+    speak("Tu pedido fue enviado. Gracias " + me + "!");
+    speak("Pedido enviado correctamente. Que lo disfrutes!");
   };
 
   // ── PAGOS ─────────────────────────────────────────────────
@@ -201,11 +336,56 @@
   // ── PEDIDOS ───────────────────────────────────────────────
   window.selectDrink = function(idx){
     if(!me){ openModal("modal-name"); return; }
-    var ex=null, en=Object.entries(orders);
-    for(var i=0;i<en.length;i++) if(en[i][1].player===me&&en[i][1].drinkIdx===idx){ ex=en[i]; break; }
-    if(ex){ remove(ref(db,"pedido/orders/"+ex[0])); return; }
+    // Avisar si ya tiene pedidos (cargados por admin u otro)
+    var totalMine=Object.values(orders).filter(function(o){ return o.player===me; }).length;
+    if(totalMine>0&&!isAdmin()){
+      // Verificar si alguno fue cargado sin que el usuario lo hiciera (no tiene forma de saber quién, pero si ya tiene pedidos avisar)
+      var alreadyThisDrink=Object.values(orders).filter(function(o){ return o.player===me&&o.drinkIdx===idx; }).length>0;
+      if(alreadyThisDrink){
+        // modal duplicado normal
+      }
+    }
+    // Buscar todos los pedidos del usuario para esta card
+    var myOrders=Object.entries(orders).filter(function(e){ return e[1].player===me&&e[1].drinkIdx===idx; });
+    if(myOrders.length>0){
+      // Ya tiene al menos uno — preguntar si quiere otra igual o quitar
+      var d=drinks[idx];
+      document.getElementById("dup-title").textContent=d.icon+" "+d.name;
+      hablar("Ya tenés "+d.name+". Querés agregar otra igual o quitarla?");
+      openModal("modal-dup");
+      window._dupIdx=idx;
+      return;
+    }
+    pDrink=Object.assign({},drinks[idx],{idx:idx}); pFor=null;
+    // Avisar a usuario si el admin ya le cargó pedidos
+    if(!isAdmin()){
+      var yaTengo=Object.values(orders).filter(function(o){ return o.player===me; });
+      if(yaTengo.length>0){
+        var adminCargo=yaTengo.some(function(o){ return o.loadedBy==="admin"; });
+        if(adminCargo){
+          if(!confirm("El admin ya te cargó un pedido. ¿Querés agregar otro igual?")){ pDrink=null; return; }
+        }
+      }
+    }
+    speak("Elegiste " + drinks[idx].name + ". Con qué acompañamiento?");
+    showExtras(drinks[idx]);
+  };
+
+  window.dupAgregar = function(){
+    closeModal("modal-dup");
+    var idx=window._dupIdx;
     pDrink=Object.assign({},drinks[idx],{idx:idx}); pFor=null;
     showExtras(drinks[idx]);
+  };
+  window.dupQuitar = async function(){
+    closeModal("modal-dup");
+    var idx=window._dupIdx;
+    // Quitar el último pedido de esa bebida
+    var myOrders=Object.entries(orders).filter(function(e){ return e[1].player===me&&e[1].drinkIdx===idx; });
+    if(myOrders.length>0){
+      var last=myOrders[myOrders.length-1];
+      await remove(ref(db,"pedido/orders/"+last[0]));
+    }
   };
 
   function showExtras(d){
@@ -224,20 +404,24 @@
     if(pFor==="__multi__"){
       var ps=selPlayers.slice(), n=ps.length;
       await Promise.all(ps.map(function(pl){
-        return push(rO,{player:pl,drinkIdx:pDrink.idx,drink:label,icon:pDrink.icon,extra:exVal,ts:Date.now()});
+        return push(rO,{player:pl,drinkIdx:pDrink.idx,drink:label,icon:pDrink.icon,extra:exVal,loadedBy:"admin",ts:Date.now()});
       }));
       selPlayers=[]; pDrink=null; pFor=null;
       closeModal("modal-extra");
       showToast("✓ "+n+" pedidos cargados!");
+      hablar(n+" pedidos cargados exitosamente.");
+      speak(n + " pedidos cargados correctamente.");
+      speak(n+" pedidos cargados correctamente.");
     } else {
       var player=pFor||me;
       await push(rO,{player:player,drinkIdx:pDrink.idx,drink:label,icon:pDrink.icon,extra:exVal,ts:Date.now()});
+      speak("Pedido agregado: "+label);
       pDrink=null; pFor=null;
       closeModal("modal-extra");
     }
   };
 
-  window.removeOrder = async function(key){ await remove(ref(db,"pedido/orders/"+key)); };
+  window.removeOrder = async function(key){ await remove(ref(db,"pedido/orders/"+key)); hablar("Pedido eliminado."); };
   window.clearAll = async function(){
     if(!isAdmin()){ showToast("Solo el admin puede limpiar"); return; }
     if(!confirm("Limpiar todos los pedidos?")) return;
@@ -334,6 +518,89 @@
   };
 
   // ── GALANES ───────────────────────────────────────────────
+  window.openTotalBar = function(){
+    document.getElementById("total-bar-input").value = totalBar > 0 ? totalBar : "";
+    openModal("modal-total-bar");
+  };
+  window.saveTotalBar = async function(){
+    var val = parseFloat(document.getElementById("total-bar-input").value) || 0;
+    await set(rB, val);
+    closeModal("modal-total-bar");
+    speak("Total de la mesa actualizado: " + val + " pesos.");
+  };
+
+  // ── RESERVA ───────────────────────────────────────────────
+  window.openReserva = function(){
+    if(!me){ openModal("modal-name"); return; }
+    var myRes=reservas[me];
+    var sat=nextSaturdayLabel();
+    document.getElementById("res-title").textContent="Reserva para "+sat;
+    if(myRes){
+      document.getElementById("res-status").innerHTML="✓ Ya estás anotado<br><small>"+myRes.pedidos.map(function(p){return p.drink;}).join(", ")+"</small>";
+      document.getElementById("res-status").style.color="#2a7a4a";
+      document.getElementById("res-drink-section").style.display="none";
+      document.getElementById("res-cancel-btn").style.display="block";
+      document.getElementById("res-confirm-btn").style.display="none";
+    } else {
+      document.getElementById("res-status").textContent="No estás anotado todavía";
+      document.getElementById("res-status").style.color="var(--mut)";
+      document.getElementById("res-drink-section").style.display="block";
+      document.getElementById("res-cancel-btn").style.display="none";
+      document.getElementById("res-confirm-btn").style.display="block";
+      // Mostrar drinks
+      var h="";
+      for(var i=0;i<drinks.length;i++){
+        h+="<button class='res-drink-btn' id='rdb-"+i+"' onclick='toggleResDrink("+i+")'>";
+        h+=drinks[i].icon+" "+drinks[i].name+"</button>";
+      }
+      document.getElementById("res-drinks").innerHTML=h;
+      window._resSel=[];
+      window._resExtra={};
+    }
+    openModal("modal-reserva");
+  };
+
+  window.toggleResDrink = function(idx){
+    var sel=window._resSel||[];
+    var pos=sel.indexOf(idx);
+    var btn=document.getElementById("rdb-"+idx);
+    if(pos===-1){
+      sel.push(idx);
+      if(btn) btn.classList.add("res-sel");
+      // Pedir acompañamiento
+      pDrink=Object.assign({},drinks[idx],{idx:idx});
+      pFor="__reserva_"+idx;
+      showExtras(drinks[idx]);
+    } else {
+      sel.splice(pos,1);
+      delete (window._resExtra||{})[idx];
+      if(btn) btn.classList.remove("res-sel");
+    }
+    window._resSel=sel;
+  };
+
+  window.confirmarReserva = async function(){
+    var sel=window._resSel||[];
+    if(!sel.length){ showToast("Elegí al menos una bebida"); return; }
+    var pedidos=sel.map(function(idx){
+      var d=drinks[idx];
+      var extra=(window._resExtra||{})[idx]||null;
+      var drink=extra?d.name+" + "+extra:d.name;
+      return {drinkIdx:idx,drink:drink,icon:d.icon,extra:extra};
+    });
+    await set(ref(db,"reserva/"+me),{pedidos:pedidos,ts:Date.now(),sat:nextSaturday()});
+    closeModal("modal-reserva");
+    showToast("✓ Reserva guardada para el "+nextSaturdayLabel()+"!");
+    speak("Reserva guardada para el próximo sábado. Hasta entonces!");
+  };
+
+  window.cancelarReserva = async function(){
+    if(!confirm("Cancelar tu reserva?")) return;
+    await set(ref(db,"reserva/"+me),null);
+    closeModal("modal-reserva");
+    showToast("Reserva cancelada");
+  };
+
   window.addGalan = async function(){
     var name=document.getElementById("ng-name").value.trim();
     if(!name) return;
@@ -363,6 +630,8 @@
       await push(rO,{player:me,drinkIdx:f.drinkIdx,drink:f.drink,icon:f.icon,extra:f.extra||null,ts:Date.now()});
     }
     showToast("⭐ Pedido habitual cargado!");
+    speak("Pedido habitual cargado!");
+    speak("Pedido habitual cargado.");
   };
 
   // ── WHATSAPP ──────────────────────────────────────────────
@@ -378,10 +647,29 @@
     var msg="☕ *Mesa de Galanes — "+fecha+" · "+hora+"*\n━━━━━━━━━━━━━━━━━━━━\n";
     Object.keys(g).forEach(function(d){ var x=g[d]; msg+=x.icon+" "+d+" x"+x.players.length+" ("+x.players.join(", ")+")\n"; });
     msg+="━━━━━━━━━━━━━━━━━━━━\n_"+Object.keys(orders).length+" pedidos en total_";
+    speak("Enviando pedido al bar.");
+    speak("Pedido enviado al bar. " + Object.keys(orders).length + " pedidos en total.");
     window.open("https://wa.me/?text="+encodeURIComponent(msg),"_blank");
   };
 
   // ── RENDERS ───────────────────────────────────────────────
+  function renderReserva(){
+    var panel=document.getElementById("reserva-panel");
+    if(!panel) return;
+    var sat=nextSaturdayLabel();
+    var myRes=reservas[me]||null;
+    if(myRes){
+      panel.innerHTML="<div class='res-banner res-ok'>✓ Anotado para el "+sat+" — "
+        +myRes.pedidos.map(function(p){return p.icon+" "+p.drink;}).join(", ")
+        +"<button onclick='openReserva()' style='margin-left:8px;background:none;border:none;color:#2a7a4a;font-weight:700;cursor:pointer;font-size:0.8rem'>Editar</button></div>";
+    } else if(!isSaturday()){
+      panel.innerHTML="<div class='res-banner'><span>Próximo sáb: <b>"+sat+"</b></span>"
+        +"<button onclick='openReserva()' class='res-apunto-btn'>Me apunto ☕</button></div>";
+    } else {
+      panel.innerHTML="";
+    }
+  }
+
   function renderDrinks(){
     var myIdxs=Object.values(orders).filter(function(o){ return o.player===me; }).map(function(o){ return o.drinkIdx; });
     var admin=isAdmin(), h="";
@@ -392,6 +680,8 @@
       var drag=admin?" draggable='true' ondragstart='dragStart(event,"+i+")' ondragover='dragOver(event)' ondrop='drop(event,"+i+")' ondragend='dragEnd()'":"";
       h+="<div class='dc"+(active?" sel":"")+"' onclick='selectDrink("+i+")' "+drag+">";
       if(admin){ h+="<span class='ddel' onclick='delDrink("+i+",event)'>✕</span>"; h+="<span class='dhdl'>⠿</span>"; }
+      // Contar cuántos pedidos tiene el usuario para esta card
+      var myCount=Object.values(orders).filter(function(o){ return o.player===me&&o.drinkIdx===i; }).length;
       h+="<div class='ci'>";
       h+="<div class='ce'>"+d.icon+"</div>";
       h+="<div class='cn'>"+d.name+"</div>";
@@ -400,7 +690,10 @@
       else h+="<div class='ch'>+ acompañamiento</div>";
       if(admin&&d.createdBy) h+="<div class='ccreated'>+ "+d.createdBy+"</div>";
       h+="</div>";
-      if(active) h+="<div class='ck'><svg width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3.5'><polyline points='20 6 9 17 4 12'/></svg></div>";
+      if(active){
+        if(myCount>1) h+="<div class='ck ck-multi'>"+myCount+"</div>";
+        else h+="<div class='ck'><svg width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3.5'><polyline points='20 6 9 17 4 12'/></svg></div>";
+      }
       h+="</div>";
     }
     h+="<div class='ac' onclick='openModal(\"modal-drink\")'><span class='ap'>+</span><span>Agregar</span></div>";
@@ -454,6 +747,88 @@
     if(wb) wb.style.display=isAdmin()&&total>0?"inline-flex":"none";
   }
 
+  function renderLista(){
+    var panel=document.getElementById("lista-panel");
+    if(!panel) return;
+    // Usar lista de galanes conocidos
+    var lista=galanes.length>0?galanes.slice().sort():[];
+    // Mapa de pedidos por persona
+    var byPlayer={};
+    Object.values(orders).forEach(function(o){
+      if(!byPlayer[o.player]) byPlayer[o.player]=[];
+      byPlayer[o.player].push(o);
+    });
+    // Stats
+    var pidieron=Object.keys(byPlayer).length;
+    var total=lista.length;
+    var h="<div class='lista-stats'>";
+    h+="<span class='lstat lstat-ok'>✓ "+pidieron+" pidieron</span>";
+    h+="<span class='lstat lstat-warn'>⏳ "+(total-pidieron)+" pendientes</span>";
+    h+="<span class='lstat lstat-total'>Total: "+total+"</span>";
+    h+="</div>";
+    h+="<div class='lista-grid'>";
+    lista.forEach(function(pl){
+      var pedidos=byPlayer[pl]||[];
+      var conf=confirmed[pl];
+      var pg=pagos[pl]||{};
+      var pago=(pg.cash||0)+(pg.transfer||0)>0;
+      var res=reservas[pl];
+      var estado=pedidos.length>0?"pidio":"pendiente";
+      h+="<div class='lista-row lista-"+estado+"'>";
+      h+="<div class='lista-av' style='background:"+col(pl)+"'>"+ini(pl)+"</div>";
+      h+="<div class='lista-info'>";
+      h+="<div class='lista-name'>"+pl;
+      if(conf) h+=" <span class='ctg'>✓</span>";
+      if(pago) h+=" <span class='pago-ok' style='font-size:0.6rem'>💰</span>";
+      if(res&&!pedidos.length) h+=" <span class='res-tag'>📋 reserva</span>";
+      h+="</div>";
+      if(pedidos.length){
+        h+="<div class='lista-drinks'>"+pedidos.map(function(p){ return p.icon+" "+p.drink; }).join(" · ")+"</div>";
+      } else {
+        h+="<div class='lista-drinks lista-nd'>"+(res?"Tiene reserva":"Sin pedido")+"</div>";
+      }
+      h+="</div>";
+      // Botón cargar rápido si no pidió
+      if(!pedidos.length){
+        h+="<button class='lista-add-btn' onclick='quickLoad(""+pl+"")'>+ Cargar</button>";
+      }
+      h+="</div>";
+    });
+    // Personas que pidieron pero no están en la lista
+    var extras=Object.keys(byPlayer).filter(function(p){ return lista.indexOf(p)===-1; });
+    if(extras.length){
+      h+="<div class='lista-sep'>Otros</div>";
+      extras.forEach(function(pl){
+        var pedidos=byPlayer[pl];
+        h+="<div class='lista-row lista-pidio'>";
+        h+="<div class='lista-av' style='background:"+col(pl)+"'>"+ini(pl)+"</div>";
+        h+="<div class='lista-info'><div class='lista-name'>"+pl+"</div>";
+        h+="<div class='lista-drinks'>"+pedidos.map(function(p){ return p.icon+" "+p.drink; }).join(" · ")+"</div>";
+        h+="</div></div>";
+      });
+    }
+    h+="</div>";
+    panel.innerHTML=h;
+  }
+
+  window.quickLoad = function(name){
+    selPlayers=[name];
+    closeModal("modal-otro"); // por si estaba abierto
+    // Abrir modal cargar pedido con ese galán pre-seleccionado
+    renderMultiList();
+    document.getElementById("multi-confirm").style.display="none";
+    openModal("modal-otro");
+    // Simular click en ese galán
+    setTimeout(function(){
+      var btns=document.querySelectorAll(".ppbtn");
+      btns.forEach(function(b){
+        if(b.querySelector(".ppname")&&b.querySelector(".ppname").textContent===name){
+          togglePlayer(name);
+        }
+      });
+    },100);
+  };
+
   function renderMesa(){
     var ab=document.getElementById("mesa-admin-bar");
     if(ab) ab.style.display=isAdmin()?"flex":"none";
@@ -466,14 +841,49 @@
     if(players.length>0){
       var sumC=0,sumT=0;
       players.forEach(function(pl){ var pg=pagos[pl]||{}; sumC+=(pg.cash||0); sumT+=(pg.transfer||0); });
-      var total=sumC+sumT;
+      var recaudado=sumC+sumT;
       var faltan=players.filter(function(pl){ var pg=pagos[pl]||{}; return (pg.cash||0)+(pg.transfer||0)===0; }).length;
+      var dif=recaudado-totalBar;
+      var difStr=dif===0?"✓ Cuadra!":(dif>0?"Sobran $"+Math.round(dif):"Faltan $"+Math.round(Math.abs(dif)));
+      var difColor=dif===0?"#4aaa6a":dif>0?"#b8820a":"#e74c3c";
       pb.style.display="block";
-      pb.innerHTML="<div class='pres-row'><span class='pres-item'>💵 Cash: <b>$"+Math.round(sumC)+"</b></span>"
-        +"<span class='pres-item'>📲 Transfer: <b>$"+Math.round(sumT)+"</b></span>"
-        +"<span class='pres-total'>Total: <b>$"+Math.round(total)+"</b></span></div>"
-        +(faltan>0?"<div class='pres-falta'>⚠️ "+faltan+" sin pagar</div>":"<div class='pres-ok'>✓ Todos pagaron</div>");
+      // Fila recaudado
+      var h="<div class='pres-row'>";
+      h+="<span class='pres-item'>💵 Cash: <b>$"+Math.round(sumC)+"</b></span>";
+      h+="<span class='pres-item'>📲 Transfer: <b>$"+Math.round(sumT)+"</b></span>";
+      h+="<span class='pres-total'>Recaudado: <b>$"+Math.round(recaudado)+"</b></span>";
+      h+="</div>";
+      // Fila total del bar
+      if(isAdmin()){
+        h+="<div class='pres-row' style='margin-top:6px'>";
+        h+="<span class='pres-item' style='flex:1'>🧾 Total del bar:</span>";
+        h+="<button onclick='openTotalBar()' class='bar-total-btn'>"+(totalBar>0?"$"+Math.round(totalBar):"Ingresar →")+"</button>";
+        h+="</div>";
+      }
+      // Diferencia
+      if(totalBar>0){
+        h+="<div class='pres-dif' style='color:"+difColor+"'>"+difStr+"</div>";
+      }
+      // Quién falta pagar
+      h+=faltan>0?"<div class='pres-falta'>⚠️ "+faltan+" sin pagar</div>":"<div class='pres-ok'>✓ Todos pagaron</div>";
+      pb.innerHTML=h;
     } else { pb.style.display="none"; }
+    // Mostrar reservas pendientes (no importadas aún)
+    var resBanner=document.getElementById("mesa-reserva-info");
+    if(resBanner){
+      var resKeys=Object.keys(reservas);
+      var pendientes=resKeys.filter(function(pl){ return !po[pl]; });
+      if(pendientes.length>0){
+        resBanner.style.display="block";
+        resBanner.innerHTML="<div class='res-pending-title'>📋 Reservas para hoy</div>"
+          +pendientes.map(function(pl){
+            var r=reservas[pl];
+            return "<div class='res-pending-item'><span class='ppini' style='background:"+col(pl)+";display:inline-flex;width:28px;height:28px;border-radius:50%;align-items:center;justify-content:center;font-size:0.75rem;color:white;font-family:Bebas Neue,sans-serif'>"+ini(pl)+"</span> "+pl+" — "+r.pedidos.map(function(p){return p.icon+" "+p.drink;}).join(", ")+"</div>";
+          }).join("");
+      } else {
+        resBanner.style.display="none";
+      }
+    }
     if(!players.length){ panel.innerHTML="<div class='es'>Nadie se anoto todavia 👀</div>"; return; }
     var h="";
     for(var p=0;p<players.length;p++){
@@ -517,6 +927,7 @@
     if(e.key==="Enter"&&document.getElementById("modal-name").classList.contains("open")) window.setName(document.getElementById("inp-name").value);
     if(e.key==="Enter"&&document.getElementById("modal-drink").classList.contains("open")) window.addDrink();
     if(e.key==="Enter"&&document.getElementById("modal-pago").classList.contains("open")) window.savePago();
+    if(e.key==="Enter"&&document.getElementById("modal-total-bar").classList.contains("open")) window.saveTotalBar();
     if(e.key==="Enter"&&document.getElementById("modal-galan").classList.contains("open")) window.addGalan();
     if(e.key==="Escape") document.querySelectorAll(".modal-overlay.open").forEach(function(m){ m.classList.remove("open"); });
   });
@@ -536,6 +947,8 @@ header::before{content:"7:45";position:absolute;right:-8px;top:50%;transform:tra
 #prompt{display:flex;align-items:center;gap:6px;background:rgba(200,146,42,0.15);border:1px solid rgba(200,146,42,0.35);color:var(--gl);border-radius:100px;padding:7px 16px;font-size:0.82rem;font-weight:600;cursor:pointer;}
 #badge{display:none;align-items:center;gap:8px;background:rgba(200,146,42,0.18);border:1px solid rgba(200,146,42,0.4);color:var(--gl);border-radius:100px;padding:7px 14px;font-size:0.84rem;font-weight:600;cursor:pointer;}
 .lx{color:rgba(245,234,214,0.35);font-size:0.75rem;cursor:pointer;margin-left:2px;}.lx:hover{color:var(--red);}
+#voz-btn{position:absolute!important;top:20px;right:16px;z-index:5;}
+#voz-btn.voz-on{background:rgba(200,146,42,0.2);border-color:rgba(200,146,42,0.5);color:var(--gl);}
 #total-badge{margin-left:auto;font-size:0.72rem;font-weight:700;color:var(--g2);letter-spacing:0.06em;text-transform:uppercase;}
 
 .tbar{display:none;background:var(--hbg);border-bottom:1px solid rgba(200,146,42,0.2);padding:10px 16px;align-items:center;gap:10px;position:relative;}
@@ -569,6 +982,7 @@ header::before{content:"7:45";position:absolute;right:-8px;top:50%;transform:tra
 .cx{background:rgba(184,130,10,0.1);color:var(--gold);border-radius:6px;padding:2px 8px;font-size:0.68rem;font-weight:600;}
 .ccreated{font-size:0.58rem;color:var(--mut);opacity:0.55;}
 .ck{position:absolute;top:10px;right:10px;width:24px;height:24px;background:var(--gold);border-radius:50%;display:flex;align-items:center;justify-content:center;z-index:2;}
+.ck-multi{font-family:'Bebas Neue',sans-serif;font-size:0.9rem;letter-spacing:0;}
 .ddel{position:absolute;top:8px;left:8px;width:22px;height:22px;background:var(--red);color:white;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.62rem;font-weight:800;z-index:3;cursor:pointer;}
 .dhdl{position:absolute;top:8px;right:36px;font-size:0.9rem;color:var(--b2);z-index:2;cursor:grab;user-select:none;}
 .ac{background:transparent;border:1.5px dashed var(--b2);border-radius:18px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;cursor:pointer;transition:all 0.15s;color:var(--mut);font-size:0.75rem;font-weight:500;aspect-ratio:1;}
@@ -613,6 +1027,33 @@ header::before{content:"7:45";position:absolute;right:-8px;top:50%;transform:tra
 .pres-item{font-size:0.82rem;color:rgba(245,234,214,0.7);}.pres-item b{color:var(--gl);}
 .pres-total{font-size:0.88rem;font-weight:700;color:var(--gl);margin-left:auto;}.pres-total b{color:var(--gl);}
 .pres-falta{font-size:0.82rem;font-weight:700;color:#f0a040;}.pres-ok{font-size:0.82rem;font-weight:700;color:#4aaa6a;}
+.res-banner{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;margin:10px 12px 0;background:var(--sur);border:1.5px solid var(--brd);border-radius:12px;font-size:0.82rem;color:var(--mut);gap:10px;flex-wrap:wrap;}
+.res-banner.res-ok{background:#f0faf4;border-color:#a0d4b4;color:#2a7a4a;font-weight:600;}
+.res-apunto-btn{background:var(--gold);color:white;border:none;border-radius:8px;padding:7px 14px;font-family:"Inter",sans-serif;font-size:0.8rem;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0;}
+.res-drink-btn{background:var(--bg);border:1.5px solid var(--brd);border-radius:10px;padding:9px 10px;font-family:"Inter",sans-serif;font-size:0.8rem;font-weight:500;color:var(--ink);cursor:pointer;transition:all 0.15s;text-align:center;}
+.res-drink-btn:hover,.res-drink-btn.res-sel{border-color:var(--gold);background:rgba(184,130,10,0.07);color:var(--gold);font-weight:600;}
+.res-pending-title{font-family:"Bebas Neue",sans-serif;font-size:0.8rem;letter-spacing:0.1em;color:var(--gold);margin-bottom:8px;}
+.res-pending-item{font-size:0.8rem;color:var(--mut);padding:4px 0;display:flex;align-items:center;gap:8px;}
+.lista-stats{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;}
+.lstat{font-size:0.75rem;font-weight:700;padding:4px 10px;border-radius:100px;}
+.lstat-ok{background:#e8f5ed;color:#2a7a4a;}
+.lstat-warn{background:#fff3e0;color:#b8600a;}
+.lstat-total{background:var(--brd);color:var(--mut);}
+.lista-grid{display:flex;flex-direction:column;gap:6px;}
+.lista-row{display:flex;align-items:center;gap:10px;background:var(--sur);border:1.5px solid var(--brd);border-radius:12px;padding:10px 12px;}
+.lista-pidio{border-color:#a0d4b4;}
+.lista-pendiente{border-color:var(--brd);opacity:0.8;}
+.lista-av{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:"Bebas Neue",sans-serif;font-size:0.9rem;color:white;flex-shrink:0;}
+.lista-info{flex:1;min-width:0;}
+.lista-name{font-weight:700;font-size:0.88rem;color:var(--ink);display:flex;align-items:center;gap:5px;flex-wrap:wrap;}
+.lista-drinks{font-size:0.75rem;color:var(--mut);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px;}
+.lista-nd{color:var(--brd);font-style:italic;}
+.lista-add-btn{background:var(--gold);color:white;border:none;border-radius:8px;padding:6px 10px;font-family:"Inter",sans-serif;font-size:0.75rem;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0;}
+.lista-sep{font-family:"Bebas Neue",sans-serif;font-size:0.75rem;letter-spacing:0.1em;color:var(--mut);margin:8px 0 4px;opacity:0.6;}
+.res-tag{font-size:0.6rem;background:#fff3e0;color:#b8600a;padding:1px 6px;border-radius:100px;font-weight:600;}
+.pres-dif{font-size:1rem;font-weight:800;margin-bottom:6px;font-family:"Bebas Neue",sans-serif;letter-spacing:0.05em;}
+.bar-total-btn{background:rgba(200,146,42,0.15);color:var(--gl);border:1px solid rgba(200,146,42,0.4);border-radius:8px;padding:4px 12px;font-family:"Inter",sans-serif;font-size:0.82rem;font-weight:700;cursor:pointer;}
+.bar-total-btn:hover{background:rgba(200,146,42,0.25);}
 .mg{padding:0 12px;display:flex;flex-direction:column;gap:10px;}
 .att{background:var(--sur);border:1.5px solid var(--brd);border-radius:16px;padding:14px 16px;display:flex;align-items:center;gap:14px;box-shadow:0 2px 8px var(--sh);}
 .attme{border-color:var(--gold);background:linear-gradient(135deg,#fffdf6,#fff);}
@@ -678,10 +1119,13 @@ header::before{content:"7:45";position:absolute;right:-8px;top:50%;transform:tra
     <div class="htit">Mesa de <span>Galanes</span></div>
     <div class="hmeta"><div id="fh">—</div><div id="hh">—</div></div>
   </div>
+  <div id="voz-btn" onclick="toggleVoz()" style="position:absolute;top:16px;right:16px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);color:rgba(245,234,214,0.6);border-radius:100px;padding:5px 12px;font-size:0.75rem;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif;z-index:2;position:relative;">🔇 Voz</div>
   <div class="nz">
     <div id="prompt" onclick="openModal('modal-name')">👤 Quien sos?</div>
     <div id="badge" onclick="changeName()"></div>
     <span id="total-badge"></span>
+    <button id="voice-btn" onclick="toggleVoice()" title="Audio OFF" style="background:none;border:none;font-size:1.3rem;cursor:pointer;margin-left:4px;opacity:0.6;padding:2px;">🔇</button>
+    <button id="audio-btn" onclick="toggleAudio()" title="Audio" style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);color:rgba(245,234,214,0.5);border-radius:50%;width:30px;height:30px;font-size:0.9rem;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;margin-left:4px;">🔇</button>
   </div>
 </header>
 
@@ -695,11 +1139,13 @@ header::before{content:"7:45";position:absolute;right:-8px;top:50%;transform:tra
 <div class="tabs">
   <button class="tab" data-tab="pedir"   onclick="switchTab('pedir')">☕ Pedir</button>
   <button class="tab" data-tab="resumen" onclick="switchTab('resumen')">📋 Resumen</button>
+  <button class="tab" data-tab="lista"   onclick="switchTab('lista')" style="display:none" id="tab-lista">📊 Lista</button>
   <button class="tab" data-tab="mesa"    onclick="switchTab('mesa')">👥 La Mesa</button>
 </div>
 
 <div class="main">
   <div id="v-pedir">
+    <div id="reserva-panel"></div>
     <div class="slabel"><span class="ld"></span> Que tomas?</div>
     <div class="dg" id="drinks-grid"></div>
   </div>
@@ -710,6 +1156,12 @@ header::before{content:"7:45";position:absolute;right:-8px;top:50%;transform:tra
     <div id="totals-panel"></div>
   </div>
 
+  <!-- LISTA MAESTRA -->
+  <div id="v-lista" style="display:none">
+    <div class="slabel">Lista de galanes</div>
+    <div id="lista-panel" style="padding:0 12px"></div>
+  </div>
+
   <div id="v-mesa" style="display:none">
     <div class="mh">
       <div class="mt"><span class="ld"></span> La Mesa hoy</div>
@@ -717,6 +1169,7 @@ header::before{content:"7:45";position:absolute;right:-8px;top:50%;transform:tra
     </div>
     <div id="mesa-admin-bar">
       <button class="mabtn" onclick="openModal('modal-galan')">👤 Nuevo galán</button>
+      <button class="mabtn" onclick="openTotalBar()">🧾 Total bar</button>
       <button class="mabtn" onclick="pedirPorOtro()">➕ Cargar otro</button>
       <button class="mabtn" onclick="openTimerModal()">⏱ Timer</button>
       <button class="mabtn" onclick="cargarFav()">⭐ Mi habitual</button>
@@ -727,6 +1180,7 @@ header::before{content:"7:45";position:absolute;right:-8px;top:50%;transform:tra
       </button>
     </div>
     <div id="pago-resumen"></div>
+    <div id="mesa-reserva-info" style="display:none;margin:0 12px 10px;background:var(--sur);border:1.5px solid var(--brd);border-radius:14px;padding:12px 14px;"></div>
     <div class="mg" id="mesa-panel"><div class="es">Nadie se anoto todavia 👀</div></div>
   </div>
 </div>
@@ -735,6 +1189,19 @@ header::before{content:"7:45";position:absolute;right:-8px;top:50%;transform:tra
 
 <div id="confirm-wrap">
   <button class="cbtn" onclick="doConfirm()">📤 Enviar mi pedido</button>
+</div>
+
+<!-- MODAL DUPLICADO -->
+<div class="modal-overlay mc" id="modal-dup" onclick="if(event.target===this)closeModal('modal-dup')">
+  <div class="modal">
+    <h3 id="dup-title">Bebida</h3>
+    <p class="msub">Ya tenés esta bebida. ¿Qué querés hacer?</p>
+    <div class="ma" style="flex-direction:column;gap:10px">
+      <button class="bp" onclick="dupAgregar()" style="width:100%">➕ Agregar otra igual</button>
+      <button class="bs" onclick="dupQuitar()" style="width:100%;color:var(--red);border-color:var(--red)">✕ Quitar la última</button>
+      <button class="bs" onclick="closeModal('modal-dup')" style="width:100%">Cancelar</button>
+    </div>
+  </div>
 </div>
 
 <!-- MODAL NOMBRE -->
@@ -819,6 +1286,37 @@ header::before{content:"7:45";position:absolute;right:-8px;top:50%;transform:tra
     <div class="ma">
       <button class="bs" onclick="closeModal('modal-pago')">Cancelar</button>
       <button class="bp" onclick="savePago()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL TOTAL BAR -->
+<div class="modal-overlay mc" id="modal-total-bar" onclick="if(event.target===this)closeModal('modal-total-bar')">
+  <div class="modal">
+    <h3>🧾 Total del bar</h3>
+    <p class="msub">Ingresa el monto que informa el bar</p>
+    <input type="number" id="total-bar-input" placeholder="Monto total ($)" min="0" step="100" style="font-size:1.2rem;text-align:center;padding:14px">
+    <div class="ma">
+      <button class="bs" onclick="closeModal('modal-total-bar')">Cancelar</button>
+      <button class="bp" onclick="saveTotalBar()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL RESERVA -->
+<div class="modal-overlay" id="modal-reserva" onclick="if(event.target===this)closeModal('modal-reserva')">
+  <div class="modal">
+    <div class="mh2"></div>
+    <h3 id="res-title">Reserva</h3>
+    <p id="res-status" class="msub"></p>
+    <div id="res-drink-section">
+      <p class="msub" style="margin-bottom:8px">Que vas a tomar? (podés elegir varios)</p>
+      <div class="odg" id="res-drinks" style="margin-bottom:12px"></div>
+    </div>
+    <div class="ma">
+      <button class="bs" onclick="closeModal('modal-reserva')">Cerrar</button>
+      <button class="bp" id="res-confirm-btn" onclick="confirmarReserva()">Confirmar ✓</button>
+      <button class="bs" id="res-cancel-btn" onclick="cancelarReserva()" style="display:none;color:var(--red);border-color:var(--red)">Cancelar reserva</button>
     </div>
   </div>
 </div>
