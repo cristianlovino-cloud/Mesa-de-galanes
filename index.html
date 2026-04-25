@@ -81,13 +81,14 @@
   const rB=ref(db,"pedido/totalBar");
   const rG=ref(db,"config/galanes");
   const rR=ref(db,"reserva");
+  const rH=ref(db,"historial");
 
   var me=localStorage.getItem("galan_name")||null;
   var orders={},drinks=[],confirmed={},pagos={},galanes=[],totalBar=0,reservas={};
   var pDrink=null,pFor=null,selPlayers=[],dragIdx=null;
   var timerIv=null,timerD=null;
   var editPagoPlayer=null,editPagoTipo=null;
-  var resSel=[],resExtra={};
+  var resSel=[],resExtra=[],fusionSel=[];
   var voiceOn=localStorage.getItem("voice")==="1";
   var synth=window.speechSynthesis,esVoice=null;
 
@@ -382,6 +383,56 @@
     pDrink=Object.assign({},drinks[idx],{idx:idx});pFor="__multi__";
     showExtras(drinks[idx]);
   };
+  window.toggleFusion=function(name,el){
+    var idx=fusionSel.indexOf(name);
+    if(idx===-1) fusionSel.push(name);
+    else fusionSel.splice(idx,1);
+    // Re-render lista con selección
+    renderLista();
+    // Mostrar/ocultar botón fusionar
+    var fb=document.getElementById("fusion-bar");
+    if(fb) fb.style.display=fusionSel.length>=2?"block":"none";
+  };
+
+  window.abrirFusion=function(){
+    if(fusionSel.length<2){showToast("Seleccioná al menos 2 nombres");return;}
+    var h="";
+    fusionSel.forEach(function(n){
+      h+="<button class='fusion-name-btn' onclick='confirmarFusion(""+n+"")'>✓ Usar <b>"+n+"</b></button>";
+    });
+    document.getElementById("fusion-options").innerHTML=h;
+    document.getElementById("fusion-list").textContent=fusionSel.join(", ");
+    openModal("modal-fusion");
+  };
+
+  window.confirmarFusion=async function(nombreFinal){
+    var otros=fusionSel.filter(function(n){return n!==nombreFinal;});
+    // Reasignar pedidos
+    var en=Object.entries(orders);
+    for(var i=0;i<en.length;i++){
+      if(otros.indexOf(en[i][1].player)!==-1){
+        var upd=Object.assign({},en[i][1]);upd.player=nombreFinal;
+        await set(ref(db,"pedido/orders/"+en[i][0]),upd);
+      }
+    }
+    // Reasignar pagos
+    for(var j=0;j<otros.length;j++){
+      var pg=pagos[otros[j]];
+      if(pg){
+        var cur=pagos[nombreFinal]||{cash:0,transfer:0};
+        cur.cash=(cur.cash||0)+(pg.cash||0);
+        cur.transfer=(cur.transfer||0)+(pg.transfer||0);
+        await set(ref(db,"pedido/pagos/"+nombreFinal),cur);
+        await set(ref(db,"pedido/pagos/"+otros[j]),null);
+      }
+    }
+    fusionSel=[];
+    closeModal("modal-fusion");
+    document.getElementById("fusion-bar").style.display="none";
+    showToast("✓ Nombres fusionados en "+nombreFinal);
+    speak("Nombres fusionados.");
+  };
+
   window.quickLoad=function(name){
     selPlayers=[name];renderMultiList();
     document.getElementById("multi-confirm").style.display="none";
@@ -490,6 +541,80 @@
   };
 
   // ── WHATSAPP ──────────────────────────────────────────────
+  window.cerrarMesa=async function(){
+    var total=Object.keys(orders).length;
+    if(total===0){showToast("No hay pedidos para cerrar");return;}
+    if(!confirm("Cerrar y archivar la mesa de hoy?"))return;
+    // Archivar
+    var now=new Date();
+    var fecha=now.toISOString().slice(0,10);
+    var hora=now.toLocaleTimeString("es-AR",{hour:"2-digit",minute:"2-digit"});
+    var sumC=0,sumT=0;
+    Object.values(pagos).forEach(function(pg){sumC+=(pg.cash||0);sumT+=(pg.transfer||0);});
+    var archivo={
+      fecha:fecha,hora:hora,
+      pedidos:orders,pagos:pagos,
+      totalBar:totalBar,
+      recaudado:sumC+sumT,
+      galanes:Object.keys(Object.values(orders).reduce(function(acc,o){acc[o.player]=1;return acc;},{})).length
+    };
+    await set(ref(db,"historial/"+fecha),archivo);
+    // Limpiar
+    await set(rO,null);await set(rC,null);await set(rP,null);await set(rT,null);await set(rB,0);
+    showToast("✓ Mesa cerrada y archivada!");
+    speak("Mesa cerrada. Hasta el próximo sábado!");
+    switchTab("pedir");
+  };
+
+  window.verHistorial=async function(){
+    var snap=await get(rH);
+    if(!snap.exists()){showToast("No hay historial todavía");return;}
+    var hist=snap.val();
+    var fechas=Object.keys(hist).sort().reverse();
+    var h="<div class='mh2'></div><h3>Historial</h3><div style='max-height:340px;overflow-y:auto;margin-top:12px'>";
+    fechas.forEach(function(f){
+      var d=hist[f];
+      var dp=new Date(f+"T12:00:00");
+      var meses=["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
+      var label="Sáb "+dp.getDate()+" "+meses[dp.getMonth()]+" — "+d.hora;
+      h+="<div class='hist-row' onclick='verDiaHistorial(""+f+"")'>";
+      h+="<div class='hist-label'>"+label+"</div>";
+      h+="<div class='hist-stats'>"+d.galanes+" galanes · "+Object.keys(d.pedidos||{}).length+" pedidos";
+      if(d.recaudado>0)h+=" · $"+Math.round(d.recaudado);
+      h+="</div></div>";
+    });
+    h+="</div><div class='ma' style='margin-top:12px'><button class='bs' onclick='closeModal("modal-historial")'>Cerrar</button></div>";
+    document.getElementById("historial-content").innerHTML=h;
+    openModal("modal-historial");
+  };
+
+  window.verDiaHistorial=async function(fecha){
+    var snap=await get(ref(db,"historial/"+fecha));
+    if(!snap.exists())return;
+    var d=snap.val();
+    var by={};
+    Object.values(d.pedidos||{}).forEach(function(o){if(!by[o.player])by[o.player]=[];by[o.player].push(o.drink);});
+    var players=Object.keys(by).sort();
+    var dp=new Date(fecha+"T12:00:00");
+    var meses=["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
+    var label="Sáb "+dp.getDate()+" "+meses[dp.getMonth()];
+    var h="<div class='mh2'></div><h3>"+label+"</h3><div style='max-height:320px;overflow-y:auto;margin-top:10px'>";
+    players.forEach(function(pl){
+      var pg=d.pagos&&d.pagos[pl]?d.pagos[pl]:{};
+      var pago=(pg.cash||0)+(pg.transfer||0);
+      h+="<div class='lista-row lista-pidio' style='margin-bottom:6px'>";
+      h+="<div class='lista-av' style='background:"+col(pl)+"'>"+ini(pl)+"</div>";
+      h+="<div class='lista-info'><div class='lista-name'>"+pl+(pago>0?" <span class='pago-ok' style='font-size:0.6rem'>$"+Math.round(pago)+"</span>":"")+"</div>";
+      h+="<div class='lista-drinks'>"+by[pl].join(" · ")+"</div></div></div>";
+    });
+    if(d.totalBar>0){
+      h+="<div style='margin-top:10px;background:var(--hbg);border-radius:10px;padding:10px 14px;color:#f5ead6;font-size:0.82rem'>";
+      h+="Total bar: <b>$"+Math.round(d.totalBar)+"</b> · Recaudado: <b>$"+Math.round(d.recaudado)+"</b></div>";
+    }
+    h+="</div><div class='ma' style='margin-top:12px'><button class='bs' onclick='verHistorial()'>← Volver</button></div>";
+    document.getElementById("historial-content").innerHTML=h;
+  };
+
   window.enviarWS=function(){
     var now=new Date();
     var fecha=now.toLocaleDateString("es-AR",{weekday:"long",day:"numeric",month:"long"});
@@ -631,7 +756,8 @@
     lista.forEach(function(pl){
       var pedidos=byPlayer[pl]||[],conf=confirmed[pl],pg=pagos[pl]||{},pago=(pg.cash||0)+(pg.transfer||0)>0,res=reservas[pl];
       var estado=pedidos.length>0?"pidio":"pendiente";
-      h+="<div class='lista-row lista-"+estado+"'>";
+      var fsel=fusionSel.indexOf(pl)!==-1;
+      h+="<div class='lista-row lista-"+estado+(fsel?' lista-fsel':"")+"' onclick='toggleFusion(\"" + pl + "\")' style='cursor:pointer'>";
       h+="<div class='lista-av' style='background:"+col(pl)+"'>"+ini(pl)+"</div>";
       h+="<div class='lista-info'><div class='lista-name'>"+pl;
       if(conf)h+=" <span class='ctg'>✓</span>";
@@ -779,6 +905,14 @@ header::before{content:"7:45";position:absolute;right:-8px;top:50%;transform:tra
 .lista-nd{color:var(--b2);font-style:italic;}
 .lista-add-btn{background:var(--gold);color:white;border:none;border-radius:8px;padding:6px 10px;font-family:"Inter",sans-serif;font-size:0.75rem;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0;}
 .lista-sep{font-family:"Bebas Neue",sans-serif;font-size:0.75rem;letter-spacing:0.1em;color:var(--mut);margin:8px 0 4px;opacity:0.6;}
+.lista-fsel{border-color:var(--gold)!important;background:rgba(184,130,10,0.06)!important;}
+.fusion-info{font-size:0.82rem;color:var(--mut);margin-bottom:4px;}
+.fusion-name-btn{background:var(--bg);border:1.5px solid var(--brd);border-radius:12px;padding:13px 16px;font-family:"Inter",sans-serif;font-size:0.9rem;color:var(--ink);cursor:pointer;text-align:left;transition:all 0.15s;width:100%;}
+.fusion-name-btn:hover{border-color:var(--gold);background:rgba(184,130,10,0.06);}
+.hist-row{background:var(--bg);border:1.5px solid var(--brd);border-radius:12px;padding:12px 14px;margin-bottom:8px;cursor:pointer;transition:all 0.15s;}
+.hist-row:hover{border-color:var(--gold);}
+.hist-label{font-weight:700;font-size:0.88rem;color:var(--ink);}
+.hist-stats{font-size:0.78rem;color:var(--mut);margin-top:3px;}
 .res-tag{font-size:0.6rem;background:#fff3e0;color:#b8600a;padding:1px 6px;border-radius:100px;font-weight:600;}
 /* RESERVA */
 .res-banner{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;margin:10px 12px 0;background:var(--sur);border:1.5px solid var(--brd);border-radius:12px;font-size:0.82rem;color:var(--mut);gap:10px;flex-wrap:wrap;}
@@ -870,11 +1004,14 @@ header::before{content:"7:45";position:absolute;right:-8px;top:50%;transform:tra
   </div>
   <div id="v-lista" style="display:none">
     <div class="slabel">Lista de galanes</div>
+    <div id="fusion-bar" style="display:none;padding:0 12px 12px"><div class="fusion-info" id="fusion-info-txt">Toca los nombres a fusionar, luego:</div><button class="bp" style="width:100%;margin-top:8px" onclick="abrirFusion()">🔀 Fusionar seleccionados</button></div>
     <div id="lista-panel" style="padding:0 12px"></div>
   </div>
   <div id="v-mesa" style="display:none">
     <div class="mh"><div class="mt"><span class="ld"></span> La Mesa hoy</div><span id="mesa-count">0 galanes</span></div>
     <div id="mesa-admin-bar">
+      <button class="mabtn" onclick="cerrarMesa()">🔒 Cerrar mesa</button>
+      <button class="mabtn" onclick="verHistorial()">📅 Historial</button>
       <button class="mabtn" onclick="openModal('modal-galan')">👤 Nuevo galán</button>
       <button class="mabtn" onclick="pedirPorOtro()">➕ Cargar otro</button>
       <button class="mabtn" onclick="openTimerModal()">⏱ Timer</button>
@@ -972,6 +1109,20 @@ header::before{content:"7:45";position:absolute;right:-8px;top:50%;transform:tra
     </div>
   </div>
 </div>
+<div class="modal-overlay" id="modal-historial" onclick="if(event.target===this)closeModal('modal-historial')">
+  <div class="modal" id="historial-content"><div class="mh2"></div><h3>Historial</h3></div>
+</div>
+
+<div class="modal-overlay mc" id="modal-fusion" onclick="if(event.target===this)closeModal('modal-fusion')">
+  <div class="modal">
+    <h3>Fusionar nombres</h3>
+    <p class="msub">Seleccionados: <span id="fusion-list"></span></p>
+    <p class="msub">¿Con qué nombre quedan los pedidos?</p>
+    <div id="fusion-options" style="display:flex;flex-direction:column;gap:8px;margin-bottom:8px"></div>
+    <div class="ma"><button class="bs" onclick="closeModal('modal-fusion')">Cancelar</button></div>
+  </div>
+</div>
+
 <script>
   if("serviceWorker"in navigator)window.addEventListener("load",function(){navigator.serviceWorker.register("sw.js");});
   document.addEventListener("DOMContentLoaded",function(){
