@@ -160,7 +160,7 @@
     var box=document.getElementById("sugerencias");
     if(!val||val.length<1){box.style.display="none";return;}
     var q=val.toLowerCase().trim();
-    var matches=galanes.filter(function(g){return g.toLowerCase().indexOf(q)!==-1;}).slice(0,6);
+    var matches=galanes.filter(function(g){return g.toLowerCase().indexOf(q)!==-1&&g!==ADMIN;}).slice(0,6);
     if(!matches.length){box.style.display="none";return;}
     box.style.display="flex";
     box.innerHTML=matches.map(function(g){
