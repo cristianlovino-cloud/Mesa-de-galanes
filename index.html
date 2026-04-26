@@ -74,9 +74,9 @@
   const rO=ref(db,"pedido/orders"),rD=ref(db,"pedido/drinks"),rS=ref(db,"pedido/session");
   const rF=ref(db,"pedido/favorito"),rT=ref(db,"pedido/timer"),rC=ref(db,"pedido/confirmed");
   const rP=ref(db,"pedido/pagos"),rB=ref(db,"pedido/totalBar");
-  const rG=ref(db,"config/galanes"),rR=ref(db,"reserva"),rH=ref(db,"historial");
+  const rG=ref(db,"config/galanes"),rR=ref(db,"reserva"),rH=ref(db,"historial"),rA=ref(db,"config/accesos"),rCump=ref(db,"config/cumples");
 
-  var me=localStorage.getItem("galan_name")||null;
+  var me=localStorage.getItem("galan_name")||null,accesos={},cumples={};
   var orders={},drinks=[],confirmed={},pagos={},galanes=[],totalBar=0,reservas={};
   var pDrink=null,pFor=null,selPlayers=[],dragIdx=null;
   var timerIv=null,timerD=null,editPP=null,editPT=null;
@@ -106,6 +106,8 @@
     onValue(rB,function(s){totalBar=s.exists()?s.val():0;renderMesa();});
     onValue(rT,function(s){timerD=s.exists()?s.val():null;renderTimer();});
     onValue(rR,function(s){reservas=s.exists()?s.val():{};renderReserva();renderMesa();renderLista();});
+    onValue(rA,function(s){accesos=s.exists()?s.val():{};renderLista();});
+    onValue(rCump,function(s){cumples=s.exists()?s.val():{};renderCumples();renderCumpleBanner();});
     var vb=document.getElementById("vbtn");if(vb)vb.textContent=voiceOn?"🔊":"🔇";
     checkSession();
     if(me)renderMyName();else setTimeout(function(){openModal("mnombre");},400);
@@ -137,8 +139,18 @@
     me=name.trim();if(!me)return;
     localStorage.setItem("galan_name",me);
     closeModal("mnombre");
+    // Registrar acceso
+    var ahora=Date.now();
+    var cur=accesos[me]||{count:0};
+    var accData={count:(cur.count||0)+1,lastAccess:ahora};
+    set(ref(db,"config/accesos/"+me),accData);
+    accesos[me]=accData;
     renderMyName();renderDrinks();renderOrders();renderMesa();renderLista();renderConfirmBtn();renderReserva();
     speak("Hola "+me+"!");
+    // Preguntar cumpleaños si no lo tiene registrado
+    if(!cumples[me]){
+      setTimeout(function(){openModal("mcumple");},800);
+    }
   };
   window.changeName=function(){document.getElementById("inp-name").value=me||"";openModal("mnombre");};
   window.logout=function(e){
@@ -155,17 +167,18 @@
     b.innerHTML=(isAdmin()?"⚙️ ":"")+me+"<span class='lx' onclick='logout(event)'>✕</span>";
     b.style.display="flex";document.getElementById("prompt").style.display="none";
     ["mesa","lista"].forEach(function(t){var btn=document.querySelector("[data-tab='"+t+"']");if(btn)btn.style.display=isAdmin()?"flex":"none";});
-    renderConfirmBtn();
+    renderConfirmBtn();renderCumpleBanner();
   }
 
   // ── TABS ─────────────────────────────────────────────────
   window.switchTab=function(tab){
     if((tab==="mesa"||tab==="lista")&&!isAdmin()){showToast("Solo el admin puede ver esta sección");return;}
-    ["pedir","resumen","lista","mesa"].forEach(function(t){
+    ["pedir","resumen","lista","cumples","mesa"].forEach(function(t){
       var v=document.getElementById("v-"+t);if(v)v.style.display=t===tab?"block":"none";
       var b=document.querySelector("[data-tab='"+t+"']");if(b)b.classList.toggle("active",t===tab);
     });
     if(tab==="lista")renderLista();
+    if(tab==="cumples")renderCumples();
   };
 
   // ── TIMER ─────────────────────────────────────────────────
@@ -432,6 +445,101 @@
   window.dragEnd=function(){document.querySelectorAll(".dc").forEach(function(el){el.classList.remove("dragging");});dragIdx=null;};
 
   // ── GALANES ───────────────────────────────────────────────
+  window.sugerirNombres=function(val){
+    var box=document.getElementById("sugerencias");
+    if(!val||val.length<1){box.style.display="none";return;}
+    var q=val.toLowerCase().trim();
+    var matches=galanes.filter(function(g){
+      return g.toLowerCase().indexOf(q)!==-1;
+    }).slice(0,5);
+    if(!matches.length){box.style.display="none";return;}
+    box.style.display="flex";
+    box.innerHTML=matches.map(function(g){
+      var ac=accesos[g];
+      var badge=ac?" <span style='font-size:0.6rem;color:var(--mut);font-weight:400'>"+ac.count+"x</span>":"";
+      return "<button class='sug-btn' onclick='elegirNombre(""+g+"")'>"+g+badge+"</button>";
+    }).join("");
+  };
+  window.elegirNombre=function(name){
+    document.getElementById("inp-name").value=name;
+    document.getElementById("sugerencias").style.display="none";
+    setName(name);
+  };
+
+  window.guardarCumple=async function(){
+    var dia=parseInt(document.getElementById("cumple-dia").value)||0;
+    var mes=parseInt(document.getElementById("cumple-mes").value)||0;
+    if(dia<1||dia>31||mes<1||mes>12){showToast("Fecha inválida");return;}
+    var data={dia:dia,mes:mes};
+    await set(ref(db,"config/cumples/"+me),data);
+    cumples[me]=data;
+    closeModal("mcumple");
+    showToast("🎂 Cumpleaños guardado!");
+    speak("Cumpleaños guardado. Feliz día cuando llegue!");
+    renderCumples();renderCumpleBanner();
+  };
+  window.omitirCumple=function(){closeModal("mcumple");};
+
+  function renderCumpleBanner(){
+    var banner=document.getElementById("cumple-banner");if(!banner)return;
+    var now=new Date(),hoy={dia:now.getDate(),mes:now.getMonth()+1};
+    var hoy7={dia:null,mes:null};
+    // Próximo sábado
+    var sat=new Date(now);var d=now.getDay(),diff=d===6?0:6-d;sat.setDate(now.getDate()+diff);
+    var satDia=sat.getDate(),satMes=sat.getMonth()+1;
+    var cumplHoy=Object.keys(cumples).filter(function(n){var c=cumples[n];return c.dia===hoy.dia&&c.mes===hoy.mes;});
+    var cumplSat=Object.keys(cumples).filter(function(n){var c=cumples[n];return c.dia===satDia&&c.mes===satMes;});
+    if(cumplHoy.length>0){
+      banner.style.display="block";
+      banner.innerHTML="<div class='cumple-banner'>🎂 Hoy cumplen: <b>"+cumplHoy.join(", ")+"</b> 🎉</div>";
+    } else if(cumplSat.length>0&&diff<=2){
+      banner.style.display="block";
+      banner.innerHTML="<div class='cumple-banner'>🎂 El sábado cumple <b>"+cumplSat.join(", ")+"</b> — ¡se festeja en el asado! 🥩</div>";
+    } else {
+      banner.style.display="none";
+    }
+  }
+
+  function renderCumples(){
+    var panel=document.getElementById("cumples-panel");if(!panel)return;
+    var meses=["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
+    var now=new Date(),hoyDia=now.getDate(),hoyMes=now.getMonth()+1;
+    var keys=Object.keys(cumples);
+    if(!keys.length){panel.innerHTML="<div class='es'>Nadie cargó su cumpleaños todavía 🎂</div>";return;}
+    // Ordenar por mes/dia a partir de hoy
+    var sorted=keys.map(function(n){var c=cumples[n];return{name:n,dia:c.dia,mes:c.mes};});
+    sorted.sort(function(a,b){
+      var am=(a.mes-hoyMes+12)%12*100+(a.dia<hoyDia&&a.mes===hoyMes?100:0)+a.dia/100;
+      var bm=(b.mes-hoyMes+12)%12*100+(b.dia<hoyDia&&b.mes===hoyMes?100:0)+b.dia/100;
+      if(a.mes!==b.mes) return((a.mes-hoyMes+12)%12)-((b.mes-hoyMes+12)%12);
+      return a.dia-b.dia;
+    });
+    // Agrupar por mes
+    var byMes={};
+    sorted.forEach(function(c){if(!byMes[c.mes])byMes[c.mes]=[];byMes[c.mes].push(c);});
+    var h="";
+    Object.keys(byMes).sort(function(a,b){return((parseInt(a)-hoyMes+12)%12)-((parseInt(b)-hoyMes+12)%12);}).forEach(function(m){
+      h+="<div class='cumple-mes-title'>"+meses[parseInt(m)-1]+"</div>";
+      byMes[m].forEach(function(c){
+        var esHoy=c.dia===hoyDia&&c.mes===hoyMes;
+        var diasFaltan=(new Date(now.getFullYear()+(c.mes<hoyMes||(c.mes===hoyMes&&c.dia<hoyDia)?1:0),c.mes-1,c.dia)-now)/(1000*60*60*24);
+        diasFaltan=Math.ceil(diasFaltan);
+        var badge=esHoy?"<span class='cumple-hoy-tag'>🎉 HOY!</span>"
+          :diasFaltan<=7?"<span class='cumple-pronto-tag'>en "+diasFaltan+"d</span>"
+          :"<span class='cumple-fecha-tag'>"+c.dia+"/"+c.mes+"</span>";
+        var esMio=c.name===me;
+        h+="<div class='cumple-row"+(esHoy?" cumple-row-hoy":"")+(esMio?" cumple-row-mio":"")+"'>";
+        h+="<div class='lista-av' style='background:"+col(c.name)+"'>"+ini(c.name)+"</div>";
+        h+="<div class='cumple-info'><div class='cumple-name'>"+c.name+(esMio?" <span class='ytg'>vos</span>":"")+"</div>";
+        h+="<div class='cumple-detalle'>"+c.dia+" de "+meses[c.mes-1]+"</div></div>";
+        h+=badge;
+        if(esMio)h+="<button class='lista-add-btn' style='background:var(--mut);font-size:0.68rem' onclick='openModal("mcumple")'>✏️ Editar</button>";
+        h+="</div>";
+      });
+    });
+    panel.innerHTML=h;
+  }
+
   window.addGalan=async function(){
     var name=document.getElementById("ng-name").value.trim();if(!name)return;
     var lista=galanes.length>0?galanes.slice():KNOWN_DEF.slice();
@@ -781,8 +889,22 @@ header::before{content:"7:45";position:absolute;right:-8px;top:50%;transform:tra
 .lista-sep{font-family:"Bebas Neue",sans-serif;font-size:0.75rem;letter-spacing:0.1em;color:var(--mut);margin:8px 0 4px;opacity:0.6;}
 .fsel-ck{background:var(--gold);color:white;font-size:0.65rem;font-weight:800;padding:1px 6px;border-radius:100px;}
 .res-tag{font-size:0.6rem;background:#fff3e0;color:#b8600a;padding:1px 6px;border-radius:100px;font-weight:600;}
+.lista-acceso{font-size:0.68rem;color:var(--b2);margin-top:2px;}
+.cumple-banner{background:linear-gradient(135deg,#fff3e0,#ffe8cc);border-bottom:2px solid #f0a040;padding:10px 16px;font-size:0.84rem;color:#7a4a10;font-weight:500;text-align:center;}
+.cumple-mes-title{font-family:"Bebas Neue",sans-serif;font-size:0.85rem;letter-spacing:0.15em;color:var(--gold);margin:16px 0 8px;opacity:0.9;}
+.cumple-row{display:flex;align-items:center;gap:10px;background:var(--sur);border:1.5px solid var(--brd);border-radius:12px;padding:10px 12px;margin-bottom:6px;}
+.cumple-row-hoy{border-color:#f0a040;background:#fff9f0;}
+.cumple-row-mio{border-color:var(--gold);}
+.cumple-info{flex:1;min-width:0;}
+.cumple-name{font-weight:700;font-size:0.88rem;color:var(--ink);display:flex;align-items:center;gap:5px;}
+.cumple-detalle{font-size:0.74rem;color:var(--mut);margin-top:1px;}
+.cumple-hoy-tag{background:#f0a040;color:white;font-size:0.68rem;font-weight:800;padding:2px 8px;border-radius:100px;white-space:nowrap;}
+.cumple-pronto-tag{background:#fff3e0;color:#b8600a;font-size:0.68rem;font-weight:700;padding:2px 8px;border-radius:100px;white-space:nowrap;border:1px solid #f0c080;}
+.cumple-fecha-tag{font-size:0.74rem;color:var(--mut);font-weight:600;white-space:nowrap;}
 /* FUSIÓN */
 #fusion-bar{display:none;padding:0 12px 12px;}
+.sug-btn{background:var(--bg);border:1.5px solid var(--brd);border-radius:100px;padding:6px 14px;font-family:"Inter",sans-serif;font-size:0.84rem;font-weight:600;color:var(--ink);cursor:pointer;transition:all 0.15s;white-space:nowrap;}
+.sug-btn:hover{border-color:var(--gold);color:var(--gold);background:rgba(184,130,10,0.06);}
 .fusion-info-txt{font-size:0.8rem;color:var(--mut);margin-bottom:6px;}
 .fusion-btn{display:block;width:100%;background:var(--bg);border:1.5px solid var(--brd);border-radius:12px;padding:13px 16px;font-family:"Inter",sans-serif;font-size:0.9rem;color:var(--ink);cursor:pointer;text-align:left;margin-bottom:8px;transition:all 0.15s;}
 .fusion-btn:hover{border-color:var(--gold);background:rgba(184,130,10,0.05);}
@@ -845,6 +967,7 @@ header::before{content:"7:45";position:absolute;right:-8px;top:50%;transform:tra
   <div class="htop"><div class="htit">Mesa de <span>Galanes</span></div><div class="hmeta"><div id="fh">—</div><div id="hh">—</div></div></div>
   <div class="nz"><div id="prompt" onclick="openModal('mnombre')">👤 Quien sos?</div><div id="badge" onclick="changeName()"></div><span id="total-badge"></span><button id="vbtn" onclick="toggleVoice()" title="Audio">🔇</button></div>
 </header>
+<div id="cumple-banner" style="display:none"></div>
 <div id="timer-bar" class="tbar">
   <span id="t-text">Cierra en</span><span id="t-count">—</span>
   <button class="tcx" id="tcx-btn" onclick="cancelTimer()" style="display:none">✕</button>
@@ -854,6 +977,7 @@ header::before{content:"7:45";position:absolute;right:-8px;top:50%;transform:tra
   <button class="tab" data-tab="pedir"   onclick="switchTab('pedir')">☕ Pedir</button>
   <button class="tab" data-tab="resumen" onclick="switchTab('resumen')">📋 Resumen</button>
   <button class="tab" data-tab="lista"   onclick="switchTab('lista')">📊 Lista</button>
+  <button class="tab" data-tab="cumples" onclick="switchTab('cumples')">🎂 Cumples</button>
   <button class="tab" data-tab="mesa"    onclick="switchTab('mesa')">👥 Mesa</button>
 </div>
 <div class="main">
@@ -867,6 +991,11 @@ header::before{content:"7:45";position:absolute;right:-8px;top:50%;transform:tra
     <div class="sp" id="sum-panel"><div class="es">Nadie pidio nada todavia 👀</div></div>
     <div id="totals-panel"></div>
   </div>
+  <div id="v-cumples" style="display:none">
+    <div class="slabel">🎂 Cumpleaños</div>
+    <div id="cumples-panel" style="padding:0 12px"></div>
+  </div>
+
   <div id="v-lista" style="display:none">
     <div class="slabel">Lista de galanes</div>
     <div id="fusion-bar">
@@ -902,7 +1031,8 @@ header::before{content:"7:45";position:absolute;right:-8px;top:50%;transform:tra
 <div class="modal-overlay mc" id="mnombre" onclick="if(event.target===this)closeModal('mnombre')">
   <div class="modal">
     <div style="text-align:center;margin-bottom:18px"><div style="font-size:3rem;margin-bottom:8px">☕</div><div style="font-family:'Bebas Neue',sans-serif;font-size:1.8rem;letter-spacing:1px;color:#1a0e04">Mesa de Galanes</div><div style="font-size:0.76rem;color:#9a7a5a;margin-top:4px">Sabado 7:45 — CRR Tenis</div></div>
-    <input type="text" id="inp-name" placeholder="Tu nombre o apodo..." maxlength="20" autocomplete="off" autocorrect="off" style="font-size:1rem;text-align:center;padding:14px">
+    <input type="text" id="inp-name" placeholder="Tu nombre o apodo..." maxlength="20" autocomplete="off" autocorrect="off" spellcheck="false" style="font-size:1rem;text-align:center;padding:14px" oninput="sugerirNombres(this.value)">
+    <div id="sugerencias" style="display:none;margin-bottom:10px;display:flex;flex-wrap:wrap;gap:6px"></div>
     <div class="ma"><button class="bs" style="flex:0.6" onclick="closeModal('mnombre')">Omitir</button><button class="bp" onclick="setName(document.getElementById('inp-name').value)">Entrar ☕</button></div>
   </div>
 </div>
@@ -967,6 +1097,31 @@ header::before{content:"7:45";position:absolute;right:-8px;top:50%;transform:tra
   </div>
 </div>
 <!-- modal-reserva eliminado: flujo simplificado via cards normales -->
+<!-- MODAL CUMPLEAÑOS -->
+<div class="modal-overlay mc" id="mcumple" onclick="if(event.target===this)closeModal('mcumple')">
+  <div class="modal">
+    <div style="text-align:center;margin-bottom:16px">
+      <div style="font-size:2.5rem">🎂</div>
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:1.4rem;color:var(--ink);margin-top:6px">¿Cuándo es tu cumple?</div>
+      <div style="font-size:0.76rem;color:var(--mut);margin-top:4px">Lo festejamos en el asado 🥩</div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+      <div>
+        <div style="font-size:0.75rem;color:var(--mut);margin-bottom:4px;text-align:center">Día</div>
+        <input type="number" id="cumple-dia" placeholder="14" min="1" max="31" style="text-align:center;font-size:1.2rem;padding:12px;margin:0">
+      </div>
+      <div>
+        <div style="font-size:0.75rem;color:var(--mut);margin-bottom:4px;text-align:center">Mes</div>
+        <input type="number" id="cumple-mes" placeholder="3" min="1" max="12" style="text-align:center;font-size:1.2rem;padding:12px;margin:0">
+      </div>
+    </div>
+    <div class="ma">
+      <button class="bs" style="flex:0.6" onclick="omitirCumple()">Ahora no</button>
+      <button class="bp" onclick="guardarCumple()">Guardar 🎂</button>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL FUSIÓN -->
 <div class="modal-overlay mc" id="mfusion" onclick="if(event.target===this)closeModal('mfusion')">
   <div class="modal"><h3>Fusionar nombres</h3>
