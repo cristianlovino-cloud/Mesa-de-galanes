@@ -456,55 +456,33 @@
   };
 
   // ── RESERVA ───────────────────────────────────────────────
-  window.openReserva=function(){
+  // Reserva: solo confirmar asistencia. El pedido se pre-carga con las cards normales.
+  window.anotarme=async function(){
     if(!me){openModal("mnombre");return;}
-    speak("Reserva para el próximo sábado. Elegí tu pedido.");
-    var myRes=reservas[me];
-    document.getElementById("res-title").textContent="Reserva para "+satLabel();
-    if(myRes){
-      document.getElementById("res-status").innerHTML="✓ Anotado — "+myRes.pedidos.map(function(p){return p.icon+" "+p.drink;}).join(", ");
-      document.getElementById("res-status").style.color="#2a7a4a";
-      document.getElementById("res-drink-section").style.display="none";
-      document.getElementById("res-cancel-btn").style.display="block";
-      document.getElementById("res-confirm-btn").style.display="none";
-    } else {
-      document.getElementById("res-status").textContent="No estás anotado todavía";
-      document.getElementById("res-status").style.color="var(--mut)";
-      document.getElementById("res-drink-section").style.display="block";
-      document.getElementById("res-cancel-btn").style.display="none";
-      document.getElementById("res-confirm-btn").style.display="block";
-      var h="";for(var i=0;i<drinks.length;i++)h+="<button class='res-drink-btn' id='rdb-"+i+"' onclick='toggleResDrink("+i+")'>"+drinks[i].icon+" "+drinks[i].name+"</button>";
-      document.getElementById("res-drinks").innerHTML=h;resSel=[];resExtra={};
-    }
-    openModal("mreserva");
-  };
-  window.toggleResDrink=function(idx){
-    var pos=resSel.indexOf(idx),btn=document.getElementById("rdb-"+idx);
-    if(pos===-1){
-      resSel.push(idx);if(btn)btn.classList.add("res-sel");
-      // Solo mostrar extras si la bebida tiene extras disponibles
-      var d=drinks[idx];
-      var extrasDisp=d.extras&&d.extras.length>0?d.extras:EXTRAS;
-      pDrink=Object.assign({},drinks[idx],{idx:idx});pFor="__res"+idx;
-      // Guardar qué modal estaba abierto para volver
-      window._resModalOpen=true;
-      showExtrasCustom(drinks[idx],extrasDisp);
-    } else {
-      resSel.splice(pos,1);delete resExtra[idx];if(btn)btn.classList.remove("res-sel");
-    }
-  };
-  window.confirmarReserva=async function(){
-    if(!resSel.length){showToast("Elegí al menos una bebida");return;}
-    var pedidos=resSel.map(function(idx){var d=drinks[idx],extra=resExtra[idx]||null;return{drinkIdx:idx,drink:extra?d.name+" + "+extra:d.name,icon:d.icon,extra:extra};});
-    await set(ref(db,"reserva/"+me),{pedidos:pedidos,ts:Date.now(),sat:nextSat()});
-    resSel=[];resExtra={};
-    closeModal("mreserva");
-    showToast("✓ Reserva guardada para el "+satLabel()+"!");
-    speak("Reserva guardada para el próximo sábado!");
+    // Guardar asistencia sin pedidos (se cargan después con las cards)
+    await set(ref(db,"reserva/"+me),{asistencia:true,pedidos:[],ts:Date.now(),sat:nextSat()});
+    showToast("✓ Anotado para el "+satLabel()+"!");
+    speak("Anotado para el próximo sábado!");
+    renderReserva();
   };
   window.cancelarReserva=async function(){
     if(!confirm("Cancelar tu reserva?"))return;
-    await set(ref(db,"reserva/"+me),null);closeModal("mreserva");showToast("Reserva cancelada");
+    await set(ref(db,"reserva/"+me),null);
+    showToast("Reserva cancelada");
+    speak("Reserva cancelada.");
+    renderReserva();
+  };
+  // Pre-cargar pedido de reserva: reutiliza las cards normales
+  // El botón "Guardar como reserva" aparece cuando hay pedidos propios
+  window.guardarPedidoComoReserva=async function(){
+    var myOrders=Object.values(orders).filter(function(o){return o.player===me;});
+    if(!myOrders.length){showToast("Primero elegí qué tomás");return;}
+    var pedidos=myOrders.map(function(o){return{drinkIdx:o.drinkIdx,drink:o.drink,icon:o.icon,extra:o.extra||null};});
+    var cur=reservas[me]||{asistencia:true,ts:Date.now(),sat:nextSat()};
+    cur.pedidos=pedidos;
+    await set(ref(db,"reserva/"+me),cur);
+    showToast("✓ Pedido guardado para el "+satLabel()+"!");
+    speak("Pedido guardado como reserva para el próximo sábado!");
   };
 
   // ── WS ────────────────────────────────────────────────────
@@ -520,10 +498,22 @@
   // ── RENDERS ───────────────────────────────────────────────
   function renderReserva(){
     var panel=document.getElementById("reserva-panel");if(!panel)return;
+    if(isSat()||!me){panel.innerHTML="";return;}
     var myRes=reservas[me]||null;
-    if(myRes)panel.innerHTML="<div class='res-banner res-ok'>✓ Anotado para el "+satLabel()+" — "+myRes.pedidos.map(function(p){return p.icon+" "+p.drink;}).join(", ")+"<button onclick='openReserva()' style='margin-left:8px;background:none;border:none;color:#2a7a4a;font-weight:700;cursor:pointer;font-size:0.8rem'>Editar</button></div>";
-    else if(!isSat()&&me)panel.innerHTML="<div class='res-banner'><span>Próximo sáb: <b>"+satLabel()+"</b></span><button onclick='openReserva()' class='res-apunto-btn'>Me apunto ☕</button></div>";
-    else panel.innerHTML="";
+    if(myRes){
+      var peds=myRes.pedidos&&myRes.pedidos.length?myRes.pedidos.map(function(p){return p.icon+" "+p.drink;}).join(", "):"Sin pedido pre-cargado";
+      panel.innerHTML="<div class='res-banner res-ok'>"
+        +"<div><b>✓ Anotado — "+satLabel()+"</b><br><small>"+peds+"</small></div>"
+        +"<div style='display:flex;gap:6px;flex-shrink:0'>"
+        +"<button onclick='guardarPedidoComoReserva()' class='res-apunto-btn' style='background:#2a7a4a'>💾 Guardar pedido</button>"
+        +"<button onclick='cancelarReserva()' style='background:none;border:none;color:#e74c3c;font-weight:700;cursor:pointer;font-size:0.8rem'>✕</button>"
+        +"</div></div>";
+    } else {
+      panel.innerHTML="<div class='res-banner'>"
+        +"<span>Próximo sáb: <b>"+satLabel()+"</b></span>"
+        +"<button onclick='anotarme()' class='res-apunto-btn'>Me apunto ☕</button>"
+        +"</div>";
+    }
   }
 
   function renderDrinks(){
@@ -653,16 +643,8 @@
   function updateClock(){var now=new Date(),dias=["Dom","Lun","Mar","Mie","Jue","Vie","Sab"],meses=["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];document.getElementById("fh").textContent=dias[now.getDay()]+" "+now.getDate()+" "+meses[now.getMonth()];document.getElementById("hh").textContent=now.toLocaleTimeString("es-AR",{hour:"2-digit",minute:"2-digit"});}
   window.openModal=function(id){document.getElementById(id).classList.add("open");var inp=document.querySelector("#"+id+" input");if(inp)setTimeout(function(){inp.focus();},120);};
   window.closeModal=function(id){
-    document.getElementById(id).classList.remove("open");
-    if(id==="mextra"){
-      if(pFor&&pFor.startsWith("__res")){
-        // Volver al modal de reserva
-        pDrink=null;pFor=null;
-        setTimeout(function(){openModal("mreserva");},50);
-      } else {
-        pDrink=null;
-      }
-    }
+    var el=document.getElementById(id);if(el)el.classList.remove("open");
+    if(id==="mextra"){pDrink=null;pFor=null;}
   };
   document.addEventListener("keydown",function(e){
     if(e.key==="Enter"){
@@ -957,17 +939,7 @@ header::before{content:"7:45";position:absolute;right:-8px;top:50%;transform:tra
     <div class="ma"><button class="bs" style="flex:0.5" onclick="closeModal('mgalan')">Cancelar</button><button class="bp" onclick="addGalan()">Agregar ✓</button></div>
   </div>
 </div>
-<!-- MODAL RESERVA -->
-<div class="modal-overlay" id="mreserva" onclick="if(event.target===this)closeModal('mreserva')">
-  <div class="modal"><div class="mh2"></div><h3 id="res-title">Reserva</h3><p id="res-status" class="msub"></p>
-    <div id="res-drink-section"><p class="msub" style="margin-bottom:8px">Que vas a tomar?</p><div class="odg" id="res-drinks" style="margin-bottom:12px"></div></div>
-    <div class="ma">
-      <button class="bs" onclick="closeModal('mreserva')">Cerrar</button>
-      <button class="bp" id="res-confirm-btn" onclick="confirmarReserva()">Confirmar ✓</button>
-      <button class="bs" id="res-cancel-btn" onclick="cancelarReserva()" style="display:none;color:var(--red);border-color:var(--red)">Cancelar reserva</button>
-    </div>
-  </div>
-</div>
+<!-- modal-reserva eliminado: flujo simplificado via cards normales -->
 <!-- MODAL FUSIÓN -->
 <div class="modal-overlay mc" id="mfusion" onclick="if(event.target===this)closeModal('mfusion')">
   <div class="modal"><h3>Fusionar nombres</h3>
