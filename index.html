@@ -359,8 +359,15 @@
       var ridx=parseInt(pFor.replace("__res",""));
       resExtra[ridx]=exVal;
       var btn=document.getElementById("rdb-"+ridx);
-      if(btn&&exVal)btn.textContent=drinks[ridx].icon+" "+drinks[ridx].name+" +"+exVal;
-      pDrink=null;pFor=null;closeModal("mextra");
+      if(btn){
+        var label=drinks[ridx].icon+" "+drinks[ridx].name+(exVal?" ✓":"");
+        btn.textContent=label;
+        btn.classList.add("res-sel");
+      }
+      pDrink=null;pFor=null;
+      document.getElementById("mextra").classList.remove("open");
+      setTimeout(function(){openModal("mreserva");},50);
+      speak("Agregado. Elegí más o confirmá.");
     } else {
       var player=pFor||me;
       var obj={player:player,drinkIdx:pDrink.idx,drink:label,icon:pDrink.icon,extra:exVal,ts:Date.now()};
@@ -409,9 +416,13 @@
   // ── DRINKS ────────────────────────────────────────────────
   window.addDrink=async function(){
     var name=document.getElementById("nd-name").value.trim(),iconInput=document.getElementById("nd-icon").value.trim(),sub=document.getElementById("nd-sub").value.trim();
+    var extrasRaw=document.getElementById("nd-extras").value.trim();
     if(!name)return;
-    await set(rD,drinks.concat([{id:"c"+Date.now(),name:name,icon:iconInput||autoEmoji(name),sub:sub,createdBy:me||"?"}]));
-    closeModal("mdrink");["nd-name","nd-icon","nd-sub"].forEach(function(id){document.getElementById(id).value="";});
+    var extras=EXTRAS; // default
+    if(extrasRaw==="ninguno"||extrasRaw==="none"||extrasRaw==="-"){extras=["Sin acompanamiento"];}
+    else if(extrasRaw){extras=extrasRaw.split(",").map(function(e){return e.trim();}).filter(Boolean);}
+    await set(rD,drinks.concat([{id:"c"+Date.now(),name:name,icon:iconInput||autoEmoji(name),sub:sub,extras:extras,createdBy:me||"?"}]));
+    closeModal("mdrink");["nd-name","nd-icon","nd-sub","nd-extras"].forEach(function(id){document.getElementById(id).value="";});
   };
   window.delDrink=async function(idx,e){e.stopPropagation();if(!isAdmin())return;if(!confirm("Eliminar "+drinks[idx].name+"?"))return;await set(rD,drinks.filter(function(_,i){return i!==idx;}));};
   window.resetDrinks=async function(){if(!confirm("Restaurar 4 categorias originales?"))return;await set(rD,DRINKS_DEF);};
@@ -447,6 +458,7 @@
   // ── RESERVA ───────────────────────────────────────────────
   window.openReserva=function(){
     if(!me){openModal("mnombre");return;}
+    speak("Reserva para el próximo sábado. Elegí tu pedido.");
     var myRes=reservas[me];
     document.getElementById("res-title").textContent="Reserva para "+satLabel();
     if(myRes){
@@ -468,14 +480,27 @@
   };
   window.toggleResDrink=function(idx){
     var pos=resSel.indexOf(idx),btn=document.getElementById("rdb-"+idx);
-    if(pos===-1){resSel.push(idx);if(btn)btn.classList.add("res-sel");pDrink=Object.assign({},drinks[idx],{idx:idx});pFor="__res"+idx;showExtras(drinks[idx]);}
-    else{resSel.splice(pos,1);delete resExtra[idx];if(btn)btn.classList.remove("res-sel");}
+    if(pos===-1){
+      resSel.push(idx);if(btn)btn.classList.add("res-sel");
+      // Solo mostrar extras si la bebida tiene extras disponibles
+      var d=drinks[idx];
+      var extrasDisp=d.extras&&d.extras.length>0?d.extras:EXTRAS;
+      pDrink=Object.assign({},drinks[idx],{idx:idx});pFor="__res"+idx;
+      // Guardar qué modal estaba abierto para volver
+      window._resModalOpen=true;
+      showExtrasCustom(drinks[idx],extrasDisp);
+    } else {
+      resSel.splice(pos,1);delete resExtra[idx];if(btn)btn.classList.remove("res-sel");
+    }
   };
   window.confirmarReserva=async function(){
     if(!resSel.length){showToast("Elegí al menos una bebida");return;}
     var pedidos=resSel.map(function(idx){var d=drinks[idx],extra=resExtra[idx]||null;return{drinkIdx:idx,drink:extra?d.name+" + "+extra:d.name,icon:d.icon,extra:extra};});
     await set(ref(db,"reserva/"+me),{pedidos:pedidos,ts:Date.now(),sat:nextSat()});
-    closeModal("mreserva");showToast("✓ Reserva guardada para el "+satLabel()+"!");speak("Reserva guardada para el próximo sábado!");
+    resSel=[];resExtra={};
+    closeModal("mreserva");
+    showToast("✓ Reserva guardada para el "+satLabel()+"!");
+    speak("Reserva guardada para el próximo sábado!");
   };
   window.cancelarReserva=async function(){
     if(!confirm("Cancelar tu reserva?"))return;
@@ -627,7 +652,18 @@
   function showToast(msg){var t=document.getElementById("toast");t.textContent=msg;t.style.display="block";t.style.opacity="1";setTimeout(function(){t.style.opacity="0";setTimeout(function(){t.style.display="none";t.style.opacity="1";},400);},2200);}
   function updateClock(){var now=new Date(),dias=["Dom","Lun","Mar","Mie","Jue","Vie","Sab"],meses=["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];document.getElementById("fh").textContent=dias[now.getDay()]+" "+now.getDate()+" "+meses[now.getMonth()];document.getElementById("hh").textContent=now.toLocaleTimeString("es-AR",{hour:"2-digit",minute:"2-digit"});}
   window.openModal=function(id){document.getElementById(id).classList.add("open");var inp=document.querySelector("#"+id+" input");if(inp)setTimeout(function(){inp.focus();},120);};
-  window.closeModal=function(id){document.getElementById(id).classList.remove("open");if(id==="mextra"){pDrink=null;if(pFor&&pFor.startsWith("__res"))pFor=null;}};
+  window.closeModal=function(id){
+    document.getElementById(id).classList.remove("open");
+    if(id==="mextra"){
+      if(pFor&&pFor.startsWith("__res")){
+        // Volver al modal de reserva
+        pDrink=null;pFor=null;
+        setTimeout(function(){openModal("mreserva");},50);
+      } else {
+        pDrink=null;
+      }
+    }
+  };
   document.addEventListener("keydown",function(e){
     if(e.key==="Enter"){
       if(document.getElementById("mnombre").classList.contains("open"))window.setName(document.getElementById("inp-name").value);
@@ -881,6 +917,7 @@ header::before{content:"7:45";position:absolute;right:-8px;top:50%;transform:tra
     <input type="text" id="nd-name" placeholder="Nombre (ej: Submarino, Huevos...)" maxlength="30" autocomplete="off">
     <input type="text" id="nd-icon" placeholder="Emoji manual (opcional)" maxlength="4">
     <input type="text" id="nd-sub" placeholder="Descripcion opcional" maxlength="30">
+    <input type="text" id="nd-extras" placeholder="Acompañamientos (opcional, separar con coma · 'ninguno')" maxlength="100">
     <div class="ma"><button class="bs" onclick="closeModal('mdrink')">Cancelar</button><button class="bp" onclick="addDrink()">Agregar</button></div>
   </div>
 </div>
