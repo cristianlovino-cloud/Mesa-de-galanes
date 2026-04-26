@@ -467,6 +467,15 @@
     speak("Anotado para el próximo sábado!");
     renderReserva();
   };
+  window.noEstoy=function(){
+    if(confirm("¿Seguro que no venís el "+satLabel()+"?")){
+      speak("Nos vemos otro sábado!");
+      showToast("😔 Hasta la próxima!");
+      // Cerrar la app (minimizar o ir a pantalla de inicio)
+      setTimeout(function(){ window.close(); }, 1500);
+    }
+  };
+
   window.cancelarReserva=async function(){
     if(!confirm("Cancelar tu reserva?"))return;
     await set(ref(db,"reserva/"+me),null);
@@ -506,18 +515,30 @@
     if(isSat()||!me){panel.innerHTML="";return;}
     var myRes=reservas[me]||null;
     if(myRes){
-      var peds=myRes.pedidos&&myRes.pedidos.length?myRes.pedidos.map(function(p){return p.icon+" "+p.drink;}).join(", "):"Sin pedido pre-cargado";
-      panel.innerHTML="<div class='res-banner res-ok'>"
-        +"<div><b>✓ Anotado — "+satLabel()+"</b><br><small>"+peds+"</small></div>"
-        +"<div style='display:flex;gap:6px;flex-shrink:0'>"
-        +"<button onclick='guardarPedidoComoReserva()' class='res-apunto-btn' style='background:#2a7a4a'>💾 Guardar pedido</button>"
-        +"<button onclick='cancelarReserva()' style='background:none;border:none;color:#e74c3c;font-weight:700;cursor:pointer;font-size:0.8rem'>✕</button>"
+      var peds=myRes.pedidos&&myRes.pedidos.length
+        ?myRes.pedidos.map(function(p){return p.icon+" "+p.drink;}).join(", ")
+        :"Elegí tu pedido con las cards 👇";
+      panel.innerHTML=""
+        +"<div class='res-banner res-ok'>"
+        +"<div style='flex:1'>"
+        +"<div style='font-weight:700;color:#2a7a4a;margin-bottom:3px'>✓ Anotado para el "+satLabel()+"</div>"
+        +"<div style='font-size:0.78rem;color:#3a8a5a'>"+peds+"</div>"
+        +"</div>"
+        +"<div style='display:flex;flex-direction:column;gap:5px;flex-shrink:0;align-items:flex-end'>"
+        +"<button onclick='guardarPedidoComoReserva()' class='res-apunto-btn' style='background:#2a7a4a;font-size:0.75rem;padding:6px 12px'>💾 Guardar pedido</button>"
+        +"<button onclick='cancelarReserva()' style='background:none;border:none;color:#e74c3c;font-size:0.72rem;font-weight:600;cursor:pointer'>✕ Cancelar reserva</button>"
         +"</div></div>";
     } else {
-      panel.innerHTML="<div class='res-banner'>"
-        +"<span>Próximo sáb: <b>"+satLabel()+"</b></span>"
+      panel.innerHTML=""
+        +"<div class='res-banner'>"
+        +"<div>"
+        +"<div style='font-weight:600;font-size:0.84rem;color:var(--ink)'>Próximo sáb: <b>"+satLabel()+"</b></div>"
+        +"<div style='font-size:0.74rem;color:var(--mut);margin-top:2px'>¿Venís al 7:45?</div>"
+        +"</div>"
+        +"<div style='display:flex;gap:6px;flex-shrink:0'>"
         +"<button onclick='anotarme()' class='res-apunto-btn'>Estoy 🙂</button>"
-        +"</div>";
+        +"<button onclick='noEstoy()' class='res-apunto-btn' style='background:#555'>No estoy 😔</button>"
+        +"</div></div>";
     }
   }
 
