@@ -520,17 +520,15 @@
     if(myRes){
       var peds=myRes.pedidos&&myRes.pedidos.length
         ?myRes.pedidos.map(function(p){return p.icon+" "+p.drink;}).join(", ")
-        :"Elegí tu pedido con las cards 👇";
+        :"";
       panel.innerHTML=""
         +"<div class='res-banner res-ok'>"
         +"<div style='flex:1'>"
-        +"<div style='font-weight:700;color:#2a7a4a;margin-bottom:3px'>✓ Anotado para el "+satLabel()+"</div>"
-        +"<div style='font-size:0.78rem;color:#3a8a5a'>"+peds+"</div>"
+        +"<div style='font-weight:700;color:#2a7a4a;margin-bottom:3px'>✓ Anotado — "+satLabel()+"</div>"
+        +(peds?"<div style='font-size:0.78rem;color:#3a8a5a'>"+peds+"</div>":"")
         +"</div>"
-        +"<div style='display:flex;flex-direction:column;gap:5px;flex-shrink:0;align-items:flex-end'>"
-        +"<button onclick='guardarPedidoComoReserva()' class='res-apunto-btn' style='background:#2a7a4a;font-size:0.75rem;padding:6px 12px'>💾 Guardar pedido</button>"
-        +"<button onclick='cancelarReserva()' style='background:none;border:none;color:#e74c3c;font-size:0.72rem;font-weight:600;cursor:pointer'>✕ Cancelar reserva</button>"
-        +"</div></div>";
+        +"<button onclick='cancelarReserva()' style='background:none;border:none;color:#e74c3c;font-size:0.78rem;font-weight:700;cursor:pointer;flex-shrink:0'>✕ No voy</button>"
+        +"</div>";
     } else {
       panel.innerHTML=""
         +"<div class='res-banner'>"
