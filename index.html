@@ -460,12 +460,15 @@
   window.anotarme=async function(){
     if(!me){openModal("mnombre");return;}
     var data={asistencia:true,pedidos:[],ts:Date.now(),sat:nextSat()};
-    await set(ref(db,"reserva/"+me),data);
-    // Actualizar local inmediatamente sin esperar onValue
-    reservas[me]=data;
-    showToast("✓ Anotado para el "+satLabel()+"!");
-    speak("Anotado para el próximo sábado!");
-    renderReserva();
+    try {
+      await set(ref(db,"reserva/"+me),data);
+      reservas[me]=data;
+      showToast("✓ Anotado para el "+satLabel()+"!");
+      speak("Anotado para el próximo sábado!");
+      renderReserva();
+    } catch(err) {
+      showToast("Error: "+err.message);
+    }
   };
   window.noEstoy=function(){
     if(confirm("¿Seguro que no venís el "+satLabel()+"?")){
