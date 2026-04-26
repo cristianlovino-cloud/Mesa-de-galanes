@@ -459,8 +459,10 @@
   // Reserva: solo confirmar asistencia. El pedido se pre-carga con las cards normales.
   window.anotarme=async function(){
     if(!me){openModal("mnombre");return;}
-    // Guardar asistencia sin pedidos (se cargan después con las cards)
-    await set(ref(db,"reserva/"+me),{asistencia:true,pedidos:[],ts:Date.now(),sat:nextSat()});
+    var data={asistencia:true,pedidos:[],ts:Date.now(),sat:nextSat()};
+    await set(ref(db,"reserva/"+me),data);
+    // Actualizar local inmediatamente sin esperar onValue
+    reservas[me]=data;
     showToast("✓ Anotado para el "+satLabel()+"!");
     speak("Anotado para el próximo sábado!");
     renderReserva();
@@ -468,6 +470,7 @@
   window.cancelarReserva=async function(){
     if(!confirm("Cancelar tu reserva?"))return;
     await set(ref(db,"reserva/"+me),null);
+    delete reservas[me];
     showToast("Reserva cancelada");
     speak("Reserva cancelada.");
     renderReserva();
@@ -478,11 +481,13 @@
     var myOrders=Object.values(orders).filter(function(o){return o.player===me;});
     if(!myOrders.length){showToast("Primero elegí qué tomás");return;}
     var pedidos=myOrders.map(function(o){return{drinkIdx:o.drinkIdx,drink:o.drink,icon:o.icon,extra:o.extra||null};});
-    var cur=reservas[me]||{asistencia:true,ts:Date.now(),sat:nextSat()};
+    var cur=Object.assign({},reservas[me]||{asistencia:true,ts:Date.now(),sat:nextSat()});
     cur.pedidos=pedidos;
     await set(ref(db,"reserva/"+me),cur);
+    reservas[me]=cur;
     showToast("✓ Pedido guardado para el "+satLabel()+"!");
     speak("Pedido guardado como reserva para el próximo sábado!");
+    renderReserva();
   };
 
   // ── WS ────────────────────────────────────────────────────
@@ -511,7 +516,7 @@
     } else {
       panel.innerHTML="<div class='res-banner'>"
         +"<span>Próximo sáb: <b>"+satLabel()+"</b></span>"
-        +"<button onclick='anotarme()' class='res-apunto-btn'>Me apunto ☕</button>"
+        +"<button onclick='anotarme()' class='res-apunto-btn'>Estoy 🙂</button>"
         +"</div>";
     }
   }
@@ -869,7 +874,7 @@ header::before{content:"7:45";position:absolute;right:-8px;top:50%;transform:tra
   </div>
 </div>
 <div id="toast"></div>
-<div id="confirm-wrap"><button class="cbtn" onclick="doConfirm()">📤 Enviar mi pedido</button></div>
+<div id="confirm-wrap"><button class="cbtn" onclick="doConfirm()">☕ Enviar mi pedido</button></div>
 
 <!-- MODAL NOMBRE -->
 <div class="modal-overlay mc" id="mnombre" onclick="if(event.target===this)closeModal('mnombre')">
