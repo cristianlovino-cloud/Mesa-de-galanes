@@ -57,10 +57,10 @@
   const rF=ref(db,"pedido/favorito"),rT=ref(db,"pedido/timer"),rC=ref(db,"pedido/confirmed");
   const rP=ref(db,"pedido/pagos"),rB=ref(db,"pedido/totalBar");
   const rG=ref(db,"config/galanes"),rR=ref(db,"reserva"),rH=ref(db,"historial");
-  const rA=ref(db,"config/accesos"),rCump=ref(db,"config/cumples");
+  const rA=ref(db,"config/accesos"),rCump=ref(db,"config/cumples"),rPend=ref(db,"config/pendientes");
 
   var me=localStorage.getItem("galan_name")||null;
-  var orders={},drinks=[],confirmed={},pagos={},galanes=[],totalBar=0;
+  var orders={},drinks=[],confirmed={},pagos={},galanes=[],totalBar=0,pendientes={};
   var reservas={},accesos={},cumples={};
   var pDrink=null,pFor=null,selPlayers=[],dragIdx=null;
   var timerIv=null,timerD=null,editPP=null,editPT=null,fusionSel=[];
@@ -85,6 +85,7 @@
     onValue(rR,function(s){reservas=s.exists()?s.val():{};renderReserva();renderMesa();renderLista();});
     onValue(rA,function(s){accesos=s.exists()?s.val():{};renderLista();});
     onValue(rCump,function(s){cumples=s.exists()?s.val():{};renderCumples();renderCumpleBanner();});
+    onValue(rPend,function(s){pendientes=s.exists()?s.val():{};renderPendientes();});
     var vb=document.getElementById("vbtn");if(vb)vb.textContent=voiceOn?"🔊":"🔇";
     checkSession();
     if(me)renderMyName();else setTimeout(function(){openModal("mnombre");},400);
@@ -119,6 +120,10 @@
     renderMyName();renderDrinks();renderOrders();renderMesa();renderLista();renderConfirmBtn();renderReserva();renderCumpleBanner();
     speak("Hola "+me+"!");
     if(!cumples[me])setTimeout(function(){openModal("mcumple");},800);
+    // Notificar admin si es galán no registrado
+    if(galanes.indexOf(me)===-1&&me!==ADMIN){
+      set(ref(db,"config/pendientes/"+me),{ts:Date.now(),nombre:me});
+    }
   };
   window.changeName=function(){document.getElementById("inp-name").value=me||"";openModal("mnombre");};
   window.logout=function(e){
@@ -204,6 +209,14 @@
     if(!me||confirmado())return;
     await set(ref(db,"pedido/confirmed/"+me),true);
     showToast("✓ Pedido enviado!");speak("Tu pedido fue enviado. Gracias "+me+"!");
+    // Auto-guardar como reserva para el próximo sábado
+    var myOrders=Object.values(orders).filter(function(o){return o.player===me;});
+    if(myOrders.length){
+      var peds=myOrders.map(function(o){return{drinkIdx:o.drinkIdx,drink:o.drink,icon:o.icon,extra:o.extra||null};});
+      var cur=Object.assign({},reservas[me]||{asistencia:true,ts:Date.now(),sat:nextSatStr()});
+      cur.pedidos=peds;
+      set(ref(db,"reserva/"+me),cur);reservas[me]=cur;renderReserva();
+    }
   };
 
   // ── PAGOS ─────────────────────────────────────────────────
@@ -299,6 +312,39 @@
   }
 
   // ── CERRAR MESA / HISTORIAL ───────────────────────────────
+  window.aceptarPendiente=async function(el){
+    if(!isAdmin())return;
+    var nombre=el.getAttribute("data-name");if(!nombre)return;
+    var lista=galanes.slice();
+    if(lista.indexOf(nombre)===-1){lista.push(nombre);lista.sort();await set(rG,lista);}
+    await set(ref(db,"config/pendientes/"+nombre),null);
+    delete pendientes[nombre];
+    showToast("✓ "+nombre+" aceptado!");renderPendientes();renderLista();
+  };
+  window.rechazarPendiente=async function(el){
+    if(!isAdmin())return;
+    var nombre=el.getAttribute("data-name");if(!nombre)return;
+    await set(ref(db,"config/pendientes/"+nombre),null);
+    delete pendientes[nombre];
+    showToast("✗ "+nombre+" rechazado");renderPendientes();
+  };
+  function renderPendientes(){
+    var panel=document.getElementById("pendientes-panel");if(!panel)return;
+    var keys=Object.keys(pendientes);
+    if(!keys.length||!isAdmin()){panel.style.display="none";return;}
+    panel.style.display="block";
+    var h="<div class='res-pending-title'>🔔 Nuevos (no registrados)</div>";
+    keys.forEach(function(n){
+      h+="<div class='res-pending-item'>";
+      h+="<span style='background:#666;display:inline-flex;width:28px;height:28px;border-radius:50%;align-items:center;justify-content:center;font-size:0.75rem;color:white;font-family:Bebas Neue,sans-serif'>"+n.slice(0,2).toUpperCase()+"</span>";
+      h+=" <b>"+n+"</b> quiere unirse";
+      h+=" <button class='lista-add-btn' style='padding:4px 10px;font-size:0.72rem' data-name='"+n+"' onclick='aceptarPendiente(this)'>✓ Aceptar</button>";
+      h+=" <button class='lista-add-btn' style='background:var(--red);padding:4px 10px;font-size:0.72rem' data-name='"+n+"' onclick='rechazarPendiente(this)'>✗ Rechazar</button>";
+      h+="</div>";
+    });
+    panel.innerHTML=h;
+  }
+
   window.importarReservas=async function(){
     if(!isAdmin())return;
     var keys=Object.keys(reservas);
@@ -377,6 +423,8 @@
       await set(ref(db,"pedido/confirmed/"+nuevo),true);
       await set(ref(db,"pedido/confirmed/"+orig),null);
     }
+    // Actualizar me si es el usuario actual
+    if(me===orig){me=nuevo;localStorage.setItem("galan_name",nuevo);renderMyName();}
     closeModal("medit-nombre");
     showToast("✓ Nombre cambiado a "+nuevo);
     speak("Nombre actualizado.");
@@ -585,6 +633,7 @@
 
   function renderMesa(){
     var ab=document.getElementById("mesa-admin-bar");if(ab)ab.style.display=isAdmin()?"flex":"none";
+    renderPendientes();
     // Mostrar botón importar reservas si hay reservas pendientes y no es sábado
     var importBtn=document.getElementById("import-res-btn");
     if(importBtn){
@@ -893,6 +942,7 @@ header::before{content:"7:45";position:absolute;right:-8px;top:50%;transform:tra
       </button>
     </div>
     <div id="pago-resumen"></div>
+    <div id="pendientes-panel" style="display:none;margin:0 12px 10px;background:#fff3e0;border:1.5px solid #f0a040;border-radius:14px;padding:12px 14px;"></div>
     <div id="mesa-reserva-info" style="display:none;margin:0 12px 10px;background:var(--sur);border:1.5px solid var(--brd);border-radius:14px;padding:12px 14px;"></div>
     <div class="mg" id="mesa-panel"><div class="es">Nadie se anoto todavia 👀</div></div>
   </div>
