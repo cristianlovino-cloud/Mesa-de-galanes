@@ -255,8 +255,10 @@
     renderCumples();renderCumpleBanner();
   };
   window.omitirCumple=function(){closeModal("mcumple");};
-  window.borrarCumple=async function(name){
+  window.borrarCumple=async function(elOrName){
     if(!isAdmin())return;
+    var name=typeof elOrName==="string"?elOrName:elOrName.getAttribute("data-name");
+    if(!name)return;
     if(!confirm("¿Borrar el cumpleaños de "+name+"?"))return;
     await set(ref(db,"config/cumples/"+name),null);
     delete cumples[name];
@@ -315,10 +317,7 @@
         h+="<div class='cumple-detalle'>"+c.dia+" de "+MESES[c.mes-1]+"</div></div>";
         h+=badge;
         if(esMio)h+="<button class='lista-add-btn' style='background:var(--mut);font-size:0.68rem;padding:5px 8px' onclick='openModal("mcumple")'>✏️</button>";
-        if(isAdmin()&&!esMio)h+="<button class='lista-add-btn' style='background:var(--red);font-size:0.68rem;padding:5px 8px' onclick='borrarCumple(""+c.name+"")'>🗑️</button>";
-        h+="</div>";
-      });
-    });
+        if(        if(isAdmin()&&!esMio)h+="<button class='lista-add-btn' style='background:var(--red);font-size:0.68rem;padding:5px 8px' onclick='borrarCumple(this)' data-name='"+c.name+"'>🗑️</button>";  });
     panel.innerHTML=h;
   }
 
