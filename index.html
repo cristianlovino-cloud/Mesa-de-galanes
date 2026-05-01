@@ -57,10 +57,10 @@
   const rF=ref(db,"pedido/favorito"),rT=ref(db,"pedido/timer"),rC=ref(db,"pedido/confirmed");
   const rP=ref(db,"pedido/pagos"),rB=ref(db,"pedido/totalBar");
   const rG=ref(db,"config/galanes"),rR=ref(db,"reserva"),rH=ref(db,"historial");
-  const rA=ref(db,"config/accesos"),rCump=ref(db,"config/cumples"),rPend=ref(db,"config/pendientes");
+  const rA=ref(db,"config/accesos"),rCump=ref(db,"config/cumples"),rPend=ref(db,"config/pendientes"),rPres=ref(db,"pedido/presentes");
 
   var me=localStorage.getItem("galan_name")||null;
-  var orders={},drinks=[],confirmed={},pagos={},galanes=[],totalBar=0,pendientes={};
+  var orders={},drinks=[],confirmed={},pagos={},galanes=[],totalBar=0,pendientes={},presentes={};
   var reservas={},accesos={},cumples={};
   var pDrink=null,pFor=null,selPlayers=[],dragIdx=null;
   var timerIv=null,timerD=null,editPP=null,editPT=null,fusionSel=[];
@@ -86,6 +86,7 @@
     onValue(rA,function(s){accesos=s.exists()?s.val():{};renderLista();});
     onValue(rCump,function(s){cumples=s.exists()?s.val():{};renderCumples();renderCumpleBanner();});
     onValue(rPend,function(s){pendientes=s.exists()?s.val():{};renderPendientes();});
+    onValue(rPres,function(s){presentes=s.exists()?s.val():{};renderLista();});
     var vb=document.getElementById("vbtn");if(vb)vb.textContent=voiceOn?"🔊":"🔇";
     checkSession();
     if(me)renderMyName();else{
@@ -104,7 +105,7 @@
   async function checkSession(){
     var today=new Date().toISOString().slice(0,10),s=await get(rS);
     if(!s.exists()||s.val()!==today){
-      await set(rO,null);await set(rC,null);await set(rP,null);await set(rT,null);await set(rB,0);await set(rS,today);
+      await set(rO,null);await set(rC,null);await set(rP,null);await set(rT,null);await set(rB,0);await set(rPres,null);await set(rS,today);
       if(isSat()){
         var rs=await get(rR);
         if(rs.exists()){
@@ -331,6 +332,16 @@
   }
 
   // ── CERRAR MESA / HISTORIAL ───────────────────────────────
+  window.togglePresente=async function(el){
+    if(!isAdmin())return;
+    var name=el.getAttribute("data-name");if(!name)return;
+    var actual=presentes[name]||false;
+    await set(ref(db,"pedido/presentes/"+name),!actual);
+    presentes[name]=!actual;
+    renderLista();
+    showToast((presentes[name]?"🟢 ":"⚫ ")+name+(presentes[name]?" marcado presente":" marcado ausente"));
+  };
+
   window.eliminarDeListaBase=async function(el){
     if(!isAdmin())return;
     var nombre=el.getAttribute("data-name");if(!nombre)return;
@@ -401,7 +412,7 @@
     var now=new Date(),fecha=now.toISOString().slice(0,10),hora=now.toLocaleTimeString("es-AR",{hour:"2-digit",minute:"2-digit"});
     var sumC=0,sumT=0;Object.values(pagos).forEach(function(pg){sumC+=(pg.cash||0);sumT+=(pg.transfer||0);});
     await set(ref(db,"historial/"+fecha),{fecha:fecha,hora:hora,pedidos:orders,pagos:pagos,totalBar:totalBar,recaudado:sumC+sumT});
-    await set(rO,null);await set(rC,null);await set(rP,null);await set(rT,null);await set(rB,0);
+    await set(rO,null);await set(rC,null);await set(rP,null);await set(rT,null);await set(rB,0);await set(rPres,null);
     showToast("✓ Mesa archivada!");speak("Mesa cerrada. Hasta el próximo sábado!");switchTab("pedir");
   };
   window.verHistorial=async function(){
@@ -488,6 +499,8 @@
   // ── PEDIDOS ───────────────────────────────────────────────
   window.selectDrink=function(idx){
     if(!me){openModal("mnombre");return;}
+    // Bloquear si ya confirmó
+    if(!isAdmin()&&confirmed[me]){showToast("Ya enviaste tu pedido para hoy ✓");return;}
     var myOrders=Object.entries(orders).filter(function(e){return e[1].player===me&&e[1].drinkIdx===idx;});
     if(myOrders.length>0){document.getElementById("dup-title").textContent=drinks[idx].icon+" "+drinks[idx].name;window._dupIdx=idx;openModal("mdup");return;}
     if(!isAdmin()){var al=Object.values(orders).filter(function(o){return o.player===me&&o.loadedBy==="admin";});if(al.length>0&&!confirm("El admin ya te cargó un pedido. ¿Querés agregar otro?"))return;}
@@ -640,6 +653,25 @@
   function renderDrinks(){
     var myIdxs=Object.values(orders).filter(function(o){return o.player===me;}).map(function(o){return o.drinkIdx;});
     var admin=isAdmin(),rows=[];
+    // Banner estado del pedido propio
+    var bannerDiv=document.getElementById("pedido-status-banner");
+    if(bannerDiv&&me&&!admin){
+      var misPedidos=Object.values(orders).filter(function(o){return o.player===me;});
+      var adminMePidio=misPedidos.some(function(o){return o.loadedBy==="admin";});
+      var yoConfirme=confirmed[me];
+      if(yoConfirme){
+        bannerDiv.innerHTML="<div class='status-banner status-ok'>✓ Ya enviaste tu pedido para hoy</div>";
+        bannerDiv.style.display="block";
+      } else if(adminMePidio&&misPedidos.length){
+        bannerDiv.innerHTML="<div class='status-banner status-admin'>☕ El admin ya te cargó un pedido — verificá en Resumen</div>";
+        bannerDiv.style.display="block";
+      } else if(misPedidos.length){
+        bannerDiv.innerHTML="<div class='status-banner status-warn'>⏳ Tenés un pedido sin confirmar — tocá Enviar mi pedido</div>";
+        bannerDiv.style.display="block";
+      } else {
+        bannerDiv.style.display="none";
+      }
+    } else if(bannerDiv){bannerDiv.style.display="none";}
     for(var i=0;i<drinks.length;i++){
       var d=drinks[i],active=myIdxs.indexOf(i)!==-1,mo=null,myCount=0;
       var vals=Object.values(orders);for(var j=0;j<vals.length;j++)if(vals[j].player===me&&vals[j].drinkIdx===i){if(!mo)mo=vals[j];myCount++;}
@@ -737,6 +769,9 @@
     lista.forEach(function(pl){
       var peds=byPlayer[pl]||[],conf=confirmed[pl],pg=pagos[pl]||{},pago=(pg.cash||0)+(pg.transfer||0)>0,res=reservas[pl],fsel=fusionSel.indexOf(pl)!==-1;
       var ac=accesos[pl],cumpl=cumples[pl],estado=peds.length>0?"pidio":"pendiente";
+      var presente=presentes[pl]||false;
+      var adminPidio=peds.some(function(p){return p.loadedBy==="admin";});
+      var usuarioPidio=peds.some(function(p){return!p.loadedBy||p.loadedBy==="reserva";});
       var row="<div class='lista-row lista-"+estado+"'>";
       row+="<div class='lista-av' style='background:"+col(pl)+"'>"+ini(pl)+"</div>";
       row+="<div class='lista-info'><div class='lista-name'>"+pl;
@@ -745,7 +780,13 @@
       if(pago)row+=" <span class='pago-ok' style='font-size:0.6rem'>💰</span>";
       if(res&&!peds.length)row+=" <span class='res-tag'>📋</span>";
       if(cumpl)row+=" <span style='font-size:0.7rem'>🎂"+cumpl.dia+"/"+cumpl.mes+"</span>";
+      if(adminPidio)row+=" <span class='badge-admin-pidio'>👤 admin</span>";
+      if(usuarioPidio&&peds.length)row+=" <span class='badge-user-pidio'>✍️ él</span>";
       row+="</div>";
+      // Botón presencia (solo admin)
+      if(isAdmin()){
+        row+="<button class='pres-btn"+(presente?" pres-on":"")+"' data-name='"+pl+"' onclick='togglePresente(this)' title='Marcar presencia'>"+(presente?"🟢":"⚫")+"</button>";
+      }
       if(peds.length)row+="<div class='lista-drinks'>"+peds.map(function(p){return p.icon+" "+p.drink;}).join(" · ")+"</div>";
       else row+="<div class='lista-drinks lista-nd'>"+(res?"Tiene reserva":"Sin pedido")+"</div>";
       if(ac)row+="<div class='lista-acceso'>🕐 "+ac.count+"x · "+fmtAcceso(ac.lastAccess)+"</div>";
@@ -881,6 +922,13 @@ header::before{content:"7:45";position:absolute;right:-8px;top:50%;transform:tra
 .fsel-ck{background:var(--gold);color:white;font-size:0.65rem;font-weight:800;padding:1px 6px;border-radius:100px;}
 .res-tag{font-size:0.6rem;background:#fff3e0;color:#b8600a;padding:1px 6px;border-radius:100px;font-weight:600;}
 .lista-acceso{font-size:0.68rem;color:var(--b2);margin-top:2px;}
+.status-banner{padding:10px 14px;border-radius:10px;font-size:0.82rem;font-weight:600;margin:8px 12px 0;}
+.status-ok{background:#e8f5ed;color:#2a7a4a;border:1.5px solid #a0d4b4;}
+.status-warn{background:#fff3e0;color:#b8600a;border:1.5px solid #f0c080;}
+.status-admin{background:#e8f0ff;color:#2a4a9a;border:1.5px solid #a0b4e4;}
+.badge-admin-pidio{font-size:0.6rem;background:#e8f0ff;color:#2a4a9a;padding:1px 6px;border-radius:100px;font-weight:600;}
+.badge-user-pidio{font-size:0.6rem;background:#e8f5ed;color:#2a7a4a;padding:1px 6px;border-radius:100px;font-weight:600;}
+.pres-btn{background:none;border:none;font-size:1rem;cursor:pointer;padding:2px 4px;flex-shrink:0;line-height:1;}
 .fusion-btn{display:block;width:100%;background:var(--bg);border:1.5px solid var(--brd);border-radius:12px;padding:13px 16px;font-family:"Inter",sans-serif;font-size:0.9rem;color:var(--ink);cursor:pointer;text-align:left;margin-bottom:8px;transition:all 0.15s;}
 .fusion-btn:hover{border-color:var(--gold);background:rgba(184,130,10,0.05);}
 .hist-row{background:var(--bg);border:1.5px solid var(--brd);border-radius:12px;padding:12px 14px;margin-bottom:8px;cursor:pointer;transition:all 0.15s;}
@@ -964,6 +1012,7 @@ header::before{content:"7:45";position:absolute;right:-8px;top:50%;transform:tra
 <div class="main">
   <div id="v-pedir">
     <div id="reserva-panel"></div>
+    <div id="pedido-status-banner" style="display:none"></div>
     <div class="slabel"><span class="ld"></span> Que tomas?</div>
     <div class="dg" id="drinks-grid"></div>
   </div>
