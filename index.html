@@ -88,7 +88,17 @@
     onValue(rPend,function(s){pendientes=s.exists()?s.val():{};renderPendientes();});
     var vb=document.getElementById("vbtn");if(vb)vb.textContent=voiceOn?"🔊":"🔇";
     checkSession();
-    if(me)renderMyName();else setTimeout(function(){openModal("mnombre");},400);
+    if(me)renderMyName();else{
+    setTimeout(function(){
+      openModal("mnombre");
+      // Pre-completar si había nombre guardado antes
+      var saved=localStorage.getItem("galan_name_last");
+      if(saved){
+        var inp=document.getElementById("inp-name");
+        if(inp){inp.value=saved;sugerirNombres(saved);}
+      }
+    },400);
+  }
   });
 
   async function checkSession(){
@@ -127,7 +137,9 @@
   };
   window.changeName=function(){document.getElementById("inp-name").value=me||"";openModal("mnombre");};
   window.logout=function(e){
-    e.stopPropagation();me=null;localStorage.removeItem("galan_name");
+    e.stopPropagation();
+    if(me)localStorage.setItem("galan_name_last",me);
+    me=null;localStorage.removeItem("galan_name");
     document.getElementById("badge").style.display="none";
     document.getElementById("prompt").style.display="flex";
     document.getElementById("confirm-wrap").style.display="none";
@@ -213,9 +225,11 @@
     var myOrders=Object.values(orders).filter(function(o){return o.player===me;});
     if(myOrders.length){
       var peds=myOrders.map(function(o){return{drinkIdx:o.drinkIdx,drink:o.drink,icon:o.icon,extra:o.extra||null};});
-      var cur=Object.assign({},reservas[me]||{asistencia:true,ts:Date.now(),sat:nextSatStr()});
-      cur.pedidos=peds;
-      set(ref(db,"reserva/"+me),cur);reservas[me]=cur;renderReserva();
+      var cur={asistencia:true,ts:Date.now(),sat:nextSatStr(),pedidos:peds};
+      if(reservas[me])cur=Object.assign({},reservas[me],{pedidos:peds});
+      set(ref(db,"reserva/"+me),cur);
+      reservas[me]=cur;
+      renderReserva();
     }
   };
 
@@ -312,6 +326,15 @@
   }
 
   // ── CERRAR MESA / HISTORIAL ───────────────────────────────
+  window.eliminarDeListaBase=async function(el){
+    if(!isAdmin())return;
+    var nombre=el.getAttribute("data-name");if(!nombre)return;
+    if(!confirm("¿Eliminar "+nombre+" de la lista base? Sus pedidos de hoy no se borran."))return;
+    var idx=galanes.indexOf(nombre);
+    if(idx!==-1){var nl=galanes.slice();nl.splice(idx,1);await set(rG,nl);}
+    showToast("✓ "+nombre+" eliminado de la lista");
+  };
+
   window.aceptarPendiente=async function(el){
     if(!isAdmin())return;
     var nombre=el.getAttribute("data-name");if(!nombre)return;
@@ -423,10 +446,31 @@
       await set(ref(db,"pedido/confirmed/"+nuevo),true);
       await set(ref(db,"pedido/confirmed/"+orig),null);
     }
+    // Actualizar en lista de galanes
+    var idxG=galanes.indexOf(orig);
+    if(idxG!==-1){
+      var nuevaLista=galanes.slice();nuevaLista[idxG]=nuevo;nuevaLista.sort();
+      await set(rG,nuevaLista);
+    }
+    // Actualizar accesos
+    if(accesos[orig]){
+      await set(ref(db,"config/accesos/"+nuevo),accesos[orig]);
+      await set(ref(db,"config/accesos/"+orig),null);
+    }
+    // Actualizar cumples
+    if(cumples[orig]){
+      await set(ref(db,"config/cumples/"+nuevo),cumples[orig]);
+      await set(ref(db,"config/cumples/"+orig),null);
+    }
+    // Actualizar reserva
+    if(reservas[orig]){
+      await set(ref(db,"reserva/"+nuevo),reservas[orig]);
+      await set(ref(db,"reserva/"+orig),null);
+    }
     // Actualizar me si es el usuario actual
     if(me===orig){me=nuevo;localStorage.setItem("galan_name",nuevo);renderMyName();}
     closeModal("medit-nombre");
-    showToast("✓ Nombre cambiado a "+nuevo);
+    showToast("✓ "+orig+" → "+nuevo+" actualizado!");
     speak("Nombre actualizado.");
   };
 
@@ -698,6 +742,7 @@
       row+="<div style='display:flex;flex-direction:column;gap:4px;flex-shrink:0'>";
       if(!peds.length)row+="<button class='lista-add-btn' data-name='"+pl+"' onclick='quickLoad(this)'>+ Cargar</button>";
       row+="<button class='lista-add-btn' style='background:var(--mut);font-size:0.68rem;padding:4px 8px' data-name='"+pl+"' onclick='abrirEditarNombre(this)'>✏️ Editar</button>";
+      if(isAdmin())row+="<button class='lista-add-btn' style='background:var(--red);font-size:0.68rem;padding:4px 8px' data-name='"+pl+"' onclick='eliminarDeListaBase(this)'>🗑️</button>";
       row+="</div>";
       row+="</div>";
       rows.push(row);
@@ -954,7 +999,7 @@ header::before{content:"7:45";position:absolute;right:-8px;top:50%;transform:tra
 <div class="modal-overlay mc" id="mnombre" onclick="if(event.target===this)closeModal('mnombre')">
   <div class="modal">
     <div style="text-align:center;margin-bottom:18px"><div style="font-size:3rem;margin-bottom:8px">☕</div><div style="font-family:'Bebas Neue',sans-serif;font-size:1.8rem;letter-spacing:1px;color:#1a0e04">Mesa de Galanes</div><div style="font-size:0.76rem;color:#9a7a5a;margin-top:4px">Sabado 7:45 — CRR Tenis</div></div>
-    <input type="text" id="inp-name" placeholder="Tu nombre o apodo..." maxlength="20" autocomplete="off" autocorrect="off" spellcheck="false" style="font-size:1rem;text-align:center;padding:14px" oninput="sugerirNombres(this.value)">
+    <input type="text" id="inp-name" placeholder="Tu nombre o apodo..." maxlength="20" autocomplete="off" autocorrect="off" spellcheck="false" autocapitalize="words" style="font-size:1rem;text-align:center;padding:14px" oninput="sugerirNombres(this.value)">
     <div id="sugerencias" style="display:none;flex-wrap:wrap;gap:6px;margin-bottom:10px"></div>
     <div class="ma"><button class="bs" style="flex:0.6" onclick="closeModal('mnombre')">Omitir</button><button class="bp" onclick="setName(document.getElementById('inp-name').value)">Entrar ☕</button></div>
   </div>
