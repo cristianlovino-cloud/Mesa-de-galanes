@@ -255,6 +255,14 @@
     renderCumples();renderCumpleBanner();
   };
   window.omitirCumple=function(){closeModal("mcumple");};
+  window.borrarCumple=async function(name){
+    if(!isAdmin())return;
+    if(!confirm("¿Borrar el cumpleaños de "+name+"?"))return;
+    await set(ref(db,"config/cumples/"+name),null);
+    delete cumples[name];
+    showToast("🗑️ Cumpleaños de "+name+" borrado");
+    renderCumples();renderCumpleBanner();
+  };
 
   function renderCumpleBanner(){
     var banner=document.getElementById("cumple-banner");if(!banner)return;
@@ -306,7 +314,8 @@
         h+="<div class='cumple-info'><div class='cumple-name'>"+c.name+(esMio?" <span class='ytg'>vos</span>":"")+"</div>";
         h+="<div class='cumple-detalle'>"+c.dia+" de "+MESES[c.mes-1]+"</div></div>";
         h+=badge;
-        if(esMio)h+="<button class='lista-add-btn' style='background:var(--mut);font-size:0.68rem;padding:5px 8px' onclick='openModal(\"mcumple\")'>✏️</button>";
+        if(esMio)h+="<button class='lista-add-btn' style='background:var(--mut);font-size:0.68rem;padding:5px 8px' onclick='openModal("mcumple")'>✏️</button>";
+        if(isAdmin()&&!esMio)h+="<button class='lista-add-btn' style='background:var(--red);font-size:0.68rem;padding:5px 8px' onclick='borrarCumple(""+c.name+"")'>🗑️</button>";
         h+="</div>";
       });
     });
@@ -494,7 +503,7 @@
       h+="<div class='ci'><div class='ce'>"+d.icon+"</div><div class='cn'>"+d.name+"</div>";
       if(d.sub)h+="<div class='cs'>"+d.sub+"</div>";
       if(active&&mo&&mo.extra)h+="<div class='cx'>+ "+mo.extra+"</div>";else h+="<div class='ch'>+ acompañamiento</div>";
-      if(admin&&d.createdBy)h+="<div class='ccreated'>+ "+d.createdBy+"</div>";
+      if(admin){if(d.createdBy)h+="<div class='ccreated'>+ "+d.createdBy+"</div>";}
       h+="</div>";
       if(active){if(myCount>1)h+="<div class='ck ck-multi'>"+myCount+"</div>";else h+="<div class='ck'><svg width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3.5'><polyline points='20 6 9 17 4 12'/></svg></div>";}
       h+="</div>";
