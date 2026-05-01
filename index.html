@@ -299,6 +299,22 @@
   }
 
   // ── CERRAR MESA / HISTORIAL ───────────────────────────────
+  window.importarReservas=async function(){
+    if(!isAdmin())return;
+    var keys=Object.keys(reservas);
+    if(!keys.length){showToast("No hay reservas para importar");return;}
+    if(!confirm("Importar "+keys.length+" reservas como pedidos de hoy?"))return;
+    for(var i=0;i<keys.length;i++){
+      var pl=keys[i],peds=reservas[pl].pedidos||[];
+      for(var j=0;j<peds.length;j++){
+        var p=peds[j];
+        await push(rO,{player:pl,drinkIdx:p.drinkIdx,drink:p.drink,icon:p.icon,extra:p.extra||null,loadedBy:"reserva",ts:Date.now()+j});
+      }
+    }
+    await set(rR,null);
+    showToast("✓ Reservas importadas!");speak("Reservas importadas como pedidos de hoy.");
+  };
+
   window.cerrarMesa=async function(){
     if(!Object.keys(orders).length){showToast("No hay pedidos para cerrar");return;}
     if(!confirm("Cerrar y archivar la mesa de hoy?"))return;
@@ -327,27 +343,43 @@
   };
 
   // ── FUSIÓN ────────────────────────────────────────────────
-  window.toggleFusion=function(el){
+  // Editar nombre: reasigna pedidos, pagos, confirmados y reserva
+  window.abrirEditarNombre=function(el){
     var name=el.getAttribute("data-name");if(!name)return;
-    var idx=fusionSel.indexOf(name);if(idx===-1)fusionSel.push(name);else fusionSel.splice(idx,1);
-    renderLista();
-    var fb=document.getElementById("fusion-bar");if(fb)fb.style.display=fusionSel.length>=2?"block":"none";
+    document.getElementById("edit-nombre-actual").textContent=name;
+    document.getElementById("edit-nombre-input").value=name;
+    window._editNombreOrig=name;
+    openModal("medit-nombre");
   };
-  window.abrirFusion=function(){
-    if(fusionSel.length<2){showToast("Seleccioná al menos 2 nombres");return;}
-    var h="";
-    fusionSel.forEach(function(n){h+="<button class='fusion-btn' data-name='"+n+"' onclick='confirmarFusion(this)'>✓ Usar <b>"+n+"</b></button>";});
-    document.getElementById("fusion-opts").innerHTML=h;
-    document.getElementById("fusion-list").textContent=fusionSel.join(" + ");
-    openModal("mfusion");
-  };
-  window.confirmarFusion=async function(el){
-    var nombreFinal=el.getAttribute("data-name");if(!nombreFinal)return;
-    var otros=fusionSel.filter(function(n){return n!==nombreFinal;});
+  window.guardarEditNombre=async function(){
+    var orig=window._editNombreOrig;
+    var nuevo=document.getElementById("edit-nombre-input").value.trim();
+    if(!nuevo||nuevo===orig){closeModal("medit-nombre");return;}
+    // Reasignar pedidos
     var en=Object.entries(orders);
-    for(var i=0;i<en.length;i++){if(otros.indexOf(en[i][1].player)!==-1){var upd=Object.assign({},en[i][1]);upd.player=nombreFinal;await set(ref(db,"pedido/orders/"+en[i][0]),upd);}}
-    for(var j=0;j<otros.length;j++){var pg=pagos[otros[j]];if(pg){var cur=pagos[nombreFinal]||{cash:0,transfer:0};cur.cash=(cur.cash||0)+(pg.cash||0);cur.transfer=(cur.transfer||0)+(pg.transfer||0);await set(ref(db,"pedido/pagos/"+nombreFinal),cur);await set(ref(db,"pedido/pagos/"+otros[j]),null);}}
-    fusionSel=[];document.getElementById("fusion-bar").style.display="none";closeModal("mfusion");showToast("✓ Fusionado en "+nombreFinal);
+    for(var i=0;i<en.length;i++){
+      if(en[i][1].player===orig){
+        var upd=Object.assign({},en[i][1]);upd.player=nuevo;
+        await set(ref(db,"pedido/orders/"+en[i][0]),upd);
+      }
+    }
+    // Reasignar pagos
+    if(pagos[orig]){
+      var pgOrig=pagos[orig];
+      var pgNuevo=pagos[nuevo]||{cash:0,transfer:0};
+      pgNuevo.cash=(pgNuevo.cash||0)+(pgOrig.cash||0);
+      pgNuevo.transfer=(pgNuevo.transfer||0)+(pgOrig.transfer||0);
+      await set(ref(db,"pedido/pagos/"+nuevo),pgNuevo);
+      await set(ref(db,"pedido/pagos/"+orig),null);
+    }
+    // Reasignar confirmado
+    if(confirmed[orig]){
+      await set(ref(db,"pedido/confirmed/"+nuevo),true);
+      await set(ref(db,"pedido/confirmed/"+orig),null);
+    }
+    closeModal("medit-nombre");
+    showToast("✓ Nombre cambiado a "+nuevo);
+    speak("Nombre actualizado.");
   };
 
   // ── PEDIDOS ───────────────────────────────────────────────
@@ -553,6 +585,12 @@
 
   function renderMesa(){
     var ab=document.getElementById("mesa-admin-bar");if(ab)ab.style.display=isAdmin()?"flex":"none";
+    // Mostrar botón importar reservas si hay reservas pendientes y no es sábado
+    var importBtn=document.getElementById("import-res-btn");
+    if(importBtn){
+      var hayReservas=Object.keys(reservas).length>0;
+      importBtn.style.display=isAdmin()&&hayReservas?"inline-block":"none";
+    }
     var po={};Object.values(orders).forEach(function(o){if(!po[o.player])po[o.player]=[];po[o.player].push({drink:o.drink,icon:o.icon});});
     var players=Object.keys(po).sort();
     document.getElementById("mesa-count").textContent=players.length+(players.length===1?" galan":" galanes");
@@ -595,7 +633,7 @@
     lista.forEach(function(pl){
       var peds=byPlayer[pl]||[],conf=confirmed[pl],pg=pagos[pl]||{},pago=(pg.cash||0)+(pg.transfer||0)>0,res=reservas[pl],fsel=fusionSel.indexOf(pl)!==-1;
       var ac=accesos[pl],cumpl=cumples[pl],estado=peds.length>0?"pidio":"pendiente";
-      var row="<div class='lista-row lista-"+estado+(fsel?" lista-fsel":"")+"' data-name='"+pl+"' onclick='toggleFusion(this)'>";
+      var row="<div class='lista-row lista-"+estado+"'>";
       row+="<div class='lista-av' style='background:"+col(pl)+"'>"+ini(pl)+"</div>";
       row+="<div class='lista-info'><div class='lista-name'>"+pl;
       if(fsel)row+=" <span class='fsel-ck'>✓</span>";
@@ -608,14 +646,17 @@
       else row+="<div class='lista-drinks lista-nd'>"+(res?"Tiene reserva":"Sin pedido")+"</div>";
       if(ac)row+="<div class='lista-acceso'>🕐 "+ac.count+"x · "+fmtAcceso(ac.lastAccess)+"</div>";
       row+="</div>";
-      if(!peds.length)row+="<button class='lista-add-btn' data-name='"+pl+"' onclick='event.stopPropagation();quickLoad(this)'>+ Cargar</button>";
+      row+="<div style='display:flex;flex-direction:column;gap:4px;flex-shrink:0'>";
+      if(!peds.length)row+="<button class='lista-add-btn' data-name='"+pl+"' onclick='quickLoad(this)'>+ Cargar</button>";
+      row+="<button class='lista-add-btn' style='background:var(--mut);font-size:0.68rem;padding:4px 8px' data-name='"+pl+"' onclick='abrirEditarNombre(this)'>✏️ Editar</button>";
+      row+="</div>";
       row+="</div>";
       rows.push(row);
     });
     var extras=Object.keys(byPlayer).filter(function(p){return lista.indexOf(p)===-1;});
     if(extras.length){
       rows.push("<div class='lista-sep'>Otros (tocá para fusionar)</div>");
-      extras.forEach(function(pl){var peds2=byPlayer[pl],fsel2=fusionSel.indexOf(pl)!==-1;rows.push("<div class='lista-row lista-pidio"+(fsel2?" lista-fsel":"")+"' data-name='"+pl+"' onclick='toggleFusion(this)'><div class='lista-av' style='background:"+col(pl)+"'>"+ini(pl)+"</div><div class='lista-info'><div class='lista-name'>"+pl+(fsel2?" <span class='fsel-ck'>✓</span>":"")+"</div><div class='lista-drinks'>"+peds2.map(function(p){return p.icon+" "+p.drink;}).join(" · ")+"</div></div></div>");});
+      extras.forEach(function(pl){var peds2=byPlayer[pl];rows.push("<div class='lista-row lista-pidio'><div class='lista-av' style='background:"+col(pl)+"'>"+ini(pl)+"</div><div class='lista-info'><div class='lista-name'>"+pl+"</div><div class='lista-drinks'>"+peds2.map(function(p){return p.icon+" "+p.drink;}).join(" · ")+"</div></div><button class='lista-add-btn' style='background:var(--mut);font-size:0.68rem;padding:4px 8px;flex-shrink:0' data-name='"+pl+"' onclick='abrirEditarNombre(this)'>✏️ Editar</button></div>");});
     }
     rows.push("</div>");panel.innerHTML=rows.join("");
   }
@@ -631,6 +672,7 @@
       if(document.getElementById("mpago").classList.contains("open"))window.savePago();
       if(document.getElementById("mtotalbar").classList.contains("open"))window.saveTotalBar();
       if(document.getElementById("mgalan").classList.contains("open"))window.addGalan();
+      if(document.getElementById("medit-nombre").classList.contains("open"))window.guardarEditNombre();
       if(document.getElementById("mcumple").classList.contains("open"))window.guardarCumple();
     }
     if(e.key==="Escape")document.querySelectorAll(".modal-overlay.open").forEach(function(m){m.classList.remove("open");});
@@ -831,13 +873,14 @@ header::before{content:"7:45";position:absolute;right:-8px;top:50%;transform:tra
   </div>
   <div id="v-lista" style="display:none">
     <div class="slabel">Lista de galanes</div>
-    <div id="fusion-bar"><div style="font-size:0.8rem;color:var(--mut);margin-bottom:6px">Tocá los nombres a fusionar:</div><button class="bp" onclick="abrirFusion()">🔀 Fusionar seleccionados</button></div>
+    <div id="fusion-bar" style="display:none"></div>
     <div id="lista-panel" style="padding:0 12px"></div>
   </div>
   <div id="v-mesa" style="display:none">
     <div class="mh"><div class="mt"><span class="ld"></span> La Mesa hoy</div><span id="mesa-count">0 galanes</span></div>
     <div id="mesa-admin-bar">
       <button class="mabtn" onclick="cerrarMesa()">🔒 Cerrar mesa</button>
+      <button class="mabtn" id="import-res-btn" onclick="importarReservas()" style="display:none;background:#2a7a4a;border-color:#4aaa6a">📋 Importar reservas</button>
       <button class="mabtn" onclick="verHistorial()">📅 Historial</button>
       <button class="mabtn" onclick="openModal('mgalan')">👤 Nuevo galán</button>
       <button class="mabtn" onclick="pedirPorOtro()">➕ Cargar otro</button>
@@ -924,6 +967,19 @@ header::before{content:"7:45";position:absolute;right:-8px;top:50%;transform:tra
     <div class="ma"><button class="bs" style="flex:0.5" onclick="closeModal('mgalan')">Cancelar</button><button class="bp" onclick="addGalan()">Agregar ✓</button></div>
   </div>
 </div>
+<div class="modal-overlay mc" id="medit-nombre" onclick="if(event.target===this)closeModal('medit-nombre')">
+  <div class="modal">
+    <h3>✏️ Editar nombre</h3>
+    <p class="msub">Cambiando: <b id="edit-nombre-actual"></b></p>
+    <p class="msub">Se reasignan todos sus pedidos y pagos automáticamente.</p>
+    <input type="text" id="edit-nombre-input" placeholder="Nombre correcto" maxlength="20" autocomplete="off" autocorrect="off" style="text-align:center;padding:14px">
+    <div class="ma">
+      <button class="bs" style="flex:0.5" onclick="closeModal('medit-nombre')">Cancelar</button>
+      <button class="bp" onclick="guardarEditNombre()">Guardar ✓</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay mc" id="mfusion" onclick="if(event.target===this)closeModal('mfusion')">
   <div class="modal"><h3>Fusionar nombres</h3><p class="msub">Seleccionados: <span id="fusion-list"></span></p><p class="msub">¿Con qué nombre quedan todos?</p><div id="fusion-opts"></div><div class="ma"><button class="bs" onclick="closeModal('mfusion')">Cancelar</button></div></div>
 </div>
