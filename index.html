@@ -109,8 +109,13 @@
         var rs=await get(rR);
         if(rs.exists()){
           var res=rs.val(),pls=Object.keys(res);
+          // Obtener pedidos actuales para no duplicar
+          var ordSnap=await get(rO);
+          var existPlayers=ordSnap.exists()?Object.values(ordSnap.val()).map(function(o){return o.player;}):{};
           for(var i=0;i<pls.length;i++){
-            var pl=pls[i],peds=res[pl].pedidos||[];
+            var pl=pls[i];
+            if(existPlayers.indexOf&&existPlayers.indexOf(pl)!==-1)continue; // ya tiene pedido
+            var peds=res[pl].pedidos||[];
             for(var j=0;j<peds.length;j++){var p=peds[j];await push(rO,{player:pl,drinkIdx:p.drinkIdx,drink:p.drink,icon:p.icon,extra:p.extra||null,loadedBy:"reserva",ts:Date.now()+j});}
           }
           await set(rR,null);
@@ -221,12 +226,12 @@
     if(!me||confirmado())return;
     await set(ref(db,"pedido/confirmed/"+me),true);
     showToast("✓ Pedido enviado!");speak("Tu pedido fue enviado. Gracias "+me+"!");
-    // Auto-guardar como reserva para el próximo sábado
+    // Auto-guardar como reserva para el próximo sábado (solo si no hay reserva previa con pedidos)
     var myOrders=Object.values(orders).filter(function(o){return o.player===me;});
-    if(myOrders.length){
+    var resExist=reservas[me]&&reservas[me].pedidos&&reservas[me].pedidos.length>0;
+    if(myOrders.length&&!resExist){
       var peds=myOrders.map(function(o){return{drinkIdx:o.drinkIdx,drink:o.drink,icon:o.icon,extra:o.extra||null};});
       var cur={asistencia:true,ts:Date.now(),sat:nextSatStr(),pedidos:peds};
-      if(reservas[me])cur=Object.assign({},reservas[me],{pedidos:peds});
       set(ref(db,"reserva/"+me),cur);
       reservas[me]=cur;
       renderReserva();
@@ -372,16 +377,22 @@
     if(!isAdmin())return;
     var keys=Object.keys(reservas);
     if(!keys.length){showToast("No hay reservas para importar");return;}
-    if(!confirm("Importar "+keys.length+" reservas como pedidos de hoy?"))return;
-    for(var i=0;i<keys.length;i++){
-      var pl=keys[i],peds=reservas[pl].pedidos||[];
+    // Calcular cuántos son nuevos (sin pedido aún)
+    var yaConPedido=Object.values(orders).map(function(o){return o.player;});
+    var nuevos=keys.filter(function(pl){return yaConPedido.indexOf(pl)===-1&&(reservas[pl].pedidos||[]).length>0;});
+    var sinPedido=keys.filter(function(pl){return yaConPedido.indexOf(pl)===-1&&!(reservas[pl].pedidos||[]).length;});
+    if(!nuevos.length&&!sinPedido.length){showToast("Todos ya tienen pedido cargado");return;}
+    var msg="Importar "+nuevos.length+" con pedido pre-cargado"+(sinPedido.length?" ("+sinPedido.length+" solo asistencia, sin bebida)":"")+". ¿Continuar?";
+    if(!confirm(msg))return;
+    for(var i=0;i<nuevos.length;i++){
+      var pl=nuevos[i],peds=reservas[pl].pedidos||[];
       for(var j=0;j<peds.length;j++){
         var p=peds[j];
         await push(rO,{player:pl,drinkIdx:p.drinkIdx,drink:p.drink,icon:p.icon,extra:p.extra||null,loadedBy:"reserva",ts:Date.now()+j});
       }
     }
     await set(rR,null);
-    showToast("✓ Reservas importadas!");speak("Reservas importadas como pedidos de hoy.");
+    showToast("✓ "+nuevos.length+" importados!");speak("Reservas importadas.");
   };
 
   window.cerrarMesa=async function(){
