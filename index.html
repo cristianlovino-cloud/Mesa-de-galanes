@@ -103,26 +103,8 @@
   });
 
   async function checkSession(){
-    var today=new Date().toISOString().slice(0,10),s=await get(rS);
-    if(!s.exists()||s.val()!==today){
-      await set(rO,null);await set(rC,null);await set(rP,null);await set(rT,null);await set(rB,0);await set(rPres,null);await set(rS,today);
-      if(isSat()){
-        var rs=await get(rR);
-        if(rs.exists()){
-          var res=rs.val(),pls=Object.keys(res);
-          // Obtener pedidos actuales para no duplicar
-          var ordSnap=await get(rO);
-          var existPlayers=ordSnap.exists()?Object.values(ordSnap.val()).map(function(o){return o.player;}):{};
-          for(var i=0;i<pls.length;i++){
-            var pl=pls[i];
-            if(existPlayers.indexOf&&existPlayers.indexOf(pl)!==-1)continue; // ya tiene pedido
-            var peds=res[pl].pedidos||[];
-            for(var j=0;j<peds.length;j++){var p=peds[j];await push(rO,{player:pl,drinkIdx:p.drinkIdx,drink:p.drink,icon:p.icon,extra:p.extra||null,loadedBy:"reserva",ts:Date.now()+j});}
-          }
-          await set(rR,null);
-        }
-      }
-    }
+    // Reset SOLO manual via admin (cerrar mesa)
+    // No hay reset automático por fecha
   }
 
   // ── NOMBRE ────────────────────────────────────────────────
