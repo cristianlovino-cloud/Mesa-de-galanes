@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Mesa de Galanes</title>
+<meta name='app-version' content='2.5'>
 <meta name="theme-color" content="#1a0e04">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -809,7 +810,7 @@
 <style>
 :root{--bg:#faf6f0;--sur:#fff;--hbg:#1a0e04;--gold:#b8820a;--g2:#d4a020;--gl:#f0c84a;--ink:#1a0e04;--mut:#9a7a5a;--brd:#e8dece;--b2:#d4c4aa;--grn:#25d366;--red:#e74c3c;--sh:rgba(26,14,4,0.08);}
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
-body{background:var(--bg);color:var(--ink);font-family:"Inter",sans-serif;min-height:100vh;overflow-x:hidden;}
+body{background:var(--bg);color:var(--ink);font-family:"Inter",sans-serif;min-height:100vh;overflow-x:hidden;text-transform:uppercase;letter-spacing:0.01em;}
 header{position:relative;background:var(--hbg);padding:20px 16px 18px;overflow:hidden;}
 header::before{content:"7:45";position:absolute;right:-8px;top:50%;transform:translateY(-50%);font-family:"Bebas Neue",sans-serif;font-size:7rem;color:rgba(200,146,42,0.08);pointer-events:none;user-select:none;letter-spacing:-2px;line-height:1;}
 .htop{display:flex;align-items:flex-start;justify-content:space-between;position:relative;}
@@ -920,7 +921,7 @@ header::before{content:"7:45";position:absolute;right:-8px;top:50%;transform:tra
 .res-apunto-btn{background:var(--gold);color:white;border:none;border-radius:8px;padding:7px 14px;font-family:"Inter",sans-serif;font-size:0.8rem;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0;}
 .res-pending-title{font-family:"Bebas Neue",sans-serif;font-size:0.8rem;letter-spacing:0.1em;color:var(--gold);margin-bottom:8px;}
 .res-pending-item{font-size:0.8rem;color:var(--mut);padding:4px 0;display:flex;align-items:center;gap:8px;}
-.sug-btn{background:var(--bg);border:1.5px solid var(--brd);border-radius:100px;padding:6px 14px;font-family:"Inter",sans-serif;font-size:0.84rem;font-weight:600;color:var(--ink);cursor:pointer;transition:all 0.15s;white-space:nowrap;}
+.sug-btn{background:var(--bg);border:1.5px solid var(--brd);border-radius:100px;padding:6px 14px;font-family:"Inter",sans-serif;font-size:0.84rem;font-weight:600;color:var(--ink);cursor:pointer;transition:all 0.15s;white-space:nowrap;text-transform:none;}
 .sug-btn:hover{border-color:var(--gold);color:var(--gold);background:rgba(184,130,10,0.06);}
 .cumple-mes-title{font-family:"Bebas Neue",sans-serif;font-size:0.85rem;letter-spacing:0.15em;color:var(--gold);margin:16px 0 8px;opacity:0.9;}
 .cumple-row{display:flex;align-items:center;gap:10px;background:var(--sur);border:1.5px solid var(--brd);border-radius:12px;padding:10px 12px;margin-bottom:6px;}
@@ -936,7 +937,7 @@ header::before{content:"7:45";position:absolute;right:-8px;top:50%;transform:tra
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.3}}
 #confirm-wrap{position:fixed;bottom:20px;left:12px;right:12px;display:none;z-index:98;}
 .cbtn{width:100%;padding:15px;border:none;border-radius:16px;font-family:"Inter",sans-serif;font-size:0.95rem;font-weight:700;cursor:pointer;background:var(--gold);color:white;box-shadow:0 6px 24px rgba(184,130,10,0.3);}
-#toast{display:none;position:fixed;top:76px;left:50%;transform:translateX(-50%);background:var(--hbg);color:var(--gl);padding:12px 24px;border-radius:100px;font-family:"Inter",sans-serif;font-weight:700;font-size:0.9rem;z-index:300;box-shadow:0 4px 20px rgba(0,0,0,0.3);white-space:nowrap;transition:opacity 0.4s;}
+#toast{display:none;position:fixed;top:76px;left:50%;transform:translateX(-50%);background:var(--hbg);color:var(--gl);padding:12px 24px;border-radius:100px;font-family:"Inter",sans-serif;font-weight:700;font-size:0.9rem;z-index:300;box-shadow:0 4px 20px rgba(0,0,0,0.3);white-space:nowrap;transition:opacity 0.4s;text-transform:none;}
 #fusion-bar{display:none;padding:0 12px 12px;}
 .modal-overlay{display:none;position:fixed;inset:0;background:rgba(26,14,4,0.5);z-index:200;align-items:flex-end;justify-content:center;backdrop-filter:blur(4px);}
 .modal-overlay.open{display:flex;}.modal-overlay.mc{align-items:center;}
@@ -947,7 +948,7 @@ header::before{content:"7:45";position:absolute;right:-8px;top:50%;transform:tra
 .mh2{width:40px;height:4px;background:var(--b2);border-radius:2px;margin:0 auto 20px;}
 .modal h3{font-family:"Bebas Neue",sans-serif;font-size:1.5rem;letter-spacing:0.05em;color:var(--ink);margin-bottom:4px;}
 .msub{font-size:0.8rem;color:var(--mut);margin-bottom:14px;}
-.modal input{width:100%;background:var(--bg);border:1.5px solid var(--brd);border-radius:12px;padding:12px 16px;font-family:"Inter",sans-serif;font-size:0.9rem;color:var(--ink);margin-bottom:10px;outline:none;transition:border-color 0.15s;}
+.modal input{width:100%;background:var(--bg);border:1.5px solid var(--brd);border-radius:12px;padding:12px 16px;font-family:"Inter",sans-serif;font-size:0.9rem;color:var(--ink);margin-bottom:10px;outline:none;transition:border-color 0.15s;text-transform:none;letter-spacing:normal;}
 .modal input:focus{border-color:var(--gold);}.modal input::placeholder{color:var(--mut);}
 .ma{display:flex;gap:8px;margin-top:8px;}
 .bp{flex:1;background:var(--gold);color:white;border:none;border-radius:12px;padding:13px;font-family:"Inter",sans-serif;font-weight:700;cursor:pointer;font-size:0.9rem;}
@@ -1125,7 +1126,37 @@ header::before{content:"7:45";position:absolute;right:-8px;top:50%;transform:tra
 </div>
 
 <script>
-  if("serviceWorker"in navigator)window.addEventListener("load",function(){navigator.serviceWorker.register("sw.js");});
+  var APP_VERSION="2.5";
+  var STORED_VERSION=localStorage.getItem("app_version");
+
+  if("serviceWorker"in navigator){
+    window.addEventListener("load",function(){
+      navigator.serviceWorker.register("sw.js").then(function(reg){
+        // Chequear actualizaciones cada vez que abre
+        reg.update();
+        // Si hay nueva versión esperando, activarla
+        reg.addEventListener("updatefound",function(){
+          var newWorker=reg.installing;
+          newWorker.addEventListener("statechange",function(){
+            if(newWorker.state==="installed"&&navigator.serviceWorker.controller){
+              // Nueva versión disponible — recargar silenciosamente
+              navigator.serviceWorker.addEventListener("controllerchange",function(){
+                window.location.reload();
+              });
+              newWorker.postMessage({type:"SKIP_WAITING"});
+            }
+          });
+        });
+      });
+      // Si cambió la versión de la app, forzar recarga
+      if(STORED_VERSION&&STORED_VERSION!==APP_VERSION){
+        localStorage.setItem("app_version",APP_VERSION);
+        window.location.reload(true);
+      } else {
+        localStorage.setItem("app_version",APP_VERSION);
+      }
+    });
+  }
   document.addEventListener("DOMContentLoaded",function(){
     var ab=document.getElementById("mesa-admin-bar"),tb=document.getElementById("tcx-btn");
     if(ab&&tb)new MutationObserver(function(){tb.style.display=ab.style.display!=="none"?"block":"none";}).observe(ab,{attributes:true,attributeFilter:["style"]});

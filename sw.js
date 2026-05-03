@@ -1,8 +1,10 @@
-const CACHE = 'mesa-galanes-v5';
-const ASSETS = [
-  './',
-  './index.html'
-];
+const CACHE = 'mesa-galanes-v6';
+const ASSETS = ['./', './index.html'];
+
+// Responder al mensaje SKIP_WAITING para activar inmediatamente
+self.addEventListener('message', function(e) {
+  if (e.data && e.data.type === 'SKIP_WAITING') self.skipWaiting();
+});
 
 self.addEventListener('install', function(e) {
   e.waitUntil(
@@ -10,7 +12,6 @@ self.addEventListener('install', function(e) {
       return cache.addAll(ASSETS);
     })
   );
-  self.skipWaiting();
 });
 
 self.addEventListener('activate', function(e) {
@@ -18,7 +19,7 @@ self.addEventListener('activate', function(e) {
     caches.keys().then(function(keys) {
       return Promise.all(
         keys.filter(function(k) { return k !== CACHE; })
-            .map(function(k) { return caches.delete(k); })\
+            .map(function(k) { return caches.delete(k); })
       );
     })
   );
@@ -26,35 +27,28 @@ self.addEventListener('activate', function(e) {
 });
 
 self.addEventListener('fetch', function(e) {
-  // Firebase y APIs externas: siempre red
+  // Firebase, APIs externas: siempre red
   if (e.request.url.includes('firebase') ||
       e.request.url.includes('googleapis') ||
       e.request.url.includes('gstatic') ||
       e.request.url.includes('fonts')) {
     return;
   }
-
-  // index.html: siempre red primero, cache como fallback
-  if (e.request.url.endsWith('/') ||
+  // index.html: network first (siempre baja la versión más nueva)
+  if (e.request.mode === 'navigate' ||
+      e.request.url.endsWith('/') ||
       e.request.url.includes('index.html')) {
     e.respondWith(
-      fetch(e.request)
-        .then(function(response) {
-          // Guardar la versión nueva en cache
-          var copy = response.clone();
-          caches.open(CACHE).then(function(cache) {
-            cache.put(e.request, copy);
-          });
-          return response;
-        })
-        .catch(function() {
-          // Sin red: usar cache
-          return caches.match(e.request);
-        })
+      fetch(e.request).then(function(response) {
+        var copy = response.clone();
+        caches.open(CACHE).then(function(cache) { cache.put(e.request, copy); });
+        return response;
+      }).catch(function() {
+        return caches.match(e.request);
+      })
     );
     return;
   }
-
   // Resto: cache first
   e.respondWith(
     caches.match(e.request).then(function(cached) {
