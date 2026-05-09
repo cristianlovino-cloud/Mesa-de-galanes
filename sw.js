@@ -1,58 +1,35 @@
-const CACHE = 'mesa-galanes-v6';
-const ASSETS = ['./', './index.html'];
+// v4 — network first para todo, sin cache del HTML
+const CACHE = 'mesa-galanes-v8';
 
-// Responder al mensaje SKIP_WAITING para activar inmediatamente
 self.addEventListener('message', function(e) {
   if (e.data && e.data.type === 'SKIP_WAITING') self.skipWaiting();
 });
 
 self.addEventListener('install', function(e) {
-  e.waitUntil(
-    caches.open(CACHE).then(function(cache) {
-      return cache.addAll(ASSETS);
-    })
-  );
+  self.skipWaiting();
 });
 
 self.addEventListener('activate', function(e) {
   e.waitUntil(
     caches.keys().then(function(keys) {
-      return Promise.all(
-        keys.filter(function(k) { return k !== CACHE; })
-            .map(function(k) { return caches.delete(k); })
-      );
+      return Promise.all(keys.map(function(k) { return caches.delete(k); }));
     })
   );
   self.clients.claim();
 });
 
+// SIEMPRE red primero — nunca servir HTML del cache
 self.addEventListener('fetch', function(e) {
-  // Firebase, APIs externas: siempre red
   if (e.request.url.includes('firebase') ||
       e.request.url.includes('googleapis') ||
       e.request.url.includes('gstatic') ||
       e.request.url.includes('fonts')) {
-    return;
+    return; // dejar pasar sin interceptar
   }
-  // index.html: network first (siempre baja la versión más nueva)
-  if (e.request.mode === 'navigate' ||
-      e.request.url.endsWith('/') ||
-      e.request.url.includes('index.html')) {
-    e.respondWith(
-      fetch(e.request).then(function(response) {
-        var copy = response.clone();
-        caches.open(CACHE).then(function(cache) { cache.put(e.request, copy); });
-        return response;
-      }).catch(function() {
-        return caches.match(e.request);
-      })
-    );
-    return;
-  }
-  // Resto: cache first
+  // Todo lo demás: network first, sin fallback a cache para HTML
   e.respondWith(
-    caches.match(e.request).then(function(cached) {
-      return cached || fetch(e.request);
+    fetch(e.request).catch(function() {
+      return caches.match(e.request);
     })
   );
 });
