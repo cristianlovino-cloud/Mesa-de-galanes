@@ -853,13 +853,28 @@
 @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=Outfit:wght@300;400;500;600;700&display=swap');
 /* DARK MODE — default */
 :root{
-  --bg:#0b0f19;--sur:#111827;--sur2:#1f2937;--hbg:#060910;
-  --gold:#f59e0b;--g2:#fbbf24;--gl:#fcd34d;--gd:#92400e;
-  --ink:#f9fafb;--mut:#6b7280;--brd:#1f2937;--b2:#374151;
-  --grn:#10b981;--red:#ef4444;--sh:rgba(245,158,11,0.1);
-  --acc:#f59e0b;--acc2:#ea580c;
+  /* === MESA DE GALANES v5 — Dark noche, acento cyan === */
+  --bg:#0d1117;--sur:#161b22;--sur2:#21262d;--hbg:#090d13;
+  --gold:#22d3ee;--g2:#67e8f9;--gl:#a5f3fc;--gd:#164e63;
+  --ink:#f0f6fc;--mut:#8b949e;--brd:#30363d;--b2:#484f58;
+  --grn:#3fb950;--red:#f85149;--sh:rgba(34,211,238,0.08);
+  --acc:#22d3ee;--acc2:#0e7490;
   --font-display:'Playfair Display',serif;
   --font-body:'Outfit',sans-serif;
+}
+@media(prefers-color-scheme:light){
+  :root{
+    --bg:#f6f8fa;--sur:#ffffff;--sur2:#f0f2f5;--hbg:#090d13;
+    --ink:#24292f;--mut:#57606a;--brd:#d0d7de;--b2:#afb8c1;
+    --sh:rgba(34,211,238,0.06);
+  }
+  body::before{color:rgba(34,211,238,0.05)!important;}
+  .tabs{background:rgba(255,255,255,0.95);}
+  .modal{background:#fff;border-color:#d0d7de;}
+  .modal input,.xbtn,.ppbtn,.odbtn{background:#f6f8fa;border-color:#d0d7de;color:#24292f;}
+  #toast{background:#161b22;}
+  #pago-resumen,#totals-panel{background:linear-gradient(135deg,#161b22,#21262d);}
+  .pdi{background:#f6f8fa;}
 }
 
 /* LIGHT MODE — se activa automáticamente según el dispositivo */
@@ -904,7 +919,7 @@ body::before{
   transform:translate(-50%,-50%);
   font-family:var(--font-display);
   font-size:70vw;font-weight:900;
-  color:rgba(245,158,11,0.03);
+  color:rgba(34,211,238,0.04);
   pointer-events:none;user-select:none;
   z-index:0;line-height:1;white-space:nowrap;
 }
@@ -913,7 +928,7 @@ body::before{
 /* HEADER */
 header{
   position:relative;
-  background:linear-gradient(160deg,#060912 0%,#0d1120 60%,#060910 100%);
+  background:linear-gradient(160deg,#090d13 0%,#0d1117 100%);
   padding:22px 16px 20px;overflow:hidden;
   border-bottom:1px solid rgba(245,158,11,0.12);
 }
@@ -921,7 +936,7 @@ header::before{
   content:"7:45";position:absolute;right:-10px;top:50%;
   transform:translateY(-50%);
   font-family:var(--font-display);font-size:7.5rem;font-weight:900;
-  color:rgba(245,158,11,0.12);pointer-events:none;
+  color:rgba(34,211,238,0.08);pointer-events:none;
   user-select:none;letter-spacing:-4px;line-height:1;
 }
 header::after{
@@ -1301,7 +1316,7 @@ header::after{
 </div>
 
 <script>
-  var APP_VERSION="4.0";
+  var APP_VERSION="5.0";
   var STORED_VERSION=localStorage.getItem("app_version");
 
   if("serviceWorker"in navigator){
