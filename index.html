@@ -5,7 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Mesa de Galanes</title>
 <meta name='app-version' content='2.5'>
-<meta name="theme-color" content="#1a0e04">
+<meta name="theme-color" content="#0b0f19">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Mesa 7:45">
@@ -1298,12 +1301,12 @@ header::after{
 </div>
 
 <script>
-  var APP_VERSION="3.3";
+  var APP_VERSION="4.0";
   var STORED_VERSION=localStorage.getItem("app_version");
 
   if("serviceWorker"in navigator){
     window.addEventListener("load",function(){
-      navigator.serviceWorker.register("sw.js").then(function(reg){
+      navigator.serviceWorker.register("sw.js?v=4").then(function(reg){
         // Chequear actualizaciones cada vez que abre
         reg.update();
         // Si hay nueva versión esperando, activarla
@@ -1321,11 +1324,16 @@ header::after{
         });
       });
       // Si cambió la versión de la app, forzar recarga
+      localStorage.setItem("app_version",APP_VERSION);
       if(STORED_VERSION&&STORED_VERSION!==APP_VERSION){
-        localStorage.setItem("app_version",APP_VERSION);
-        window.location.reload(true);
-      } else {
-        localStorage.setItem("app_version",APP_VERSION);
+        // Limpiar todo el cache del SW y recargar
+        if("caches"in window){
+          caches.keys().then(function(names){
+            names.forEach(function(name){caches.delete(name);});
+          }).then(function(){window.location.reload(true);});
+        } else {
+          window.location.reload(true);
+        }
       }
     });
   }
