@@ -560,7 +560,12 @@
     if(myOrders.length>0){document.getElementById("dup-title").textContent=drinks[idx].icon+" "+drinks[idx].name;window._dupIdx=idx;openModal("mdup");return;}
     if(!isAdmin()){var al=Object.values(orders).filter(function(o){return o.player===me&&o.loadedBy==="admin";});if(al.length>0&&!confirm("El admin ya te cargó un pedido. ¿Querés agregar otro?"))return;}
     pDrink=Object.assign({},drinks[idx],{idx:idx});pFor=null;
-    speak("Elegiste "+drinks[idx].name+". Con qué acompañamiento?");showExtras(drinks[idx]);
+    if(drinks[idx].tipo==="comida"&&(!drinks[idx].extras||!drinks[idx].extras.length)){
+      // Comida sin extras configurados: confirmar directo sin acompañamiento
+      confirmOrderDirect(pDrink);
+    } else {
+      speak("Elegiste "+drinks[idx].name+". Con qué acompañamiento?");showExtras(drinks[idx]);
+    }
   };
   window.dupAgregar=function(){closeModal("mdup");var idx=window._dupIdx;pDrink=Object.assign({},drinks[idx],{idx:idx});pFor=null;showExtras(drinks[idx]);};
   window.dupQuitar=async function(){closeModal("mdup");var idx=window._dupIdx;var mo=Object.entries(orders).filter(function(e){return e[1].player===me&&e[1].drinkIdx===idx;});if(mo.length)await remove(ref(db,"pedido/orders/"+mo[mo.length-1][0]));};
@@ -636,10 +641,12 @@
     var extras=null;
     if(extrasRaw==="ninguno"||extrasRaw==="-")extras=["Sin acompanamiento"];
     else if(extrasRaw)extras=extrasRaw.split(",").map(function(e){return e.trim();}).filter(Boolean);
-    var obj={id:"c"+Date.now(),name:name,icon:iconInput||autoEmoji(name),sub:sub,createdBy:me||"?"};if(!isAdmin())obj.pendingReview=true;
+    var tipo=document.getElementById("nd-tipo").value||"bebida";
+    var obj={id:"c"+Date.now(),name:name,icon:iconInput||autoEmoji(name),sub:sub,tipo:tipo,createdBy:me||"?"};
+    if(!isAdmin())obj.pendingReview=true;
     if(extras)obj.extras=extras;
     await set(rD,drinks.concat([obj]));
-    closeModal("mdrink");["nd-name","nd-icon","nd-sub","nd-extras"].forEach(function(id){document.getElementById(id).value="";});
+    closeModal("mdrink");["nd-name","nd-icon","nd-sub","nd-extras"].forEach(function(id){document.getElementById(id).value="";});setTipoDrink("bebida");
   };
   window.delDrink=async function(el){
     el.stopPropagation();if(!isAdmin())return;
@@ -678,6 +685,14 @@
   window.dragEnd=function(){document.querySelectorAll(".dc").forEach(function(el){el.classList.remove("dragging");});dragIdx=null;};
 
   // ── GALANES ───────────────────────────────────────────────
+  window.confirmOrderDirect=async function(d){
+    if(!d)return;
+    var obj={player:me,drinkIdx:d.idx,drink:d.name,icon:d.icon,extra:null,ts:Date.now()};
+    await push(rO,obj);
+    speak("Perfecto! "+d.name+" agregado.");
+    pDrink=null;pFor=null;
+  };
+
   window.mostrarLoDeSimepre=async function(){
     // Solo mostrar si no tiene pedido hoy y tiene favorito
     var yaHoyTienePedido=Object.values(orders).some(function(o){return o.player===me;});
@@ -708,6 +723,11 @@
     showToast("☕ Pedido cargado!");speak("Pedido cargado. No olvides confirmar!");
   };
 
+  window.setTipoDrink=function(tipo){
+    document.getElementById("nd-tipo").value=tipo;
+    document.getElementById("tipo-bebida").classList.toggle("tipo-active",tipo==="bebida");
+    document.getElementById("tipo-comida").classList.toggle("tipo-active",tipo==="comida");
+  };
   window.addGalan=async function(){
     var name=document.getElementById("ng-name").value.trim();if(!name)return;
     var lista=galanes.length>0?galanes.slice():KNOWN_DEF.slice();
@@ -789,7 +809,10 @@
       if(admin){row+="<span class='ddel' onclick='delDrinkIdx("+i+",event)'>✕</span>";row+="<span class='dhdl' onclick='event.stopPropagation();editarExtras("+i+")' title='extras'>⚙</span>";}
       row+="<div class='ci'><div class='ce'>"+d.icon+"</div><div class='cn'>"+d.name+"</div>";
       if(d.sub)row+="<div class='cs'>"+d.sub+"</div>";
-      if(active&&mo&&mo.extra)row+="<div class='cx'>+ "+mo.extra+"</div>";else row+="<div class='ch'>+ acompañamiento</div>";
+      var esComida=d.tipo==="comida";
+      if(active&&mo&&mo.extra)row+="<div class='cx'>+ "+mo.extra+"</div>";
+      else if(!esComida)row+="<div class='ch'>+ acompañamiento</div>";
+      else row+="<div class='ch' style='color:var(--grn);opacity:0.6'>comida</div>";
       if(admin&&d.createdBy)row+="<div class='ccreated'>+ "+d.createdBy+"</div>";
       row+="</div>";
       if(active){if(myCount>1)row+="<div class='ck ck-multi'>"+myCount+"</div>";else row+="<div class='ck'><svg width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3.5'><polyline points='20 6 9 17 4 12'/></svg></div>";}
@@ -1182,6 +1205,8 @@ header::after{
 .pres-btn{background:none;border:none;font-size:0.88rem;cursor:pointer;padding:2px 4px;flex-shrink:0;line-height:1;}
 
 /* FUSIÓN */
+.tipo-btn{flex:1;background:var(--sur2);border:1px solid var(--brd);border-radius:10px;padding:10px;font-family:var(--font-body);font-size:0.82rem;font-weight:600;color:var(--mut);cursor:pointer;text-align:center;transition:all 0.15s;}
+.tipo-btn.tipo-active{background:rgba(245,158,11,0.12);border-color:var(--acc);color:var(--g2);}
 #fusion-bar{display:none;padding:0 12px 12px;}
 .fusion-btn{display:block;width:100%;background:var(--sur2);border:1px solid var(--brd);border-radius:12px;padding:13px 16px;font-family:var(--font-body);font-size:0.65rem;color:var(--ink);cursor:pointer;text-align:left;margin-bottom:8px;transition:all 0.15s;letter-spacing:0.03em;}
 .fusion-btn:hover{border-color:var(--acc);background:rgba(245,158,11,0.05);}
@@ -1365,6 +1390,11 @@ header::after{
     <input type="text" id="nd-icon" placeholder="Emoji manual (opcional)" maxlength="4">
     <input type="text" id="nd-sub" placeholder="Descripcion opcional" maxlength="30">
     <input type="text" id="nd-extras" placeholder="Acompañamientos opcionales" maxlength="150">
+    <div style="display:flex;gap:8px;margin-bottom:10px">
+      <button type="button" id="tipo-bebida" onclick="setTipoDrink('bebida')" class="tipo-btn tipo-active">☕ Bebida</button>
+      <button type="button" id="tipo-comida" onclick="setTipoDrink('comida')" class="tipo-btn">🍳 Comida</button>
+    </div>
+    <input type="hidden" id="nd-tipo" value="bebida">
     <div class="ma"><button class="bs" onclick="closeModal('mdrink')">Cancelar</button><button class="bp" onclick="addDrink()">Agregar</button></div>
   </div>
 </div>
@@ -1420,7 +1450,7 @@ header::after{
 </div>
 
 <script>
-  var APP_VERSION="6.7";
+  var APP_VERSION="6.8";
   var STORED_VERSION=localStorage.getItem("app_version");
 
   if("serviceWorker"in navigator){
