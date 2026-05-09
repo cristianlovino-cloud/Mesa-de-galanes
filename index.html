@@ -173,7 +173,8 @@
     document.getElementById("badge").style.display="none";
     document.getElementById("prompt").style.display="flex";
     document.getElementById("confirm-wrap").style.display="none";
-    ["mesa","lista"].forEach(function(t){var b=document.querySelector("[data-tab='"+t+"']");if(b)b.style.display="none";});
+    // Ocultar tabs que requieren login
+    ["mesa","lista","resumen","cumples"].forEach(function(t){var b=document.querySelector("[data-tab='"+t+"']");if(b)b.style.display="none";});
     renderDrinks();renderOrders();renderMesa();renderLista();renderReserva();switchTab("pedir");
   };
   function isAdmin(){return me===ADMIN;}
@@ -181,7 +182,10 @@
     var b=document.getElementById("badge");
     b.innerHTML=(isAdmin()?"⚙️ ":"")+me+"<span class='lx' onclick='logout(event)'>✕</span>";
     b.style.display="flex";document.getElementById("prompt").style.display="none";
+    // Mostrar tabs según rol
     ["mesa","lista"].forEach(function(t){var btn=document.querySelector("[data-tab='"+t+"']");if(btn)btn.style.display=isAdmin()?"flex":"none";});
+    // Resumen y Cumples visibles con login
+    ["resumen","cumples"].forEach(function(t){var btn=document.querySelector("[data-tab='"+t+"']");if(btn)btn.style.display="flex";});
     renderConfirmBtn();renderCumpleBanner();
   }
 
@@ -208,6 +212,8 @@
 
   // ── TABS ─────────────────────────────────────────────────
   window.switchTab=function(tab){
+    // Sin login: solo tab pedir
+    if(!me&&tab!=="pedir"){openModal("mnombre");return;}
     if((tab==="mesa"||tab==="lista")&&!isAdmin()){showToast("Solo el admin puede ver esta sección");return;}
     ["pedir","resumen","cumples","lista","mesa"].forEach(function(t){
       var v=document.getElementById("v-"+t);if(v)v.style.display=t===tab?"block":"none";
@@ -719,7 +725,8 @@
   // ── RENDERS ───────────────────────────────────────────────
   function renderReserva(){
     var panel=document.getElementById("reserva-panel");if(!panel)return;
-    if(isSat()||!me){panel.innerHTML="";return;}
+    if(!me){panel.innerHTML="";return;}
+    if(isSat()){panel.innerHTML="";return;}
     var myRes=reservas[me]||null;
     if(myRes){
       var peds=myRes.pedidos&&myRes.pedidos.length?myRes.pedidos.map(function(p){return p.icon+" "+p.drink;}).join(", "):"";
@@ -1388,7 +1395,7 @@ header::after{
 </div>
 
 <script>
-  var APP_VERSION="6.3";
+  var APP_VERSION="6.4";
   var STORED_VERSION=localStorage.getItem("app_version");
 
   if("serviceWorker"in navigator){
