@@ -112,8 +112,36 @@
   });
 
   async function checkSession(){
-    // Reset SOLO manual via admin (cerrar mesa)
-    // No hay reset automático por fecha
+    // Solo importar reservas automáticamente el sábado
+    if(!isSat())return;
+    var today=new Date().toISOString().slice(0,10);
+    var s=await get(rS);
+    // Si ya importamos hoy, no volver a hacerlo
+    if(s.exists()&&s.val()===today+"_imported")return;
+    // Si hay reservas, importarlas
+    var rs=await get(rR);
+    if(!rs.exists())return;
+    var res=rs.val(),pls=Object.keys(res);
+    if(!pls.length)return;
+    // Obtener pedidos actuales para no duplicar
+    var ordSnap=await get(rO);
+    var existPlayers=ordSnap.exists()?Object.values(ordSnap.val()).map(function(o){return o.player;}):[]; 
+    var importados=0;
+    for(var i=0;i<pls.length;i++){
+      var pl=pls[i];
+      if(existPlayers.indexOf(pl)!==-1)continue;
+      var peds=res[pl].pedidos||[];
+      for(var j=0;j<peds.length;j++){
+        var p=peds[j];
+        await push(rO,{player:pl,drinkIdx:p.drinkIdx,drink:p.drink,icon:p.icon,extra:p.extra||null,loadedBy:"reserva",ts:Date.now()+j});
+      }
+      importados++;
+    }
+    if(importados>0){
+      await set(rR,null);
+      await set(rS,today+"_imported");
+      showToast("✓ "+importados+" reservas importadas!");
+    }
   }
 
   // ── NOMBRE ────────────────────────────────────────────────
@@ -387,7 +415,15 @@
     if(!isAdmin())return;
     var pl=el.getAttribute("data-name");if(!pl||!reservas[pl])return;
     var peds=reservas[pl].pedidos||[];
-    if(!peds.length){showToast(pl+" no tiene bebida pre-cargada");return;}
+    if(!peds.length){
+      // Sin bebida — ofrecer borrar
+      if(confirm(pl+" no tiene bebida. ¿Eliminar su reserva?")){
+        await set(ref(db,"reserva/"+pl),null);
+        delete reservas[pl];
+        showToast("🗑️ Reserva de "+pl+" eliminada");
+      }
+      return;
+    }
     for(var j=0;j<peds.length;j++){
       var p=peds[j];
       await push(rO,{player:pl,drinkIdx:p.drinkIdx,drink:p.drink,icon:p.icon,extra:p.extra||null,loadedBy:"reserva",ts:Date.now()+j});
@@ -740,7 +776,7 @@
     var by={},en=Object.entries(orders).sort(function(a,b){return a[1].ts-b[1].ts;});
     for(var i=0;i<en.length;i++){var k=en[i][0],o=en[i][1];if(!by[o.player])by[o.player]=[];by[o.player].push({key:k,drink:o.drink,icon:o.icon});}
     var galanesCnt=Object.keys(by).length;
-    document.getElementById("total-badge").textContent=total>0?galanesCnt+" galanes · "+total+" pedidos":"";
+    document.getElementById("total-badge").textContent=(total>0&&me)?galanesCnt+" galanes · "+total+" pedidos":"";
     var players=Object.keys(by).sort(),rows=[];
     if(!players.length){document.getElementById("sum-panel").innerHTML="<div class='es'>Nadie pidio nada todavia 👀</div>";document.getElementById("totals-panel").style.display="none";var wb2=document.getElementById("ws-btn");if(wb2)wb2.style.display="none";return;}
     for(var p=0;p<players.length;p++){
@@ -1352,7 +1388,7 @@ header::after{
 </div>
 
 <script>
-  var APP_VERSION="6.2";
+  var APP_VERSION="6.3";
   var STORED_VERSION=localStorage.getItem("app_version");
 
   if("serviceWorker"in navigator){
