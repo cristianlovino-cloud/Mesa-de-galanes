@@ -22,7 +22,7 @@
 
   const FC={apiKey:"AIzaSyCmFMOjuGfCAtMaexe_c-wwGaV5RJBHJgk",authDomain:"mesa-galanes.firebaseapp.com",databaseURL:"https://mesa-galanes-default-rtdb.firebaseio.com",projectId:"mesa-galanes",storageBucket:"mesa-galanes.firebasestorage.app",messagingSenderId:"501258939600",appId:"1:501258939600:web:148124c66cfd41741e82d5"};
   const ADMIN="Cris";
-  const EXTRAS=["Sin acompanamiento","2 medialunas saladas","2 medialunas dulces","Tostadas","Huevos revueltos","Huevos revueltos con palta","Alfajor de maicena"];
+  const EXTRAS=["Sin acompanamiento","2 Medialunas saladas","2 Medialunas dulces","Tostadas","Huevos revueltos","Huevos revueltos con palta","Alfajor de maicena"];
   const KNOWN_DEF=["Adri","Andy","Cris","Cris P","Edu","Fide","Guille","Hernan","Jorge","Ncho","Nestor","Profe","Raul","Rulo","Sandy","Seba L","Seba M","Sergio"];
   const DRINKS_DEF=[{id:"cafe",name:"Cafe jarra",icon:"☕",sub:""},{id:"cort",name:"Cortado jarra",icon:"☕",sub:""},{id:"desay",name:"Desayuno",icon:"🥐",sub:"Cafe con leche"},{id:"te",name:"Te / Mate cocido",icon:"🍵",sub:""}];
   const COLS=["#c8922a","#b85c2a","#7a4a8a","#2a6a9a","#2a8a5a","#9a2a4a","#4a6a2a","#5a4a9a","#9a6a2a","#2a8a8a"];
@@ -817,8 +817,6 @@
       row+="</div>";
       if(active){if(myCount>1)row+="<div class='ck ck-multi'>"+myCount+"</div>";else row+="<div class='ck'><svg width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3.5'><polyline points='20 6 9 17 4 12'/></svg></div>";}
       row+="</div>";
-      // Botón editar extras afuera del dc para evitar conflicto de click
-      if(admin)row+="<button class='extras-edit-btn' onclick='editarExtras("+i+")' title='Editar acompañamientos'>⚙</button>";
       rows.push(row);
     }
     rows.push("<div class='ac' onclick='openModal(\"mdrink\")'><span class='ap'>+</span><span>Agregar</span></div>");
@@ -1126,7 +1124,9 @@ header::after{
 .ck{position:relative;width:22px;height:22px;background:var(--acc);border-radius:50%;display:flex;align-items:center;justify-content:center;z-index:2;flex-shrink:0;}
 .ck-multi{font-family:var(--font-display);font-size:0.9rem;font-weight:700;}
 .ddel{position:absolute;top:50%;left:8px;transform:translateY(-50%);width:20px;height:20px;background:var(--red);color:white;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.6rem;font-weight:800;z-index:3;cursor:pointer;}
-.dhdl{position:absolute;right:12px;top:50%;transform:translateY(-50%);font-size:0.9rem;color:var(--b2);z-index:2;cursor:grab;user-select:none;}
+.dhdl{position:absolute;right:8px;top:50%;transform:translateY(-50%);font-size:0.9rem;color:rgba(245,158,11,0.5);z-index:10;cursor:pointer;user-select:none;background:none;border:none;padding:8px;touch-action:manipulation;line-height:1;font-family:inherit;-webkit-tap-highlight-color:transparent;}
+.dhdl-gear{position:absolute;right:8px;top:50%;transform:translateY(-50%);font-size:0.85rem;color:rgba(245,158,11,0.5);z-index:10;cursor:pointer;padding:8px;line-height:1;touch-action:manipulation;}
+.dhdl-gear:hover,.dhdl-gear:active{color:var(--g2);}
 .ac{background:transparent;border:none;border-top:1px dashed var(--brd);display:flex;align-items:center;gap:12px;cursor:pointer;transition:all 0.15s;color:var(--mut);font-size:0.9rem;font-weight:500;padding:14px 16px;}
 .ac:hover{color:var(--g2);background:var(--sur2);}
 .ap{font-size:1.4rem;line-height:1;font-weight:300;color:var(--acc);width:36px;text-align:center;}
@@ -1209,8 +1209,6 @@ header::after{
 /* FUSIÓN */
 .tipo-btn{flex:1;background:var(--sur2);border:1px solid var(--brd);border-radius:10px;padding:10px;font-family:var(--font-body);font-size:0.82rem;font-weight:600;color:var(--mut);cursor:pointer;text-align:center;transition:all 0.15s;}
 .tipo-btn.tipo-active{background:rgba(245,158,11,0.12);border-color:var(--acc);color:var(--g2);}
-.extras-edit-btn{background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.2);color:var(--g2);border-radius:8px;padding:6px 10px;font-size:0.9rem;cursor:pointer;margin-top:2px;width:100%;font-family:var(--font-body);font-size:0.72rem;font-weight:600;letter-spacing:0.04em;}
-.extras-edit-btn:hover{background:rgba(245,158,11,0.15);}
 #fusion-bar{display:none;padding:0 12px 12px;}
 .fusion-btn{display:block;width:100%;background:var(--sur2);border:1px solid var(--brd);border-radius:12px;padding:13px 16px;font-family:var(--font-body);font-size:0.65rem;color:var(--ink);cursor:pointer;text-align:left;margin-bottom:8px;transition:all 0.15s;letter-spacing:0.03em;}
 .fusion-btn:hover{border-color:var(--acc);background:rgba(245,158,11,0.05);}
@@ -1275,7 +1273,7 @@ header::after{
 .bp{flex:1;background:var(--acc);color:#111111;border:none;border-radius:11px;padding:13px;font-family:var(--font-body);font-weight:700;cursor:pointer;font-size:0.65rem;letter-spacing:0.04em;}
 .bs{flex:1;background:var(--sur2);color:var(--mut);border:1px solid var(--brd);border-radius:11px;padding:13px;font-family:var(--font-body);font-weight:500;cursor:pointer;font-size:0.65rem;letter-spacing:0.03em;}
 .xg{display:flex;flex-direction:column;gap:6px;}
-.xbtn{background:var(--sur2);border:1px solid var(--brd);border-radius:11px;padding:13px 16px;font-family:var(--font-body);font-size:0.65rem;font-weight:500;color:var(--ink);cursor:pointer;text-align:left;transition:all 0.15s;letter-spacing:0.03em;text-transform:none;}
+.xbtn{background:var(--sur2);border:1px solid var(--brd);border-radius:11px;padding:13px 16px;font-family:var(--font-body);font-size:0.65rem;font-weight:500;color:var(--ink);cursor:pointer;text-align:left;transition:all 0.15s;letter-spacing:0.03em;text-transform:uppercase;letter-spacing:0.06em;}
 .xbtn:hover{border-color:var(--acc);color:var(--g2);background:rgba(245,158,11,0.06);}
 .topt{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
 .tob{background:var(--sur2);border:1px solid var(--brd);border-radius:11px;padding:16px 8px;font-family:var(--font-display);font-size:1.4rem;font-weight:700;color:var(--ink);cursor:pointer;text-align:center;transition:all 0.15s;}
@@ -1454,7 +1452,7 @@ header::after{
 </div>
 
 <script>
-  var APP_VERSION="6.9";
+  var APP_VERSION="7.4";
   var STORED_VERSION=localStorage.getItem("app_version");
 
   if("serviceWorker"in navigator){
