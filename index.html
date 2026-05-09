@@ -650,17 +650,26 @@
   window.delDrinkIdx=async function(idx,e){e.stopPropagation();if(!isAdmin())return;if(!confirm("Eliminar "+drinks[idx].name+"?"))return;await set(rD,drinks.filter(function(_,i){return i!==idx;}));}
   window.editarExtras=async function(idx){
     if(!isAdmin())return;
+    window._editExtrasIdx=idx;
     var d=drinks[idx];
-    var actual=d.extras?d.extras.join(", "):"(usa default)";
-    var nuevo=prompt("Extras para "+d.name+" — actual: "+actual+"\n\nVacio=default, 'ninguno'=sin extras, o escribi opciones con comas:",d.extras?d.extras.join(", "):"");
-    if(nuevo===null)return;
+    document.getElementById("edit-extras-title").textContent=d.icon+" "+d.name;
+    document.getElementById("edit-extras-input").value=d.extras?d.extras.join(", "):"";
+    document.getElementById("edit-extras-hint").textContent=
+      d.extras?"Actuales: "+d.extras.join(" · "):"Usa los 4 default (Sin, Medialunas saladas, Medialunas dulces, Tostadas)";
+    openModal("mEditExtras");
+  };
+  window.guardarExtras=async function(){
+    var idx=window._editExtrasIdx;
+    if(idx===undefined||idx===null)return;
+    var val=document.getElementById("edit-extras-input").value.trim();
     var nd=drinks.slice(),obj=Object.assign({},nd[idx]);
-    if(!nuevo.trim()||nuevo.trim()==="(usa default)"){delete obj.extras;}
-    else if(nuevo.trim()==="ninguno"){obj.extras=["Sin acompanamiento"];}
-    else{obj.extras=nuevo.split(",").map(function(e){return e.trim();}).filter(Boolean);}
+    if(!val||val==="default"){delete obj.extras;}
+    else if(val==="ninguno"){obj.extras=["Sin acompanamiento"];}
+    else{obj.extras=val.split(",").map(function(e){return e.trim();}).filter(Boolean);}
     nd[idx]=obj;
     await set(rD,nd);
-    showToast("Extras actualizados!");
+    closeModal("mEditExtras");
+    showToast("Actualizados: "+obj.name);
   };;
   window.resetDrinks=async function(){if(!confirm("Restaurar 4 categorias originales?"))return;await set(rD,DRINKS_DEF);};
   window.dragStart=function(e,idx){dragIdx=idx;setTimeout(function(){e.target.classList.add("dragging");},0);};
@@ -944,6 +953,7 @@
       if(document.getElementById("mpago").classList.contains("open"))window.savePago();
       if(document.getElementById("mtotalbar").classList.contains("open"))window.saveTotalBar();
       if(document.getElementById("mgalan").classList.contains("open"))window.addGalan();
+      if(document.getElementById("mEditExtras")&&document.getElementById("mEditExtras").classList.contains("open"))window.guardarExtras();
       if(document.getElementById("medit-nombre").classList.contains("open"))window.guardarEditNombre();
       if(document.getElementById("mcumple").classList.contains("open"))window.guardarCumple();
     }
@@ -1410,7 +1420,7 @@ header::after{
 </div>
 
 <script>
-  var APP_VERSION="6.6";
+  var APP_VERSION="6.7";
   var STORED_VERSION=localStorage.getItem("app_version");
 
   if("serviceWorker"in navigator){
