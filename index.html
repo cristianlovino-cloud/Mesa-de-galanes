@@ -367,6 +367,20 @@
     panel.innerHTML=h;
   }
 
+  window.importarUno=async function(el){
+    if(!isAdmin())return;
+    var pl=el.getAttribute("data-name");if(!pl||!reservas[pl])return;
+    var peds=reservas[pl].pedidos||[];
+    if(!peds.length){showToast(pl+" no tiene bebida pre-cargada");return;}
+    for(var j=0;j<peds.length;j++){
+      var p=peds[j];
+      await push(rO,{player:pl,drinkIdx:p.drinkIdx,drink:p.drink,icon:p.icon,extra:p.extra||null,loadedBy:"reserva",ts:Date.now()+j});
+    }
+    await set(ref(db,"reserva/"+pl),null);
+    delete reservas[pl];
+    showToast("✓ "+pl+" importado!");
+  };
+
   window.importarReservas=async function(){
     if(!isAdmin())return;
     var keys=Object.keys(reservas);
@@ -726,9 +740,16 @@
       pb.innerHTML=h;pb.style.display="block";
     }else pb.style.display="none";
     var ri=document.getElementById("mesa-reserva-info");
-    if(ri){var pend=Object.keys(reservas).filter(function(pl){return!po[pl];});if(pend.length){ri.style.display="block";ri.innerHTML="<div class='res-pending-title'>📋 Con reserva</div>"+pend.map(function(pl){var r=reservas[pl];return"<div class='res-pending-item'><span style='background:"+col(pl)+";display:inline-flex;width:28px;height:28px;border-radius:50%;align-items:center;justify-content:center;font-size:0.75rem;color:white;font-family:Bebas Neue,sans-serif'>"+ini(pl)+"</span> "+pl+(r.pedidos&&r.pedidos.length?" — "+r.pedidos.map(function(p){return p.icon+" "+p.drink;}).join(", "):"")+"</div>";}).join("");}else ri.style.display="none";}
-    if(!players.length){document.getElementById("mesa-panel").innerHTML="<div class='es'>Nadie se anoto todavia 👀</div>";return;}
+    if(ri)ri.style.display="none"; // Ya no usamos panel separado
+    // Agregar galanes con reserva que aún no tienen pedido
+    var conReserva=Object.keys(reservas).filter(function(pl){return!po[pl];});
+    var todosEnMesa=players.slice();
+    // Ordenar: primero los que pidieron, luego los que tienen reserva
+    if(!todosEnMesa.length&&!conReserva.length){
+      document.getElementById("mesa-panel").innerHTML="<div class='es'>Nadie se anoto todavia 👀</div>";return;
+    }
     var rows2=[];
+    // Primero los que ya pidieron
     for(var p2=0;p2<players.length;p2++){
       var pl2=players[p2],isMe2=pl2===me,items2=po[pl2],conf2=confirmed[pl2];
       var pg2=pagos[pl2]||{},cash2=pg2.cash||0,tr2=pg2.transfer||0,pago2=(cash2+tr2)>0;
@@ -739,6 +760,24 @@
       for(var k2=0;k2<items2.length;k2++)row2+="<span class='ait'>"+items2[k2].icon+" "+items2[k2].drink+"</span>";
       if(pago2)row2+="<span class='ait pg-info'>"+(cash2>0?"💵 $"+Math.round(cash2)+" ":"")+(tr2>0?"📲 $"+Math.round(tr2):"")+"</span>";
       row2+="</div></div></div>";rows2.push(row2);
+    }
+    // Agregar cards de galanes con reserva (sin pedido aún)
+    for(var r2=0;r2<conReserva.length;r2++){
+      var plR=conReserva[r2],resData=reservas[plR];
+      var peds2=resData.pedidos&&resData.pedidos.length?resData.pedidos:[];
+      var rowR="<div class='att att-reserva'>";
+      rowR+="<div class='av' style='background:"+col(plR)+"'>"+ini(plR)+"</div>";
+      rowR+="<div class='ai'><div class='an'>"+plR+" <span class='res-tag' style='font-size:0.65rem'>📋 RESERVA</span></div>";
+      rowR+="<div class='ao'>";
+      if(peds2.length){
+        peds2.forEach(function(p){rowR+="<span class='ait'>"+p.icon+" "+p.drink+"</span>";});
+      } else {
+        rowR+="<span class='ait' style='opacity:0.5'>Sin bebida pre-cargada</span>";
+      }
+      rowR+="</div></div>";
+      if(isAdmin())rowR+="<button class='lista-add-btn' style='font-size:0.7rem;padding:5px 8px;flex-shrink:0' data-name='"+plR+"' onclick='importarUno(this)'>▶ Importar</button>";
+      rowR+="</div>";
+      rows2.push(rowR);
     }
     document.getElementById("mesa-panel").innerHTML=rows2.join("");
   }
@@ -886,6 +925,7 @@ header::before{content:"7:45";position:absolute;right:-8px;top:50%;transform:tra
 .bar-total-btn{background:rgba(200,146,42,0.15);color:var(--gl);border:1px solid rgba(200,146,42,0.4);border-radius:8px;padding:4px 12px;font-family:"Inter",sans-serif;font-size:0.82rem;font-weight:700;cursor:pointer;}
 .mg{padding:0 12px;display:flex;flex-direction:column;gap:10px;}
 .att{background:var(--sur);border:1.5px solid var(--brd);border-radius:16px;padding:14px 16px;display:flex;align-items:center;gap:14px;box-shadow:0 2px 8px var(--sh);}
+.att-reserva{background:repeating-linear-gradient(45deg,#faf6f0,#faf6f0 8px,#fff 8px,#fff 16px);border-color:var(--b2);opacity:0.85;}
 .attme{border-color:var(--gold);background:linear-gradient(135deg,#fffdf6,#fff);}.attok{border-color:#2a7a4a;}
 .av{width:48px;height:48px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:"Bebas Neue",sans-serif;font-size:1.2rem;color:white;flex-shrink:0;box-shadow:0 3px 10px rgba(0,0,0,0.15);}
 .ai{flex:1;min-width:0;}.an{font-weight:700;font-size:0.92rem;color:var(--ink);margin-bottom:5px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;}.falta{font-size:0.8rem;color:#f0a040;}
@@ -1126,7 +1166,7 @@ header::before{content:"7:45";position:absolute;right:-8px;top:50%;transform:tra
 </div>
 
 <script>
-  var APP_VERSION="2.5";
+  var APP_VERSION="2.6";
   var STORED_VERSION=localStorage.getItem("app_version");
 
   if("serviceWorker"in navigator){
