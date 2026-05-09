@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="Mesa 7:45">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="manifest" href="manifest.json">
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,400&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
   import { getDatabase, ref, set, onValue, remove, push, get }
@@ -853,23 +853,22 @@
 @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=Outfit:wght@300;400;500;600;700&display=swap');
 /* DARK MODE — default */
 :root{
-  /* === MESA DE GALANES v5 — Dark noche, acento cyan === */
   --bg:#0d1117;--sur:#161b22;--sur2:#21262d;--hbg:#090d13;
-  --gold:#22d3ee;--g2:#67e8f9;--gl:#a5f3fc;--gd:#164e63;
-  --ink:#f0f6fc;--mut:#8b949e;--brd:#30363d;--b2:#484f58;
-  --grn:#3fb950;--red:#f85149;--sh:rgba(34,211,238,0.08);
-  --acc:#22d3ee;--acc2:#0e7490;
-  --font-display:'Playfair Display',serif;
-  --font-body:'Outfit',sans-serif;
+  --gold:#2dd4bf;--g2:#5eead4;--gl:#99f6e4;--gd:#134e4a;
+  --ink:#e6edf3;--mut:#8b949e;--brd:#30363d;--b2:#484f58;
+  --grn:#3fb950;--red:#f85149;--sh:rgba(45,212,191,0.08);
+  --acc:#2dd4bf;--acc2:#0d9488;
+  --font-display:'DM Mono',monospace;
+  --font-body:'DM Sans',sans-serif;
 }
 @media(prefers-color-scheme:light){
   :root{
     --bg:#f6f8fa;--sur:#ffffff;--sur2:#f0f2f5;--hbg:#090d13;
     --ink:#24292f;--mut:#57606a;--brd:#d0d7de;--b2:#afb8c1;
-    --sh:rgba(34,211,238,0.06);
+    --sh:rgba(45,212,191,0.06);
   }
-  body::before{color:rgba(34,211,238,0.05)!important;}
-  .tabs{background:rgba(255,255,255,0.95);}
+  body::before{color:rgba(45,212,191,0.04)!important;}
+  .tabs{background:rgba(255,255,255,0.96);}
   .modal{background:#fff;border-color:#d0d7de;}
   .modal input,.xbtn,.ppbtn,.odbtn{background:#f6f8fa;border-color:#d0d7de;color:#24292f;}
   #toast{background:#161b22;}
@@ -919,7 +918,7 @@ body::before{
   transform:translate(-50%,-50%);
   font-family:var(--font-display);
   font-size:70vw;font-weight:900;
-  color:rgba(34,211,238,0.04);
+  color:rgba(45,212,191,0.04);
   pointer-events:none;user-select:none;
   z-index:0;line-height:1;white-space:nowrap;
 }
@@ -928,7 +927,7 @@ body::before{
 /* HEADER */
 header{
   position:relative;
-  background:linear-gradient(160deg,#090d13 0%,#0d1117 100%);
+  background:#090d13;
   padding:22px 16px 20px;overflow:hidden;
   border-bottom:1px solid rgba(245,158,11,0.12);
 }
@@ -936,7 +935,7 @@ header::before{
   content:"7:45";position:absolute;right:-10px;top:50%;
   transform:translateY(-50%);
   font-family:var(--font-display);font-size:7.5rem;font-weight:900;
-  color:rgba(34,211,238,0.08);pointer-events:none;
+  color:rgba(45,212,191,0.07);pointer-events:none;
   user-select:none;letter-spacing:-4px;line-height:1;
 }
 header::after{
@@ -944,8 +943,8 @@ header::after{
   background:linear-gradient(90deg,transparent,rgba(245,158,11,0.3),transparent);
 }
 .htop{display:flex;align-items:flex-start;justify-content:space-between;position:relative;}
-.htit{font-family:var(--font-display);font-size:2.2rem;font-weight:700;letter-spacing:0.02em;line-height:1;color:#fdf8f0;}
-.htit span{color:var(--g2);font-style:italic;}
+.htit{font-family:var(--font-display);font-size:2rem;font-weight:500;letter-spacing:-0.03em;line-height:1.05;color:#e6edf3;}
+.htit span{color:#22d3ee;font-style:normal;font-weight:400;}
 .hmeta{text-align:right;font-size:0.65rem;color:rgba(253,248,240,0.35);font-weight:500;line-height:1.7;margin-top:4px;font-family:var(--font-body);letter-spacing:0.08em;}
 .nz{display:flex;align-items:center;gap:8px;margin-top:14px;}
 #prompt{display:flex;align-items:center;gap:6px;background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.25);color:var(--gl);border-radius:100px;padding:8px 18px;font-size:0.75rem;font-weight:600;cursor:pointer;letter-spacing:0.06em;transition:all 0.2s;}
@@ -976,7 +975,7 @@ header::after{
 
 /* MAIN */
 .main{padding:0 0 100px;width:100%;}
-.slabel{font-family:var(--font-display);font-size:0.8rem;letter-spacing:0.15em;color:var(--g2);padding:18px 16px 12px;display:flex;align-items:center;gap:10px;font-style:italic;}
+.slabel{font-family:var(--font-display);font-size:0.75rem;letter-spacing:0.12em;color:var(--acc);padding:18px 16px 12px;display:flex;align-items:center;gap:10px;font-style:normal;}
 .slabel::after{content:"";flex:1;height:1px;background:linear-gradient(to right,rgba(245,158,11,0.3),transparent);}
 
 /* DRINKS — lista compacta premium */
@@ -1024,13 +1023,13 @@ header::after{
 
 /* TOTALS */
 #totals-panel{margin:10px 12px 0;background:linear-gradient(135deg,#0d0b07,#1a1510);border-radius:14px;padding:14px 16px;display:none;border:1px solid var(--brd);}
-.tt{font-family:var(--font-display);font-size:0.75rem;letter-spacing:0.12em;color:var(--g2);margin-bottom:10px;opacity:0.8;font-style:italic;}
+.tt{font-family:var(--font-display);font-size:0.75rem;letter-spacing:0.12em;color:var(--g2);margin-bottom:10px;opacity:0.8;font-style:normal;}
 .tr{display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid rgba(255,255,255,0.04);font-size:0.82rem;color:var(--ink);font-weight:500;letter-spacing:0.03em;}.tr:last-child{border-bottom:none;}
 .tq{font-family:var(--font-display);font-size:1rem;font-weight:700;color:var(--g2);}
 
 /* MESA */
 .mh{display:flex;align-items:center;justify-content:space-between;padding:14px 16px 10px;}
-.mt{font-family:var(--font-display);font-size:0.85rem;letter-spacing:0.12em;color:var(--g2);display:flex;align-items:center;gap:8px;font-style:italic;}
+.mt{font-family:var(--font-display);font-size:0.85rem;letter-spacing:0.12em;color:var(--g2);display:flex;align-items:center;gap:8px;font-style:normal;}
 #mesa-count{font-size:0.7rem;font-weight:600;color:var(--mut);background:var(--brd);padding:2px 10px;border-radius:100px;letter-spacing:0.06em;}
 #mesa-admin-bar{display:none;flex-wrap:wrap;gap:8px;padding:0 12px 14px;}
 .mabtn{background:rgba(26,21,16,0.8);color:var(--gl);border:1px solid rgba(245,158,11,0.2);border-radius:100px;padding:8px 14px;font-family:var(--font-body);font-size:0.72rem;font-weight:600;cursor:pointer;white-space:nowrap;letter-spacing:0.04em;transition:all 0.15s;}
@@ -1067,9 +1066,9 @@ header::after{
 .lista-info{flex:1;min-width:0;}
 .lista-name{font-weight:600;font-size:0.84rem;color:var(--ink);display:flex;align-items:center;gap:5px;flex-wrap:wrap;letter-spacing:0.04em;}
 .lista-drinks{font-size:0.72rem;color:var(--mut);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px;letter-spacing:0.02em;}
-.lista-nd{color:var(--b2);font-style:italic;}
+.lista-nd{color:var(--b2);font-style:normal;}
 .lista-add-btn{background:var(--acc);color:#0a0805;border:none;border-radius:8px;padding:6px 10px;font-family:var(--font-body);font-size:0.72rem;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0;letter-spacing:0.04em;}
-.lista-sep{font-family:var(--font-display);font-size:0.72rem;letter-spacing:0.12em;color:var(--mut);margin:8px 0 4px;opacity:0.6;font-style:italic;}
+.lista-sep{font-family:var(--font-display);font-size:0.72rem;letter-spacing:0.12em;color:var(--mut);margin:8px 0 4px;opacity:0.6;font-style:normal;}
 .fsel-ck{background:var(--acc);color:#0a0805;font-size:0.62rem;font-weight:800;padding:1px 6px;border-radius:100px;}
 .res-tag{font-size:0.58rem;background:rgba(245,158,11,0.1);color:var(--g2);padding:1px 6px;border-radius:100px;font-weight:600;}
 .lista-acceso{font-size:0.65rem;color:var(--b2);margin-top:2px;letter-spacing:0.02em;}
@@ -1092,7 +1091,7 @@ header::after{
 .res-banner{display:flex;align-items:center;justify-content:space-between;padding:11px 14px;margin:10px 12px 0;background:var(--sur);border:1px solid var(--brd);border-radius:12px;font-size:0.78rem;color:var(--mut);gap:10px;flex-wrap:wrap;letter-spacing:0.03em;}
 .res-banner.res-ok{background:rgba(16,185,129,0.06);border-color:rgba(16,185,129,0.2);color:var(--grn);font-weight:600;}
 .res-apunto-btn{background:var(--acc);color:#0a0805;border:none;border-radius:8px;padding:7px 14px;font-family:var(--font-body);font-size:0.75rem;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0;letter-spacing:0.04em;}
-.res-pending-title{font-family:var(--font-display);font-size:0.78rem;letter-spacing:0.1em;color:var(--g2);margin-bottom:8px;font-style:italic;}
+.res-pending-title{font-family:var(--font-display);font-size:0.78rem;letter-spacing:0.1em;color:var(--g2);margin-bottom:8px;font-style:normal;}
 .res-pending-item{font-size:0.78rem;color:var(--mut);padding:4px 0;display:flex;align-items:center;gap:8px;letter-spacing:0.02em;}
 
 /* SUGERENCIAS */
@@ -1100,7 +1099,7 @@ header::after{
 .sug-btn:hover{border-color:var(--acc);color:var(--g2);background:rgba(245,158,11,0.06);}
 
 /* CUMPLEAÑOS */
-.cumple-mes-title{font-family:var(--font-display);font-size:0.82rem;letter-spacing:0.12em;color:var(--g2);margin:16px 0 8px;font-style:italic;}
+.cumple-mes-title{font-family:var(--font-display);font-size:0.82rem;letter-spacing:0.12em;color:var(--g2);margin:16px 0 8px;font-style:normal;}
 .cumple-row{display:flex;align-items:center;gap:10px;background:var(--sur);border:1px solid var(--brd);border-radius:12px;padding:10px 12px;margin-bottom:6px;}
 .cumple-row-hoy{border-color:rgba(245,158,11,0.35);background:rgba(245,158,11,0.04);}
 .cumple-row-mio{border-color:rgba(245,158,11,0.25);}
@@ -1134,7 +1133,7 @@ header::after{
 .modal{background:#111008;border-radius:20px 20px 0 0;border:1px solid var(--brd);border-bottom:none;padding:24px 24px 36px;width:100%;max-width:480px;animation:slideUp 0.22s ease;}
 @keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
 .mh2{width:36px;height:3px;background:var(--b2);border-radius:2px;margin:0 auto 20px;}
-.modal h3{font-family:var(--font-display);font-size:1.5rem;font-weight:700;color:var(--ink);margin-bottom:4px;font-style:italic;}
+.modal h3{font-family:var(--font-display);font-size:1.3rem;font-weight:500;color:var(--ink);margin-bottom:4px;letter-spacing:-0.01em;}
 .msub{font-size:0.76rem;color:var(--mut);margin-bottom:14px;letter-spacing:0.03em;text-transform:none;}
 .modal input{width:100%;background:var(--sur2);border:1px solid var(--brd);border-radius:11px;padding:12px 16px;font-family:var(--font-body);font-size:0.88rem;color:var(--ink);margin-bottom:10px;outline:none;transition:border-color 0.15s;text-transform:none;letter-spacing:normal;}
 .modal input:focus{border-color:var(--acc);}.modal input::placeholder{color:var(--mut);}
@@ -1316,7 +1315,7 @@ header::after{
 </div>
 
 <script>
-  var APP_VERSION="5.0";
+  var APP_VERSION="5.2";
   var STORED_VERSION=localStorage.getItem("app_version");
 
   if("serviceWorker"in navigator){
