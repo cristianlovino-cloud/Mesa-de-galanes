@@ -99,6 +99,13 @@
     var vb=document.getElementById("vbtn");if(vb)vb.textContent=voiceOn?"🔊":"🔇";
     checkSession();
     var _vl=document.getElementById("version-label");if(_vl)_vl.textContent="v"+APP_VERSION;
+    // Timeout: si Firebase no responde en 8s mostrar error
+    setTimeout(function(){
+      var dg=document.getElementById("drinks-grid");
+      if(dg&&dg.children.length===1&&dg.firstChild.classList&&dg.firstChild.classList.contains("es")){
+        dg.innerHTML="<div class='es' style='padding:30px 12px;color:var(--red)'>⚠️ Sin conexión a Firebase.<br><small style='opacity:0.6'>Revisá tu internet y recargá.</small><br><br><button onclick='location.reload()' style='margin-top:10px;background:var(--acc);border:none;border-radius:8px;padding:10px 20px;font-weight:700;cursor:pointer'>🔄 Recargar</button></div>";
+      }
+    }, 8000);
     if(me)renderMyName();else{
     setTimeout(function(){
       openModal("mnombre");
@@ -1022,8 +1029,8 @@
       row+="<div class='lista-drinks'>"+(cash>0?"💵 $"+Math.round(cash)+" ":"")+(tr>0?"📲 $"+Math.round(tr):"")+"</div></div>";
       if(isAdmin()){
         row+="<div style='display:flex;gap:4px;flex-shrink:0'>";
-        row+="<button class='asist-btn' onclick='openPago(""+pl+"","cash")'>💵</button>";
-        row+="<button class='asist-btn' onclick='openPago(""+pl+"","transfer")'>📲</button>";
+        row+="<button class='asist-btn' onclick='openPago(\""+pl+"\",\"cash\")'>💵</button>";
+        row+="<button class='asist-btn' onclick='openPago(\""+pl+"\",\"transfer\")'>📲</button>";
         row+="</div>";
       }
       row+="</div>";rows.push(row);
@@ -1452,7 +1459,7 @@ header::after{
     <div id="reserva-panel"></div>
     <div id="pedido-status-banner" style="display:none"></div>
     <div class="slabel"><span class="ld"></span> Que tomas?</div>
-    <div class="dg" id="drinks-grid"></div>
+    <div class="dg" id="drinks-grid"><div class="es" style="padding:40px 0;opacity:0.5">Conectando... ☕</div></div>
   </div>
   <div id="v-resumen" style="display:none">
     <div class="slabel">Pedidos en vivo <button class="clr" onclick="clearAll()">limpiar</button></div>
