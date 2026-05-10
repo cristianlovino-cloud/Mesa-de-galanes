@@ -1,4 +1,4 @@
-// v9 — network first para todo, sin cache del HTML
+// v9 — network first, sin cache del HTML
 const CACHE = 'mesa-galanes-v9';
 
 self.addEventListener('message', function(e) {
@@ -6,7 +6,7 @@ self.addEventListener('message', function(e) {
 });
 
 self.addEventListener('install', function(e) {
-  self.skipWaiting(); // activar inmediatamente sin esperar
+  self.skipWaiting();
 });
 
 self.addEventListener('activate', function(e) {
@@ -15,16 +15,15 @@ self.addEventListener('activate', function(e) {
       return Promise.all(keys.map(function(k) { return caches.delete(k); }));
     })
   );
-  self.clients.claim(); // tomar control de todas las pestañas abiertas
+  self.clients.claim();
 });
 
-// SIEMPRE red primero — nunca servir HTML del cache
 self.addEventListener('fetch', function(e) {
   if (e.request.url.includes('firebase') ||
       e.request.url.includes('googleapis') ||
       e.request.url.includes('gstatic') ||
       e.request.url.includes('fonts')) {
-    return; // dejar pasar sin interceptar
+    return;
   }
   e.respondWith(
     fetch(e.request).catch(function() {
