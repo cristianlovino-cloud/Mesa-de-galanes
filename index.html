@@ -215,11 +215,11 @@
   window.switchTab=function(tab){
     if(!me&&tab!=="pedir"){openModal("mnombre");return;}
     if(tab==="admin"&&!isAdmin()){showToast("Solo el admin puede ver esta sección");return;}
-    ["pedir","resumen","cumples","admin","lista","mesa"].forEach(function(t){
+    ["pedir","resumen","cumples","admin"].forEach(function(t){
       var v=document.getElementById("v-"+t);if(v)v.style.display=t===tab?"block":"none";
       var b=document.querySelector("[data-tab='"+t+"']");if(b)b.classList.toggle("active",t===tab);
     });
-    if(tab==="admin"){renderLista();renderMesa();renderPagosDetail();if(!window._cleaned){window._cleaned=true;limpiarHuerfanos();}}
+    if(tab==="admin"){renderLista();renderMesa();renderPendientes();if(!window._cleaned){window._cleaned=true;limpiarHuerfanos();}}
     if(tab==="cumples")renderCumples();
   };
   window.switchAdminTab=function(stab){
@@ -389,7 +389,6 @@
     var origen=el.getAttribute("data-name");if(!origen)return;
     window._mergeOrigen=origen;
     document.getElementById("merge-principal-name").textContent=origen;
-    // Llenar select con todos los galanes excepto el origen
     var otros=galanes.filter(function(g){return g!==origen;}).slice().sort();
     var sel=document.getElementById("merge-destino-sel");
     sel.innerHTML=otros.map(function(g){return"<option value='"+g+"'>"+g+"</option>";}).join("");
@@ -403,7 +402,7 @@
     await fusionarGalan(origen,destino);
     var nl=galanes.filter(function(g){return g!==origen;});
     await set(rG,nl);
-    showToast("✓ "+origen+" fusionado → "+destino);
+    showToast("✓ "+origen+" → "+destino);
     speak("Fusión completada.");
     renderLista();renderMesa();
   };
@@ -999,7 +998,6 @@
       rows2.push(rowR);
     }
     document.getElementById("mesa-panel").innerHTML=rows2.join("");
-    renderPagosDetail();
   }
 
   async function limpiarHuerfanos(){
@@ -1017,23 +1015,20 @@
     if(!players.length){panel.innerHTML="<div class='es' style='padding:20px 0'>Sin pagos registrados</div>";return;}
     var rows=["<div class='lista-grid'>"];
     players.forEach(function(pl){
-      var pg=pagos[pl]||{},cash=pg.cash||0,tr=pg.transfer||0,total=cash+tr;
+      var pg=pagos[pl]||{},cash=pg.cash||0,tr=pg.transfer||0;
       var row="<div class='lista-row lista-pidio' style='cursor:default'>";
-      row+="<div class='lista-av' style='background:"+col(pl)+"'>"+ini(pl)+"</div>";
-      row+="<div class='lista-info'><div class='lista-name'>"+pl+"</div>";
+      row+="<div class='lista-av' style='background:"+col(pl)+";width:42px;height:42px;font-size:1rem;flex-shrink:0'>"+ini(pl)+"</div>";
+      row+="<div class='lista-info'><div class='lista-name' style='font-size:0.8rem'>"+pl+"</div>";
       row+="<div class='lista-drinks'>"+(cash>0?"💵 $"+Math.round(cash)+" ":"")+(tr>0?"📲 $"+Math.round(tr):"")+"</div></div>";
-      row+="<div style='text-align:right;flex-shrink:0'>";
       if(isAdmin()){
-        row+="<button class='lista-add-btn' style='background:rgba(245,158,11,0.12);color:var(--g2);border:1px solid rgba(245,158,11,0.25);font-size:0.7rem;padding:5px 10px' onclick='openPago(""+pl+"","cash")'>💵</button> ";
-        row+="<button class='lista-add-btn' style='background:rgba(99,102,241,0.1);color:#a5b4fc;border:1px solid rgba(99,102,241,0.2);font-size:0.7rem;padding:5px 10px' onclick='openPago(""+pl+"","transfer")'>📲</button>";
-      } else {
-        row+="<span style='font-weight:700;color:var(--grn);font-size:0.88rem'>$"+Math.round(total)+"</span>";
+        row+="<div style='display:flex;gap:4px;flex-shrink:0'>";
+        row+="<button class='asist-btn' onclick='openPago(""+pl+"","cash")'>💵</button>";
+        row+="<button class='asist-btn' onclick='openPago(""+pl+"","transfer")'>📲</button>";
+        row+="</div>";
       }
-      row+="</div></div>";
-      rows.push(row);
+      row+="</div>";rows.push(row);
     });
-    rows.push("</div>");
-    panel.innerHTML=rows.join("");
+    rows.push("</div>");panel.innerHTML=rows.join("");
   }
 
   function renderLista(){
@@ -1041,24 +1036,16 @@
     var lista=galanes.length>0?galanes.slice().sort():[];
     var byPlayer={};Object.values(orders).forEach(function(o){if(!byPlayer[o.player])byPlayer[o.player]=[];byPlayer[o.player].push(o);});
     var pidieron=Object.keys(byPlayer).filter(function(p){return lista.indexOf(p)!==-1;}).length;
-    var total=lista.length;
-    // Stats header
     var statsEl=document.getElementById("galanes-stats");
-    if(statsEl){
-      statsEl.innerHTML="<span class='lstat lstat-ok'>"+pidieron+" pidieron</span><span class='lstat lstat-warn'>"+(total-pidieron)+" pendientes</span><span class='lstat lstat-total'>"+total+" total</span>";
-    }
+    if(statsEl){statsEl.innerHTML="<span class='lstat lstat-ok'>"+pidieron+" pidieron</span><span class='lstat lstat-warn'>"+(lista.length-pidieron)+" pendientes</span><span class='lstat lstat-total'>"+lista.length+" total</span>";}
     var rows=["<div class='lista-grid'>"];
     lista.forEach(function(pl){
       var peds=byPlayer[pl]||[],conf=confirmed[pl],pg=pagos[pl]||{},pago=(pg.cash||0)+(pg.transfer||0)>0;
-      var res=reservas[pl],ac=accesos[pl],cumpl=cumples[pl];
-      var presente=presentes[pl]||false;
+      var res=reservas[pl],cumpl=cumples[pl],presente=presentes[pl]||false;
       var adminPidio=peds.some(function(p){return p.loadedBy==="admin";});
       var estado=peds.length>0?"pidio":"pendiente";
-
       var row="<div class='lista-row lista-"+estado+"'>";
-      // Avatar
       row+="<div class='lista-av' style='background:"+col(pl)+";width:42px;height:42px;font-size:1rem;flex-shrink:0'>"+ini(pl)+"</div>";
-      // Info
       row+="<div class='lista-info' style='flex:1;min-width:0'>";
       row+="<div class='lista-name' style='font-size:0.8rem'>"+pl;
       if(conf)row+=" <span class='ctg'>✓</span>";
@@ -1066,31 +1053,24 @@
       if(res&&!peds.length)row+=" <span class='res-tag'>📋</span>";
       if(adminPidio)row+=" <span style='font-size:0.6rem;opacity:0.5'>👤</span>";
       row+="</div>";
-      // Bebidas o estado
       if(peds.length){row+="<div class='lista-drinks'>"+peds.map(function(p){return p.icon+" "+p.drink;}).join(" · ")+"</div>";}
       else{row+="<div class='lista-drinks lista-nd'>"+(res?"📋 Tiene reserva":"Sin pedido")+"</div>";}
-      // Cumple y acceso
       if(cumpl)row+="<div style='font-size:0.65rem;color:var(--mut);margin-top:1px'>🎂 "+cumpl.dia+"/"+cumpl.mes+"</div>";
       row+="</div>";
-      // Botones acción (admin)
       if(isAdmin()){
         row+="<div style='display:flex;flex-direction:column;gap:4px;align-items:flex-end;flex-shrink:0'>";
-        // Presencia toggle — estilo VA/NO app asado
         row+="<div style='display:flex;gap:4px'>";
-        row+="<button class='asist-btn"+(presente?" asist-va":"")+"' data-name='"+pl+"' onclick='togglePresente(this)' title='Presencia'>"+(presente?"🟢 VA":"⚫ VA")+"</button>";
-        if(!peds.length)row+="<button class='asist-btn asist-load' data-name='"+pl+"' onclick='quickLoad(this)'>+ Cargar</button>";
+        row+="<button class='asist-btn"+(presente?" asist-va":"")+"' data-name='"+pl+"' onclick='togglePresente(this)'>"+(presente?"🟢":"⚫")+" VA</button>";
+        if(!peds.length)row+="<button class='asist-btn asist-load' data-name='"+pl+"' onclick='quickLoad(this)'>+ Pedir</button>";
         row+="</div>";
-        // Editar + Fusionar
         row+="<div style='display:flex;gap:4px'>";
         row+="<button class='icon-btn' data-name='"+pl+"' onclick='abrirEditarNombre(this)' title='Editar'>✏️</button>";
         row+="<button class='icon-btn' data-name='"+pl+"' onclick='abrirMergeModal(this)' title='Fusionar'>⇄</button>";
         row+="<button class='icon-btn' style='color:var(--red)' data-name='"+pl+"' onclick='eliminarDeListaBase(this)' title='Eliminar'>🗑</button>";
         row+="</div></div>";
       }
-      row+="</div>";
-      rows.push(row);
+      row+="</div>";rows.push(row);
     });
-    // Extras (no registrados)
     var extras=Object.keys(byPlayer).filter(function(p){return lista.indexOf(p)===-1;});
     if(extras.length){
       rows.push("<div class='lista-sep' style='margin:10px 0 6px'>Otros (no registrados)</div>");
@@ -1100,18 +1080,11 @@
         row+="<div class='lista-av' style='background:"+col(pl)+";width:42px;height:42px;font-size:1rem;flex-shrink:0'>"+ini(pl)+"</div>";
         row+="<div class='lista-info'><div class='lista-name' style='font-size:0.8rem'>"+pl+"</div>";
         row+="<div class='lista-drinks'>"+peds2.map(function(p){return p.icon+" "+p.drink;}).join(" · ")+"</div></div>";
-        if(isAdmin()){
-          row+="<div style='display:flex;gap:4px;flex-shrink:0'>";
-          row+="<button class='icon-btn' data-name='"+pl+"' onclick='abrirEditarNombre(this)'>✏️</button>";
-          row+="<button class='icon-btn' data-name='"+pl+"' onclick='abrirMergeModal(this)'>⇄</button>";
-          row+="</div>";
-        }
-        row+="</div>";
-        rows.push(row);
+        if(isAdmin()){row+="<div style='display:flex;gap:4px;flex-shrink:0'><button class='icon-btn' data-name='"+pl+"' onclick='abrirEditarNombre(this)'>✏️</button><button class='icon-btn' data-name='"+pl+"' onclick='abrirMergeModal(this)'>⇄</button></div>";}
+        row+="</div>";rows.push(row);
       });
     }
-    rows.push("</div>");
-    panel.innerHTML=rows.join("");
+    rows.push("</div>");panel.innerHTML=rows.join("");
   }
 
 
@@ -1442,21 +1415,19 @@ header::after{
 .odbtn{background:var(--sur2);border:1px solid var(--brd);border-radius:10px;padding:10px 8px;font-family:var(--font-body);font-size:0.65rem;font-weight:500;color:var(--ink);cursor:pointer;transition:all 0.15s;text-align:center;letter-spacing:0.02em;}
 .odbtn:hover{border-color:var(--acc);color:var(--g2);}
 
-/* ADMIN MODULE */
-.admin-subtabs{display:flex;background:var(--sur2);border-bottom:1px solid var(--brd);padding:0 12px;}
+/* ADMIN MODULE v9 */
+.admin-subtabs{display:flex;background:var(--sur2);border-bottom:1px solid var(--brd);padding:0 12px;position:sticky;top:0;z-index:10;}
 .admin-stab{flex:1;background:none;border:none;border-bottom:2px solid transparent;padding:12px 8px;font-family:var(--font-body);font-size:0.78rem;font-weight:600;color:var(--mut);cursor:pointer;letter-spacing:0.04em;transition:all 0.15s;text-align:center;}
 .admin-stab.active{color:var(--g2);border-bottom-color:var(--acc);}
 .admin-stab:hover{color:var(--ink);}
-.admin-action-btn{background:var(--sur2);border:1px solid var(--brd);border-radius:100px;padding:6px 14px;font-family:var(--font-body);font-size:0.78rem;font-weight:600;color:var(--ink);cursor:pointer;white-space:nowrap;transition:all 0.15s;}
+.admin-action-btn{background:var(--sur2);border:1px solid var(--brd);border-radius:100px;padding:6px 14px;font-family:var(--font-body);font-size:0.78rem;font-weight:600;color:var(--ink);cursor:pointer;white-space:nowrap;transition:all 0.15s;letter-spacing:0.02em;}
 .admin-action-btn:hover{border-color:var(--acc);color:var(--g2);}
-/* Asistencia style buttons */
 .asist-btn{background:var(--sur2);border:1px solid var(--brd);border-radius:8px;padding:5px 10px;font-size:0.68rem;font-weight:700;cursor:pointer;color:var(--mut);transition:all 0.15s;white-space:nowrap;font-family:var(--font-body);}
 .asist-btn.asist-va{background:rgba(34,197,94,0.12);border-color:rgba(34,197,94,0.4);color:#4ade80;}
 .asist-btn.asist-load{background:rgba(245,158,11,0.1);border-color:rgba(245,158,11,0.3);color:var(--g2);}
 .icon-btn{background:var(--sur2);border:1px solid var(--brd);border-radius:8px;padding:5px 8px;font-size:0.88rem;cursor:pointer;transition:all 0.15s;line-height:1;}
 .icon-btn:hover{border-color:var(--b2);background:var(--hbg);}
-/* Merge modal select */
-#merge-destino-sel option{background:var(--sur);}
+#merge-destino-sel{width:100%;background:var(--sur2);border:1px solid var(--brd);border-radius:11px;padding:13px 16px;font-family:var(--font-body);font-size:0.9rem;color:var(--ink);outline:none;}
 </style>
 </head>
 <body>
@@ -1492,16 +1463,14 @@ header::after{
     <div class="slabel">🎂 Cumpleaños</div>
     <div id="cumples-panel" style="padding:0 12px"></div>
   </div>
-  <!-- ADMIN PANEL (reemplaza Lista + Mesa) -->
+  <!-- ADMIN v9 -->
   <div id="v-admin" style="display:none">
-    <!-- Sub-tabs admin -->
     <div class="admin-subtabs">
-      <button class="admin-stab active" data-stab="galanes" onclick="switchAdminTab('galanes')">&#128101; Galanes</button>
-      <button class="admin-stab" data-stab="pedidos" onclick="switchAdminTab('pedidos')">&#9749; Pedidos</button>
-      <button class="admin-stab" data-stab="pagos" onclick="switchAdminTab('pagos')">&#128176; Pagos</button>
+      <button class="admin-stab active" data-stab="galanes" onclick="switchAdminTab('galanes')">👥 Galanes</button>
+      <button class="admin-stab" data-stab="pedidos" onclick="switchAdminTab('pedidos')">☕ Pedidos</button>
+      <button class="admin-stab" data-stab="pagos" onclick="switchAdminTab('pagos')">💰 Pagos</button>
     </div>
-
-    <!-- SUB: GALANES -->
+    <!-- Galanes -->
     <div id="vadmin-galanes">
       <div id="pendientes-panel" style="display:none;margin:0 12px 10px;background:rgba(245,158,11,0.08);border:1.5px solid rgba(245,158,11,0.3);border-radius:14px;padding:12px 14px;"></div>
       <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 14px 10px">
@@ -1510,44 +1479,38 @@ header::after{
       </div>
       <div id="lista-panel" style="padding:0 12px 80px"></div>
     </div>
-
-    <!-- SUB: PEDIDOS -->
+    <!-- Pedidos -->
     <div id="vadmin-pedidos" style="display:none">
       <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 14px 10px;flex-wrap:wrap;gap:8px">
         <span id="mesa-count" style="font-size:0.78rem;font-weight:700;color:var(--mut);background:var(--brd);padding:4px 12px;border-radius:100px;letter-spacing:0.06em">0 galanes</span>
         <div style="display:flex;gap:6px;flex-wrap:wrap">
           <button class="admin-action-btn" onclick="pedirPorOtro()">+ Cargar</button>
-          <button class="admin-action-btn" id="import-res-btn" onclick="importarReservas()" style="display:none;background:rgba(34,197,94,0.15);color:#4ade80;border-color:rgba(34,197,94,0.3)">Importar</button>
-          <button class="admin-action-btn" onclick="openTimerModal()">&#9201;</button>
-          <button class="admin-action-btn" id="ws-btn" onclick="enviarWS()" style="display:none;background:rgba(34,197,94,0.15);color:#4ade80;border-color:rgba(34,197,94,0.3)">WS</button>
-          <button class="admin-action-btn" style="background:rgba(239,68,68,0.12);color:#f87171;border-color:rgba(239,68,68,0.25)" onclick="cerrarMesa()">Cerrar</button>
+          <button class="admin-action-btn" id="import-res-btn" onclick="importarReservas()" style="display:none;background:rgba(34,197,94,0.15);color:#4ade80;border-color:rgba(34,197,94,0.3)">📋 Importar</button>
+          <button class="admin-action-btn" onclick="openTimerModal()">⏱ Timer</button>
+          <button class="admin-action-btn" id="ws-btn" onclick="enviarWS()" style="display:none;background:rgba(34,197,94,0.15);color:#4ade80;border-color:rgba(34,197,94,0.3)">💬 WS</button>
+          <button class="admin-action-btn" style="background:rgba(239,68,68,0.12);color:#f87171;border-color:rgba(239,68,68,0.25)" onclick="cerrarMesa()">🔒 Cerrar</button>
         </div>
       </div>
-      <div class="mg" id="mesa-panel" style="padding-bottom:20px"><div class="es">Nadie se anoto todavia &#128064;</div></div>
+      <div id="mesa-reserva-info" style="display:none"></div>
+      <div class="mg" id="mesa-panel" style="padding-bottom:20px"><div class="es">Nadie se anoto todavia 👀</div></div>
     </div>
-
-    <!-- SUB: PAGOS -->
+    <!-- Pagos -->
     <div id="vadmin-pagos" style="display:none">
       <div style="padding:12px 14px 80px">
         <div id="pago-resumen" style="margin:0 0 12px;background:linear-gradient(135deg,#0d0b07,#1a1510);border-radius:14px;padding:14px 16px;border:1px solid var(--brd)"></div>
         <div id="pagos-detail-panel"></div>
         <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">
-          <button class="admin-action-btn" onclick="openTotalBar()" style="background:rgba(245,158,11,0.12);color:var(--g2);border-color:rgba(245,158,11,0.25)">Total bar</button>
-          <button class="admin-action-btn" onclick="verHistorial()">Historial</button>
-          <button class="admin-action-btn" onclick="grabarFav()">Grabar fav</button>
-          <button class="admin-action-btn" onclick="cargarFav()">Mi habitual</button>
+          <button class="admin-action-btn" onclick="openTotalBar()" style="background:rgba(245,158,11,0.12);color:var(--g2);border-color:rgba(245,158,11,0.25)">🧾 Total bar</button>
+          <button class="admin-action-btn" onclick="verHistorial()">📅 Historial</button>
+          <button class="admin-action-btn" onclick="grabarFav()">💾 Fav</button>
+          <button class="admin-action-btn" onclick="cargarFav()">⭐ Habitual</button>
         </div>
       </div>
     </div>
   </div>
-
-  <!-- Mantener IDs para compatibilidad con codigo existente -->
+  <!-- IDs de compatibilidad -->
   <div id="v-lista" style="display:none"></div>
-  <div id="v-mesa" style="display:none">
-    <div id="mesa-admin-bar" style="display:none"></div>
-    <div id="mesa-reserva-info" style="display:none"></div>
-    <div id="fusion-bar" style="display:none"></div>
-  </div>
+  <div id="v-mesa" style="display:none"><div id="mesa-admin-bar" style="display:none"></div><div id="fusion-bar" style="display:none"></div></div>
 </div>
 <div id="toast"></div>
 <div id="version-label" style="text-align:center;padding:6px;font-size:0.55rem;color:rgba(255,255,255,0.15);font-family:monospace;letter-spacing:0.08em;user-select:none"></div>
@@ -1651,11 +1614,11 @@ header::after{
     <p class="msub" style="margin-bottom:16px">El nombre principal queda activo. El otro se elimina y sus datos pasan al principal.</p>
     <div style="margin-bottom:14px">
       <div style="font-size:0.65rem;color:var(--mut);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:6px">Nombre principal</div>
-      <div style="background:rgba(245,158,11,0.08);border:1.5px solid rgba(245,158,11,0.3);border-radius:12px;padding:14px 16px;font-weight:700;font-size:1rem;color:var(--g2);letter-spacing:0.02em" id="merge-principal-name">—</div>
+      <div style="background:rgba(245,158,11,0.08);border:1.5px solid rgba(245,158,11,0.3);border-radius:12px;padding:14px 16px;font-weight:700;font-size:1rem;color:var(--g2)" id="merge-principal-name">—</div>
     </div>
     <div style="margin-bottom:18px">
       <div style="font-size:0.65rem;color:var(--mut);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:6px">Fusionar con</div>
-      <select id="merge-destino-sel" style="width:100%;background:var(--sur2);border:1px solid var(--brd);border-radius:11px;padding:13px 16px;font-family:var(--font-body);font-size:0.9rem;color:var(--ink);outline:none;appearance:none;cursor:pointer"></select>
+      <select id="merge-destino-sel"></select>
     </div>
     <div class="ma">
       <button class="bs" style="flex:0.5" onclick="closeModal('mmerge')">Cancelar</button>
@@ -1668,7 +1631,7 @@ header::after{
 </div>
 
 <script>
-  var APP_VERSION="9.0";
+  var APP_VERSION="8.1";
   var STORED_VERSION=localStorage.getItem("app_version");
 
   if("serviceWorker"in navigator){
