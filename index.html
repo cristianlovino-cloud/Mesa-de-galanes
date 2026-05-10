@@ -98,6 +98,7 @@
     onValue(rPres,function(s){presentes=s.exists()?s.val():{};renderLista();});
     var vb=document.getElementById("vbtn");if(vb)vb.textContent=voiceOn?"🔊":"🔇";
     checkSession();
+    var _vl=document.getElementById("version-label");if(_vl)_vl.textContent="v"+APP_VERSION;
     if(me)renderMyName();else{
     setTimeout(function(){
       openModal("mnombre");
@@ -358,7 +359,7 @@
         if(esMio)row+="<button class='lista-add-btn' style='background:var(--mut);font-size:0.68rem;padding:5px 8px' onclick='editarMiCumple()'>✏️</button>";
         if(isAdmin()&&!esMio)row+="<button class='lista-add-btn' style='background:var(--red);font-size:0.68rem;padding:5px 8px' data-name='"+c.name+"' onclick='borrarCumpleEl(this)'>🗑️</button>";
         row+="</div>";
-        if(admin){row+="<div class=\'edit-extras-row\' onclick=\'event.stopPropagation();editarExtras("+i+")\'>⚙ EDITAR ACOMPAÑAMIENTOS</div>";} rows.push(row);
+        rows.push(row);
       });
     });
     panel.innerHTML=rows.join("");
@@ -1451,7 +1452,7 @@ header::after{
 </div>
 
 <script>
-  var APP_VERSION="7.9";
+  var APP_VERSION="8.0";
   var STORED_VERSION=localStorage.getItem("app_version");
 
   if("serviceWorker"in navigator){
