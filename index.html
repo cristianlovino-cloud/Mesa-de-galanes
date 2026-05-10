@@ -86,12 +86,12 @@
     switchTab("pedir");
     onValue(rG,function(s){galanes=s.exists()?s.val():KNOWN_DEF.slice();if(!s.exists())set(rG,galanes);});
     onValue(rD,function(s){drinks=s.exists()?s.val():DRINKS_DEF.slice();if(!s.exists())set(rD,drinks);renderDrinks();});
-    onValue(rO,function(s){orders=s.exists()?s.val():{};renderDrinks();renderOrders();renderMesa();renderLista();renderConfirmBtn();});
-    onValue(rC,function(s){confirmed=s.exists()?s.val():{};renderConfirmBtn();renderOrders();renderMesa();renderLista();});
-    onValue(rP,function(s){pagos=s.exists()?s.val():{};renderOrders();renderMesa();renderLista();renderPagosDetail();});
-    onValue(rB,function(s){totalBar=s.exists()?s.val():0;renderMesa();});
+    onValue(rO,function(s){try{orders=s.exists()?s.val():{};renderDrinks();renderOrders();renderMesa();renderLista();renderConfirmBtn();}catch(e){console.error("rO",e);}});
+    onValue(rC,function(s){try{confirmed=s.exists()?s.val():{};renderConfirmBtn();renderOrders();renderMesa();renderLista();}catch(e){console.error("rC",e);}});
+    onValue(rP,function(s){try{pagos=s.exists()?s.val():{};renderOrders();renderMesa();renderLista();renderPagosDetail();}catch(e){console.error("rP",e);}});
+    onValue(rB,function(s){try{totalBar=s.exists()?s.val():0;renderMesa();}catch(e){console.error("rB",e);}});
     onValue(rT,function(s){timerD=s.exists()?s.val():null;renderTimer();});
-    onValue(rR,function(s){reservas=s.exists()?s.val():{};renderReserva();renderMesa();renderLista();});
+    onValue(rR,function(s){try{reservas=s.exists()?s.val():{};renderReserva();renderMesa();renderLista();}catch(e){console.error("rR",e);}});
     onValue(rA,function(s){accesos=s.exists()?s.val():{};renderLista();});
     onValue(rCump,function(s){cumples=s.exists()?s.val():{};renderCumples();renderCumpleBanner();});
     onValue(rPend,function(s){pendientes=s.exists()?s.val():{};renderPendientes();});
@@ -944,8 +944,8 @@
     }
     var po={};Object.values(orders).forEach(function(o){if(!po[o.player])po[o.player]=[];po[o.player].push({drink:o.drink,icon:o.icon});});
     var players=Object.keys(po).sort();
-    document.getElementById("mesa-count").textContent=players.length+(players.length===1?" galan":" galanes");
-    var pb=document.getElementById("pago-resumen");
+    var mc=document.getElementById("mesa-count");if(mc)mc.textContent=players.length+(players.length===1?" galan":" galanes");
+    var pb=document.getElementById("pago-resumen");if(!pb){pb={innerHTML:"",style:{display:"none"}};}
     if(players.length>0){
       var sumC=0,sumT=0;players.forEach(function(pl){var pg=pagos[pl]||{};sumC+=(pg.cash||0);sumT+=(pg.transfer||0);});
       var rec=sumC+sumT,dif=rec-totalBar,difStr=totalBar>0?(dif===0?"✓ Cuadra!":(dif>0?"Sobran $"+Math.round(dif):"Faltan $"+Math.round(Math.abs(dif)))):"";
