@@ -222,12 +222,13 @@
   window.switchTab=function(tab){
     if(!me&&tab!=="pedir"){openModal("mnombre");return;}
     if(tab==="admin"&&!isAdmin()){showToast("Solo el admin puede ver esta sección");return;}
-    ["pedir","resumen","cumples","admin"].forEach(function(t){
+    ["pedir","resumen","cumples","stats","admin"].forEach(function(t){
       var v=document.getElementById("v-"+t);if(v)v.style.display=t===tab?"block":"none";
       var b=document.querySelector("[data-tab='"+t+"']");if(b)b.classList.toggle("active",t===tab);
     });
     if(tab==="admin"){renderLista();renderMesa();renderPendientes();if(!window._cleaned){window._cleaned=true;limpiarHuerfanos();}}
     if(tab==="cumples")renderCumples();
+    if(tab==="stats")renderStats();
   };
   window.switchAdminTab=function(stab){
     ["galanes","pedidos","pagos"].forEach(function(s){
@@ -1130,6 +1131,199 @@
   }
 
 
+  window.renderStats=async function(){
+    var panel=document.getElementById("stats-content");
+    if(!panel)return;
+    panel.innerHTML="<div class='es' style='padding:40px 0;opacity:0.5'>Cargando... 📊</div>";
+
+    // Cargar historial de Firebase
+    var snap=await get(rH);
+    var hist=snap.exists()?snap.val():{};
+    var fechas=Object.keys(hist).sort();
+
+    // Datos de sesión actual
+    var ordArr=Object.values(orders);
+
+    // ── PROCESAR HISTORIAL ──
+    var drinkCount={};    // bebida -> total pedidos
+    var playerCount={};   // jugador -> semanas presentes
+    var playerDrinks={};  // jugador -> {bebida: count}
+    var playerExtras={};  // jugador -> total extras
+    var semanasByPlayer={}; // jugador -> set de fechas
+    var totalSemanas=fechas.length;
+    var recaudadoTotal=0;
+    var pedidosTotal=0;
+
+    fechas.forEach(function(f){
+      var d=hist[f];
+      var pedArr=Object.values(d.pedidos||{});
+      pedidosTotal+=pedArr.length;
+      recaudadoTotal+=(d.recaudado||0);
+      var playersEnSemana=new Set();
+      pedArr.forEach(function(o){
+        var pl=o.player,dr=o.drink||"?",ex=o.extra||"";
+        // Bebidas
+        drinkCount[dr]=(drinkCount[dr]||0)+1;
+        // Jugadores
+        if(!playerDrinks[pl])playerDrinks[pl]={};
+        playerDrinks[pl][dr]=(playerDrinks[pl][dr]||0)+1;
+        // Extras
+        if(ex&&ex!=="Sin acompanamiento"&&ex!==""){
+          playerExtras[pl]=(playerExtras[pl]||0)+1;
+        }
+        playersEnSemana.add(pl);
+        if(!semanasByPlayer[pl])semanasByPlayer[pl]=new Set();
+        semanasByPlayer[pl].add(f);
+      });
+    });
+
+    // Agregar sesión actual al conteo de bebidas (sin guardar aún)
+    ordArr.forEach(function(o){
+      var dr=o.drink||"?";
+      drinkCount[dr]=(drinkCount[dr]||0)+1;
+    });
+
+    // ── CALCULAR STATS ──
+    // Bebida más pedida
+    var topDrinks=Object.entries(drinkCount).sort(function(a,b){return b[1]-a[1];}).slice(0,5);
+    
+    // Asistencia por jugador
+    var asistencia=Object.entries(semanasByPlayer).map(function(e){
+      return{name:e[0],semanas:e[1].size,pct:totalSemanas>0?Math.round(e[1].size/totalSemanas*100):0};
+    }).sort(function(a,b){return b.semanas-a.semanas;}).slice(0,10);
+
+    // El más rebuscado (más extras / total pedidos)
+    var masRebuscado=Object.entries(playerExtras).map(function(e){
+      var total=Object.values(playerDrinks[e[0]]||{}).reduce(function(s,v){return s+v;},0);
+      return{name:e[0],extras:e[1],total:total,pct:total>0?Math.round(e[1]/total*100):0};
+    }).sort(function(a,b){return b.pct-a.pct;}).slice(0,3);
+
+    // Bebida favorita por jugador
+    var favPorPlayer={};
+    Object.entries(playerDrinks).forEach(function(e){
+      var top=Object.entries(e[1]).sort(function(a,b){return b[1]-a[1];})[0];
+      if(top)favPorPlayer[e[0]]=top[0];
+    });
+
+    // Promedio de consumo
+    var avgConsumo=totalSemanas>0?Math.round(pedidosTotal/totalSemanas):0;
+    var avgRecaudado=totalSemanas>0?Math.round(recaudadoTotal/totalSemanas):0;
+
+    // ── RENDER ──
+    var html="";
+
+    // HEADER
+    html+="<div style='margin-bottom:16px'>";
+    html+="<div style='font-family:var(--font-display);font-size:1.5rem;letter-spacing:0.04em;color:var(--ink)'>STATS</div>";
+    html+="<div style='font-size:0.65rem;color:var(--mut);margin-top:2px'>"+totalSemanas+" SÁBADOS REGISTRADOS</div>";
+    html+="</div>";
+
+    // STAT CARDS TOP
+    html+="<div style='display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px'>";
+    html+=statCard("☕","Pedidos totales",pedidosTotal,"histórico");
+    html+=statCard("📅","Sábados",totalSemanas,"registrados");
+    html+=statCard("👥","Promedio",avgConsumo,"pedidos/sáb");
+    html+=statCard("💰","Promedio",avgRecaudado>0?"$"+avgRecaudado:"—","recaudado/sáb");
+    html+="</div>";
+
+    // ASISTENCIA
+    if(asistencia.length){
+      html+="<div class='stats-section'>";
+      html+="<div class='stats-title'>🏆 TABLA DE ASISTENCIA</div>";
+      var maxSem=asistencia[0].semanas||1;
+      asistencia.forEach(function(p,i){
+        var medal=i===0?"🥇":i===1?"🥈":i===2?"🥉":"";
+        var barW=Math.round(p.semanas/maxSem*100);
+        var fav=favPorPlayer[p.name]?"<span style='font-size:0.6rem;color:var(--mut);margin-left:4px'>"+autoEmoji(favPorPlayer[p.name])+"</span>":"";
+        html+="<div class='stats-row'>";
+        html+="<div style='display:flex;align-items:center;gap:8px;margin-bottom:5px'>";
+        html+="<div class='lista-av' style='background:"+col(p.name)+";width:28px;height:28px;font-size:0.7rem;flex-shrink:0'>"+ini(p.name)+"</div>";
+        html+="<div style='flex:1;min-width:0'>";
+        html+="<div style='font-size:0.72rem;font-weight:700;color:var(--ink);letter-spacing:0.03em'>"+medal+" "+p.name+fav+"</div>";
+        html+="<div style='margin-top:4px;height:4px;background:var(--brd);border-radius:2px;overflow:hidden'>";
+        html+="<div style='height:100%;width:"+barW+"%;background:linear-gradient(90deg,var(--acc),var(--acc2));border-radius:2px;transition:width 0.6s'></div>";
+        html+="</div></div>";
+        html+="<div style='text-align:right;flex-shrink:0'>";
+        html+="<div style='font-size:0.78rem;font-weight:800;color:var(--g2)'>"+p.pct+"%</div>";
+        html+="<div style='font-size:0.58rem;color:var(--mut)'>"+p.semanas+"/"+totalSemanas+"</div>";
+        html+="</div></div></div>";
+      });
+      html+="</div>";
+    }
+
+    // BEBIDAS MÁS PEDIDAS
+    if(topDrinks.length){
+      html+="<div class='stats-section'>";
+      html+="<div class='stats-title'>☕ BEBIDAS MÁS PEDIDAS</div>";
+      var maxDr=topDrinks[0][1]||1;
+      topDrinks.forEach(function(d,i){
+        var barW=Math.round(d[1]/maxDr*100);
+        var emoji=autoEmoji(d[0]);
+        html+="<div class='stats-row'>";
+        html+="<div style='display:flex;align-items:center;gap:8px;margin-bottom:5px'>";
+        html+="<div style='font-size:1.2rem;width:28px;text-align:center'>"+emoji+"</div>";
+        html+="<div style='flex:1;min-width:0'>";
+        html+="<div style='font-size:0.72rem;font-weight:600;color:var(--ink);letter-spacing:0.03em'>"+d[0].toUpperCase()+"</div>";
+        html+="<div style='margin-top:4px;height:4px;background:var(--brd);border-radius:2px;overflow:hidden'>";
+        html+="<div style='height:100%;width:"+barW+"%;background:linear-gradient(90deg,#6366f1,#8b5cf6);border-radius:2px'></div>";
+        html+="</div></div>";
+        html+="<div style='font-size:0.78rem;font-weight:800;color:#a5b4fc;flex-shrink:0'>"+d[1]+"x</div>";
+        html+="</div></div>";
+      });
+      html+="</div>";
+    }
+
+    // EL MÁS REBUSCADO
+    if(masRebuscado.length){
+      html+="<div class='stats-section'>";
+      html+="<div class='stats-title'>🎩 MÁS REBUSCADOS</div>";
+      html+="<div style='font-size:0.6rem;color:var(--mut);margin-bottom:10px'>% DE PEDIDOS CON ACOMPAÑAMIENTO</div>";
+      masRebuscado.forEach(function(p,i){
+        var medal=i===0?"🥇":i===1?"🥈":"🥉";
+        html+="<div class='stats-row' style='display:flex;align-items:center;gap:10px;padding:10px 12px'>";
+        html+="<div style='font-size:1.1rem'>"+medal+"</div>";
+        html+="<div class='lista-av' style='background:"+col(p.name)+";width:28px;height:28px;font-size:0.7rem;flex-shrink:0'>"+ini(p.name)+"</div>";
+        html+="<div style='flex:1'><div style='font-size:0.72rem;font-weight:700;color:var(--ink)'>"+p.name+"</div>";
+        html+="<div style='font-size:0.6rem;color:var(--mut)'>"+p.extras+" extras / "+p.total+" pedidos</div></div>";
+        html+="<div style='font-size:0.9rem;font-weight:800;color:var(--g2)'>"+p.pct+"%</div>";
+        html+="</div>";
+      });
+      html+="</div>";
+    }
+
+    // BEBIDA FAVORITA POR GALÁN
+    var favEntries=Object.entries(favPorPlayer).filter(function(e){return galanes.indexOf(e[0])!==-1;}).slice(0,8);
+    if(favEntries.length){
+      html+="<div class='stats-section'>";
+      html+="<div class='stats-title'>❤️ FAVORITO DE CADA UNO</div>";
+      html+="<div style='display:grid;grid-template-columns:1fr 1fr;gap:6px'>";
+      favEntries.forEach(function(e){
+        html+="<div style='background:var(--sur);border:1px solid var(--brd);border-radius:10px;padding:8px 10px;display:flex;align-items:center;gap:8px'>";
+        html+="<div class='lista-av' style='background:"+col(e[0])+";width:24px;height:24px;font-size:0.6rem;flex-shrink:0'>"+ini(e[0])+"</div>";
+        html+="<div style='min-width:0'><div style='font-size:0.6rem;font-weight:700;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis'>"+e[0]+"</div>";
+        html+="<div style='font-size:0.58rem;color:var(--mut)'>"+autoEmoji(e[1])+" "+e[1]+"</div></div>";
+        html+="</div>";
+      });
+      html+="</div></div>";
+    }
+
+    if(totalSemanas===0){
+      html="<div class='es' style='padding:60px 20px'>Todavía no hay historial para mostrar stats.<br><small style='opacity:0.6'>Cerrá la primera mesa para ver datos acá.</small></div>";
+    }
+
+    panel.innerHTML=html;
+  };
+
+  function statCard(emoji,label,value,sub){
+    return "<div style='background:var(--sur);border:1px solid var(--brd);border-radius:14px;padding:14px 12px;text-align:center'>"
+      +"<div style='font-size:1.4rem'>"+emoji+"</div>"
+      +"<div style='font-size:0.58rem;color:var(--mut);letter-spacing:0.06em;margin-top:4px'>"+label.toUpperCase()+"</div>"
+      +"<div style='font-size:1.4rem;font-weight:800;color:var(--ink);font-family:var(--font-display);margin-top:4px'>"+value+"</div>"
+      +"<div style='font-size:0.55rem;color:var(--mut);margin-top:2px'>"+sub.toUpperCase()+"</div>"
+      +"</div>";
+  }
+
+
   function showToast(msg){var t=document.getElementById("toast");t.textContent=msg;t.style.display="block";t.style.opacity="1";setTimeout(function(){t.style.opacity="0";setTimeout(function(){t.style.display="none";t.style.opacity="1";},400);},2200);}
   function updateClock(){var now=new Date();document.getElementById("fh").textContent=DIAS[now.getDay()]+" "+now.getDate()+" "+MESES_C[now.getMonth()];document.getElementById("hh").textContent=now.toLocaleTimeString("es-AR",{hour:"2-digit",minute:"2-digit"});}
   window.openModal=function(id){var el=document.getElementById(id);if(el)el.classList.add("open");var inp=document.querySelector("#"+id+" input");if(inp)setTimeout(function(){inp.focus();},120);};
@@ -1470,6 +1664,15 @@ header::after{
 .icon-btn{background:var(--sur2);border:1px solid var(--brd);border-radius:8px;padding:5px 8px;font-size:0.88rem;cursor:pointer;transition:all 0.15s;line-height:1;}
 .icon-btn:hover{border-color:var(--b2);background:var(--hbg);}
 #merge-destino-sel{width:100%;background:var(--sur2);border:1px solid var(--brd);border-radius:11px;padding:13px 16px;font-family:var(--font-body);font-size:0.9rem;color:var(--ink);outline:none;}
+
+/* STATS */
+.stats-section{background:var(--sur);border:1px solid var(--brd);border-radius:14px;padding:14px 12px;margin-bottom:12px;}
+.stats-title{font-size:0.65rem;font-weight:700;color:var(--g2);letter-spacing:0.08em;margin-bottom:12px;}
+.stats-row{background:var(--sur2);border:1px solid var(--brd);border-radius:10px;padding:6px 8px;margin-bottom:6px;}
+.lstat{font-size:0.6rem;font-weight:700;padding:3px 8px;border-radius:100px;letter-spacing:0.05em;}
+.lstat-ok{background:rgba(34,197,94,0.1);color:#4ade80;border:1px solid rgba(34,197,94,0.2);}
+.lstat-warn{background:rgba(245,158,11,0.1);color:var(--g2);border:1px solid rgba(245,158,11,0.2);}
+.lstat-total{background:var(--brd);color:var(--mut);}
 </style>
 </head>
 <body>
@@ -1487,6 +1690,7 @@ header::after{
   <button class="tab" data-tab="pedir"   onclick="switchTab('pedir')">☕ Pedir</button>
   <button class="tab" data-tab="resumen" onclick="switchTab('resumen')">📋 Resumen</button>
   <button class="tab" data-tab="cumples" onclick="switchTab('cumples')">🎂 Cumples</button>
+  <button class="tab" data-tab="stats"   onclick="switchTab('stats')">📊 Stats</button>
   <button class="tab" data-tab="admin"   onclick="switchTab('admin')" style="display:none">⚙️ Admin</button>
 </div>
 <div class="main">
@@ -1495,6 +1699,11 @@ header::after{
     <div id="pedido-status-banner" style="display:none"></div>
     <div class="slabel"><span class="ld"></span> Que tomas?</div>
     <div class="dg" id="drinks-grid"><div class="es" style="padding:40px 0;opacity:0.5">Conectando... ☕</div></div>
+  </div>
+  <div id="v-stats" style="display:none;padding:0 0 80px">
+    <div id="stats-content" style="padding:12px 14px">
+      <div class="es" style="padding:40px 0;opacity:0.5">Cargando stats... 📊</div>
+    </div>
   </div>
   <div id="v-resumen" style="display:none">
     <div class="slabel">Pedidos en vivo <button class="clr" onclick="clearAll()">limpiar</button></div>
