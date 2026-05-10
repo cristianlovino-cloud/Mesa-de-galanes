@@ -174,7 +174,7 @@
     document.getElementById("prompt").style.display="flex";
     document.getElementById("confirm-wrap").style.display="none";
     // Ocultar tabs que requieren login
-    ["mesa","lista","resumen","cumples"].forEach(function(t){var b=document.querySelector("[data-tab='"+t+"']");if(b)b.style.display="none";});
+    ["mesa","lista","resumen","cumples"].forEach(function(t){var b=document.querySelector("[data-tab='"+t+"']");if(b)b.style.cssText="display:none!important";});
     renderDrinks();renderOrders();renderMesa();renderLista();renderReserva();switchTab("pedir");
   };
   function isAdmin(){return me===ADMIN;}
@@ -183,9 +183,9 @@
     b.innerHTML=(isAdmin()?"⚙️ ":"")+me+"<span class='lx' onclick='logout(event)'>✕</span>";
     b.style.display="flex";document.getElementById("prompt").style.display="none";
     // Mostrar tabs según rol
-    ["mesa","lista"].forEach(function(t){var btn=document.querySelector("[data-tab='"+t+"']");if(btn)btn.style.display=isAdmin()?"flex":"none";});
+    ["mesa","lista"].forEach(function(t){var btn=document.querySelector("[data-tab='"+t+"']");if(btn){btn.style.cssText=isAdmin()?"display:flex!important":"display:none!important";}});
     // Resumen y Cumples visibles con login
-    ["resumen","cumples"].forEach(function(t){var btn=document.querySelector("[data-tab='"+t+"']");if(btn)btn.style.display="flex";});
+    ["resumen","cumples"].forEach(function(t){var btn=document.querySelector("[data-tab='"+t+"']");if(btn)btn.style.cssText="display:flex!important";});
     renderConfirmBtn();renderCumpleBanner();
   }
 
@@ -1099,7 +1099,7 @@ header::after{
 .tabs{display:flex;background:rgba(10,8,5,0.95);backdrop-filter:blur(20px);border-bottom:1px solid var(--brd);padding:0 2px;overflow:hidden;position:sticky;top:0;z-index:10;}
 .tab{flex:1;padding:10px 1px;background:none;border:none;border-bottom:2px solid transparent;font-family:var(--font-body);font-size:0.7rem;font-weight:600;color:var(--mut);cursor:pointer;transition:all 0.2s;letter-spacing:0.02em;text-transform:uppercase;white-space:nowrap;overflow:hidden;}
 .tab.active{color:var(--g2);border-bottom-color:var(--acc);}
-/* tabs mesa/lista manejadas por JS */
+/* tabs mesa/lista: JS las controla */
 
 /* MAIN */
 .main{padding:0 0 100px;width:100%;}
@@ -1355,7 +1355,8 @@ header::after{
   </div>
 </div>
 <div id="toast"></div>
-<div id="confirm-wrap"><button class="cbtn" onclick="doConfirm()">☕ Enviar mi pedido</button></div>
+<div id="version-label" style="text-align:center;padding:6px;font-size:0.55rem;color:rgba(255,255,255,0.15);font-family:monospace;letter-spacing:0.08em;user-select:none"></div>
+  <div id="confirm-wrap"><button class="cbtn" onclick="doConfirm()">☕ Enviar mi pedido</button></div>
 
 <!-- MODALES -->
 <div class="modal-overlay mc" id="mnombre" onclick="if(event.target===this)closeModal('mnombre')">
@@ -1450,7 +1451,7 @@ header::after{
 </div>
 
 <script>
-  var APP_VERSION="7.8";
+  var APP_VERSION="7.9";
   var STORED_VERSION=localStorage.getItem("app_version");
 
   if("serviceWorker"in navigator){
@@ -1474,6 +1475,7 @@ header::after{
       });
       // Si cambió la versión de la app, forzar recarga
       localStorage.setItem("app_version",APP_VERSION);
+      var vl=document.getElementById("version-label");if(vl)vl.textContent="v"+APP_VERSION;
       if(STORED_VERSION&&STORED_VERSION!==APP_VERSION){
         // Limpiar todo el cache del SW y recargar
         if("caches"in window){
