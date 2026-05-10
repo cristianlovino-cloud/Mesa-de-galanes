@@ -309,7 +309,10 @@
     var dia=parseInt(document.getElementById("cumple-dia").value)||0;
     var mes=parseInt(document.getElementById("cumple-mes").value)||0;
     if(dia<1||dia>31||mes<1||mes>12){showToast("Fecha inválida");return;}
+    var msgEl=document.getElementById("cumple-msg");
+    var msg=msgEl?msgEl.value.trim():"";
     var data={dia:dia,mes:mes};
+    if(msg)data.msg=msg;
     await set(ref(db,"config/cumples/"+me),data);
     cumples[me]=data;closeModal("mcumple");
     showToast("🎂 Cumpleaños guardado!");renderCumples();renderCumpleBanner();
@@ -335,12 +338,44 @@
     var banner=document.getElementById("cumple-banner");if(!banner)return;
     var now=new Date(),hd=now.getDate(),hm=now.getMonth()+1;
     var sat=nextSat(),sd=sat.getDate(),sm=sat.getMonth()+1;
-    var diffDias=Math.ceil((sat-now)/(1000*60*60*24));
+    // Cumples de hoy
     var cumplHoy=Object.keys(cumples).filter(function(n){var c=cumples[n];return c.dia===hd&&c.mes===hm;});
+    // Cumples que caen en el proximo sabado
     var cumplSat=Object.keys(cumples).filter(function(n){var c=cumples[n];return c.dia===sd&&c.mes===sm;});
-    if(cumplHoy.length){banner.style.display="block";banner.innerHTML="<div class='cumple-banner'>🎂 Hoy cumplen: <b>"+cumplHoy.join(", ")+"</b> 🎉</div>";}
-    else if(cumplSat.length&&diffDias<=3){banner.style.display="block";banner.innerHTML="<div class='cumple-banner'>🎂 El sábado cumple <b>"+cumplSat.join(", ")+"</b> — ¡se festeja en el asado! 🥩</div>";}
-    else banner.style.display="none";
+    // Cumples en los proximos 7 dias (sin contar hoy ni el sabado ya cubierto)
+    var cumplProx=Object.keys(cumples).filter(function(n){
+      var c=cumples[n];
+      if(c.dia===hd&&c.mes===hm)return false; // ya en hoy
+      if(c.dia===sd&&c.mes===sm)return false; // ya en sab
+      var futuro=new Date(now.getFullYear()+(c.mes<hm||(c.mes===hm&&c.dia<hd)?1:0),c.mes-1,c.dia);
+      var df=Math.ceil((futuro-now)/(1000*60*60*24));
+      return df>0&&df<=7;
+    });
+    if(cumplHoy.length){
+      var msgs=cumplHoy.map(function(n){
+        var msg=cumples[n].msg;
+        return msg?"<b>"+n+"</b> — "+msg:"<b>"+n+"</b>";
+      });
+      banner.style.display="block";
+      banner.innerHTML="<div class='cumple-banner'>🎂 HOY CUMPLE"+( cumplHoy.length>1?"N":"")+"! "+msgs.join(" · ")+" 🎉</div>";
+    } else if(cumplSat.length){
+      var msgs2=cumplSat.map(function(n){
+        var msg=cumples[n].msg;
+        return msg?"<b>"+n+"</b> — "+msg:"<b>"+n+"</b>";
+      });
+      banner.style.display="block";
+      banner.innerHTML="<div class='cumple-banner'>🎂 EL SÁBADO CUMPLE"+( cumplSat.length>1?"N":"")+"! "+msgs2.join(" · ")+" — ¡SE FESTEJA EN EL ASADO! 🥩</div>";
+    } else if(cumplProx.length){
+      var msgs3=cumplProx.map(function(n){
+        var futuro=new Date(now.getFullYear()+(cumples[n].mes<hm||(cumples[n].mes===hm&&cumples[n].dia<hd)?1:0),cumples[n].mes-1,cumples[n].dia);
+        var df=Math.ceil((futuro-now)/(1000*60*60*24));
+        return "<b>"+n+"</b> en "+df+"d";
+      });
+      banner.style.display="block";
+      banner.innerHTML="<div class='cumple-banner' style='background:rgba(245,158,11,0.08);border-color:rgba(245,158,11,0.2)'>🎂 PRÓXIMO: "+msgs3.join(" · ")+"</div>";
+    } else {
+      banner.style.display="none";
+    }
   }
 
   function renderCumples(){
@@ -1538,6 +1573,10 @@ header::after{
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
       <div><div style="font-size:0.75rem;color:var(--mut);margin-bottom:4px;text-align:center">Día</div><input type="number" id="cumple-dia" placeholder="14" min="1" max="31" style="text-align:center;font-size:1.2rem;padding:12px;margin:0"></div>
       <div><div style="font-size:0.75rem;color:var(--mut);margin-bottom:4px;text-align:center">Mes</div><input type="number" id="cumple-mes" placeholder="3" min="1" max="12" style="text-align:center;font-size:1.2rem;padding:12px;margin:0"></div>
+    </div>
+    <div style="margin-bottom:12px">
+      <div style="font-size:0.65rem;color:var(--mut);margin-bottom:6px;letter-spacing:0.06em">MENSAJE PARA EL BANNER (OPCIONAL)</div>
+      <input type="text" id="cumple-msg" placeholder="Ej: ya somos veteranos... 🥂" maxlength="50" autocomplete="off" style="text-transform:none">
     </div>
     <div class="ma"><button class="bs" style="flex:0.6" onclick="omitirCumple()">Ahora no</button><button class="bp" onclick="guardarCumple()">Guardar 🎂</button></div>
   </div>
