@@ -973,7 +973,6 @@
     var by={},en=Object.entries(orders).sort(function(a,b){return a[1].ts-b[1].ts;});
     for(var i=0;i<en.length;i++){var k=en[i][0],o=en[i][1];if(!by[o.player])by[o.player]=[];by[o.player].push({key:k,drink:o.drink,icon:o.icon});}
     var galanesCnt=Object.keys(by).length;
-    document.getElementById("total-badge").textContent=(total>0&&me)?galanesCnt+" galanes · "+total+" pedidos":"";
     var players=Object.keys(by).sort(),rows=[];
     if(!players.length){document.getElementById("sum-panel").innerHTML="<div class='es'>Nadie pidio nada todavia 👀</div>";document.getElementById("totals-panel").style.display="none";var wb2=document.getElementById("ws-btn");if(wb2)wb2.style.display="none";return;}
     for(var p=0;p<players.length;p++){
@@ -1578,7 +1577,6 @@ header::after{
 #prompt:hover{background:rgba(245,158,11,0.2);border-color:rgba(245,158,11,0.4);}
 #badge{display:none;align-items:center;gap:8px;background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.25);color:var(--gl);border-radius:100px;padding:8px 16px;font-size:0.88rem;font-weight:600;cursor:pointer;}
 .lx{color:rgba(253,248,240,0.25);font-size:0.9rem;cursor:pointer;margin-left:2px;}.lx:hover{color:var(--red);}
-#total-badge{margin-left:auto;font-size:0.88rem;font-weight:700;color:var(--g2);text-transform:uppercase;letter-spacing:0.1em;background:rgba(245,158,11,0.12);padding:4px 10px;border-radius:100px;}
 #vbtn{background:none;border:none;font-size:1.2rem;cursor:pointer;padding:4px;opacity:0.6;flex-shrink:0;}
 
 /* CUMPLE BANNER */
@@ -1818,7 +1816,7 @@ header::after{
 <body>
 <header>
   <div class="htop"><div class="htit">Mesa de <span>Galanes</span></div><div class="hmeta"><div id="fh">—</div><div id="hh">—</div</div></div></div>
-  <div class="nz"><div id="prompt" onclick="openModal('mnombre')">👤 Quien sos?</div><div id="badge" onclick="changeName()"></div><span id="total-badge"></span><button id="vbtn" onclick="toggleVoice()">🔇</button></div>
+  <div class="nz"><div id="prompt" onclick="openModal('mnombre')">👤 Quien sos?</div><div id="badge" onclick="changeName()"></div><button id="vbtn" onclick="toggleVoice()">🔇</button></div>
 </header>
 <div id="cumple-banner" style="display:none"></div>
 <div id="timer-bar" class="tbar">
