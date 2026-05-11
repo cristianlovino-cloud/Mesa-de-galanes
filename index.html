@@ -182,7 +182,7 @@
     document.getElementById("prompt").style.display="flex";
     document.getElementById("confirm-wrap").style.display="none";
     // Ocultar tabs que requieren login
-    ["admin","resumen","cumples"].forEach(function(t){var b=document.querySelector("[data-tab='"+t+"']");if(b)b.style.cssText="display:none!important";});
+    ["admin","resumen","cumples","stats"].forEach(function(t){var b=document.querySelector("[data-tab='"+t+"']");if(b)b.style.cssText="display:none!important";});
     renderDrinks();renderOrders();renderMesa();renderLista();renderReserva();switchTab("pedir");
   };
   function isAdmin(){return me===ADMIN;}
@@ -193,7 +193,7 @@
     // Mostrar tabs según rol
     var adminBtn=document.querySelector("[data-tab='admin']");if(adminBtn)adminBtn.style.cssText=isAdmin()?"display:flex!important":"display:none!important";;
     // Resumen y Cumples visibles con login
-    ["resumen","cumples"].forEach(function(t){var btn=document.querySelector("[data-tab='"+t+"']");if(btn)btn.style.cssText="display:flex!important";});
+    ["resumen","cumples","stats"].forEach(function(t){var btn=document.querySelector("[data-tab='"+t+"']");if(btn)btn.style.cssText="display:flex!important";});
     renderConfirmBtn();renderCumpleBanner();
   }
 
@@ -1212,19 +1212,42 @@
     // ── RENDER ──
     var html="";
 
+    // ── VISTA PERSONAL si no es admin ──
+    var misSemanas=semanasByPlayer[me]?semanasByPlayer[me].size:0;
+    var miPct=totalSemanas>0?Math.round(misSemanas/totalSemanas*100):0;
+    var miDrinkTop=playerDrinks[me]?Object.entries(playerDrinks[me]).sort(function(a,b){return b[1]-a[1];})[0]:null;
+    var miExtras=playerExtras[me]||0;
+    var miTotalPeds=playerDrinks[me]?Object.values(playerDrinks[me]).reduce(function(s,v){return s+v;},0):0;
+    var miRebuscado=miTotalPeds>0?Math.round(miExtras/miTotalPeds*100):0;
+
     // HEADER
     html+="<div style='margin-bottom:16px'>";
     html+="<div style='font-family:var(--font-display);font-size:1.5rem;letter-spacing:0.04em;color:var(--ink)'>STATS</div>";
     html+="<div style='font-size:0.65rem;color:var(--mut);margin-top:2px'>"+totalSemanas+" SÁBADOS REGISTRADOS</div>";
     html+="</div>";
 
-    // STAT CARDS TOP
-    html+="<div style='display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px'>";
-    html+=statCard("☕","Pedidos totales",pedidosTotal,"histórico");
-    html+=statCard("📅","Sábados",totalSemanas,"registrados");
-    html+=statCard("👥","Promedio",avgConsumo,"pedidos/sáb");
-    html+=statCard("💰","Promedio",avgRecaudado>0?"$"+avgRecaudado:"—","recaudado/sáb");
-    html+="</div>";
+    // MI RESUMEN PERSONAL (para todos)
+    if(me&&misSemanas>0){
+      html+="<div style='background:linear-gradient(135deg,rgba(245,158,11,0.08),rgba(245,158,11,0.03));border:1px solid rgba(245,158,11,0.2);border-radius:14px;padding:14px 16px;margin-bottom:16px'>";
+      html+="<div style='font-size:0.6rem;color:var(--g2);font-weight:700;letter-spacing:0.08em;margin-bottom:10px'>TU RESUMEN — "+me.toUpperCase()+"</div>";
+      html+="<div style='display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px'>";
+      html+=miniCard("📅",misSemanas+"x","sábados");
+      html+=miniCard("📊",miPct+"%","asistencia");
+      html+=miniCard("🎩",miRebuscado+"%","rebuscado");
+      html+="</div>";
+      if(miDrinkTop)html+="<div style='margin-top:10px;font-size:0.62rem;color:var(--mut)'>FAVORITA: <b style='color:var(--ink)'>"+autoEmoji(miDrinkTop[0])+" "+miDrinkTop[0].toUpperCase()+"</b> ("+miDrinkTop[1]+"x)</div>";
+      html+="</div>";
+    }
+
+    // STAT CARDS GLOBALES (solo admin)
+    if(isAdmin()){
+      html+="<div style='display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px'>";
+      html+=statCard("☕","Pedidos totales",pedidosTotal,"histórico");
+      html+=statCard("📅","Sábados",totalSemanas,"registrados");
+      html+=statCard("👥","Promedio",avgConsumo,"pedidos/sáb");
+      html+=statCard("💰","Promedio",avgRecaudado>0?"$"+avgRecaudado:"—","recaudado/sáb");
+      html+="</div>";
+    }
 
     // ASISTENCIA
     if(asistencia.length){
@@ -1235,7 +1258,8 @@
         var medal=i===0?"🥇":i===1?"🥈":i===2?"🥉":"";
         var barW=Math.round(p.semanas/maxSem*100);
         var fav=favPorPlayer[p.name]?"<span style='font-size:0.6rem;color:var(--mut);margin-left:4px'>"+autoEmoji(favPorPlayer[p.name])+"</span>":"";
-        html+="<div class='stats-row'>";
+        var esYo=p.name===me;
+        html+="<div class='stats-row'"+(esYo?" style='border-color:rgba(245,158,11,0.4);background:rgba(245,158,11,0.04)'":"")+">"; 
         html+="<div style='display:flex;align-items:center;gap:8px;margin-bottom:5px'>";
         html+="<div class='lista-av' style='background:"+col(p.name)+";width:28px;height:28px;font-size:0.7rem;flex-shrink:0'>"+ini(p.name)+"</div>";
         html+="<div style='flex:1;min-width:0'>";
@@ -1314,6 +1338,13 @@
     panel.innerHTML=html;
   };
 
+  function miniCard(emoji,value,sub){
+    return "<div style='text-align:center;background:rgba(0,0,0,0.2);border-radius:10px;padding:8px 4px'>"
+      +"<div style='font-size:1.1rem'>"+emoji+"</div>"
+      +"<div style='font-size:0.95rem;font-weight:800;color:var(--ink);font-family:var(--font-display)'>"+value+"</div>"
+      +"<div style='font-size:0.52rem;color:var(--mut);letter-spacing:0.04em'>"+sub.toUpperCase()+"</div>"
+      +"</div>";
+  }
   function statCard(emoji,label,value,sub){
     return "<div style='background:var(--sur);border:1px solid var(--brd);border-radius:14px;padding:14px 12px;text-align:center'>"
       +"<div style='font-size:1.4rem'>"+emoji+"</div>"
@@ -1690,7 +1721,7 @@ header::after{
   <button class="tab" data-tab="pedir"   onclick="switchTab('pedir')">☕ Pedir</button>
   <button class="tab" data-tab="resumen" onclick="switchTab('resumen')">📋 Resumen</button>
   <button class="tab" data-tab="cumples" onclick="switchTab('cumples')">🎂 Cumples</button>
-  <button class="tab" data-tab="stats"   onclick="switchTab('stats')">📊 Stats</button>
+  <button class="tab" data-tab="stats"   onclick="switchTab('stats')" style="display:none">📊 Stats</button>
   <button class="tab" data-tab="admin"   onclick="switchTab('admin')" style="display:none">⚙️ Admin</button>
 </div>
 <div class="main">
