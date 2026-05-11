@@ -91,7 +91,7 @@
     onValue(rP,function(s){try{pagos=s.exists()?s.val():{};renderOrders();renderMesa();renderLista();renderPagosDetail();}catch(e){console.error("rP",e);}});
     onValue(rB,function(s){try{totalBar=s.exists()?s.val():0;renderMesa();}catch(e){console.error("rB",e);}});
     onValue(rT,function(s){timerD=s.exists()?s.val():null;renderTimer();});
-    onValue(rR,function(s){try{reservas=s.exists()?s.val():{};renderReserva();renderMesa();renderLista();}catch(e){console.error("rR",e);}});
+    onValue(rR,function(s){try{reservas=s.exists()?s.val():{};renderReserva();renderMesa();renderLista();if(document.getElementById("v-stats")&&document.getElementById("v-stats").style.display!=="none")renderStats();}catch(e){console.error("rR",e);}});
     onValue(rA,function(s){accesos=s.exists()?s.val():{};renderLista();});
     onValue(rCump,function(s){cumples=s.exists()?s.val():{};renderCumples();renderCumpleBanner();});
     onValue(rPend,function(s){pendientes=s.exists()?s.val():{};renderPendientes();});
@@ -1284,6 +1284,44 @@
         +"</div>";
     }
     html+=cdHtml;
+
+    // ASISTENCIA PRÓXIMO SÁBADO
+    var satStr=nextSatStr();
+    var van=galanes.filter(function(g){return reservas[g]&&reservas[g].sat===satStr;});
+    var noVan=galanes.filter(function(g){return !reservas[g]||reservas[g].sat!==satStr;});
+    var sinResp=noVan; // pendientes = sin reserva
+    // Calcular "confirmaron no van" — por ahora todos sin reserva son pendientes
+    var vanN=van.length,noVanN=0,sinRespN=sinResp.length;
+
+    html+="<div style='margin-bottom:16px'>";
+    // Cards VAN / NO VAN / PENDIENTE
+    html+="<div style='display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px'>";
+    html+="<div style='background:rgba(34,197,94,0.1);border:1.5px solid rgba(34,197,94,0.3);border-radius:14px;padding:14px 8px;text-align:center'>"
+      +"<div style='font-family:var(--font-display);font-size:2rem;font-weight:700;color:#4ade80'>"+vanN+"</div>"
+      +"<div style='font-size:0.55rem;color:#4ade80;letter-spacing:0.06em;margin-top:2px'>VAN ✅</div></div>";
+    html+="<div style='background:rgba(239,68,68,0.08);border:1.5px solid rgba(239,68,68,0.2);border-radius:14px;padding:14px 8px;text-align:center'>"
+      +"<div style='font-family:var(--font-display);font-size:2rem;font-weight:700;color:#f87171'>"+noVanN+"</div>"
+      +"<div style='font-size:0.55rem;color:#f87171;letter-spacing:0.06em;margin-top:2px'>NO VAN ❌</div></div>";
+    html+="<div style='background:var(--sur);border:1.5px solid var(--brd);border-radius:14px;padding:14px 8px;text-align:center'>"
+      +"<div style='font-family:var(--font-display);font-size:2rem;font-weight:700;color:var(--mut)'>"+sinRespN+"</div>"
+      +"<div style='font-size:0.55rem;color:var(--mut);letter-spacing:0.06em;margin-top:2px'>PENDIENTE ⏳</div></div>";
+    html+="</div>";
+    // Lista van
+    if(van.length){
+      html+="<div style='margin-bottom:8px'>";
+      html+="<div style='font-size:0.58rem;color:#4ade80;letter-spacing:0.06em;margin-bottom:6px;font-weight:700'>✅ VAN ("+van.length+")</div>";
+      html+="<div style='display:flex;flex-wrap:wrap;gap:5px'>";
+      van.forEach(function(g){html+="<span style='background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.25);border-radius:100px;padding:3px 10px;font-size:0.62rem;color:#4ade80;font-weight:600'>"+g+"</span>";});
+      html+="</div></div>";
+    }
+    // Lista sin responder
+    if(sinResp.length){
+      html+="<div>";
+      html+="<div style='font-size:0.58rem;color:var(--mut);letter-spacing:0.06em;margin-bottom:6px;font-weight:700'>⏳ SIN RESPONDER ("+sinResp.length+")</div>";
+      html+="<div style='font-size:0.62rem;color:var(--mut);line-height:1.8'>"+sinResp.join(" · ")+"</div>";
+      html+="</div>";
+    }
+    html+="</div>";
 
     // HEADER
     html+="<div style='margin-bottom:16px'>";
