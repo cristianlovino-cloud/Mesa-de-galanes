@@ -288,11 +288,30 @@
 
   // ── PAGOS ─────────────────────────────────────────────────
   window.openPago=function(player,tipo){
-    editPP=player;editPT=tipo;
-    var actual=(pagos[player]&&pagos[player][tipo])||0;
-    document.getElementById("pago-title").textContent=(tipo==="cash"?"💵 Cash":"📲 Transferencia")+" — "+player;
-    document.getElementById("pago-input").value=actual>0?actual:"";
+    window._pagoPlayer=player;window._pagoTipo=tipo;
+    var pl2=document.getElementById("pago-player-label");if(pl2)pl2.textContent=player;
+    var tl=document.getElementById("pago-tipo-label");if(tl)tl.textContent=tipo==="cash"?"💵 Efectivo":"📲 Transferencia";
+    var cur=pagos[player]||{};
+    var inp=document.getElementById("pago-input");if(inp)inp.value=tipo==="cash"?(cur.cash||""):(cur.transfer||"");
     openModal("mpago");
+  };
+  window.openPagoTransfer=function(player){
+    window._pagoPlayer=player;
+    var pl2=document.getElementById("transfer-player-label");if(pl2)pl2.textContent=player;
+    var cur=pagos[player]||{};
+    var mi=document.getElementById("modo-input"),mpi=document.getElementById("mp-input");
+    if(mi)mi.value=cur.transferModo||"";if(mpi)mpi.value=cur.transferMP||"";
+    openModal("mtransfer");
+  };
+  window.guardarTransfer=async function(){
+    var pl=window._pagoPlayer;if(!pl)return;
+    var modo=parseFloat(document.getElementById("modo-input").value)||0;
+    var mp=parseFloat(document.getElementById("mp-input").value)||0;
+    var cur=pagos[pl]||{};
+    var nueva={cash:cur.cash||0,transfer:modo+mp,transferModo:modo,transferMP:mp};
+    await set(ref(db,"pedido/pagos/"+pl),nueva);
+    pagos[pl]=nueva;closeModal("mtransfer");
+    showToast("✓ Transfer guardado");renderMesa();renderPagosDetail();
   };
   window.savePago=async function(){
     if(!editPP||!editPT)return;
@@ -994,7 +1013,29 @@
       var rec=sumC+sumT,dif=rec-totalBar,difStr=totalBar>0?(dif===0?"✓ Cuadra!":(dif>0?"Sobran $"+Math.round(dif):"Faltan $"+Math.round(Math.abs(dif)))):"";
       var difColor=dif===0?"#4aaa6a":dif>0?"#b8820a":"#e74c3c";
       var faltan=players.filter(function(pl){var pg=pagos[pl]||{};return(pg.cash||0)+(pg.transfer||0)===0;}).length;
-      var h="<div class='pres-row'><span class='pres-item'>💵 Cash: <b>$"+Math.round(sumC)+"</b></span><span class='pres-item'>📲 Transfer: <b>$"+Math.round(sumT)+"</b></span><span class='pres-total'>Recaudado: <b>$"+Math.round(rec)+"</b></span></div>";
+      // Desglose pagos
+      var pagArr=players.map(function(pl){return pagos[pl]||{};});
+      var sumCash=0,sumTrModo=0,sumTrMP=0;
+      pagArr.forEach(function(pg){sumCash+=(pg.cash||0);sumTrModo+=(pg.transferModo||0);sumTrMP+=(pg.transferMP||0);});
+      // Compatibilidad: transfer viejo va a "otro"
+      var sumTrOtro=sumT-(sumTrModo+sumTrMP);if(sumTrOtro<0)sumTrOtro=0;
+      var h="<div style='display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px'>";
+      h+="<div style='background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.2);border-radius:10px;padding:8px 10px'>";
+      h+="<div style='font-size:0.55rem;color:var(--mut);letter-spacing:0.06em'>💵 EFECTIVO</div>";
+      h+="<div style='font-size:1.1rem;font-weight:800;color:#4ade80'>$"+Math.round(sumCash)+"</div></div>";
+      h+="<div style='background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.2);border-radius:10px;padding:8px 10px'>";
+      h+="<div style='font-size:0.55rem;color:var(--mut);letter-spacing:0.06em'>📲 TRANSFER TOTAL</div>";
+      h+="<div style='font-size:1.1rem;font-weight:800;color:#a5b4fc'>$"+Math.round(sumT)+"</div></div>";
+      if(sumTrModo>0||sumTrMP>0){
+        h+="<div style='background:rgba(99,102,241,0.05);border:1px solid rgba(99,102,241,0.1);border-radius:10px;padding:6px 10px'>";
+        h+="<div style='font-size:0.55rem;color:var(--mut)'>MODO</div><div style='font-size:0.9rem;font-weight:700;color:#a5b4fc'>$"+Math.round(sumTrModo)+"</div></div>";
+        h+="<div style='background:rgba(0,180,216,0.05);border:1px solid rgba(0,180,216,0.1);border-radius:10px;padding:6px 10px'>";
+        h+="<div style='font-size:0.55rem;color:var(--mut)'>MERCADO PAGO</div><div style='font-size:0.9rem;font-weight:700;color:#67e8f9'>$"+Math.round(sumTrMP)+"</div></div>";
+      }
+      h+="</div>";
+      // Total recaudado vs total bar
+      h+="<div style='display:flex;align-items:center;justify-content:space-between;padding:4px 0'>";
+      h+="<span style='font-size:0.65rem;color:var(--mut)'>TOTAL RECAUDADO</span><span style='font-size:1rem;font-weight:800;color:var(--ink)'>$"+Math.round(rec)+"</span></div>";
       if(isAdmin())h+="<div class='pres-row' style='margin-top:6px'><span class='pres-item' style='flex:1'>🧾 Total del bar:</span><button onclick='openTotalBar()' class='bar-total-btn'>"+(totalBar>0?"$"+Math.round(totalBar):"Ingresar →")+"</button></div>";
       if(totalBar>0)h+="<div class='pres-dif' style='color:"+difColor+"'>"+difStr+"</div>";
       h+=faltan>0?"<div class='pres-falta'>⚠️ "+faltan+" sin pagar</div>":"<div class='pres-ok'>✓ Todos pagaron</div>";
@@ -1356,7 +1397,23 @@
 
 
   function showToast(msg){var t=document.getElementById("toast");t.textContent=msg;t.style.display="block";t.style.opacity="1";setTimeout(function(){t.style.opacity="0";setTimeout(function(){t.style.display="none";t.style.opacity="1";},400);},2200);}
-  function updateClock(){var now=new Date();document.getElementById("fh").textContent=DIAS[now.getDay()]+" "+now.getDate()+" "+MESES_C[now.getMonth()];document.getElementById("hh").textContent=now.toLocaleTimeString("es-AR",{hour:"2-digit",minute:"2-digit"});}
+  function updateClock(){
+    var now=new Date();
+    var fh=document.getElementById("fh"),hh=document.getElementById("hh");
+    if(fh)fh.textContent=DIAS[now.getDay()]+" "+now.getDate()+" "+MESES_C[now.getMonth()];
+    if(hh)hh.textContent=now.toLocaleTimeString("es-AR",{hour:"2-digit",minute:"2-digit"});
+    // Countdown
+    var cl=document.getElementById("countdown-line");
+    if(cl){
+      var sat=nextSat();sat.setHours(7,45,0,0);
+      var diff=sat-now;
+      if(diff<=0){cl.textContent="HOY ES EL DÍA ☕";}
+      else{
+        var dias=Math.floor(diff/86400000),hrs=Math.floor((diff%86400000)/3600000),mins=Math.floor((diff%3600000)/60000);
+        cl.textContent=dias>0?"☕ EN "+dias+"D "+hrs+"H":hrs>0?"☕ EN "+hrs+"H "+mins+"MIN":"☕ EN "+mins+" MIN!";
+      }
+    }
+  }
   window.openModal=function(id){var el=document.getElementById(id);if(el)el.classList.add("open");var inp=document.querySelector("#"+id+" input");if(inp)setTimeout(function(){inp.focus();},120);};
   window.closeModal=function(id){var el=document.getElementById(id);if(el)el.classList.remove("open");if(id==="mextra"){pDrink=null;pFor=null;}};
   document.addEventListener("keydown",function(e){
@@ -1708,7 +1765,7 @@ header::after{
 </head>
 <body>
 <header>
-  <div class="htop"><div class="htit">Mesa de <span>Galanes</span></div><div class="hmeta"><div id="fh">—</div><div id="hh">—</div></div></div>
+  <div class="htop"><div class="htit">Mesa de <span>Galanes</span></div><div class="hmeta"><div id="fh">—</div><div id="hh">—</div><div id="countdown-line" style="font-size:0.6rem;color:var(--g2);font-weight:700;letter-spacing:0.04em;margin-top:1px"></div</div></div></div>
   <div class="nz"><div id="prompt" onclick="openModal('mnombre')">👤 Quien sos?</div><div id="badge" onclick="changeName()"></div><span id="total-badge"></span><button id="vbtn" onclick="toggleVoice()">🔇</button></div>
 </header>
 <div id="cumple-banner" style="display:none"></div>
@@ -1860,6 +1917,25 @@ header::after{
   <div class="modal"><h3 id="pago-title">Pago</h3><p class="msub">Ingresa el monto</p>
     <input type="number" id="pago-input" placeholder="Monto ($)" min="0" step="100" style="font-size:1.1rem;text-align:center;padding:14px">
     <div class="ma"><button class="bs" onclick="closeModal('mpago')">Cancelar</button><button class="bp" onclick="savePago()">Guardar</button></div>
+  </div>
+</div>
+<div class="modal-overlay mc" id="mtransfer" onclick="if(event.target===this)closeModal('mtransfer')">
+  <div class="modal">
+    <div class="mh2"></div>
+    <h3>📲 Transferencia</h3>
+    <p class="msub" id="transfer-player-label" style="font-size:0.8rem;color:var(--ink);font-weight:700;margin-bottom:16px"></p>
+    <div style="margin-bottom:12px">
+      <div style="font-size:0.6rem;color:var(--mut);letter-spacing:0.06em;margin-bottom:6px">MODO</div>
+      <input type="number" id="modo-input" placeholder="0" min="0" style="margin:0">
+    </div>
+    <div style="margin-bottom:16px">
+      <div style="font-size:0.6rem;color:var(--mut);letter-spacing:0.06em;margin-bottom:6px">MERCADO PAGO</div>
+      <input type="number" id="mp-input" placeholder="0" min="0" style="margin:0">
+    </div>
+    <div class="ma">
+      <button class="bs" style="flex:0.5" onclick="closeModal('mtransfer')">Cancelar</button>
+      <button class="bp" onclick="guardarTransfer()">Guardar 📲</button>
+    </div>
   </div>
 </div>
 <div class="modal-overlay mc" id="mtotalbar" onclick="if(event.target===this)closeModal('mtotalbar')">
