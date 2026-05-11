@@ -161,7 +161,7 @@
     var accData={count:(cur.count||0)+1,lastAccess:ahora};
     set(ref(db,"config/accesos/"+me),accData);accesos[me]=accData;
     renderMyName();renderDrinks();renderOrders();renderMesa();renderLista();renderConfirmBtn();renderReserva();renderCumpleBanner();
-    speak("Hola "+me+"!");
+    speak("Hola "+me+"!");switchTab("stats");
     // Preguntar cumpleaños primero, sino mostrar "lo de siempre"
     if(!cumples[me]){
       setTimeout(function(){openModal("mcumple");},800);
@@ -1261,6 +1261,30 @@
     var miTotalPeds=playerDrinks[me]?Object.values(playerDrinks[me]).reduce(function(s,v){return s+v;},0):0;
     var miRebuscado=miTotalPeds>0?Math.round(miExtras/miTotalPeds*100):0;
 
+    // COUNTDOWN
+    var now2=new Date(),sat2=nextSat();sat2.setHours(7,45,0,0);
+    var diff2=sat2-now2;
+    var cdHtml="";
+    if(diff2<=0){
+      cdHtml="<div style='text-align:center;background:linear-gradient(135deg,rgba(245,158,11,0.15),rgba(245,158,11,0.05));border:1px solid rgba(245,158,11,0.3);border-radius:16px;padding:20px 16px;margin-bottom:16px'>"
+        +"<div style='font-size:2rem'>☕</div>"
+        +"<div style='font-family:var(--font-display);font-size:2rem;color:var(--g2);letter-spacing:0.04em'>HOY ES EL DÍA</div>"
+        +"<div style='font-size:0.65rem;color:var(--mut);margin-top:4px'>SÁBADO 7:45 — CRR TENIS</div>"
+        +"</div>";
+    } else {
+      var dias2=Math.floor(diff2/86400000),hrs2=Math.floor((diff2%86400000)/3600000),mins2=Math.floor((diff2%3600000)/60000);
+      cdHtml="<div style='text-align:center;background:var(--sur);border:1px solid var(--brd);border-radius:16px;padding:16px;margin-bottom:16px'>"
+        +"<div style='font-size:0.6rem;color:var(--mut);letter-spacing:0.08em;margin-bottom:8px'>PRÓXIMO CAFÉ</div>"
+        +"<div style='display:flex;justify-content:center;gap:12px;align-items:flex-end'>";
+      if(dias2>0)cdHtml+="<div><div style='font-family:var(--font-display);font-size:2.8rem;font-weight:700;color:var(--ink);line-height:1'>"+dias2+"</div><div style='font-size:0.55rem;color:var(--mut);letter-spacing:0.06em'>DÍAS</div></div><div style='font-size:1.5rem;color:var(--brd);padding-bottom:8px'>:</div>";
+      cdHtml+="<div><div style='font-family:var(--font-display);font-size:2.8rem;font-weight:700;color:var(--ink);line-height:1'>"+String(hrs2).padStart(2,"0")+"</div><div style='font-size:0.55rem;color:var(--mut);letter-spacing:0.06em'>HORAS</div></div>"
+        +"<div style='font-size:1.5rem;color:var(--brd);padding-bottom:8px'>:</div>"
+        +"<div><div style='font-family:var(--font-display);font-size:2.8rem;font-weight:700;color:var(--g2);line-height:1'>"+String(mins2).padStart(2,"0")+"</div><div style='font-size:0.55rem;color:var(--mut);letter-spacing:0.06em'>MIN</div></div>"
+        +"</div><div style='font-size:0.6rem;color:var(--mut);margin-top:8px'>SÁBADO "+sat2.getDate()+" "+MESES_C[sat2.getMonth()].toUpperCase()+" · 7:45 HS</div>"
+        +"</div>";
+    }
+    html+=cdHtml;
+
     // HEADER
     html+="<div style='margin-bottom:16px'>";
     html+="<div style='font-family:var(--font-display);font-size:1.5rem;letter-spacing:0.04em;color:var(--ink)'>STATS</div>";
@@ -1402,17 +1426,7 @@
     var fh=document.getElementById("fh"),hh=document.getElementById("hh");
     if(fh)fh.textContent=DIAS[now.getDay()]+" "+now.getDate()+" "+MESES_C[now.getMonth()];
     if(hh)hh.textContent=now.toLocaleTimeString("es-AR",{hour:"2-digit",minute:"2-digit"});
-    // Countdown
-    var cl=document.getElementById("countdown-line");
-    if(cl){
-      var sat=nextSat();sat.setHours(7,45,0,0);
-      var diff=sat-now;
-      if(diff<=0){cl.textContent="HOY ES EL DÍA ☕";}
-      else{
-        var dias=Math.floor(diff/86400000),hrs=Math.floor((diff%86400000)/3600000),mins=Math.floor((diff%3600000)/60000);
-        cl.textContent=dias>0?"☕ EN "+dias+"D "+hrs+"H":hrs>0?"☕ EN "+hrs+"H "+mins+"MIN":"☕ EN "+mins+" MIN!";
-      }
-    }
+
   }
   window.openModal=function(id){var el=document.getElementById(id);if(el)el.classList.add("open");var inp=document.querySelector("#"+id+" input");if(inp)setTimeout(function(){inp.focus();},120);};
   window.closeModal=function(id){var el=document.getElementById(id);if(el)el.classList.remove("open");if(id==="mextra"){pDrink=null;pFor=null;}};
@@ -1765,7 +1779,7 @@ header::after{
 </head>
 <body>
 <header>
-  <div class="htop"><div class="htit">Mesa de <span>Galanes</span></div><div class="hmeta"><div id="fh">—</div><div id="hh">—</div><div id="countdown-line" style="font-size:0.6rem;color:var(--g2);font-weight:700;letter-spacing:0.04em;margin-top:1px"></div</div></div></div>
+  <div class="htop"><div class="htit">Mesa de <span>Galanes</span></div><div class="hmeta"><div id="fh">—</div><div id="hh">—</div</div></div></div>
   <div class="nz"><div id="prompt" onclick="openModal('mnombre')">👤 Quien sos?</div><div id="badge" onclick="changeName()"></div><span id="total-badge"></span><button id="vbtn" onclick="toggleVoice()">🔇</button></div>
 </header>
 <div id="cumple-banner" style="display:none"></div>
