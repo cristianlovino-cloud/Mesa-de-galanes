@@ -1297,8 +1297,8 @@
       html+="</div>";
     }
 
-    // EL MÁS REBUSCADO
-    if(masRebuscado.length){
+    // EL MÁS REBUSCADO (solo admin)
+    if(isAdmin()&&masRebuscado.length){
       html+="<div class='stats-section'>";
       html+="<div class='stats-title'>🎩 MÁS REBUSCADOS</div>";
       html+="<div style='font-size:0.6rem;color:var(--mut);margin-bottom:10px'>% DE PEDIDOS CON ACOMPAÑAMIENTO</div>";
