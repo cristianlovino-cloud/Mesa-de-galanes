@@ -266,9 +266,12 @@
   function tengo(){return me&&Object.values(orders).some(function(o){return o.player===me;});}
   function confirmado(){return me&&confirmed[me];}
   function renderConfirmBtn(){
-    var w=document.getElementById("confirm-wrap");
-    if(!me||!tengo()||confirmado()){w.style.display="none";return;}
-    w.style.display="flex";
+    var w=document.getElementById("confirm-wrap");if(!w)return;
+    if(!me||confirmado()){w.style.display="none";return;}
+    // Mostrar si tiene pedidos propios (no solo cargados por admin)
+    var misPed=Object.values(orders).filter(function(o){return o.player===me&&o.loadedBy!=="admin";});
+    if(misPed.length>0){w.style.display="flex";}
+    else{w.style.display="none";}
   }
   window.doConfirm=async function(){
     if(!me||confirmado())return;
@@ -899,7 +902,12 @@
   window.guardarPedidoReserva=async function(){
     var sel=window._reservaSeleccion||[];
     if(!sel.length){showToast("Elegí al menos una bebida");return;}
-    var pedidos=sel.map(function(idx){var d=drinks[idx];return{drinkIdx:idx,drink:d.name,icon:d.icon,extra:null};});
+    var pedidos=sel.map(function(item){
+      var idx=typeof item==="object"?item.idx:item;
+      var extra=typeof item==="object"?item.extra:null;
+      var d=drinks[idx];
+      return{drinkIdx:idx,drink:d.name,icon:d.icon,extra:extra};
+    });
     var cur=reservas[me]||{asistencia:true,ts:Date.now(),sat:nextSatStr()};
     cur.pedidos=pedidos;
     await set(ref(db,"reserva/"+me),cur);reservas[me]=cur;
@@ -911,14 +919,53 @@
   window.toggleReservaSeleccion=function(idx,btn){
     if(!window._reservaSeleccion)window._reservaSeleccion=[];
     var pos=window._reservaSeleccion.indexOf(idx);
-    if(pos===-1){window._reservaSeleccion.push(idx);btn.classList.add("odbtn-sel");}
-    else{window._reservaSeleccion.splice(pos,1);btn.classList.remove("odbtn-sel");}
+    if(pos!==-1){
+      // Desmarcar
+      window._reservaSeleccion.splice(pos,1);
+      btn.classList.remove("odbtn-sel");
+      var lbl=document.getElementById("reserva-sel-label");
+      var count=window._reservaSeleccion.length;
+      if(lbl)lbl.textContent=count>0?count+" SELECCIONADO"+(count>1?"S":""):"¿QUÉ TOMÁS?";
+      return;
+    }
+    // Marcar — guardar idx y abrir extras
+    window._reservaIdx=idx;
+    var d=drinks[idx];
+    var extrasDisp=d.extras&&d.extras.length>0?d.extras:EXTRAS;
+    document.getElementById("rextras-title").textContent=d.icon+" "+d.name;
+    var grid=document.getElementById("rextras-grid");
+    grid.innerHTML=extrasDisp.map(function(ex){
+      return "<button class='xbtn' onclick='confirmarExtraReserva(this)' data-extra='"+ex.replace(/'/g,"&#39;")+"'>"+ex+"</button>";
+    }).join("");
+    // Guardar referencia al btn para marcarlo luego
+    window._reservaBtn=btn;
+    openModal("mrextras");
+  };
+  window.confirmarExtraReserva=function(btn){
+    var extra=btn.getAttribute("data-extra");
+    var idx=window._reservaIdx;
+    if(!window._reservaSeleccion)window._reservaSeleccion=[];
+    // Guardar como objeto con extra
+    window._reservaSeleccion.push({idx:idx,extra:extra});
+    if(window._reservaBtn)window._reservaBtn.classList.add("odbtn-sel");
+    closeModal("mrextras");
     var count=window._reservaSeleccion.length;
     var lbl=document.getElementById("reserva-sel-label");
-    if(lbl)lbl.textContent=count>0?count+" SELECCIONADO"+(count>1?"S":""):"¿QUÉ TOMÁS?";
+    if(lbl)lbl.textContent=count+" SELECCIONADO"+(count>1?"S":"");
   };
   window.noEstoy=function(){if(confirm("¿Seguro que no venís el "+satLabel()+"?")){speak("Nos vemos otro sábado!");showToast("😔 Hasta la próxima!");setTimeout(function(){window.close();},1500);}};
-  window.cancelarReserva=async function(){if(!confirm("Cancelar tu reserva?"))return;await set(ref(db,"reserva/"+me),null);delete reservas[me];showToast("Reserva cancelada");renderReserva();};
+  window.cancelarReserva=async function(){
+    if(!confirm("Cancelar tu reserva y pedido de hoy?"))return;
+    // Borrar reserva
+    await set(ref(db,"reserva/"+me),null);delete reservas[me];
+    // Borrar pedidos del día actual
+    var mis=Object.entries(orders).filter(function(e){return e[1].player===me;});
+    for(var i=0;i<mis.length;i++)await remove(ref(db,"pedido/orders/"+mis[i][0]));
+    // Borrar confirmación
+    if(confirmed[me])await set(ref(db,"pedido/confirmed/"+me),null);
+    showToast("Reserva y pedido cancelados");
+    renderReserva();renderOrders();renderConfirmBtn();
+  };
   window.guardarPedidoComoReserva=async function(){
     var myOrders=Object.values(orders).filter(function(o){return o.player===me;});
     if(!myOrders.length){showToast("Primero elegí qué tomás");return;}
@@ -2080,6 +2127,15 @@ header::after{
       <button class="bp" onclick="guardarPedidoReserva()" style="width:100%">✅ LISTO — GUARDAR PEDIDO</button>
       <button onclick="confirmarSinPedir()" style="background:none;border:none;color:var(--mut);font-size:0.7rem;cursor:pointer;padding:4px;text-decoration:underline">Confirmar sin elegir bebida por ahora</button>
     </div>
+  </div>
+</div>
+<div class="modal-overlay mc" id="mrextras" onclick="if(event.target===this)closeModal('mrextras')">
+  <div class="modal">
+    <div class="mh2"></div>
+    <h3 id="rextras-title" style="margin-bottom:12px"></h3>
+    <p class="msub">¿CON QUÉ LO QUERÉS?</p>
+    <div id="rextras-grid" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px"></div>
+    <div class="ma"><button class="bs" onclick="closeModal('mrextras')">Cancelar</button></div>
   </div>
 </div>
 <div class="modal-overlay" id="mmerge" onclick="if(event.target===this)closeModal('mmerge')">
