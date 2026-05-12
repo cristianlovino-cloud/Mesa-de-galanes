@@ -1553,325 +1553,52 @@
   }
 
 
-  // Datos oficiales sorteo Mundial 2026
-  var MUNDIAL_DATA = {
-    grupos: [
-      {letra:"A", nombre_sede:"🇺🇸 Los Ángeles", equipos:[
-        {nombre:"Estados Unidos",bandera:"🇺🇸",pts:0,j:0,g:0,e:0,p:0,gf:0,gc:0},
-        {nombre:"Panamá",bandera:"🇵🇦",pts:0,j:0,g:0,e:0,p:0,gf:0,gc:0},
-        {nombre:"Bolivia",bandera:"🇧🇴",pts:0,j:0,g:0,e:0,p:0,gf:0,gc:0},
-        {nombre:"Nueva Zelanda",bandera:"🇳🇿",pts:0,j:0,g:0,e:0,p:0,gf:0,gc:0}],
-        partidos:[
-          {local:"Estados Unidos",visitante:"Panamá",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"12 Jun"},
-          {local:"Bolivia",visitante:"Nueva Zelanda",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"12 Jun"},
-          {local:"Estados Unidos",visitante:"Bolivia",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"16 Jun"},
-          {local:"Panamá",visitante:"Nueva Zelanda",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"16 Jun"},
-          {local:"Panamá",visitante:"Bolivia",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"20 Jun"},
-          {local:"Nueva Zelanda",visitante:"Estados Unidos",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"20 Jun"}]},
-      {letra:"B", nombre_sede:"🇺🇸 San Francisco", equipos:[
-        {nombre:"Argentina",bandera:"🇦🇷",pts:0,j:0,g:0,e:0,p:0,gf:0,gc:0},
-        {nombre:"Chile",bandera:"🇨🇱",pts:0,j:0,g:0,e:0,p:0,gf:0,gc:0},
-        {nombre:"Perú",bandera:"🇵🇪",pts:0,j:0,g:0,e:0,p:0,gf:0,gc:0},
-        {nombre:"Australia",bandera:"🇦🇺",pts:0,j:0,g:0,e:0,p:0,gf:0,gc:0}],
-        partidos:[
-          {local:"Argentina",visitante:"Chile",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"15 Jun"},
-          {local:"Perú",visitante:"Australia",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"15 Jun"},
-          {local:"Argentina",visitante:"Perú",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"19 Jun"},
-          {local:"Chile",visitante:"Australia",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"19 Jun"},
-          {local:"Australia",visitante:"Argentina",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"23 Jun"},
-          {local:"Chile",visitante:"Perú",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"23 Jun"}]},
-      {letra:"C", nombre_sede:"🇺🇸 Miami", equipos:[
-        {nombre:"México",bandera:"🇲🇽",pts:0,j:0,g:0,e:0,p:0,gf:0,gc:0},
-        {nombre:"Jamaica",bandera:"🇯🇲",pts:0,j:0,g:0,e:0,p:0,gf:0,gc:0},
-        {nombre:"Venezuela",bandera:"🇻🇪",pts:0,j:0,g:0,e:0,p:0,gf:0,gc:0},
-        {nombre:"Iraq",bandera:"🇮🇶",pts:0,j:0,g:0,e:0,p:0,gf:0,gc:0}],
-        partidos:[
-          {local:"México",visitante:"Jamaica",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"11 Jun"},
-          {local:"Venezuela",visitante:"Iraq",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"11 Jun"},
-          {local:"México",visitante:"Venezuela",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"15 Jun"},
-          {local:"Jamaica",visitante:"Iraq",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"15 Jun"},
-          {local:"Iraq",visitante:"México",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"19 Jun"},
-          {local:"Jamaica",visitante:"Venezuela",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"19 Jun"}]},
-      {letra:"D", nombre_sede:"🇺🇸 Dallas", equipos:[
-        {nombre:"Brasil",bandera:"🇧🇷",pts:0,j:0,g:0,e:0,p:0,gf:0,gc:0},
-        {nombre:"Congo DR",bandera:"🇨🇩",pts:0,j:0,g:0,e:0,p:0,gf:0,gc:0},
-        {nombre:"Serbia",bandera:"🇷🇸",pts:0,j:0,g:0,e:0,p:0,gf:0,gc:0},
-        {nombre:"Arabia Saudita",bandera:"🇸🇦",pts:0,j:0,g:0,e:0,p:0,gf:0,gc:0}],
-        partidos:[
-          {local:"Brasil",visitante:"Congo DR",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"13 Jun"},
-          {local:"Serbia",visitante:"Arabia Saudita",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"13 Jun"},
-          {local:"Brasil",visitante:"Serbia",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"17 Jun"},
-          {local:"Congo DR",visitante:"Arabia Saudita",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"17 Jun"},
-          {local:"Arabia Saudita",visitante:"Brasil",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"21 Jun"},
-          {local:"Congo DR",visitante:"Serbia",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"21 Jun"}]},
-      {letra:"E", nombre_sede:"🇺🇸 Nueva York", equipos:[
-        {nombre:"España",bandera:"🇪🇸",pts:0,j:0,g:0,e:0,p:0,gf:0,gc:0},
-        {nombre:"Turquía",bandera:"🇹🇷",pts:0,j:0,g:0,e:0,p:0,gf:0,gc:0},
-        {nombre:"Japón",bandera:"🇯🇵",pts:0,j:0,g:0,e:0,p:0,gf:0,gc:0},
-        {nombre:"Uzbekistán",bandera:"🇺🇿",pts:0,j:0,g:0,e:0,p:0,gf:0,gc:0}],
-        partidos:[
-          {local:"España",visitante:"Turquía",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"14 Jun"},
-          {local:"Japón",visitante:"Uzbekistán",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"14 Jun"},
-          {local:"España",visitante:"Japón",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"18 Jun"},
-          {local:"Turquía",visitante:"Uzbekistán",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"18 Jun"},
-          {local:"Uzbekistán",visitante:"España",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"22 Jun"},
-          {local:"Turquía",visitante:"Japón",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"22 Jun"}]},
-      {letra:"F", nombre_sede:"🇨🇦 Toronto", equipos:[
-        {nombre:"Portugal",bandera:"🇵🇹",pts:0,j:0,g:0,e:0,p:0,gf:0,gc:0},
-        {nombre:"Nigeria",bandera:"🇳🇬",pts:0,j:0,g:0,e:0,p:0,gf:0,gc:0},
-        {nombre:"República Checa",bandera:"🇨🇿",pts:0,j:0,g:0,e:0,p:0,gf:0,gc:0},
-        {nombre:"Indonesia",bandera:"🇮🇩",pts:0,j:0,g:0,e:0,p:0,gf:0,gc:0}],
-        partidos:[
-          {local:"Portugal",visitante:"Nigeria",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"13 Jun"},
-          {local:"Rep. Checa",visitante:"Indonesia",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"13 Jun"},
-          {local:"Portugal",visitante:"Rep. Checa",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"17 Jun"},
-          {local:"Nigeria",visitante:"Indonesia",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"17 Jun"},
-          {local:"Indonesia",visitante:"Portugal",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"21 Jun"},
-          {local:"Nigeria",visitante:"Rep. Checa",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"21 Jun"}]},
-      {letra:"G", nombre_sede:"🇨🇦 Vancouver", equipos:[
-        {nombre:"Francia",bandera:"🇫🇷",pts:0,j:0,g:0,e:0,p:0,gf:0,gc:0},
-        {nombre:"Uruguay",bandera:"🇺🇾",pts:0,j:0,g:0,e:0,p:0,gf:0,gc:0},
-        {nombre:"Gabón",bandera:"🇬🇦",pts:0,j:0,g:0,e:0,p:0,gf:0,gc:0},
-        {nombre:"Corea del Sur",bandera:"🇰🇷",pts:0,j:0,g:0,e:0,p:0,gf:0,gc:0}],
-        partidos:[
-          {local:"Francia",visitante:"Uruguay",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"14 Jun"},
-          {local:"Gabón",visitante:"Corea del Sur",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"14 Jun"},
-          {local:"Francia",visitante:"Gabón",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"18 Jun"},
-          {local:"Uruguay",visitante:"Corea del Sur",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"18 Jun"},
-          {local:"Corea del Sur",visitante:"Francia",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"22 Jun"},
-          {local:"Uruguay",visitante:"Gabón",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"22 Jun"}]},
-      {letra:"H", nombre_sede:"🇲🇽 Guadalajara", equipos:[
-        {nombre:"Alemania",bandera:"🇩🇪",pts:0,j:0,g:0,e:0,p:0,gf:0,gc:0},
-        {nombre:"Escocia",bandera:"🏴󠁧󠁢󠁳󠁣󠁴󠁿",pts:0,j:0,g:0,e:0,p:0,gf:0,gc:0},
-        {nombre:"Marruecos",bandera:"🇲🇦",pts:0,j:0,g:0,e:0,p:0,gf:0,gc:0},
-        {nombre:"Colombia",bandera:"🇨🇴",pts:0,j:0,g:0,e:0,p:0,gf:0,gc:0}],
-        partidos:[
-          {local:"Alemania",visitante:"Escocia",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"16 Jun"},
-          {local:"Marruecos",visitante:"Colombia",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"16 Jun"},
-          {local:"Alemania",visitante:"Marruecos",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"20 Jun"},
-          {local:"Escocia",visitante:"Colombia",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"20 Jun"},
-          {local:"Colombia",visitante:"Alemania",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"24 Jun"},
-          {local:"Escocia",visitante:"Marruecos",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"24 Jun"}]},
-      {letra:"I", nombre_sede:"🇲🇽 Monterrey", equipos:[
-        {nombre:"Inglaterra",bandera:"🏴󠁧󠁢󠁥󠁮󠁧󠁿",pts:0,j:0,g:0,e:0,p:0,gf:0,gc:0},
-        {nombre:"Senegal",bandera:"🇸🇳",pts:0,j:0,g:0,e:0,p:0,gf:0,gc:0},
-        {nombre:"Países Bajos",bandera:"🇳🇱",pts:0,j:0,g:0,e:0,p:0,gf:0,gc:0},
-        {nombre:"Etiopía",bandera:"🇪🇹",pts:0,j:0,g:0,e:0,p:0,gf:0,gc:0}],
-        partidos:[
-          {local:"Inglaterra",visitante:"Senegal",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"15 Jun"},
-          {local:"Países Bajos",visitante:"Etiopía",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"15 Jun"},
-          {local:"Inglaterra",visitante:"Países Bajos",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"19 Jun"},
-          {local:"Senegal",visitante:"Etiopía",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"19 Jun"},
-          {local:"Etiopía",visitante:"Inglaterra",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"23 Jun"},
-          {local:"Senegal",visitante:"Países Bajos",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"23 Jun"}]},
-      {letra:"J", nombre_sede:"🇺🇸 Seattle", equipos:[
-        {nombre:"Bélgica",bandera:"🇧🇪",pts:0,j:0,g:0,e:0,p:0,gf:0,gc:0},
-        {nombre:"Egipto",bandera:"🇪🇬",pts:0,j:0,g:0,e:0,p:0,gf:0,gc:0},
-        {nombre:"Ecuador",bandera:"🇪🇨",pts:0,j:0,g:0,e:0,p:0,gf:0,gc:0},
-        {nombre:"Ucrania",bandera:"🇺🇦",pts:0,j:0,g:0,e:0,p:0,gf:0,gc:0}],
-        partidos:[
-          {local:"Bélgica",visitante:"Egipto",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"16 Jun"},
-          {local:"Ecuador",visitante:"Ucrania",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"16 Jun"},
-          {local:"Bélgica",visitante:"Ecuador",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"20 Jun"},
-          {local:"Egipto",visitante:"Ucrania",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"20 Jun"},
-          {local:"Ucrania",visitante:"Bélgica",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"24 Jun"},
-          {local:"Egipto",visitante:"Ecuador",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"24 Jun"}]},
-      {letra:"K", nombre_sede:"🇺🇸 Atlanta", equipos:[
-        {nombre:"Italia",bandera:"🇮🇹",pts:0,j:0,g:0,e:0,p:0,gf:0,gc:0},
-        {nombre:"México (2)",bandera:"🇲🇽",pts:0,j:0,g:0,e:0,p:0,gf:0,gc:0},
-        {nombre:"Camerún",bandera:"🇨🇲",pts:0,j:0,g:0,e:0,p:0,gf:0,gc:0},
-        {nombre:"Kuwait",bandera:"🇰🇼",pts:0,j:0,g:0,e:0,p:0,gf:0,gc:0}],
-        partidos:[
-          {local:"Italia",visitante:"Camerún",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"17 Jun"},
-          {local:"México",visitante:"Kuwait",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"17 Jun"},
-          {local:"Italia",visitante:"México",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"21 Jun"},
-          {local:"Camerún",visitante:"Kuwait",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"21 Jun"},
-          {local:"Kuwait",visitante:"Italia",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"25 Jun"},
-          {local:"Camerún",visitante:"México",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"25 Jun"}]},
-      {letra:"L", nombre_sede:"🇺🇸 Boston", equipos:[
-        {nombre:"Croacia",bandera:"🇭🇷",pts:0,j:0,g:0,e:0,p:0,gf:0,gc:0},
-        {nombre:"Irán",bandera:"🇮🇷",pts:0,j:0,g:0,e:0,p:0,gf:0,gc:0},
-        {nombre:"Albania",bandera:"🇦🇱",pts:0,j:0,g:0,e:0,p:0,gf:0,gc:0},
-        {nombre:"Canadá",bandera:"🇨🇦",pts:0,j:0,g:0,e:0,p:0,gf:0,gc:0}],
-        partidos:[
-          {local:"Croacia",visitante:"Irán",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"18 Jun"},
-          {local:"Albania",visitante:"Canadá",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"18 Jun"},
-          {local:"Croacia",visitante:"Albania",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"22 Jun"},
-          {local:"Irán",visitante:"Canadá",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"22 Jun"},
-          {local:"Canadá",visitante:"Croacia",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"26 Jun"},
-          {local:"Irán",visitante:"Albania",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"26 Jun"}]}
-    ],
-    fase_eliminatoria:{
-      octavos:[
-        {local:"1A",visitante:"2B",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"Por definir"},
-        {local:"1C",visitante:"2D",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"Por definir"},
-        {local:"1B",visitante:"2A",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"Por definir"},
-        {local:"1D",visitante:"2C",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"Por definir"},
-        {local:"1E",visitante:"2F",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"Por definir"},
-        {local:"1G",visitante:"2H",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"Por definir"},
-        {local:"1F",visitante:"2E",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"Por definir"},
-        {local:"1H",visitante:"2G",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"Por definir"}],
-      cuartos:[],semifinales:[],
-      final:{local:"Por definir",visitante:"Por definir",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"19 Jul 2026"}
-    }
-  };
-
   window.renderMundial=function(){
     window._mundialLoaded=true;
     var panel=document.getElementById("mundial-content");
     if(!panel)return;
-    var inicio=new Date("2026-06-11T18:00:00-05:00");
-    var now=new Date();
-    var diff=inicio-now;
-    var cdHtml="";
-    if(diff>0){
-      var dias=Math.floor(diff/86400000),hrs=Math.floor((diff%86400000)/3600000),mins=Math.floor((diff%3600000)/60000);
-      cdHtml="<div style='text-align:center;background:linear-gradient(135deg,rgba(0,120,50,0.15),rgba(0,80,180,0.1));border:1px solid rgba(255,255,255,0.1);border-radius:16px;padding:18px 16px;margin-bottom:16px'>"
-        +"<div style='font-size:0.6rem;color:var(--mut);letter-spacing:0.1em;margin-bottom:10px'>⚽ MUNDIAL 2026 · USA-CANADA-MEXICO</div>"
-        +"<div style='display:flex;justify-content:center;gap:14px;align-items:flex-end;margin-bottom:10px'>"
-        +"<div><div style='font-family:var(--font-display);font-size:3rem;font-weight:700;color:var(--ink);line-height:1'>"+dias+"</div><div style='font-size:0.55rem;color:var(--mut);letter-spacing:0.06em'>DÍAS</div></div>"
-        +"<div style='font-size:2rem;color:var(--brd);padding-bottom:12px'>:</div>"
-        +"<div><div style='font-family:var(--font-display);font-size:3rem;font-weight:700;color:var(--ink);line-height:1'>"+String(hrs).padStart(2,"0")+"</div><div style='font-size:0.55rem;color:var(--mut);letter-spacing:0.06em'>HORAS</div></div>"
-        +"<div style='font-size:2rem;color:var(--brd);padding-bottom:12px'>:</div>"
-        +"<div><div style='font-family:var(--font-display);font-size:3rem;font-weight:700;color:var(--g2);line-height:1'>"+String(mins).padStart(2,"0")+"</div><div style='font-size:0.55rem;color:var(--mut);letter-spacing:0.06em'>MIN</div></div>"
+
+    function updateMundialClock(){
+      var inicio=new Date("2026-06-11T18:00:00-05:00");
+      var now=new Date();
+      var diff=inicio-now;
+      var el=document.getElementById("mundial-clock");
+      if(!el)return;
+      if(diff<=0){
+        el.innerHTML="<div style='font-size:2rem'>⚽</div><div style='font-family:var(--font-display);font-size:1.6rem;color:var(--g2);margin-top:6px'>MUNDIAL EN CURSO</div>";
+        return;
+      }
+      var dias=Math.floor(diff/86400000);
+      var hrs=Math.floor((diff%86400000)/3600000);
+      var mins=Math.floor((diff%3600000)/60000);
+      var secs=Math.floor((diff%60000)/1000);
+      el.innerHTML="<div style='font-size:0.6rem;color:var(--mut);letter-spacing:0.1em;margin-bottom:12px'>⚽ MUNDIAL 2026 · USA · CANADA · MEXICO</div>"
+        +"<div style='display:flex;justify-content:center;gap:14px;align-items:flex-end;margin-bottom:12px'>"
+        +"<div><div style='font-family:var(--font-display);font-size:3.2rem;font-weight:700;color:var(--ink);line-height:1'>"+dias+"</div><div style='font-size:0.55rem;color:var(--mut);letter-spacing:0.06em;margin-top:4px'>DÍAS</div></div>"
+        +"<div style='font-size:2rem;color:var(--brd);padding-bottom:14px'>:</div>"
+        +"<div><div style='font-family:var(--font-display);font-size:3.2rem;font-weight:700;color:var(--ink);line-height:1'>"+String(hrs).padStart(2,"0")+"</div><div style='font-size:0.55rem;color:var(--mut);letter-spacing:0.06em;margin-top:4px'>HORAS</div></div>"
+        +"<div style='font-size:2rem;color:var(--brd);padding-bottom:14px'>:</div>"
+        +"<div><div style='font-family:var(--font-display);font-size:3.2rem;font-weight:700;color:var(--ink);line-height:1'>"+String(mins).padStart(2,"0")+"</div><div style='font-size:0.55rem;color:var(--mut);letter-spacing:0.06em;margin-top:4px'>MIN</div></div>"
+        +"<div style='font-size:2rem;color:var(--brd);padding-bottom:14px'>:</div>"
+        +"<div><div style='font-family:var(--font-display);font-size:3.2rem;font-weight:700;color:var(--g2);line-height:1'>"+String(secs).padStart(2,"0")+"</div><div style='font-size:0.55rem;color:var(--mut);letter-spacing:0.06em;margin-top:4px'>SEG</div></div>"
         +"</div>"
-        +"<div style='font-size:0.62rem;color:var(--mut)'>PRIMER PARTIDO: 11 JUN 2026 · CIUDAD DE MÉXICO</div>"
-        +"</div>";
-    } else {
-      cdHtml="<div style='text-align:center;padding:14px;background:linear-gradient(135deg,rgba(0,160,50,0.15),rgba(0,80,200,0.1));border-radius:16px;margin-bottom:16px'>"
-        +"<div style='font-size:2rem'>⚽</div>"
-        +"<div style='font-family:var(--font-display);font-size:1.4rem;color:var(--g2)'>MUNDIAL EN CURSO</div></div>";
+        +"<div style='font-size:0.62rem;color:var(--mut)'>PRIMER PARTIDO: 11 JUN 2026 · CIUDAD DE MÉXICO</div>";
     }
-    renderMundialData(MUNDIAL_DATA,panel,cdHtml);
-  };
 
-
-  function renderMundialData(data,panel,cdHtml){
-    var html=cdHtml;
-    var grupos=data.grupos||[];
-
-    html+="<div style='font-size:0.65rem;color:var(--g2);font-weight:700;letter-spacing:0.08em;margin-bottom:10px'>⚽ FASE DE GRUPOS</div>";
-    html+="<div id='grupos-carrusel' style='display:flex;gap:10px;overflow-x:auto;padding-bottom:8px;margin-bottom:16px;scrollbar-width:none;-webkit-overflow-scrolling:touch'>";
-
-    grupos.forEach(function(g){
-      var tieneArg=g.equipos&&g.equipos.some(function(e){return e.nombre&&e.nombre.toLowerCase().includes("argentina");});
-      var bg=tieneArg?"linear-gradient(135deg,rgba(116,166,214,0.15),rgba(255,255,255,0.05))":"var(--sur)";
-      var bd=tieneArg?"rgba(116,166,214,0.5)":"var(--brd)";
-      var gLetra=g.letra;
-      html+='<div onclick="mostrarGrupo(\''+gLetra+'\');" style="flex-shrink:0;width:140px;background:'+bg+';border:1.5px solid '+bd+';border-radius:14px;padding:12px;cursor:pointer">';
-      html+='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">';
-      html+='<div style="font-family:var(--font-display);font-size:1.2rem;font-weight:700;color:var(--g2)">G-'+g.letra+'</div>';
-      if(tieneArg)html+='<div style="font-size:0.55rem;background:rgba(116,166,214,0.2);color:#74a6d6;padding:2px 6px;border-radius:4px;font-weight:700">ARG</div>';
-      html+="</div>";
-      (g.equipos||[]).slice(0,4).forEach(function(e){
-        html+=["<div style='font-size:0.62rem;color:var(--ink);margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis'>",
-               e.bandera||""," ",e.nombre,"</div>"].join("");
-      });
-      html+="</div>";
-    });
-    html+="</div>";
-    html+="<div id='grupo-detalle' style='margin-bottom:16px'></div>";
-
-    // Fase eliminatoria
-    var fe=data.fase_eliminatoria||{};
-    var fases=[["octavos","⚔️ OCTAVOS"],["cuartos","🏆 CUARTOS"],["semifinales","🥊 SEMIS"],["final","🏅 FINAL"]];
-    fases.forEach(function(f){
-      var partidos=f[0]==="final"?(fe.final?[fe.final]:[]):(fe[f[0]]||[]);
-      if(!partidos.length)return;
-      html+="<div class='stats-section' style='margin-bottom:10px'>";
-      html+="<div class='stats-title'>"+f[1]+"</div>";
-      partidos.forEach(function(p){
-        var esVivo=p.estado==="en_curso",esFin=p.estado==="finalizado";
-        html+="<div style='display:flex;align-items:center;padding:8px 0;border-bottom:1px solid var(--brd)'>";
-        html+="<div style='flex:1;font-size:0.72rem;font-weight:600;text-align:right'>"+p.local+"</div>";
-        html+="<div style='padding:0 10px;text-align:center;min-width:55px'>";
-        if(esFin||esVivo){
-          html+="<span style='font-family:var(--font-display);font-weight:700;color:"+(esVivo?"#4ade80":"var(--ink)")+"'>"+p.gol_local+"-"+p.gol_visitante+"</span>";
-          if(esVivo)html+="<br><span style='font-size:0.45rem;color:#4ade80'>EN VIVO</span>";
-        } else {
-          html+="<span style='color:var(--mut);font-size:0.58rem'>"+(p.fecha||"vs")+"</span>";
-        }
-        html+="</div>";
-        html+="<div style='flex:1;font-size:0.72rem;font-weight:600'>"+p.visitante+"</div>";
-        html+="</div>";
-      });
-      html+="</div>";
-    });
-
-    panel.innerHTML=html;
-    window._gruposData=grupos;
-    var gArg=grupos.find(function(g){return g.equipos&&g.equipos.some(function(e){return e.nombre&&e.nombre.toLowerCase().includes("argentina");});});
-    if(gArg)mostrarGrupoData(gArg);
-  }
-
-
-  window.mostrarGrupo=function(letra){
-    if(typeof letra!=="string")letra=letra;
-    if(!window._gruposData)return;
-    var g=window._gruposData.find(function(x){return x.letra===letra;});
-    if(g)mostrarGrupoData(g);
-  };
-
-  function mostrarGrupoData(g){
-    var panel=document.getElementById("grupo-detalle");if(!panel)return;
-    var html="<div style='background:var(--sur);border:1px solid var(--brd);border-radius:14px;padding:14px'>";
-    html+="<div style='display:flex;align-items:center;justify-content:space-between;margin-bottom:12px'>";
-    html+="<div style='font-size:0.65rem;font-weight:700;color:var(--g2);letter-spacing:0.08em'>GRUPO "+g.letra+(g.nombre_sede?" · "+g.nombre_sede:"")+"</div></div>";
-
-    // Tabla de posiciones
-    var equipos=(g.equipos||[]).slice().sort(function(a,b){return (b.pts||0)-(a.pts||0);});
-    html+="<table style='width:100%;border-collapse:collapse;font-size:0.62rem;margin-bottom:12px'>";
-    html+="<tr style='color:var(--mut);font-size:0.55rem;letter-spacing:0.06em'><td style='padding:2px 4px'>#</td><td>EQUIPO</td><td style='text-align:center'>PJ</td><td style='text-align:center'>G</td><td style='text-align:center'>E</td><td style='text-align:center'>P</td><td style='text-align:center'>GD</td><td style='text-align:center;color:var(--g2);font-weight:700'>PTS</td></tr>";
-    equipos.forEach(function(e,i){
-      var gd=(e.gf||0)-(e.gc||0);
-      var esArg=e.nombre&&e.nombre.toLowerCase().includes("argentina");
-      html+="<tr style='"+(esArg?"background:rgba(116,166,214,0.08)":"")+"'>";
-      html+="<td style='padding:5px 4px;color:var(--mut)'>"+( i<2?"<span style='color:#4ade80'>":"<span style='color:var(--mut)'>")+( i+1)+"</span></td>";
-      html+="<td style='font-weight:600;color:var(--ink)'>"+(e.bandera||"")+" "+e.nombre+"</td>";
-      html+="<td style='text-align:center;color:var(--mut)'>"+(e.j||0)+"</td>";
-      html+="<td style='text-align:center;color:var(--mut)'>"+(e.g||0)+"</td>";
-      html+="<td style='text-align:center;color:var(--mut)'>"+(e.e||0)+"</td>";
-      html+="<td style='text-align:center;color:var(--mut)'>"+(e.p||0)+"</td>";
-      html+="<td style='text-align:center;color:var(--mut)'>"+(gd>0?"+":"")+gd+"</td>";
-      html+="<td style='text-align:center;font-weight:800;color:var(--g2)'>"+(e.pts||0)+"</td>";
-      html+="</tr>";
-    });
-    html+="</table>";
-
-    // Partidos del grupo
-    var partidos=g.partidos||[];
-    if(partidos.length){
-      html+="<div style='font-size:0.58rem;color:var(--mut);letter-spacing:0.06em;margin-bottom:8px'>PARTIDOS</div>";
-      partidos.forEach(function(p){
-        var esFin=p.estado==="finalizado";
-        var esVivo=p.estado==="en_curso";
-        html+="<div style='display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-top:1px solid var(--brd);font-size:0.65rem'>";
-        html+="<div style='flex:1;font-weight:600;text-align:right;color:var(--ink)'>"+p.local+"</div>";
-        html+="<div style='padding:0 8px;text-align:center;min-width:55px'>";
-        if(esFin||esVivo){
-          html+="<span style='font-weight:800;color:"+(esVivo?"#4ade80":"var(--ink)")+"'>"+p.gol_local+" - "+p.gol_visitante+"</span>";
-          if(esVivo)html+=" <span style='font-size:0.45rem;color:#4ade80;font-weight:700'>●</span>";
-        } else {
-          html+="<span style='color:var(--mut);font-size:0.58rem'>"+(p.fecha||"—")+"</span>";
-        }
-        html+="</div>";
-        html+="<div style='flex:1;font-weight:600;color:var(--ink)'>"+p.visitante+"</div>";
-        html+="</div>";
-      });
-    }
-    html+="</div>";
-    panel.innerHTML=html;
-    panel.scrollIntoView({behavior:"smooth",block:"nearest"});
-  }
-
-  function renderMundialFallback(){
-    return "<div style='text-align:center;padding:30px 20px;color:var(--mut)'>"
-      +"<div style='font-size:2rem;margin-bottom:8px'>⚽</div>"
-      +"<div style='font-size:0.8rem;margin-bottom:4px'>No se pudo cargar el fixture</div>"
-      +"<div style='font-size:0.65rem;opacity:0.6'>Revisá tu conexión</div>"
-      +"<button onclick='window._mundialLoaded=false;renderMundial()' style='margin-top:14px;background:var(--sur2);border:1px solid var(--brd);border-radius:8px;padding:8px 18px;font-size:0.7rem;color:var(--ink);cursor:pointer'>🔄 Reintentar</button>"
+    panel.innerHTML="<div style='text-align:center;background:linear-gradient(135deg,rgba(0,120,50,0.15),rgba(0,80,180,0.1));border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:20px 16px;margin-bottom:20px'><div id='mundial-clock'></div></div>"
+      +"<div style='text-align:center;padding:30px 20px;color:var(--mut)'>"
+      +"<div style='font-size:3rem;margin-bottom:12px'>🏆</div>"
+      +"<div style='font-size:0.72rem;font-weight:700;color:var(--ink);letter-spacing:0.06em;margin-bottom:8px'>FIXTURE PRÓXIMAMENTE</div>"
+      +"<div style='font-size:0.62rem;opacity:0.6;line-height:1.6'>Los grupos y fixture oficial<br>se confirman antes del 11 de junio.</div>"
       +"</div>";
-  }
+
+    updateMundialClock();
+    if(window._mundialTimer)clearInterval(window._mundialTimer);
+    window._mundialTimer=setInterval(updateMundialClock,1000);
+  };
+
+
+
 
 
   function showToast(msg){var t=document.getElementById("toast");t.textContent=msg;t.style.display="block";t.style.opacity="1";setTimeout(function(){t.style.opacity="0";setTimeout(function(){t.style.display="none";t.style.opacity="1";},400);},2200);}
