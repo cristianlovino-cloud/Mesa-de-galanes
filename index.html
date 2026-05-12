@@ -884,9 +884,38 @@
   window.cargarFav=async function(){var s=await get(rF);if(!s.exists()){showToast("No hay favorito guardado");return;}var favs=s.val(),en=Object.entries(orders);for(var i=0;i<en.length;i++)if(en[i][1].player===me)await remove(ref(db,"pedido/orders/"+en[i][0]));for(var j=0;j<favs.length;j++){var f=favs[j];await push(rO,{player:me,drinkIdx:f.drinkIdx,drink:f.drink,icon:f.icon,extra:f.extra||null,ts:Date.now()});}showToast("⭐ Mi habitual cargado!");};
   window.anotarme=async function(){
     if(!me){openModal("mnombre");return;}
+    // Guardar asistencia YA (sin esperar al pedido)
     var data={asistencia:true,pedidos:[],ts:Date.now(),sat:nextSatStr()};
-    try{await set(ref(db,"reserva/"+me),data);reservas[me]=data;showToast("✓ Anotado para el "+satLabel()+"!");speak("Anotado para el próximo sábado!");renderReserva();}
-    catch(err){showToast("Error: "+err.message);}
+    try{await set(ref(db,"reserva/"+me),data);reservas[me]=data;}catch(err){}
+    // Abrir modal de pedir para que elijan qué toman en el mismo paso
+    openModal("mpedirreserva");
+    renderReserva();
+  };
+  window.confirmarSinPedir=function(){
+    closeModal("mpedirreserva");
+    showToast("✓ Anotado para el "+satLabel()+"! Agregá tu pedido cuando quieras ☕");
+    speak("Anotado para el próximo sábado!");
+  };
+  window.guardarPedidoReserva=async function(){
+    var sel=window._reservaSeleccion||[];
+    if(!sel.length){showToast("Elegí al menos una bebida");return;}
+    var pedidos=sel.map(function(idx){var d=drinks[idx];return{drinkIdx:idx,drink:d.name,icon:d.icon,extra:null};});
+    var cur=reservas[me]||{asistencia:true,ts:Date.now(),sat:nextSatStr()};
+    cur.pedidos=pedidos;
+    await set(ref(db,"reserva/"+me),cur);reservas[me]=cur;
+    closeModal("mpedirreserva");
+    showToast("✓ Anotado con "+pedidos.map(function(p){return p.icon+" "+p.drink;}).join(", ")+"!");
+    speak("Anotado para el próximo sábado!");
+    renderReserva();
+  };
+  window.toggleReservaSeleccion=function(idx,btn){
+    if(!window._reservaSeleccion)window._reservaSeleccion=[];
+    var pos=window._reservaSeleccion.indexOf(idx);
+    if(pos===-1){window._reservaSeleccion.push(idx);btn.classList.add("odbtn-sel");}
+    else{window._reservaSeleccion.splice(pos,1);btn.classList.remove("odbtn-sel");}
+    var count=window._reservaSeleccion.length;
+    var lbl=document.getElementById("reserva-sel-label");
+    if(lbl)lbl.textContent=count>0?count+" SELECCIONADO"+(count>1?"S":""):"¿QUÉ TOMÁS?";
   };
   window.noEstoy=function(){if(confirm("¿Seguro que no venís el "+satLabel()+"?")){speak("Nos vemos otro sábado!");showToast("😔 Hasta la próxima!");setTimeout(function(){window.close();},1500);}};
   window.cancelarReserva=async function(){if(!confirm("Cancelar tu reserva?"))return;await set(ref(db,"reserva/"+me),null);delete reservas[me];showToast("Reserva cancelada");renderReserva();};
@@ -917,7 +946,16 @@
     var myRes=reservas[me]||null;
     if(myRes){
       var peds=myRes.pedidos&&myRes.pedidos.length?myRes.pedidos.map(function(p){return p.icon+" "+p.drink;}).join(", "):"";
-      panel.innerHTML="<div class='res-banner res-ok'><div style='flex:1'><div style='font-weight:700;color:#2a7a4a;margin-bottom:2px'>✓ Anotado — "+satLabel()+"</div>"+(peds?"<div style='font-size:0.78rem;color:#3a8a5a'>"+peds+"</div>":"")+"</div><button onclick='cancelarReserva()' style='background:none;border:none;color:#e74c3c;font-size:0.78rem;font-weight:700;cursor:pointer;flex-shrink:0'>✕ No voy</button></div>";
+      var sinPedido=!myRes.pedidos||myRes.pedidos.length===0;
+      panel.innerHTML="<div class='res-banner "+(sinPedido?"res-warn":"res-ok")+"'>"
+        +"<div style='flex:1'>"
+        +(sinPedido
+          ?"<div style='font-weight:700;color:#b45309;margin-bottom:4px'>✅ VAS — SIN BEBIDA</div>"
+           +"<button onclick='anotarme()' style='background:rgba(245,158,11,0.15);border:1px solid rgba(245,158,11,0.4);color:var(--g2);border-radius:8px;padding:5px 12px;font-size:0.68rem;font-weight:700;cursor:pointer;text-transform:uppercase;letter-spacing:0.04em'>☕ ELEGIR QUÉ TOMO</button>"
+          :"<div style='font-weight:700;color:#2a7a4a;margin-bottom:2px'>✓ ANOTADO — "+satLabel()+"</div>"
+           +"<div style='font-size:0.78rem;color:#3a8a5a'>"+peds+"</div>")
+        +"</div>"
+        +"<button onclick='cancelarReserva()' style='background:none;border:none;color:#e74c3c;font-size:0.78rem;font-weight:700;cursor:pointer;flex-shrink:0'>✕ No voy</button></div>";
     } else {
       panel.innerHTML="<div class='res-banner'><div><div style='font-weight:600;font-size:0.84rem;color:var(--ink)'>Próximo sáb: <b>"+satLabel()+"</b></div><div style='font-size:0.74rem;color:var(--mut);margin-top:2px'>¿Venís al 7:45?</div></div><div style='display:flex;gap:6px;flex-shrink:0'><button onclick='anotarme()' class='res-apunto-btn'>Estoy 🙂</button><button onclick='noEstoy()' class='res-apunto-btn' style='background:#666'>No estoy 😔</button></div></div>";
     }
@@ -1465,7 +1503,18 @@
     if(hh)hh.textContent=now.toLocaleTimeString("es-AR",{hour:"2-digit",minute:"2-digit"});
 
   }
-  window.openModal=function(id){var el=document.getElementById(id);if(el)el.classList.add("open");var inp=document.querySelector("#"+id+" input");if(inp)setTimeout(function(){inp.focus();},120);};
+  window.openModal=function(id){
+    if(id==="mpedirreserva"){
+      window._reservaSeleccion=[];
+      var grid=document.getElementById("reserva-drinks-grid");
+      if(grid&&drinks.length){
+        grid.innerHTML=drinks.map(function(d,i){
+          return "<button class='odbtn' onclick='toggleReservaSeleccion("+i+",this)'>"+d.icon+" "+d.name+"</button>";
+        }).join("");
+      }
+      var lbl=document.getElementById("reserva-sel-label");
+      if(lbl)lbl.textContent="¿QUÉ TOMÁS?";
+    }var el=document.getElementById(id);if(el)el.classList.add("open");var inp=document.querySelector("#"+id+" input");if(inp)setTimeout(function(){inp.focus();},120);};
   window.closeModal=function(id){var el=document.getElementById(id);if(el)el.classList.remove("open");if(id==="mextra"){pDrink=null;pFor=null;}};
   document.addEventListener("keydown",function(e){
     if(e.key==="Enter"){
@@ -1717,6 +1766,7 @@ header::after{
 /* RESERVA */
 .res-banner{display:flex;align-items:center;justify-content:space-between;padding:11px 14px;margin:10px 12px 0;background:var(--sur);border:1px solid var(--brd);border-radius:12px;font-size:0.65rem;color:var(--mut);gap:10px;flex-wrap:wrap;letter-spacing:0.03em;}
 .res-banner.res-ok{background:rgba(16,185,129,0.06);border-color:rgba(16,185,129,0.2);color:var(--grn);font-weight:600;}
+.res-banner.res-warn{background:rgba(245,158,11,0.06);border-color:rgba(245,158,11,0.25);}
 .res-apunto-btn{background:var(--acc);color:#111111;border:none;border-radius:8px;padding:7px 14px;font-family:var(--font-body);font-size:0.9rem;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0;letter-spacing:0.04em;}
 .res-pending-title{font-family:var(--font-display);font-size:0.65rem;letter-spacing:0.1em;color:var(--g2);margin-bottom:8px;font-style:normal;}
 .res-pending-item{font-size:0.65rem;color:var(--mut);padding:4px 0;display:flex;align-items:center;gap:8px;letter-spacing:0.02em;}
@@ -2015,6 +2065,22 @@ header::after{
 
 <div class="modal-overlay mc" id="mfusion" onclick="if(event.target===this)closeModal('mfusion')">
   <div class="modal"><h3>Fusionar</h3><div class="ma"><button class="bs" onclick="closeModal('mfusion')">Cerrar</button></div></div>
+</div>
+<div class="modal-overlay mc" id="mpedirreserva" onclick="if(event.target===this)confirmarSinPedir()">
+  <div class="modal" style="max-height:85vh;overflow-y:auto">
+    <div class="mh2"></div>
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+      <span style="font-size:1.4rem">☕</span>
+      <h3 style="margin:0">¿QUÉ TOMÁS?</h3>
+    </div>
+    <p class="msub" style="margin-bottom:16px">ELEGÍ TU BEBIDA PARA EL PRÓXIMO SÁBADO</p>
+    <div id="reserva-sel-label" style="font-size:0.6rem;color:var(--mut);letter-spacing:0.08em;margin-bottom:10px;font-weight:700">¿QUÉ TOMÁS?</div>
+    <div id="reserva-drinks-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px"></div>
+    <div class="ma" style="flex-direction:column;gap:8px">
+      <button class="bp" onclick="guardarPedidoReserva()" style="width:100%">✅ LISTO — GUARDAR PEDIDO</button>
+      <button onclick="confirmarSinPedir()" style="background:none;border:none;color:var(--mut);font-size:0.7rem;cursor:pointer;padding:4px;text-decoration:underline">Confirmar sin elegir bebida por ahora</button>
+    </div>
+  </div>
 </div>
 <div class="modal-overlay" id="mmerge" onclick="if(event.target===this)closeModal('mmerge')">
   <div class="modal">
