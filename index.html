@@ -316,12 +316,19 @@
     showToast("✓ Transfer guardado");renderMesa();renderPagosDetail();
   };
   window.savePago=async function(){
-    if(!editPP||!editPT)return;
+    var pk=window._pagoPlayer||editPP;
+    var pt=window._pagoTipo||editPT;
+    if(!pk||!pt)return;
     var val=parseFloat(document.getElementById("pago-input").value)||0;
     var cur={cash:0,transfer:0};
-    if(pagos[editPP]){cur.cash=pagos[editPP].cash||0;cur.transfer=pagos[editPP].transfer||0;}
-    cur[editPT]=val;var pk=editPP;editPP=null;editPT=null;
-    await set(ref(db,"pedido/pagos/"+pk),cur);closeModal("mpago");
+    if(pagos[pk]){cur=Object.assign({},pagos[pk]);}
+    cur[pt]=val;
+    window._pagoPlayer=null;window._pagoTipo=null;editPP=null;editPT=null;
+    await set(ref(db,"pedido/pagos/"+pk),cur);
+    pagos[pk]=cur;
+    closeModal("mpago");
+    showToast("✓ Pago guardado");
+    renderMesa();renderPagosDetail();
   };
   window.openTotalBar=function(){document.getElementById("total-bar-input").value=totalBar>0?totalBar:"";openModal("mtotalbar");};
   window.saveTotalBar=async function(){var val=parseFloat(document.getElementById("total-bar-input").value)||0;await set(rB,val);closeModal("mtotalbar");};
@@ -1922,15 +1929,15 @@ header::after{
 <header>
   <div class="htop">
     <div class="htit">Mesa de <span>Galanes</span></div>
-    <img src="icon.png" alt="7:45" style="width:44px;height:44px;border-radius:50%;object-fit:cover;box-shadow:0 2px 12px rgba(0,0,0,0.4);flex-shrink:0;align-self:flex-end;margin-bottom:2px">
+    <div class="hmeta"><div id="fh">—</div><div id="hh">—</div></div>
+  </div>
+  <div style="display:flex;align-items:center;justify-content:center;padding:6px 0 2px">
+    <img src="icon.png" alt="7:45" style="width:48px;height:48px;border-radius:50%;object-fit:cover;box-shadow:0 2px 14px rgba(0,0,0,0.5)">
   </div>
   <div class="nz">
     <div id="prompt" onclick="openModal('mnombre')">👤 Quien sos?</div>
     <div id="badge" onclick="changeName()"></div>
-    <div style="margin-left:auto;display:flex;align-items:center;gap:10px">
-      <div class="hmeta" style="text-align:right"><div id="fh">—</div><div id="hh">—</div></div>
-      <button id="vbtn" onclick="toggleVoice()">🔇</button>
-    </div>
+    <button id="vbtn" onclick="toggleVoice()" style="margin-left:auto">🔇</button>
   </div>
 </header>
 <div id="cumple-banner" style="display:none"></div>
