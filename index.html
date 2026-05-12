@@ -707,8 +707,8 @@
   // ── PEDIDOS ───────────────────────────────────────────────
   window.selectDrink=function(idx){
     if(!me){openModal("mnombre");return;}
-    // Bloquear si ya confirmó
-    if(!isAdmin()&&confirmed[me]){showToast("Ya enviaste tu pedido para hoy ✓");return;}
+    // Si ya confirmó, solo avisar pero dejar continuar (puede querer cambiar)
+    // El bloqueo total solo aplica si el admin cerró la mesa
     var myOrders=Object.entries(orders).filter(function(e){return e[1].player===me&&e[1].drinkIdx===idx;});
     if(myOrders.length>0){document.getElementById("dup-title").textContent=drinks[idx].icon+" "+drinks[idx].name;window._dupIdx=idx;openModal("mdup");return;}
     if(!isAdmin()){var al=Object.values(orders).filter(function(o){return o.player===me&&o.loadedBy==="admin";});if(al.length>0&&!confirm("El admin ya te cargó un pedido. ¿Querés agregar otro?"))return;}
@@ -849,7 +849,7 @@
   window.mostrarLoDeSimepre=async function(){
     // Solo mostrar si no tiene pedido hoy y tiene favorito
     var yaHoyTienePedido=Object.values(orders).some(function(o){return o.player===me;});
-    if(yaHoyTienePedido||confirmado())return;
+    if(yaHoyTienePedido&&confirmado())return;  // solo bloquear si ambos son true
     var snap=await get(rF);
     if(!snap.exists())return;
     var favs=snap.val();
@@ -970,16 +970,11 @@
   };
   window.noEstoy=function(){if(confirm("¿Seguro que no venís el "+satLabel()+"?")){speak("Nos vemos otro sábado!");showToast("😔 Hasta la próxima!");setTimeout(function(){window.close();},1500);}};
   window.cancelarReserva=async function(){
-    if(!confirm("Cancelar tu reserva y pedido de hoy?"))return;
-    // Borrar reserva
-    await set(ref(db,"reserva/"+me),null);delete reservas[me];
-    // Borrar pedidos del día actual
-    var mis=Object.entries(orders).filter(function(e){return e[1].player===me;});
-    for(var i=0;i<mis.length;i++)await remove(ref(db,"pedido/orders/"+mis[i][0]));
-    // Borrar confirmación
-    if(confirmed[me])await set(ref(db,"pedido/confirmed/"+me),null);
-    showToast("Reserva y pedido cancelados");
-    renderReserva();renderOrders();renderConfirmBtn();
+    if(!confirm("Cancelar tu reserva para el "+satLabel()+"?"))return;
+    await set(ref(db,"reserva/"+me),null);
+    delete reservas[me];
+    showToast("Reserva cancelada");
+    renderReserva();
   };
   window.guardarPedidoComoReserva=async function(){
     var myOrders=Object.values(orders).filter(function(o){return o.player===me;});
