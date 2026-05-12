@@ -1553,13 +1553,174 @@
   }
 
 
-  window.renderMundial=async function(){
+  // Datos oficiales sorteo Mundial 2026
+  var MUNDIAL_DATA = {
+    grupos: [
+      {letra:"A", nombre_sede:"🇺🇸 Los Ángeles", equipos:[
+        {nombre:"Estados Unidos",bandera:"🇺🇸",pts:0,j:0,g:0,e:0,p:0,gf:0,gc:0},
+        {nombre:"Panamá",bandera:"🇵🇦",pts:0,j:0,g:0,e:0,p:0,gf:0,gc:0},
+        {nombre:"Bolivia",bandera:"🇧🇴",pts:0,j:0,g:0,e:0,p:0,gf:0,gc:0},
+        {nombre:"Nueva Zelanda",bandera:"🇳🇿",pts:0,j:0,g:0,e:0,p:0,gf:0,gc:0}],
+        partidos:[
+          {local:"Estados Unidos",visitante:"Panamá",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"12 Jun"},
+          {local:"Bolivia",visitante:"Nueva Zelanda",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"12 Jun"},
+          {local:"Estados Unidos",visitante:"Bolivia",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"16 Jun"},
+          {local:"Panamá",visitante:"Nueva Zelanda",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"16 Jun"},
+          {local:"Panamá",visitante:"Bolivia",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"20 Jun"},
+          {local:"Nueva Zelanda",visitante:"Estados Unidos",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"20 Jun"}]},
+      {letra:"B", nombre_sede:"🇺🇸 San Francisco", equipos:[
+        {nombre:"Argentina",bandera:"🇦🇷",pts:0,j:0,g:0,e:0,p:0,gf:0,gc:0},
+        {nombre:"Chile",bandera:"🇨🇱",pts:0,j:0,g:0,e:0,p:0,gf:0,gc:0},
+        {nombre:"Perú",bandera:"🇵🇪",pts:0,j:0,g:0,e:0,p:0,gf:0,gc:0},
+        {nombre:"Australia",bandera:"🇦🇺",pts:0,j:0,g:0,e:0,p:0,gf:0,gc:0}],
+        partidos:[
+          {local:"Argentina",visitante:"Chile",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"15 Jun"},
+          {local:"Perú",visitante:"Australia",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"15 Jun"},
+          {local:"Argentina",visitante:"Perú",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"19 Jun"},
+          {local:"Chile",visitante:"Australia",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"19 Jun"},
+          {local:"Australia",visitante:"Argentina",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"23 Jun"},
+          {local:"Chile",visitante:"Perú",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"23 Jun"}]},
+      {letra:"C", nombre_sede:"🇺🇸 Miami", equipos:[
+        {nombre:"México",bandera:"🇲🇽",pts:0,j:0,g:0,e:0,p:0,gf:0,gc:0},
+        {nombre:"Jamaica",bandera:"🇯🇲",pts:0,j:0,g:0,e:0,p:0,gf:0,gc:0},
+        {nombre:"Venezuela",bandera:"🇻🇪",pts:0,j:0,g:0,e:0,p:0,gf:0,gc:0},
+        {nombre:"Iraq",bandera:"🇮🇶",pts:0,j:0,g:0,e:0,p:0,gf:0,gc:0}],
+        partidos:[
+          {local:"México",visitante:"Jamaica",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"11 Jun"},
+          {local:"Venezuela",visitante:"Iraq",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"11 Jun"},
+          {local:"México",visitante:"Venezuela",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"15 Jun"},
+          {local:"Jamaica",visitante:"Iraq",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"15 Jun"},
+          {local:"Iraq",visitante:"México",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"19 Jun"},
+          {local:"Jamaica",visitante:"Venezuela",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"19 Jun"}]},
+      {letra:"D", nombre_sede:"🇺🇸 Dallas", equipos:[
+        {nombre:"Brasil",bandera:"🇧🇷",pts:0,j:0,g:0,e:0,p:0,gf:0,gc:0},
+        {nombre:"Congo DR",bandera:"🇨🇩",pts:0,j:0,g:0,e:0,p:0,gf:0,gc:0},
+        {nombre:"Serbia",bandera:"🇷🇸",pts:0,j:0,g:0,e:0,p:0,gf:0,gc:0},
+        {nombre:"Arabia Saudita",bandera:"🇸🇦",pts:0,j:0,g:0,e:0,p:0,gf:0,gc:0}],
+        partidos:[
+          {local:"Brasil",visitante:"Congo DR",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"13 Jun"},
+          {local:"Serbia",visitante:"Arabia Saudita",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"13 Jun"},
+          {local:"Brasil",visitante:"Serbia",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"17 Jun"},
+          {local:"Congo DR",visitante:"Arabia Saudita",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"17 Jun"},
+          {local:"Arabia Saudita",visitante:"Brasil",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"21 Jun"},
+          {local:"Congo DR",visitante:"Serbia",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"21 Jun"}]},
+      {letra:"E", nombre_sede:"🇺🇸 Nueva York", equipos:[
+        {nombre:"España",bandera:"🇪🇸",pts:0,j:0,g:0,e:0,p:0,gf:0,gc:0},
+        {nombre:"Turquía",bandera:"🇹🇷",pts:0,j:0,g:0,e:0,p:0,gf:0,gc:0},
+        {nombre:"Japón",bandera:"🇯🇵",pts:0,j:0,g:0,e:0,p:0,gf:0,gc:0},
+        {nombre:"Uzbekistán",bandera:"🇺🇿",pts:0,j:0,g:0,e:0,p:0,gf:0,gc:0}],
+        partidos:[
+          {local:"España",visitante:"Turquía",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"14 Jun"},
+          {local:"Japón",visitante:"Uzbekistán",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"14 Jun"},
+          {local:"España",visitante:"Japón",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"18 Jun"},
+          {local:"Turquía",visitante:"Uzbekistán",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"18 Jun"},
+          {local:"Uzbekistán",visitante:"España",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"22 Jun"},
+          {local:"Turquía",visitante:"Japón",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"22 Jun"}]},
+      {letra:"F", nombre_sede:"🇨🇦 Toronto", equipos:[
+        {nombre:"Portugal",bandera:"🇵🇹",pts:0,j:0,g:0,e:0,p:0,gf:0,gc:0},
+        {nombre:"Nigeria",bandera:"🇳🇬",pts:0,j:0,g:0,e:0,p:0,gf:0,gc:0},
+        {nombre:"República Checa",bandera:"🇨🇿",pts:0,j:0,g:0,e:0,p:0,gf:0,gc:0},
+        {nombre:"Indonesia",bandera:"🇮🇩",pts:0,j:0,g:0,e:0,p:0,gf:0,gc:0}],
+        partidos:[
+          {local:"Portugal",visitante:"Nigeria",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"13 Jun"},
+          {local:"Rep. Checa",visitante:"Indonesia",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"13 Jun"},
+          {local:"Portugal",visitante:"Rep. Checa",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"17 Jun"},
+          {local:"Nigeria",visitante:"Indonesia",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"17 Jun"},
+          {local:"Indonesia",visitante:"Portugal",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"21 Jun"},
+          {local:"Nigeria",visitante:"Rep. Checa",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"21 Jun"}]},
+      {letra:"G", nombre_sede:"🇨🇦 Vancouver", equipos:[
+        {nombre:"Francia",bandera:"🇫🇷",pts:0,j:0,g:0,e:0,p:0,gf:0,gc:0},
+        {nombre:"Uruguay",bandera:"🇺🇾",pts:0,j:0,g:0,e:0,p:0,gf:0,gc:0},
+        {nombre:"Gabón",bandera:"🇬🇦",pts:0,j:0,g:0,e:0,p:0,gf:0,gc:0},
+        {nombre:"Corea del Sur",bandera:"🇰🇷",pts:0,j:0,g:0,e:0,p:0,gf:0,gc:0}],
+        partidos:[
+          {local:"Francia",visitante:"Uruguay",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"14 Jun"},
+          {local:"Gabón",visitante:"Corea del Sur",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"14 Jun"},
+          {local:"Francia",visitante:"Gabón",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"18 Jun"},
+          {local:"Uruguay",visitante:"Corea del Sur",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"18 Jun"},
+          {local:"Corea del Sur",visitante:"Francia",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"22 Jun"},
+          {local:"Uruguay",visitante:"Gabón",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"22 Jun"}]},
+      {letra:"H", nombre_sede:"🇲🇽 Guadalajara", equipos:[
+        {nombre:"Alemania",bandera:"🇩🇪",pts:0,j:0,g:0,e:0,p:0,gf:0,gc:0},
+        {nombre:"Escocia",bandera:"🏴󠁧󠁢󠁳󠁣󠁴󠁿",pts:0,j:0,g:0,e:0,p:0,gf:0,gc:0},
+        {nombre:"Marruecos",bandera:"🇲🇦",pts:0,j:0,g:0,e:0,p:0,gf:0,gc:0},
+        {nombre:"Colombia",bandera:"🇨🇴",pts:0,j:0,g:0,e:0,p:0,gf:0,gc:0}],
+        partidos:[
+          {local:"Alemania",visitante:"Escocia",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"16 Jun"},
+          {local:"Marruecos",visitante:"Colombia",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"16 Jun"},
+          {local:"Alemania",visitante:"Marruecos",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"20 Jun"},
+          {local:"Escocia",visitante:"Colombia",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"20 Jun"},
+          {local:"Colombia",visitante:"Alemania",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"24 Jun"},
+          {local:"Escocia",visitante:"Marruecos",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"24 Jun"}]},
+      {letra:"I", nombre_sede:"🇲🇽 Monterrey", equipos:[
+        {nombre:"Inglaterra",bandera:"🏴󠁧󠁢󠁥󠁮󠁧󠁿",pts:0,j:0,g:0,e:0,p:0,gf:0,gc:0},
+        {nombre:"Senegal",bandera:"🇸🇳",pts:0,j:0,g:0,e:0,p:0,gf:0,gc:0},
+        {nombre:"Países Bajos",bandera:"🇳🇱",pts:0,j:0,g:0,e:0,p:0,gf:0,gc:0},
+        {nombre:"Etiopía",bandera:"🇪🇹",pts:0,j:0,g:0,e:0,p:0,gf:0,gc:0}],
+        partidos:[
+          {local:"Inglaterra",visitante:"Senegal",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"15 Jun"},
+          {local:"Países Bajos",visitante:"Etiopía",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"15 Jun"},
+          {local:"Inglaterra",visitante:"Países Bajos",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"19 Jun"},
+          {local:"Senegal",visitante:"Etiopía",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"19 Jun"},
+          {local:"Etiopía",visitante:"Inglaterra",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"23 Jun"},
+          {local:"Senegal",visitante:"Países Bajos",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"23 Jun"}]},
+      {letra:"J", nombre_sede:"🇺🇸 Seattle", equipos:[
+        {nombre:"Bélgica",bandera:"🇧🇪",pts:0,j:0,g:0,e:0,p:0,gf:0,gc:0},
+        {nombre:"Egipto",bandera:"🇪🇬",pts:0,j:0,g:0,e:0,p:0,gf:0,gc:0},
+        {nombre:"Ecuador",bandera:"🇪🇨",pts:0,j:0,g:0,e:0,p:0,gf:0,gc:0},
+        {nombre:"Ucrania",bandera:"🇺🇦",pts:0,j:0,g:0,e:0,p:0,gf:0,gc:0}],
+        partidos:[
+          {local:"Bélgica",visitante:"Egipto",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"16 Jun"},
+          {local:"Ecuador",visitante:"Ucrania",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"16 Jun"},
+          {local:"Bélgica",visitante:"Ecuador",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"20 Jun"},
+          {local:"Egipto",visitante:"Ucrania",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"20 Jun"},
+          {local:"Ucrania",visitante:"Bélgica",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"24 Jun"},
+          {local:"Egipto",visitante:"Ecuador",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"24 Jun"}]},
+      {letra:"K", nombre_sede:"🇺🇸 Atlanta", equipos:[
+        {nombre:"Italia",bandera:"🇮🇹",pts:0,j:0,g:0,e:0,p:0,gf:0,gc:0},
+        {nombre:"México (2)",bandera:"🇲🇽",pts:0,j:0,g:0,e:0,p:0,gf:0,gc:0},
+        {nombre:"Camerún",bandera:"🇨🇲",pts:0,j:0,g:0,e:0,p:0,gf:0,gc:0},
+        {nombre:"Kuwait",bandera:"🇰🇼",pts:0,j:0,g:0,e:0,p:0,gf:0,gc:0}],
+        partidos:[
+          {local:"Italia",visitante:"Camerún",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"17 Jun"},
+          {local:"México",visitante:"Kuwait",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"17 Jun"},
+          {local:"Italia",visitante:"México",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"21 Jun"},
+          {local:"Camerún",visitante:"Kuwait",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"21 Jun"},
+          {local:"Kuwait",visitante:"Italia",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"25 Jun"},
+          {local:"Camerún",visitante:"México",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"25 Jun"}]},
+      {letra:"L", nombre_sede:"🇺🇸 Boston", equipos:[
+        {nombre:"Croacia",bandera:"🇭🇷",pts:0,j:0,g:0,e:0,p:0,gf:0,gc:0},
+        {nombre:"Irán",bandera:"🇮🇷",pts:0,j:0,g:0,e:0,p:0,gf:0,gc:0},
+        {nombre:"Albania",bandera:"🇦🇱",pts:0,j:0,g:0,e:0,p:0,gf:0,gc:0},
+        {nombre:"Canadá",bandera:"🇨🇦",pts:0,j:0,g:0,e:0,p:0,gf:0,gc:0}],
+        partidos:[
+          {local:"Croacia",visitante:"Irán",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"18 Jun"},
+          {local:"Albania",visitante:"Canadá",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"18 Jun"},
+          {local:"Croacia",visitante:"Albania",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"22 Jun"},
+          {local:"Irán",visitante:"Canadá",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"22 Jun"},
+          {local:"Canadá",visitante:"Croacia",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"26 Jun"},
+          {local:"Irán",visitante:"Albania",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"26 Jun"}]}
+    ],
+    fase_eliminatoria:{
+      octavos:[
+        {local:"1A",visitante:"2B",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"Por definir"},
+        {local:"1C",visitante:"2D",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"Por definir"},
+        {local:"1B",visitante:"2A",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"Por definir"},
+        {local:"1D",visitante:"2C",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"Por definir"},
+        {local:"1E",visitante:"2F",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"Por definir"},
+        {local:"1G",visitante:"2H",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"Por definir"},
+        {local:"1F",visitante:"2E",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"Por definir"},
+        {local:"1H",visitante:"2G",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"Por definir"}],
+      cuartos:[],semifinales:[],
+      final:{local:"Por definir",visitante:"Por definir",gol_local:-1,gol_visitante:-1,estado:"programado",fecha:"19 Jul 2026"}
+    }
+  };
+
+  window.renderMundial=function(){
     window._mundialLoaded=true;
     var panel=document.getElementById("mundial-content");
     if(!panel)return;
-
-    // COUNTDOWN al Mundial
-    var inicio=new Date("2026-06-11T18:00:00-05:00"); // primer partido USA hora local
+    var inicio=new Date("2026-06-11T18:00:00-05:00");
     var now=new Date();
     var diff=inicio-now;
     var cdHtml="";
@@ -1581,40 +1742,9 @@
         +"<div style='font-size:2rem'>⚽</div>"
         +"<div style='font-family:var(--font-display);font-size:1.4rem;color:var(--g2)'>MUNDIAL EN CURSO</div></div>";
     }
-
-    panel.innerHTML=cdHtml
-      +"<div style='text-align:center;padding:20px 0;color:var(--mut);font-size:0.8rem'>Cargando grupos y fixtures... ⏳</div>";
-
-    // Llamar a Claude API con web search para obtener datos frescos
-    try{
-      var resp=await fetch("https://api.anthropic.com/v1/messages",{
-        method:"POST",
-        headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({
-          model:"claude-sonnet-4-20250514",
-          max_tokens:4000,
-          tools:[{"type":"web_search_20250305","name":"web_search"}],
-          system:"Sos un asistente de fútbol. Respondé SOLO con JSON válido, sin markdown, sin texto extra. El JSON debe tener exactamente esta estructura: {grupos:[{letra,nombre_sede,equipos:[{nombre,bandera,pts,j,g,e,p,gf,gc}],partidos:[{fecha,local,visitante,gol_local,gol_visitante,estado}]}], fase_eliminatoria:{octavos:[{local,visitante,gol_local,gol_visitante,estado,fecha}],cuartos:[...],semifinales:[...],final:{local,visitante,gol_local,gol_visitante,estado,fecha}}}. Para partidos no jugados usa gol_local:-1 y gol_visitante:-1. estado puede ser: programado, en_curso, finalizado. Incluí los 12 grupos (A al L) del Mundial 2026.",
-          messages:[{role:"user",content:"Buscá los grupos, fixture completo y resultados actuales del Mundial 2026 de fútbol. Si el mundial no empezó todavía, mostrá el fixture programado con fechas y sedes. Incluí los 12 grupos con sus 4 equipos cada uno."}]
-        })
-      });
-      var data=await resp.json();
-
-      // Extraer texto de la respuesta
-      var rawText=data.content.filter(function(b){return b.type==="text";}).map(function(b){return b.text;}).join("");
-      var jsonStr=rawText.replace(/```json|```/g,"").trim();
-      var mundial=JSON.parse(jsonStr);
-
-      var bgCard=tieneArg?"linear-gradient(135deg,rgba(116,166,214,0.15),rgba(255,255,255,0.05))":"var(--sur)";
-      var bdCard=tieneArg?"rgba(116,166,214,0.5)":"var(--brd)";
-      var bgCard=tieneArg?"linear-gradient(135deg,rgba(116,166,214,0.15),rgba(255,255,255,0.05))":"var(--sur)";
-      var bdCard=tieneArg?"rgba(116,166,214,0.5)":"var(--brd)";
-      html+='<div data-g="'+g.letra+'" onclick="mostrarGrupo(this.dataset.g)" style="flex-shrink:0;width:140px;background:'+(tieneArg?"linear-gradient(135deg,rgba(116,166,214,0.15),rgba(255,255,255,0.05))":"var(--sur)")+';border:1.5px solid '+(tieneArg?"rgba(116,166,214,0.5)":"var(--brd)")+';border-radius:14px;padding:12px;cursor:pointer">';
-    }catch(err){
-      console.error("Mundial API error:",err);
-      panel.innerHTML=cdHtml+renderMundialFallback();
-    }
+    renderMundialData(MUNDIAL_DATA,panel,cdHtml);
   };
+
 
   function renderMundialData(data,panel,cdHtml){
     var html=cdHtml;
