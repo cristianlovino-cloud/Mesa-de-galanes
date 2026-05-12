@@ -1553,52 +1553,196 @@
   }
 
 
-  window.renderMundial=function(){
+  var FBALL_KEY="5c2f5a0af5944279b2d36a455a3aa325";
+  var FBALL_WC_ID="2000"; // Copa del Mundo FIFA
+
+  window.renderMundial=async function(){
     window._mundialLoaded=true;
     var panel=document.getElementById("mundial-content");
     if(!panel)return;
 
-    function updateMundialClock(){
+    // Countdown siempre visible
+    function getCountdownHtml(){
       var inicio=new Date("2026-06-11T18:00:00-05:00");
-      var now=new Date();
-      var diff=inicio-now;
-      var el=document.getElementById("mundial-clock");
-      if(!el)return;
-      if(diff<=0){
-        el.innerHTML="<div style='font-size:2rem'>⚽</div><div style='font-family:var(--font-display);font-size:1.6rem;color:var(--g2);margin-top:6px'>MUNDIAL EN CURSO</div>";
-        return;
-      }
-      var dias=Math.floor(diff/86400000);
-      var hrs=Math.floor((diff%86400000)/3600000);
-      var mins=Math.floor((diff%3600000)/60000);
-      var secs=Math.floor((diff%60000)/1000);
-      el.innerHTML="<div style='font-size:0.6rem;color:var(--mut);letter-spacing:0.1em;margin-bottom:12px'>⚽ MUNDIAL 2026 · USA · CANADA · MEXICO</div>"
-        +"<div style='display:flex;justify-content:center;gap:14px;align-items:flex-end;margin-bottom:12px'>"
-        +"<div><div style='font-family:var(--font-display);font-size:3.2rem;font-weight:700;color:var(--ink);line-height:1'>"+dias+"</div><div style='font-size:0.55rem;color:var(--mut);letter-spacing:0.06em;margin-top:4px'>DÍAS</div></div>"
-        +"<div style='font-size:2rem;color:var(--brd);padding-bottom:14px'>:</div>"
-        +"<div><div style='font-family:var(--font-display);font-size:3.2rem;font-weight:700;color:var(--ink);line-height:1'>"+String(hrs).padStart(2,"0")+"</div><div style='font-size:0.55rem;color:var(--mut);letter-spacing:0.06em;margin-top:4px'>HORAS</div></div>"
-        +"<div style='font-size:2rem;color:var(--brd);padding-bottom:14px'>:</div>"
-        +"<div><div style='font-family:var(--font-display);font-size:3.2rem;font-weight:700;color:var(--ink);line-height:1'>"+String(mins).padStart(2,"0")+"</div><div style='font-size:0.55rem;color:var(--mut);letter-spacing:0.06em;margin-top:4px'>MIN</div></div>"
-        +"<div style='font-size:2rem;color:var(--brd);padding-bottom:14px'>:</div>"
-        +"<div><div style='font-family:var(--font-display);font-size:3.2rem;font-weight:700;color:var(--g2);line-height:1'>"+String(secs).padStart(2,"0")+"</div><div style='font-size:0.55rem;color:var(--mut);letter-spacing:0.06em;margin-top:4px'>SEG</div></div>"
+      var now=new Date(),diff=inicio-now;
+      if(diff<=0)return "<div style='text-align:center;padding:16px'><div style='font-size:2rem'>⚽</div><div style='font-family:var(--font-display);font-size:1.4rem;color:var(--g2);margin-top:6px'>MUNDIAL EN CURSO</div></div>";
+      var dias=Math.floor(diff/86400000),hrs=Math.floor((diff%86400000)/3600000),mins=Math.floor((diff%3600000)/60000),secs=Math.floor((diff%60000)/1000);
+      return "<div style='text-align:center;background:linear-gradient(135deg,rgba(0,120,50,0.15),rgba(0,80,180,0.1));border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:18px 16px;margin-bottom:14px'>"
+        +"<div style='font-size:0.58rem;color:var(--mut);letter-spacing:0.1em;margin-bottom:10px'>⚽ MUNDIAL 2026 · USA · CANADA · MEXICO</div>"
+        +"<div id='mcd' style='display:flex;justify-content:center;gap:12px;align-items:flex-end;margin-bottom:10px'>"
+        +"<div><div style='font-family:var(--font-display);font-size:2.8rem;font-weight:700;color:var(--ink);line-height:1'>"+dias+"</div><div style='font-size:0.52rem;color:var(--mut);letter-spacing:0.06em;margin-top:3px'>DÍAS</div></div>"
+        +"<div style='font-size:1.8rem;color:var(--brd);padding-bottom:10px'>:</div>"
+        +"<div><div style='font-family:var(--font-display);font-size:2.8rem;font-weight:700;color:var(--ink);line-height:1'>"+String(hrs).padStart(2,"0")+"</div><div style='font-size:0.52rem;color:var(--mut);letter-spacing:0.06em;margin-top:3px'>HS</div></div>"
+        +"<div style='font-size:1.8rem;color:var(--brd);padding-bottom:10px'>:</div>"
+        +"<div><div style='font-family:var(--font-display);font-size:2.8rem;font-weight:700;color:var(--ink);line-height:1'>"+String(mins).padStart(2,"0")+"</div><div style='font-size:0.52rem;color:var(--mut);letter-spacing:0.06em;margin-top:3px'>MIN</div></div>"
+        +"<div style='font-size:1.8rem;color:var(--brd);padding-bottom:10px'>:</div>"
+        +"<div><div id='mcd-sec' style='font-family:var(--font-display);font-size:2.8rem;font-weight:700;color:var(--g2);line-height:1'>"+String(secs).padStart(2,"0")+"</div><div style='font-size:0.52rem;color:var(--mut);letter-spacing:0.06em;margin-top:3px'>SEG</div></div>"
         +"</div>"
-        +"<div style='font-size:0.62rem;color:var(--mut)'>PRIMER PARTIDO: 11 JUN 2026 · CIUDAD DE MÉXICO</div>";
+        +"<div style='font-size:0.58rem;color:var(--mut)'>PRIMER PARTIDO: 11 JUN 2026 · CIUDAD DE MÉXICO</div>"
+        +"</div>";
     }
 
-    panel.innerHTML="<div style='text-align:center;background:linear-gradient(135deg,rgba(0,120,50,0.15),rgba(0,80,180,0.1));border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:20px 16px;margin-bottom:20px'><div id='mundial-clock'></div></div>"
-      +"<div style='text-align:center;padding:30px 20px;color:var(--mut)'>"
-      +"<div style='font-size:3rem;margin-bottom:12px'>🏆</div>"
-      +"<div style='font-size:0.72rem;font-weight:700;color:var(--ink);letter-spacing:0.06em;margin-bottom:8px'>FIXTURE PRÓXIMAMENTE</div>"
-      +"<div style='font-size:0.62rem;opacity:0.6;line-height:1.6'>Los grupos y fixture oficial<br>se confirman antes del 11 de junio.</div>"
-      +"</div>";
+    panel.innerHTML=getCountdownHtml()+"<div style='text-align:center;padding:20px;color:var(--mut);font-size:0.7rem'>Cargando grupos... ⏳</div>";
 
-    updateMundialClock();
+    // Timer segundos
     if(window._mundialTimer)clearInterval(window._mundialTimer);
-    window._mundialTimer=setInterval(updateMundialClock,1000);
+    window._mundialTimer=setInterval(function(){
+      var sec=document.getElementById("mcd-sec");
+      if(sec){var s=Math.floor((new Date("2026-06-11T18:00:00-05:00")-new Date())%60000/1000);if(s>=0)sec.textContent=String(s).padStart(2,"0");}
+    },1000);
+
+    try{
+      // Grupos
+      var r1=await fetch("https://api.football-data.org/v4/competitions/"+FBALL_WC_ID+"/standings",{headers:{"X-Auth-Token":FBALL_KEY}});
+      var d1=await r1.json();
+
+      // Partidos
+      var r2=await fetch("https://api.football-data.org/v4/competitions/"+FBALL_WC_ID+"/matches",{headers:{"X-Auth-Token":FBALL_KEY}});
+      var d2=await r2.json();
+
+      renderMundialGroups(d1,d2,panel,getCountdownHtml());
+    }catch(err){
+      console.error("Mundial fetch error:",err);
+      panel.innerHTML=getCountdownHtml()
+        +"<div style='text-align:center;padding:30px 20px;color:var(--mut)'>"
+        +"<div style='font-size:2rem;margin-bottom:8px'>⚽</div>"
+        +"<div style='font-size:0.75rem;font-weight:700;color:var(--ink);margin-bottom:6px'>FIXTURE PRÓXIMAMENTE</div>"
+        +"<div style='font-size:0.6rem;opacity:0.6'>Los grupos se cargan cuando la API esté disponible</div>"
+        +"<button onclick='window._mundialLoaded=false;renderMundial()' style='margin-top:14px;background:var(--sur2);border:1px solid var(--brd);border-radius:8px;padding:8px 18px;font-size:0.7rem;color:var(--ink);cursor:pointer'>🔄 Reintentar</button>"
+        +"</div>";
+    }
   };
 
+  function renderMundialGroups(standings,matches,panel,cdHtml){
+    var html=cdHtml;
+    var grupos=standings.standings||[];
+    var allMatches=matches.matches||[];
 
+    if(!grupos.length){
+      panel.innerHTML=html+"<div style='text-align:center;padding:30px;color:var(--mut);font-size:0.65rem'>Datos del fixture no disponibles aún</div>";
+      return;
+    }
 
+    html+="<div style='font-size:0.65rem;color:var(--g2);font-weight:700;letter-spacing:0.08em;margin-bottom:10px'>⚽ FASE DE GRUPOS</div>";
+
+    // Carrusel de grupos
+    html+="<div style='display:flex;gap:8px;overflow-x:auto;padding-bottom:8px;margin-bottom:14px;scrollbar-width:none'>"; 
+    grupos.forEach(function(g,gi){
+      var gname=g.group||("Grupo "+(gi+1));
+      var letra=gname.replace(/.*?([A-L])$/,"$1")||String.fromCharCode(65+gi);
+      var equipos=g.table||[];
+      var tieneArg=equipos.some(function(e){return e.team&&e.team.name&&e.team.name.toLowerCase().includes("argentin");});
+      var bg=tieneArg?"linear-gradient(135deg,rgba(116,166,214,0.15),rgba(255,255,255,0.05))":"var(--sur)";
+      var bd=tieneArg?"rgba(116,166,214,0.5)":"var(--brd)";
+      var gLetra=letra;
+      html+='<div onclick="window._verGrupo('+gi+')" style="flex-shrink:0;width:130px;background:'+bg+';border:1.5px solid '+bd+';border-radius:12px;padding:10px;cursor:pointer">';
+      html+='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">';
+      html+='<div style="font-family:var(--font-display);font-size:1rem;font-weight:700;color:var(--g2)">G-'+letra+'</div>';
+      if(tieneArg)html+='<div style="font-size:0.5rem;background:rgba(116,166,214,0.2);color:#74a6d6;padding:1px 5px;border-radius:4px;font-weight:700">ARG</div>';
+      html+='</div>';
+      equipos.slice(0,4).forEach(function(e){
+        var nm=e.team?e.team.name:"?";
+        html+='<div style="font-size:0.58rem;color:var(--ink);margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+nm+'</div>';
+      });
+      html+='</div>';
+    });
+    html+="</div>";
+    html+="<div id='grupo-detalle' style='margin-bottom:14px'></div>";
+
+    // Llaves eliminatorias (si hay datos)
+    var knockout=allMatches.filter(function(m){return m.stage&&(m.stage.includes("ROUND_OF_16")||m.stage.includes("QUARTER")||m.stage.includes("SEMI")||m.stage.includes("FINAL"));});
+    if(knockout.length){
+      html+="<div class='stats-section' style='margin-bottom:10px'><div class='stats-title'>🏆 FASE ELIMINATORIA</div>";
+      var stages=[["ROUND_OF_16","⚔️ OCTAVOS"],["QUARTER_FINALS","🏆 CUARTOS"],["SEMI_FINALS","🥊 SEMIS"],["FINAL","🏅 FINAL"]];
+      stages.forEach(function(s){
+        var fase=knockout.filter(function(m){return m.stage===s[0];});
+        if(!fase.length)return;
+        html+="<div style='font-size:0.6rem;color:var(--mut);margin:10px 0 6px;letter-spacing:0.06em;font-weight:700'>"+s[1]+"</div>";
+        fase.forEach(function(m){
+          var home=m.homeTeam&&m.homeTeam.name?m.homeTeam.name:"TBD";
+          var away=m.awayTeam&&m.awayTeam.name?m.awayTeam.name:"TBD";
+          var hg=m.score&&m.score.fullTime?m.score.fullTime.home:null;
+          var ag=m.score&&m.score.fullTime?m.score.fullTime.away:null;
+          var vivo=m.status==="IN_PLAY"||m.status==="PAUSED";
+          html+="<div style='display:flex;align-items:center;padding:6px 0;border-top:1px solid var(--brd)'>";
+          html+="<div style='flex:1;font-size:0.65rem;font-weight:600;text-align:right'>"+home+"</div>";
+          html+="<div style='padding:0 8px;text-align:center;min-width:50px'>";
+          if(hg!==null&&ag!==null){
+            html+="<span style='font-weight:800;color:"+(vivo?"#4ade80":"var(--ink)")+"'>"+hg+" - "+ag+"</span>";
+            if(vivo)html+=" <span style='font-size:0.45rem;color:#4ade80'>●EN VIVO</span>";
+          } else {
+            var fd=m.utcDate?new Date(m.utcDate).toLocaleDateString("es-AR",{day:"numeric",month:"short"}):"—";
+            html+="<span style='font-size:0.58rem;color:var(--mut)'>"+fd+"</span>";
+          }
+          html+="</div>";
+          html+="<div style='flex:1;font-size:0.65rem;font-weight:600'>"+away+"</div>";
+          html+="</div>";
+        });
+      });
+      html+="</div>";
+    }
+
+    panel.innerHTML=html;
+    window._gruposData2=grupos;
+    window._matchesData=allMatches;
+    window._verGrupo=function(gi){
+      var g=window._gruposData2[gi];if(!g)return;
+      var gname=g.group||("Grupo "+(gi+1));
+      var letra=gname.replace(/.*?([A-L])$/,"$1")||String.fromCharCode(65+gi);
+      var equipos=(g.table||[]).slice();
+      var det=document.getElementById("grupo-detalle");if(!det)return;
+      var partidos=(window._matchesData||[]).filter(function(m){return m.group===gname&&m.stage==="GROUP_STAGE";});
+      var h="<div style='background:var(--sur);border:1px solid var(--brd);border-radius:14px;padding:14px;margin-bottom:8px'>";
+      h+="<div style='font-size:0.62rem;font-weight:700;color:var(--g2);letter-spacing:0.06em;margin-bottom:10px'>GRUPO "+letra+"</div>";
+      h+="<table style='width:100%;border-collapse:collapse;font-size:0.6rem;margin-bottom:10px'>";
+      h+="<tr style='color:var(--mut);font-size:0.52rem;letter-spacing:0.05em'><td style='padding:2px 3px'>#</td><td>EQUIPO</td><td style='text-align:center'>PJ</td><td style='text-align:center'>G</td><td style='text-align:center'>E</td><td style='text-align:center'>P</td><td style='text-align:center'>GD</td><td style='text-align:center;color:var(--g2);font-weight:700'>PTS</td></tr>";
+      equipos.forEach(function(e,i){
+        var nm=e.team?e.team.name:"?";
+        var esArg=nm.toLowerCase().includes("argentin");
+        var gd=(e.goalsFor||0)-(e.goalsAgainst||0);
+        h+="<tr style='"+(esArg?"background:rgba(116,166,214,0.08)":"")+"'>";
+        h+="<td style='padding:4px 3px;color:"+(i<2?"#4ade80":"var(--mut)")+"'>"+(i+1)+"</td>";
+        h+="<td style='font-weight:600;color:var(--ink)'>"+nm+"</td>";
+        h+="<td style='text-align:center;color:var(--mut)'>"+(e.playedGames||0)+"</td>";
+        h+="<td style='text-align:center;color:var(--mut)'>"+(e.won||0)+"</td>";
+        h+="<td style='text-align:center;color:var(--mut)'>"+(e.draw||0)+"</td>";
+        h+="<td style='text-align:center;color:var(--mut)'>"+(e.lost||0)+"</td>";
+        h+="<td style='text-align:center;color:var(--mut)'>"+(gd>0?"+":"")+gd+"</td>";
+        h+="<td style='text-align:center;font-weight:800;color:var(--g2)'>"+(e.points||0)+"</td>";
+        h+="</tr>";
+      });
+      h+="</table>";
+      if(partidos.length){
+        h+="<div style='font-size:0.55rem;color:var(--mut);letter-spacing:0.06em;margin-bottom:6px'>PARTIDOS</div>";
+        partidos.forEach(function(m){
+          var home=m.homeTeam&&m.homeTeam.name?m.homeTeam.name:"?";
+          var away=m.awayTeam&&m.awayTeam.name?m.awayTeam.name:"?";
+          var hg=m.score&&m.score.fullTime?m.score.fullTime.home:null;
+          var ag=m.score&&m.score.fullTime?m.score.fullTime.away:null;
+          var vivo=m.status==="IN_PLAY"||m.status==="PAUSED";
+          var fd=m.utcDate?new Date(m.utcDate).toLocaleDateString("es-AR",{day:"numeric",month:"short"}):"—";
+          h+="<div style='display:flex;align-items:center;padding:5px 0;border-top:1px solid var(--brd)'>";
+          h+="<div style='flex:1;font-size:0.62rem;font-weight:600;text-align:right'>"+home+"</div>";
+          h+="<div style='padding:0 6px;min-width:55px;text-align:center'>";
+          if(hg!==null&&ag!==null){
+            h+="<span style='font-weight:800;color:"+(vivo?"#4ade80":"var(--ink)")+"'>"+hg+"-"+ag+"</span>";
+            if(vivo)h+=" <span style='color:#4ade80;font-size:0.45rem'>●</span>";
+          } else {
+            h+="<span style='font-size:0.55rem;color:var(--mut)'>"+fd+"</span>";
+          }
+          h+="</div>";
+          h+="<div style='flex:1;font-size:0.62rem;font-weight:600'>"+away+"</div>";
+          h+="</div>";
+        });
+      }
+      h+="</div>";
+      det.innerHTML=h;
+      det.scrollIntoView({behavior:"smooth",block:"nearest"});
+    };
+    // Mostrar Argentina por defecto
+    var argIdx=grupos.findIndex(function(g){return (g.table||[]).some(function(e){return e.team&&e.team.name&&e.team.name.toLowerCase().includes("argentin");});});
+    if(argIdx>=0)window._verGrupo(argIdx);
+  }
 
 
   function showToast(msg){var t=document.getElementById("toast");t.textContent=msg;t.style.display="block";t.style.opacity="1";setTimeout(function(){t.style.opacity="0";setTimeout(function(){t.style.display="none";t.style.opacity="1";},400);},2200);}
