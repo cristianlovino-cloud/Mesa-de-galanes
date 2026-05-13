@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Mesa de Galanes</title>
-<meta name='app-version' content='2.6'>
+<meta name='app-version' content='2.5'>
 <meta name="theme-color" content="#0b0f19">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
@@ -88,8 +88,8 @@
     onValue(rD,function(s){drinks=s.exists()?s.val():DRINKS_DEF.slice();if(!s.exists())set(rD,drinks);renderDrinks();
     var sp=document.getElementById('splash-screen');if(sp){sp.style.opacity='0';setTimeout(function(){if(sp.parentNode)sp.parentNode.removeChild(sp);},500);}
   });
-    onValue(rO,function(s){try{orders=s.exists()?s.val():{};renderDrinks();renderOrders();renderMesa();renderLista();renderConfirmBtn();renderRitualPanel();}catch(e){console.error("rO",e);}});
-    onValue(rC,function(s){try{confirmed=s.exists()?s.val():{};renderConfirmBtn();renderOrders();renderMesa();renderLista();renderRitualPanel();}catch(e){console.error("rC",e);}});
+    onValue(rO,function(s){try{orders=s.exists()?s.val():{};renderDrinks();renderOrders();renderMesa();renderLista();renderConfirmBtn();}catch(e){console.error("rO",e);}});
+    onValue(rC,function(s){try{confirmed=s.exists()?s.val():{};renderConfirmBtn();renderOrders();renderMesa();renderLista();}catch(e){console.error("rC",e);}});
     onValue(rP,function(s){try{pagos=s.exists()?s.val():{};renderOrders();renderMesa();renderLista();renderPagosDetail();}catch(e){console.error("rP",e);}});
     onValue(rB,function(s){try{totalBar=s.exists()?s.val():0;renderMesa();}catch(e){console.error("rB",e);}});
     onValue(rT,function(s){timerD=s.exists()?s.val():null;renderTimer();});
@@ -285,33 +285,6 @@
     if(misPed.length>0&&!confirmado()){w.style.display="flex";}
     else{w.style.display="none";}
   }
-  function renderRitualPanel(){
-    var panel=document.getElementById("ritual-panel");if(!panel)return;
-    var vals=Object.values(orders||{});
-    var players={};vals.forEach(function(o){players[o.player]=true;});
-    var playerCount=Object.keys(players).length;
-    var orderCount=vals.length;
-    var confirmedCount=Object.values(confirmed||{}).filter(Boolean).length;
-    var faltan=Math.max(0,(galanes&&galanes.length?galanes.length:0)-playerCount);
-    var my=me?vals.filter(function(o){return o.player===me;}):[];
-    var myHtml="";
-    if(!me){
-      myHtml="<div class='rp-empty'><b>Entrá a la mesa</b><span>Elegí nombre y pedí en 2 taps.</span><button onclick='openModal("mnombre")'>Soy galán</button></div>";
-    } else if(my.length){
-      var txt=my.map(function(o){return "<span>"+o.icon+" "+o.drink+"</span>";}).join("");
-      var sent=confirmed[me]||my.some(function(o){return o.loadedBy==='reserva';});
-      myHtml="<div class='rp-my "+(sent?"rp-ok":"rp-warn")+"'><div><div class='rp-kicker'>Tu pedido</div><div class='rp-order'>"+txt+"</div></div><div class='rp-actions'>"+(sent?"<span class='rp-state'>✓ Enviado</span>":"<button onclick='doConfirm()'>Enviar</button>")+"<button class='ghost' onclick='document.getElementById("drinks-grid").scrollIntoView({behavior:"smooth",block:"start"})'>Editar</button></div></div>";
-    } else {
-      myHtml="<div class='rp-empty'><b>¿Tu clásico?</b><span>Pedí rápido o cambiá abajo.</span><button onclick='mostrarLoDeSimepre()'>☕ Mi clásico</button></div>";
-    }
-    panel.innerHTML="<div class='rp-stats'>"
-      +"<div class='rp-stat'><b>"+playerCount+"</b><span>confirmados</span></div>"
-      +"<div class='rp-stat'><b>"+orderCount+"</b><span>pedidos</span></div>"
-      +"<div class='rp-stat'><b>"+confirmedCount+"</b><span>enviados</span></div>"
-      +"<div class='rp-stat warn'><b>"+faltan+"</b><span>faltan</span></div>"
-      +"</div>"+myHtml;
-  }
-
   window.doConfirm=async function(){
     if(!me||confirmado())return;
     await set(ref(db,"pedido/confirmed/"+me),true);
@@ -1066,7 +1039,6 @@
   }
 
   function renderDrinks(){
-    renderRitualPanel();
     var myIdxs=Object.values(orders).filter(function(o){return o.player===me;}).map(function(o){return o.drinkIdx;});
     var admin=isAdmin(),rows=[];
     // Banner estado del pedido propio
@@ -1113,7 +1085,6 @@
   }
 
   function renderOrders(){
-    renderRitualPanel();
     var total=Object.keys(orders).length;
     var by={},en=Object.entries(orders).sort(function(a,b){return a[1].ts-b[1].ts;});
     for(var i=0;i<en.length;i++){var k=en[i][0],o=en[i][1];if(!by[o.player])by[o.player]=[];by[o.player].push({key:k,drink:o.drink,icon:o.icon});}
@@ -2022,44 +1993,6 @@ header::after{
 .ap{font-size:1.4rem;line-height:1;font-weight:300;color:var(--acc);width:36px;text-align:center;}
 .rc{color:var(--mut);}
 
-
-/* RITUAL PANEL — v2.6 */
-#ritual-panel{margin:12px 12px 2px;display:flex;flex-direction:column;gap:10px;}
-.rp-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;}
-.rp-stat{background:rgba(255,255,255,0.035);border:1px solid var(--brd);border-radius:12px;padding:9px 6px;text-align:center;min-width:0;}
-.rp-stat b{display:block;font-family:var(--font-display);font-size:1.15rem;line-height:1;color:var(--ink);letter-spacing:-0.04em;}
-.rp-stat span{display:block;margin-top:4px;font-size:0.52rem;color:var(--mut);font-weight:700;letter-spacing:0.04em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.rp-stat.warn b{color:var(--g2);}
-.rp-my,.rp-empty{border:1px solid rgba(245,158,11,0.18);border-radius:16px;padding:12px 12px;display:flex;align-items:center;justify-content:space-between;gap:10px;background:linear-gradient(90deg,rgba(245,158,11,0.08),rgba(255,255,255,0.02));}
-.rp-my.rp-ok{border-color:rgba(34,197,94,0.22);background:linear-gradient(90deg,rgba(34,197,94,0.08),rgba(255,255,255,0.02));}
-.rp-kicker{font-size:0.55rem;color:var(--mut);font-weight:800;letter-spacing:0.08em;margin-bottom:4px;}
-.rp-order{display:flex;flex-direction:column;gap:3px;font-size:0.72rem;font-weight:800;color:var(--ink);line-height:1.25;letter-spacing:0.02em;}
-.rp-actions{display:flex;align-items:center;gap:6px;flex-shrink:0;}
-.rp-actions button,.rp-empty button{border:none;border-radius:999px;background:var(--acc);color:#111;padding:8px 12px;font-size:0.62rem;font-weight:900;font-family:var(--font-body);cursor:pointer;letter-spacing:0.04em;text-transform:uppercase;}
-.rp-actions button.ghost{background:rgba(255,255,255,0.06);border:1px solid var(--brd);color:var(--mut);}
-.rp-state{background:rgba(34,197,94,0.12);color:var(--grn);border:1px solid rgba(34,197,94,0.2);border-radius:999px;padding:7px 10px;font-size:0.6rem;font-weight:900;white-space:nowrap;}
-.rp-empty{align-items:center;}
-.rp-empty b{font-size:0.78rem;color:var(--ink);display:block;letter-spacing:0.02em;}
-.rp-empty span{font-size:0.58rem;color:var(--mut);display:block;margin-top:3px;letter-spacing:0.02em;}
-
-/* Compactación premium */
-header{padding:16px 16px 14px;}
-header::before{font-size:6.2rem;opacity:.8;}
-.htit{font-size:1.72rem;}
-.hmeta{font-size:.78rem;line-height:1.55;}
-.nz{margin-top:8px;}
-.tabs{overflow-x:auto;scrollbar-width:none;}
-.tabs::-webkit-scrollbar{display:none;}
-.tab{min-width:88px;flex:0 0 auto;font-size:.62rem;padding:9px 6px;}
-.slabel{padding:16px 16px 10px;font-size:.82rem;}
-.dg{margin:0 12px;border-radius:16px;}
-.dc{min-height:52px;padding:10px 12px;gap:10px;}
-.ce{font-size:1.35rem;width:30px;}
-.cn{font-size:.68rem;}
-.ch,.cx,.cs{font-size:.58rem;}
-.ck{width:24px;height:24px;}
-@media(max-width:380px){.rp-stats{gap:5px}.rp-stat span{font-size:.46rem}.rp-stat b{font-size:1rem}.rp-my,.rp-empty{padding:10px}.rp-actions{flex-direction:column;align-items:stretch}.tab{min-width:82px}}
-
 /* RESUMEN */
 .sp{margin:0 12px;background:var(--sur);border:1px solid var(--brd);border-radius:14px;overflow:hidden;}
 .or{padding:14px 16px;border-bottom:1px solid var(--brd);}.or:last-child{border-bottom:none;}
@@ -2260,8 +2193,82 @@ header::before{font-size:6.2rem;opacity:.8;}
 }
 #splash-screen { animation: splashFadeIn 0.3s ease; }
 </style>
+
+<style>
+/* --- v2.6 Compact UI Patch --- */
+.order-card,.lista-row{
+  min-height:72px !important;
+  padding:10px 12px !important;
+  border-radius:16px !important;
+}
+
+.lista-name{
+  font-size:0.95rem !important;
+  font-weight:700 !important;
+}
+
+.lista-drinks{
+  font-size:0.78rem !important;
+  opacity:.78;
+}
+
+.tabs{
+  overflow-x:auto;
+  scrollbar-width:none;
+}
+
+.tabs::-webkit-scrollbar{
+  display:none;
+}
+
+#top-kpis{
+  display:flex;
+  gap:10px;
+  padding:12px;
+  margin:10px 12px;
+}
+
+.kpi-box{
+  flex:1;
+  background:rgba(255,255,255,.04);
+  border:1px solid rgba(255,255,255,.06);
+  border-radius:16px;
+  padding:10px;
+  text-align:center;
+}
+
+.kpi-num{
+  font-size:1.2rem;
+  font-weight:800;
+  color:#f5b942;
+}
+
+.kpi-label{
+  font-size:.68rem;
+  opacity:.7;
+  margin-top:2px;
+  letter-spacing:.08em;
+}
+</style>
+
 </head>
 <body>
+
+<div id="top-kpis">
+  <div class="kpi-box">
+    <div class="kpi-num">8</div>
+    <div class="kpi-label">CONFIRMADOS</div>
+  </div>
+  <div class="kpi-box">
+    <div class="kpi-num">12</div>
+    <div class="kpi-label">PEDIDOS</div>
+  </div>
+  <div class="kpi-box">
+    <div class="kpi-num">7:45</div>
+    <div class="kpi-label">MESA</div>
+  </div>
+</div>
+
 <div id="splash-screen" style="position:fixed;inset:0;background:#0a0a0a;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;transition:opacity 0.5s ease">
   <img src="icon-transparent.png" style="width:150px;height:150px;object-fit:contain;animation:splashPulse 1.4s ease-in-out infinite;filter:drop-shadow(0 0 28px rgba(100,174,220,0.7));margin-bottom:28px">
   <div style="font-family:'Playfair Display',serif;font-size:0.75rem;color:rgba(255,255,255,0.5);letter-spacing:0.18em;text-transform:uppercase;animation:splashFadeIn 0.6s ease 0.2s both">Cargando...</div>
@@ -2293,7 +2300,6 @@ header::before{font-size:6.2rem;opacity:.8;}
 </div>
 <div class="main">
   <div id="v-pedir">
-    <div id="ritual-panel"></div>
     <div id="reserva-panel"></div>
     <div id="pedido-status-banner" style="display:none"></div>
     <div class="slabel"><span class="ld"></span> Que tomas?</div>
@@ -2576,5 +2582,33 @@ header::before{font-size:6.2rem;opacity:.8;}
     if(ab&&tb)new MutationObserver(function(){tb.style.display=ab.style.display!=="none"?"block":"none";}).observe(ab,{attributes:true,attributeFilter:["style"]});
   });
 </script>
+
+<script>
+window.addEventListener('load', function(){
+  setTimeout(function(){
+    var sp=document.getElementById('splash-screen');
+    if(sp){
+      sp.style.transition='opacity .4s ease';
+      sp.style.opacity='0';
+      setTimeout(function(){
+        if(sp.parentNode){sp.parentNode.removeChild(sp);}
+      },450);
+    }
+  },1200);
+});
+
+// Extra fallback if Firebase hangs
+setTimeout(function(){
+  var sp=document.getElementById('splash-screen');
+  if(sp){
+    sp.style.transition='opacity .4s ease';
+    sp.style.opacity='0';
+    setTimeout(function(){
+      if(sp.parentNode){sp.parentNode.removeChild(sp);}
+    },450);
+  }
+},5000);
+</script>
+
 </body>
 </html>
