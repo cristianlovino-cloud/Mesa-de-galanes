@@ -2195,80 +2195,102 @@ header::after{
 </style>
 
 <style>
-/* --- v2.6 Compact UI Patch --- */
-.order-card,.lista-row{
-  min-height:72px !important;
-  padding:10px 12px !important;
-  border-radius:16px !important;
+/* ===== V2.7 CLEAN HEADER ===== */
+
+#top-kpis{display:none!important;}
+
+.hdr-stats{
+ position:absolute;
+ top:26px;
+ right:20px;
+ display:flex;
+ flex-direction:column;
+ gap:6px;
+ z-index:5;
+ align-items:flex-end;
+}
+
+.hdr-pill{
+ background:rgba(255,255,255,.05);
+ border:1px solid rgba(255,255,255,.08);
+ border-radius:999px;
+ padding:6px 12px;
+ font-size:.78rem;
+ font-weight:700;
+ color:#f5b942;
+ backdrop-filter:blur(8px);
+}
+
+.big-clock{
+ opacity:.08 !important;
+ font-size:9rem !important;
+ top:90px !important;
+ right:-10px !important;
+}
+
+.lista-row,
+.order-card{
+ min-height:58px !important;
+ padding:8px 12px !important;
+ border-radius:14px !important;
+ display:flex;
+ align-items:center;
+}
+
+.lista-av{
+ width:38px !important;
+ height:38px !important;
+ font-size:.72rem !important;
+}
+
+.lista-info{
+ display:flex;
+ flex-direction:column;
+ justify-content:center;
+ gap:2px;
 }
 
 .lista-name{
-  font-size:0.95rem !important;
-  font-weight:700 !important;
+ font-size:.92rem !important;
+ font-weight:700 !important;
+ line-height:1.1;
 }
 
 .lista-drinks{
-  font-size:0.78rem !important;
-  opacity:.78;
+ font-size:.72rem !important;
+ opacity:.72;
+ line-height:1.1;
+}
+
+.xbtn,
+.ytag,
+.psel-ck,
+.pago-ok{
+ border-radius:999px !important;
 }
 
 .tabs{
-  overflow-x:auto;
-  scrollbar-width:none;
+ overflow-x:auto;
+ scrollbar-width:none;
 }
 
 .tabs::-webkit-scrollbar{
-  display:none;
+ display:none;
 }
 
-#top-kpis{
-  display:flex;
-  gap:10px;
-  padding:12px;
-  margin:10px 12px;
+.tab{
+ min-width:max-content;
 }
 
-.kpi-box{
-  flex:1;
-  background:rgba(255,255,255,.04);
-  border:1px solid rgba(255,255,255,.06);
-  border-radius:16px;
-  padding:10px;
-  text-align:center;
+#badge{
+ transform:scale(.92);
+ transform-origin:left center;
 }
 
-.kpi-num{
-  font-size:1.2rem;
-  font-weight:800;
-  color:#f5b942;
-}
-
-.kpi-label{
-  font-size:.68rem;
-  opacity:.7;
-  margin-top:2px;
-  letter-spacing:.08em;
-}
 </style>
 
 </head>
 <body>
-
-<div id="top-kpis">
-  <div class="kpi-box">
-    <div class="kpi-num">8</div>
-    <div class="kpi-label">CONFIRMADOS</div>
-  </div>
-  <div class="kpi-box">
-    <div class="kpi-num">12</div>
-    <div class="kpi-label">PEDIDOS</div>
-  </div>
-  <div class="kpi-box">
-    <div class="kpi-num">7:45</div>
-    <div class="kpi-label">MESA</div>
-  </div>
-</div>
-
 <div id="splash-screen" style="position:fixed;inset:0;background:#0a0a0a;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;transition:opacity 0.5s ease">
   <img src="icon-transparent.png" style="width:150px;height:150px;object-fit:contain;animation:splashPulse 1.4s ease-in-out infinite;filter:drop-shadow(0 0 28px rgba(100,174,220,0.7));margin-bottom:28px">
   <div style="font-family:'Playfair Display',serif;font-size:0.75rem;color:rgba(255,255,255,0.5);letter-spacing:0.18em;text-transform:uppercase;animation:splashFadeIn 0.6s ease 0.2s both">Cargando...</div>
@@ -2584,30 +2606,49 @@ header::after{
 </script>
 
 <script>
+setInterval(function(){
+ try{
+   var conf = Object.keys(window.confirmed||{}).length;
+   var pedidos = Object.keys(window.orders||{}).length;
+
+   var hdr=document.getElementById('hdr-stats-live');
+   if(!hdr){
+      var title=document.querySelector('.hero,.header,.top-header') || document.body;
+      hdr=document.createElement('div');
+      hdr.id='hdr-stats-live';
+      hdr.className='hdr-stats';
+      hdr.innerHTML='      <div class="hdr-pill" id="pill-conf">👥 0</div>      <div class="hdr-pill" id="pill-ped">☕ 0</div>      <div class="hdr-pill" id="pill-hora">⏰ --:--</div>';
+      title.appendChild(hdr);
+   }
+
+   var d=new Date();
+   var hh=String(d.getHours()).padStart(2,'0');
+   var mm=String(d.getMinutes()).padStart(2,'0');
+
+   document.getElementById('pill-conf').innerHTML='👥 '+conf;
+   document.getElementById('pill-ped').innerHTML='☕ '+pedidos;
+   document.getElementById('pill-hora').innerHTML='⏰ '+hh+':'+mm;
+
+   var giant=document.querySelector('.clock-big,.bg-clock,.hero-clock');
+   if(giant){ giant.classList.add('big-clock'); }
+
+ }catch(e){}
+},500);
+</script>
+
+
+<script>
 window.addEventListener('load', function(){
   setTimeout(function(){
     var sp=document.getElementById('splash-screen');
     if(sp){
-      sp.style.transition='opacity .4s ease';
       sp.style.opacity='0';
       setTimeout(function(){
-        if(sp.parentNode){sp.parentNode.removeChild(sp);}
-      },450);
+        if(sp.parentNode)sp.parentNode.removeChild(sp);
+      },400);
     }
   },1200);
 });
-
-// Extra fallback if Firebase hangs
-setTimeout(function(){
-  var sp=document.getElementById('splash-screen');
-  if(sp){
-    sp.style.transition='opacity .4s ease';
-    sp.style.opacity='0';
-    setTimeout(function(){
-      if(sp.parentNode){sp.parentNode.removeChild(sp);}
-    },450);
-  }
-},5000);
 </script>
 
 </body>
