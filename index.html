@@ -85,7 +85,9 @@
     updateClock();setInterval(updateClock,30000);
     switchTab("pedir");
     onValue(rG,function(s){galanes=s.exists()?s.val():KNOWN_DEF.slice();if(!s.exists())set(rG,galanes);});
-    onValue(rD,function(s){drinks=s.exists()?s.val():DRINKS_DEF.slice();if(!s.exists())set(rD,drinks);renderDrinks();});
+    onValue(rD,function(s){drinks=s.exists()?s.val():DRINKS_DEF.slice();if(!s.exists())set(rD,drinks);renderDrinks();
+    var sp=document.getElementById('splash-screen');if(sp){sp.style.opacity='0';setTimeout(function(){if(sp.parentNode)sp.parentNode.removeChild(sp);},500);}
+  });
     onValue(rO,function(s){try{orders=s.exists()?s.val():{};renderDrinks();renderOrders();renderMesa();renderLista();renderConfirmBtn();}catch(e){console.error("rO",e);}});
     onValue(rC,function(s){try{confirmed=s.exists()?s.val():{};renderConfirmBtn();renderOrders();renderMesa();renderLista();}catch(e){console.error("rC",e);}});
     onValue(rP,function(s){try{pagos=s.exists()?s.val():{};renderOrders();renderMesa();renderLista();renderPagosDetail();}catch(e){console.error("rP",e);}});
@@ -106,6 +108,8 @@
         dg.innerHTML="<div class='es' style='padding:30px 12px;color:var(--red)'>⚠️ Sin conexión a Firebase.<br><small style='opacity:0.6'>Revisá tu internet y recargá.</small><br><br><button onclick='location.reload()' style='margin-top:10px;background:var(--acc);border:none;border-radius:8px;padding:10px 20px;font-weight:700;cursor:pointer'>🔄 Recargar</button></div>";
       }
     }, 8000);
+    // Fallback: ocultar splash en 5s aunque Firebase no responda
+    setTimeout(function(){var sp=document.getElementById('splash-screen');if(sp){sp.style.opacity='0';setTimeout(function(){if(sp.parentNode)sp.parentNode.removeChild(sp);},500);}},5000);
     if(me)renderMyName();else{
     setTimeout(function(){
       openModal("mnombre");
@@ -2178,9 +2182,23 @@ header::after{
 /* MUNDIAL */
 #grupos-carrusel::-webkit-scrollbar{display:none;}
 #grupos-carrusel > div:hover{border-color:var(--acc)!important;transform:translateY(-2px);transition:all 0.15s;}
+
+@keyframes splashPulse {
+  0%,100% { transform:scale(1); opacity:1; }
+  50% { transform:scale(1.06); opacity:0.85; }
+}
+@keyframes splashFadeIn {
+  from { opacity:0; transform:translateY(10px); }
+  to { opacity:1; transform:translateY(0); }
+}
+#splash-screen { animation: splashFadeIn 0.3s ease; }
 </style>
 </head>
 <body>
+<div id="splash-screen" style="position:fixed;inset:0;background:#0a0a0a;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;transition:opacity 0.5s ease">
+  <img src="icon-192.png" style="width:140px;height:140px;object-fit:contain;animation:splashPulse 1.4s ease-in-out infinite;filter:drop-shadow(0 0 24px rgba(100,174,220,0.6));margin-bottom:28px">
+  <div style="font-family:'Playfair Display',serif;font-size:0.75rem;color:rgba(255,255,255,0.5);letter-spacing:0.18em;text-transform:uppercase;animation:splashFadeIn 0.6s ease 0.2s both">Cargando...</div>
+</div>
 <header>
   <div class="htop">
     <div class="htit">Mesa de <span>Galanes</span></div>
