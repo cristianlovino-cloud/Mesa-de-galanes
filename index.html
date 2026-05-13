@@ -1848,7 +1848,7 @@
   });
 </script>
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=Outfit:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,400&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap');
 /* DARK MODE — default */
 :root{
   /* === ALINEADO CON APP ASADO === */
@@ -1910,7 +1910,7 @@ body::before{
   transform:translate(-50%,-50%);
   font-family:var(--font-display);
   font-size:70vw;font-weight:900;
-  color:rgba(245,158,11,0.05);
+  color:rgba(245,158,11,0.04);
   pointer-events:none;user-select:none;
   z-index:0;line-height:1;white-space:nowrap;
 }
@@ -2158,7 +2158,7 @@ header::after{
 
 /* ADMIN MODULE v9 */
 .admin-subtabs{display:flex;background:var(--sur2);border-bottom:1px solid var(--brd);padding:0 12px;position:sticky;top:0;z-index:10;}
-.admin-stab{flex:1;background:none;border:none;border-bottom:2px solid transparent;padding:12px 8px;font-family:var(--font-body);font-size:0.78rem;font-weight:600;color:var(--mut);cursor:pointer;letter-spacing:0.04em;transition:all 0.15s;text-align:center;}
+.admin-stab{flex:1;background:none;border:none;border-bottom:2px solid transparent;padding:10px 4px;font-family:var(--font-body);font-size:0.7rem;font-weight:600;color:var(--mut);cursor:pointer;letter-spacing:0.04em;transition:all 0.2s;text-align:center;text-transform:uppercase;}
 .admin-stab.active{color:var(--g2);border-bottom-color:var(--acc);}
 .admin-stab:hover{color:var(--ink);}
 .admin-action-btn{background:var(--sur2);border:1px solid var(--brd);border-radius:100px;padding:6px 14px;font-family:var(--font-body);font-size:0.78rem;font-weight:600;color:var(--ink);cursor:pointer;white-space:nowrap;transition:all 0.15s;letter-spacing:0.04em;text-transform:uppercase;}
@@ -2193,102 +2193,6 @@ header::after{
 }
 #splash-screen { animation: splashFadeIn 0.3s ease; }
 </style>
-
-<style>
-/* ===== V2.7 CLEAN HEADER ===== */
-
-#top-kpis{display:none!important;}
-
-.hdr-stats{
- position:absolute;
- top:26px;
- right:20px;
- display:flex;
- flex-direction:column;
- gap:6px;
- z-index:5;
- align-items:flex-end;
-}
-
-.hdr-pill{
- background:rgba(255,255,255,.05);
- border:1px solid rgba(255,255,255,.08);
- border-radius:999px;
- padding:6px 12px;
- font-size:.78rem;
- font-weight:700;
- color:#f5b942;
- backdrop-filter:blur(8px);
-}
-
-.big-clock{
- opacity:.08 !important;
- font-size:9rem !important;
- top:90px !important;
- right:-10px !important;
-}
-
-.lista-row,
-.order-card{
- min-height:58px !important;
- padding:8px 12px !important;
- border-radius:14px !important;
- display:flex;
- align-items:center;
-}
-
-.lista-av{
- width:38px !important;
- height:38px !important;
- font-size:.72rem !important;
-}
-
-.lista-info{
- display:flex;
- flex-direction:column;
- justify-content:center;
- gap:2px;
-}
-
-.lista-name{
- font-size:.92rem !important;
- font-weight:700 !important;
- line-height:1.1;
-}
-
-.lista-drinks{
- font-size:.72rem !important;
- opacity:.72;
- line-height:1.1;
-}
-
-.xbtn,
-.ytag,
-.psel-ck,
-.pago-ok{
- border-radius:999px !important;
-}
-
-.tabs{
- overflow-x:auto;
- scrollbar-width:none;
-}
-
-.tabs::-webkit-scrollbar{
- display:none;
-}
-
-.tab{
- min-width:max-content;
-}
-
-#badge{
- transform:scale(.92);
- transform-origin:left center;
-}
-
-</style>
-
 </head>
 <body>
 <div id="splash-screen" style="position:fixed;inset:0;background:#0a0a0a;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;transition:opacity 0.5s ease">
@@ -2562,7 +2466,7 @@ header::after{
 </div>
 
 <script>
-  var APP_VERSION="9.0";
+  var APP_VERSION="9.1";
   var STORED_VERSION=localStorage.getItem("app_version");
 
   if("serviceWorker"in navigator){
@@ -2604,52 +2508,5 @@ header::after{
     if(ab&&tb)new MutationObserver(function(){tb.style.display=ab.style.display!=="none"?"block":"none";}).observe(ab,{attributes:true,attributeFilter:["style"]});
   });
 </script>
-
-<script>
-setInterval(function(){
- try{
-   var conf = Object.keys(window.confirmed||{}).length;
-   var pedidos = Object.keys(window.orders||{}).length;
-
-   var hdr=document.getElementById('hdr-stats-live');
-   if(!hdr){
-      var title=document.querySelector('.hero,.header,.top-header') || document.body;
-      hdr=document.createElement('div');
-      hdr.id='hdr-stats-live';
-      hdr.className='hdr-stats';
-      hdr.innerHTML='      <div class="hdr-pill" id="pill-conf">👥 0</div>      <div class="hdr-pill" id="pill-ped">☕ 0</div>      <div class="hdr-pill" id="pill-hora">⏰ --:--</div>';
-      title.appendChild(hdr);
-   }
-
-   var d=new Date();
-   var hh=String(d.getHours()).padStart(2,'0');
-   var mm=String(d.getMinutes()).padStart(2,'0');
-
-   document.getElementById('pill-conf').innerHTML='👥 '+conf;
-   document.getElementById('pill-ped').innerHTML='☕ '+pedidos;
-   document.getElementById('pill-hora').innerHTML='⏰ '+hh+':'+mm;
-
-   var giant=document.querySelector('.clock-big,.bg-clock,.hero-clock');
-   if(giant){ giant.classList.add('big-clock'); }
-
- }catch(e){}
-},500);
-</script>
-
-
-<script>
-window.addEventListener('load', function(){
-  setTimeout(function(){
-    var sp=document.getElementById('splash-screen');
-    if(sp){
-      sp.style.opacity='0';
-      setTimeout(function(){
-        if(sp.parentNode)sp.parentNode.removeChild(sp);
-      },400);
-    }
-  },1200);
-});
-</script>
-
 </body>
 </html>
