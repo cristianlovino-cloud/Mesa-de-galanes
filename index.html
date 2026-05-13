@@ -277,7 +277,7 @@
   function renderConfirmBtn(){
     var w=document.getElementById("confirm-wrap");if(!w)return;
     if(!me){w.style.display="none";return;}
-    var misPed=Object.values(orders).filter(function(o){return o.player===me&&o.loadedBy!=="admin";});
+    var misPed=Object.values(orders).filter(function(o){return o.player===me&&o.loadedBy!=="admin"&&o.loadedBy!=="reserva";});
     if(misPed.length>0&&!confirmado()){w.style.display="flex";}
     else{w.style.display="none";}
   }
@@ -1037,10 +1037,11 @@
     if(bannerDiv&&me&&!admin){
       var misPedidos=Object.values(orders).filter(function(o){return o.player===me;});
       var adminMePidio=misPedidos.some(function(o){return o.loadedBy==="admin";});
+      var reservaMePidio=misPedidos.some(function(o){return o.loadedBy==="reserva";});
       var yoConfirme=confirmed[me];
-      if(yoConfirme){
-        bannerDiv.innerHTML="<div class='status-banner status-ok'>✓ Ya enviaste tu pedido para hoy</div>";
-        bannerDiv.style.display="block";
+      if(yoConfirme||reservaMePidio){
+        // Reserva ya implica confirmación — no pedir que reconfirme
+        bannerDiv.style.display="none";
       } else if(adminMePidio&&misPedidos.length){
         bannerDiv.innerHTML="<div class='status-banner status-admin'>☕ El admin ya te cargó un pedido — verificá en Resumen</div>";
         bannerDiv.style.display="block";
