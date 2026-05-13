@@ -2471,7 +2471,7 @@ header::after{
 
   if("serviceWorker"in navigator){
     window.addEventListener("load",function(){
-      navigator.serviceWorker.register("sw.js?v=9").then(function(reg){
+      navigator.serviceWorker.register("sw.js?v=10").then(function(reg){
         // Chequear actualizaciones cada vez que abre
         reg.update();
         // Si hay nueva versión esperando, activarla

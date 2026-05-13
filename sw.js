@@ -1,5 +1,5 @@
-// v9 — network first, sin cache del HTML
-const CACHE = 'mesa-galanes-v9';
+// v10 — network first siempre, sin cache de HTML
+const CACHE = 'mesa-galanes-v10';
 
 self.addEventListener('message', function(e) {
   if (e.data && e.data.type === 'SKIP_WAITING') self.skipWaiting();
@@ -26,7 +26,7 @@ self.addEventListener('fetch', function(e) {
     return;
   }
   e.respondWith(
-    fetch(e.request).catch(function() {
+    fetch(e.request, {cache: 'no-store'}).catch(function() {
       return caches.match(e.request);
     })
   );
