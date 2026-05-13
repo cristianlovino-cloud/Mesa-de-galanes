@@ -84,7 +84,7 @@
   window.addEventListener("DOMContentLoaded",function(){
     updateClock();setInterval(updateClock,30000);
     switchTab("pedir");
-    onValue(rG,function(s){galanes=s.exists()?s.val():KNOWN_DEF.slice();if(!s.exists())set(rG,galanes);});
+    onValue(rG,function(s){galanes=s.exists()?s.val():KNOWN_DEF.slice();renderLoginGalanes();if(!s.exists())set(rG,galanes);});
     onValue(rD,function(s){drinks=s.exists()?s.val():DRINKS_DEF.slice();if(!s.exists())set(rD,drinks);renderDrinks();
     var sp=document.getElementById('splash-screen');if(sp){sp.style.opacity='0';setTimeout(function(){if(sp.parentNode)sp.parentNode.removeChild(sp);},500);}
   });
@@ -110,6 +110,8 @@
     }, 8000);
     // Fallback: ocultar splash en 5s aunque Firebase no responda
     setTimeout(function(){var sp=document.getElementById('splash-screen');if(sp){sp.style.opacity='0';setTimeout(function(){if(sp.parentNode)sp.parentNode.removeChild(sp);},500);}},5000);
+    // Mostrar login screen siempre al inicio
+    showLoginScreen();
     if(me)renderMyName();else{
     setTimeout(function(){
       openModal("mnombre");
@@ -1812,6 +1814,85 @@
   }
 
 
+  // ── LOGIN SCREEN ──
+  function showLoginScreen(){
+    var ls=document.getElementById("login-screen");
+    if(ls)ls.style.display="flex";
+    // Sat label
+    var sl=document.getElementById("login-sat-label");
+    if(sl){var sat=nextSat();sl.textContent="PRÓXIMO: SÁB "+sat.getDate()+" "+MESES_C[sat.getMonth()].toUpperCase();}
+    // Si ya tiene nombre → step2
+    if(me){
+      document.getElementById("login-step1").style.display="none";
+      var s2=document.getElementById("login-step2");s2.style.display="flex";
+      var nl=document.getElementById("login-nombre-label");if(nl)nl.textContent=me.toUpperCase();
+    } else {
+      document.getElementById("login-step1").style.display="flex";
+      document.getElementById("login-step2").style.display="none";
+      renderLoginGalanes();
+    }
+  }
+  function hideLoginScreen(){
+    var ls=document.getElementById("login-screen");
+    if(ls){ls.style.opacity="0";setTimeout(function(){ls.style.display="none";ls.style.opacity="1";},400);}
+  }
+  function renderLoginGalanes(){
+    var list=document.getElementById("login-galanes-list");if(!list)return;
+    var sorted=galanes.slice().sort();
+    list.innerHTML=sorted.map(function(g){
+      return "<button class='login-galan-btn' onclick=\"loginSelectGalan('"+g+"')\">" 
+        +"<div class='login-galan-ini' style='background:"+col(g)+"'>"+ini(g)+"</div>"
+        +"<div class='login-galan-name'>"+g+"</div>"
+        +"</button>";
+    }).join("");
+  }
+  window.loginSelectGalan=function(nombre){
+    me=nombre;localStorage.setItem("galan_name",nombre);
+    document.getElementById("login-step1").style.display="none";
+    var s2=document.getElementById("login-step2");s2.style.display="flex";
+    var nl=document.getElementById("login-nombre-label");if(nl)nl.textContent=nombre.toUpperCase();
+  };
+  window.loginConfirmarNombre=function(){
+    var inp=document.getElementById("login-input-nombre");
+    var nombre=inp?inp.value.trim():"";
+    if(!nombre){showToast("Escribí tu nombre");return;}
+    nombre=nombre.charAt(0).toUpperCase()+nombre.slice(1).toLowerCase();
+    me=nombre;localStorage.setItem("galan_name",nombre);
+    document.getElementById("login-step1").style.display="none";
+    var s2=document.getElementById("login-step2");s2.style.display="flex";
+    var nl=document.getElementById("login-nombre-label");if(nl)nl.textContent=nombre.toUpperCase();
+  };
+  window.loginVoy=async function(){
+    if(!me)return;
+    var data={asistencia:true,pedidos:[],ts:Date.now(),sat:nextSatStr()};
+    try{await set(ref(db,"reserva/"+me),data);reservas[me]=data;}catch(e){}
+    hideLoginScreen();
+    renderMyName();
+    switchTab("stats");
+    // Abrir modal de pedido
+    setTimeout(function(){openModal("mpedirreserva");},500);
+  };
+  window.loginNoVoy=async function(){
+    if(!me)return;
+    hideLoginScreen();
+    renderMyName();
+    switchTab("stats");
+    showToast("Anotado como ausente 👋");
+  };
+  window.loginSinConfirmar=function(){
+    if(!me){showToast("Primero elegí tu nombre");return;}
+    hideLoginScreen();
+    renderMyName();
+    switchTab("stats");
+  };
+  window.loginCambiarNombre=function(){
+    me=null;localStorage.removeItem("galan_name");
+    document.getElementById("login-step2").style.display="none";
+    document.getElementById("login-step1").style.display="flex";
+    renderLoginGalanes();
+  };
+
+
   function showToast(msg){var t=document.getElementById("toast");t.textContent=msg;t.style.display="block";t.style.opacity="1";setTimeout(function(){t.style.opacity="0";setTimeout(function(){t.style.display="none";t.style.opacity="1";},400);},2200);}
   function updateClock(){
     var now=new Date();
@@ -2192,9 +2273,93 @@ header::after{
   to { opacity:1; transform:translateY(0); }
 }
 #splash-screen { animation: splashFadeIn 0.3s ease; }
+
+/* PANTALLA LOGIN ESTILO ASADO */
+#login-screen{
+  position:fixed;inset:0;background:#0a0a0a;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  z-index:9998;padding:32px 24px;
+  transition:opacity 0.4s ease;
+}
+#login-screen.hidden{opacity:0;pointer-events:none;}
+.login-logo{width:110px;height:110px;object-fit:contain;margin-bottom:20px;
+  filter:drop-shadow(0 0 20px rgba(100,174,220,0.5));}
+.login-titulo{font-family:var(--font-display);font-size:1.6rem;font-weight:500;
+  color:#f5f5f5;letter-spacing:0.04em;text-align:center;margin-bottom:6px;}
+.login-sub{font-size:0.65rem;color:var(--g2);letter-spacing:0.1em;margin-bottom:28px;text-align:center;}
+.login-sat{font-size:0.72rem;color:var(--mut);letter-spacing:0.06em;margin-bottom:24px;text-align:center;}
+.login-card{background:rgba(26,26,26,0.9);border:1px solid rgba(245,158,11,0.15);
+  border-radius:20px;padding:22px 20px;width:100%;max-width:340px;margin-bottom:20px;}
+.login-hola{font-size:0.65rem;color:var(--mut);letter-spacing:0.1em;text-align:center;margin-bottom:4px;}
+.login-nombre{font-family:var(--font-display);font-size:1.1rem;color:var(--g2);
+  text-align:center;margin-bottom:16px;letter-spacing:0.04em;}
+.login-btns{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.login-btn-voy{background:linear-gradient(135deg,#74aed6,#fbbf24);
+  border:2px solid rgba(245,158,11,0.4);border-radius:14px;padding:16px 8px;
+  font-family:var(--font-body);font-size:0.75rem;font-weight:700;color:#0a0805;
+  cursor:pointer;letter-spacing:0.06em;transition:all 0.2s;text-align:center;}
+.login-btn-voy:hover{transform:scale(1.02);box-shadow:0 8px 24px rgba(245,158,11,0.3);}
+.login-btn-no{background:rgba(26,26,26,0.8);border:1px solid rgba(255,255,255,0.1);
+  border-radius:14px;padding:16px 8px;font-family:var(--font-body);font-size:0.75rem;
+  font-weight:600;color:var(--mut);cursor:pointer;letter-spacing:0.06em;transition:all 0.2s;text-align:center;}
+.login-btn-no:hover{border-color:var(--red);color:#f87171;}
+.login-sin-confirmar{background:none;border:none;color:rgba(255,255,255,0.25);
+  font-family:var(--font-body);font-size:0.65rem;cursor:pointer;
+  letter-spacing:0.04em;text-decoration:underline;margin-top:8px;}
+.login-sin-confirmar:hover{color:var(--mut);}
+/* Input nombre en login */
+.login-input-wrap{width:100%;max-width:340px;}
+.login-input{width:100%;background:rgba(26,26,26,0.9);border:1px solid rgba(245,158,11,0.2);
+  border-radius:14px;padding:14px 18px;font-family:var(--font-body);font-size:0.9rem;
+  color:var(--ink);outline:none;text-align:center;letter-spacing:0.06em;
+  text-transform:uppercase;margin-bottom:12px;}
+.login-input:focus{border-color:var(--acc);}
+.login-input::placeholder{color:var(--mut);text-transform:uppercase;}
+.login-galanes-list{display:flex;flex-direction:column;gap:5px;
+  max-height:220px;overflow-y:auto;width:100%;max-width:340px;margin-bottom:12px;}
+.login-galan-btn{display:flex;align-items:center;gap:10px;background:rgba(26,26,26,0.9);
+  border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:10px 14px;
+  cursor:pointer;transition:all 0.15s;font-family:var(--font-body);}
+.login-galan-btn:hover{border-color:rgba(245,158,11,0.3);background:rgba(245,158,11,0.05);}
+.login-galan-ini{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;
+  justify-content:center;font-family:var(--font-display);font-size:0.9rem;
+  font-weight:700;color:white;flex-shrink:0;}
+.login-galan-name{font-size:0.65rem;font-weight:600;color:var(--ink);letter-spacing:0.04em;}
 </style>
 </head>
 <body>
+<div id="login-screen">
+  <img src="icon-transparent.png" class="login-logo">
+  <div class="login-titulo">MESA DE <span style="color:var(--g2)">GALANES</span></div>
+  <div class="login-sub">☕ SÁBADOS 7:45 · CRR TENIS</div>
+  <div class="login-sat" id="login-sat-label">PRÓXIMO: SÁB 16 MAY</div>
+
+  <!-- Estado: sin nombre → mostrar lista de galanes -->
+  <div id="login-step1" style="width:100%;max-width:340px;display:flex;flex-direction:column;align-items:center">
+    <div style="font-size:0.6rem;color:var(--mut);letter-spacing:0.1em;margin-bottom:12px">¿QUIÉN SOS?</div>
+    <div class="login-galanes-list" id="login-galanes-list"></div>
+    <div style="font-size:0.6rem;color:var(--mut);letter-spacing:0.08em;margin:8px 0 6px">O ESCRIBÍ TU NOMBRE</div>
+    <div class="login-input-wrap">
+      <input class="login-input" id="login-input-nombre" placeholder="TU NOMBRE" maxlength="20" autocomplete="off">
+      <button onclick="loginConfirmarNombre()" style="width:100%;background:var(--acc);color:#0a0805;border:none;border-radius:14px;padding:14px;font-family:var(--font-body);font-size:0.75rem;font-weight:700;cursor:pointer;letter-spacing:0.06em;">ENTRAR →</button>
+    </div>
+  </div>
+
+  <!-- Estado: tiene nombre → confirmar asistencia -->
+  <div id="login-step2" style="display:none;width:100%;max-width:340px;display:none;flex-direction:column;align-items:center">
+    <div class="login-card">
+      <div class="login-hola">HOLA</div>
+      <div class="login-nombre" id="login-nombre-label">—</div>
+      <div style="font-size:0.62rem;color:var(--mut);text-align:center;margin-bottom:16px;letter-spacing:0.06em">¿VAS AL CAFÉ?</div>
+      <div class="login-btns">
+        <button class="login-btn-voy" onclick="loginVoy()">✅ VOY</button>
+        <button class="login-btn-no" onclick="loginNoVoy()">❌ NO PUEDO</button>
+      </div>
+    </div>
+    <button class="login-sin-confirmar" onclick="loginSinConfirmar()">Entrar sin confirmar</button>
+    <button onclick="loginCambiarNombre()" style="background:none;border:none;color:var(--mut);font-size:0.6rem;cursor:pointer;margin-top:12px;letter-spacing:0.06em;text-decoration:underline;font-family:var(--font-body)">No soy yo, cambiar</button>
+  </div>
+</div>
 <div id="splash-screen" style="position:fixed;inset:0;background:#0a0a0a;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;transition:opacity 0.5s ease">
   <img src="icon-transparent.png" style="width:150px;height:150px;object-fit:contain;animation:splashPulse 1.4s ease-in-out infinite;filter:drop-shadow(0 0 28px rgba(100,174,220,0.7));margin-bottom:28px">
   <div style="font-family:'Playfair Display',serif;font-size:0.75rem;color:rgba(255,255,255,0.5);letter-spacing:0.18em;text-transform:uppercase;animation:splashFadeIn 0.6s ease 0.2s both">Cargando...</div>
