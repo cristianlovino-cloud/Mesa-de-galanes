@@ -618,7 +618,12 @@
         await push(rO,{player:pl,drinkIdx:p.drinkIdx,drink:p.drink,icon:p.icon,extra:p.extra||null,loadedBy:"reserva",ts:Date.now()+j});
       }
     }
-    await set(rR,null);
+    // Borrar SOLO las reservas de hoy que se importaron
+    var hoy=new Date().toISOString().slice(0,10);
+    for(var k=0;k<nuevos.length;k++){
+      await set(ref(db,"reserva/"+nuevos[k]),null);
+      delete reservas[nuevos[k]];
+    }
     showToast("✓ "+nuevos.length+" importados!");speak("Reservas importadas.");
   };
 
