@@ -921,7 +921,9 @@
       var idx=typeof item==="object"?item.idx:item;
       var extra=typeof item==="object"?item.extra:null;
       var d=drinks[idx];
-      return{drinkIdx:idx,drink:d.name,icon:d.icon,extra:extra};
+      // El nombre visible incluye el extra para que se muestre completo
+      var drinkLabel=d.name+(extra&&extra!=="Sin acompanamiento"?" + "+extra:"");
+      return{drinkIdx:idx,drink:drinkLabel,icon:d.icon,extra:extra};
     });
     // Guardar reserva
     var cur=reservas[me]||{asistencia:true,ts:Date.now(),sat:nextSatStr()};
@@ -936,7 +938,7 @@
       }
     }
     closeModal("mpedirreserva");
-    showToast("✓ Anotado con "+pedidos.map(function(p){return p.icon+" "+p.drink;}).join(", ")+"! Acordate de enviar tu pedido ☕");
+    showToast("✓ Anotado: "+pedidos.map(function(p){return p.icon+" "+p.drink;}).join(", ")+" ☕");
     speak("Anotado para el próximo sábado!");
     renderReserva();
   };
