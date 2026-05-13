@@ -1553,8 +1553,12 @@
   }
 
 
-  var FBALL_KEY="5c2f5a0af5944279b2d36a455a3aa325";
-  var FBALL_WC_ID="2000"; // Copa del Mundo FIFA
+  // API-Football (api-sports.io)
+  var APISPORTS_KEY="2d8784c16aa24de785ada85592566d5e";
+  var APISPORTS_BASE="https://v3.football.api-sports.io";
+  var WC_LEAGUE=1;    // FIFA World Cup
+  var WC_SEASON=2026;
+  var F1_LEAGUE=9;    // Formula 1 (bonus!)
 
   window.renderMundial=async function(){
     window._mundialLoaded=true;
@@ -1592,13 +1596,18 @@
     },1000);
 
     try{
-      // Grupos
-      var r1=await fetch("https://api.football-data.org/v4/competitions/"+FBALL_WC_ID+"/standings",{headers:{"X-Auth-Token":FBALL_KEY}});
+      var headers={"x-apisports-key":APISPORTS_KEY};
+
+      // Grupos / standings
+      var r1=await fetch(APISPORTS_BASE+"/standings?league="+WC_LEAGUE+"&season="+WC_SEASON,{headers:headers});
       var d1=await r1.json();
 
       // Partidos
-      var r2=await fetch("https://api.football-data.org/v4/competitions/"+FBALL_WC_ID+"/matches",{headers:{"X-Auth-Token":FBALL_KEY}});
+      var r2=await fetch(APISPORTS_BASE+"/fixtures?league="+WC_LEAGUE+"&season="+WC_SEASON,{headers:headers});
       var d2=await r2.json();
+
+      console.log("API standings:", JSON.stringify(d1).slice(0,200));
+      console.log("API fixtures:", JSON.stringify(d2).slice(0,200));
 
       renderMundialGroups(d1,d2,panel,getCountdownHtml());
     }catch(err){
@@ -1615,8 +1624,46 @@
 
   function renderMundialGroups(standings,matches,panel,cdHtml){
     var html=cdHtml;
-    var grupos=standings.standings||[];
-    var allMatches=matches.matches||[];
+    // api-sports estructura: response[0].league.standings[][]
+    var raw=standings.response&&standings.response[0]&&standings.response[0].league?standings.response[0].league.standings:[];
+    // Convertir al formato esperado
+    var grupos=raw.map(function(grp,gi){
+      return{
+        group:"Grupo "+String.fromCharCode(65+gi),
+        table:grp.map(function(e){
+          return{
+            team:{name:e.team.name,id:e.team.id},
+            playedGames:e.all.played,
+            won:e.all.win,
+            draw:e.all.draw,
+            lost:e.all.lose,
+            goalsFor:e.all.goals.for,
+            goalsAgainst:e.all.goals.against,
+            points:e.points
+          };
+        })
+      };
+    });
+    // Partidos: api-sports estructura response[]
+    var allMatches=(matches.response||[]).map(function(m){
+      return{
+        group:m.league.round&&m.league.round.includes("Group")?("Grupo "+m.league.round.slice(-1)):"",
+        stage:m.league.round&&m.league.round.includes("Group")?"GROUP_STAGE":
+              m.league.round&&m.league.round.includes("16")?"ROUND_OF_16":
+              m.league.round&&m.league.round.includes("Quarter")?"QUARTER_FINALS":
+              m.league.round&&m.league.round.includes("Semi")?"SEMI_FINALS":
+              m.league.round&&m.league.round.includes("Final")?"FINAL":"OTHER",
+        homeTeam:{name:m.teams.home.name},
+        awayTeam:{name:m.teams.away.name},
+        status:m.fixture.status.short==="1H"||m.fixture.status.short==="2H"?"IN_PLAY":
+               m.fixture.status.short==="FT"?"FINISHED":"TIMED",
+        utcDate:m.fixture.date,
+        score:{fullTime:{
+          home:m.goals.home,
+          away:m.goals.away
+        }}
+      };
+    });
 
     if(!grupos.length){
       panel.innerHTML=html+"<div style='text-align:center;padding:30px;color:var(--mut);font-size:0.65rem'>Datos del fixture no disponibles aún</div>";
