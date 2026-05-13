@@ -135,18 +135,26 @@
     var ordSnap=await get(rO);
     var existPlayers=ordSnap.exists()?Object.values(ordSnap.val()).map(function(o){return o.player;}):[]; 
     var importados=0;
+    var borrar=[];
     for(var i=0;i<pls.length;i++){
       var pl=pls[i];
-      if(existPlayers.indexOf(pl)!==-1)continue;
-      var peds=res[pl].pedidos||[];
+      var resData=res[pl];
+      // Solo importar reservas que son para el sábado de HOY
+      if(!resData||!resData.sat||resData.sat!==today)continue;
+      if(existPlayers.indexOf(pl)!==-1){borrar.push(pl);continue;}
+      var peds=resData.pedidos||[];
       for(var j=0;j<peds.length;j++){
         var p=peds[j];
         await push(rO,{player:pl,drinkIdx:p.drinkIdx,drink:p.drink,icon:p.icon,extra:p.extra||null,loadedBy:"reserva",ts:Date.now()+j});
       }
+      borrar.push(pl);
       importados++;
     }
+    // Borrar SOLO las reservas de hoy, no las futuras
+    for(var k=0;k<borrar.length;k++){
+      await set(ref(db,"reserva/"+borrar[k]),null);
+    }
     if(importados>0){
-      await set(rR,null);
       await set(rS,today+"_imported");
       showToast("✓ "+importados+" reservas importadas!");
     }
