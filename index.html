@@ -111,7 +111,10 @@
     // Fallback: ocultar splash en 5s aunque Firebase no responda
     setTimeout(function(){var sp=document.getElementById('splash-screen');if(sp){sp.style.opacity='0';setTimeout(function(){if(sp.parentNode)sp.parentNode.removeChild(sp);},500);}},5000);
     // Mostrar login screen siempre al inicio
-    showLoginScreen();
+    // Mostrar login solo si pasaron más de 4hs o no hay nombre (evita aparición molesta)
+    var _lastLogin=parseInt(localStorage.getItem("last_login_ts")||"0");
+    var _horasDesde=(Date.now()-_lastLogin)/(1000*60*60);
+    if(_horasDesde>4||!me){showLoginScreen();}
     if(me)renderMyName();else{
     setTimeout(function(){
       openModal("mnombre");
@@ -1038,10 +1041,15 @@
         +"</div>"
         +"<button onclick='cancelarReserva()' style='background:none;border:none;color:#e74c3c;font-size:0.78rem;font-weight:700;cursor:pointer;flex-shrink:0'>✕ No voy</button></div>";
     } else {
-      panel.innerHTML="<div class='res-banner res-warn'><div style='flex:1'>"
-        +"<div style='font-size:0.62rem;color:var(--mut);margin-bottom:6px'>"+satLabel().toUpperCase()+"</div>"
-        +"<button onclick='anotarme()' style='background:rgba(116,174,214,0.15);border:1px solid rgba(116,174,214,0.3);color:var(--club-cel);border-radius:10px;padding:8px 16px;font-size:0.68rem;font-weight:700;cursor:pointer;letter-spacing:0.04em;text-transform:uppercase'>☕ ANOTARME</button>"
-        +"</div></div>";
+      panel.innerHTML="<div style='margin:10px 12px 0'>"
+        +"<button onclick='anotarme()' style='display:flex;align-items:center;gap:10px;width:100%;background:rgba(116,174,214,0.1);border:1.5px solid rgba(116,174,214,0.25);border-radius:14px;padding:12px 16px;cursor:pointer;font-family:var(--font-body);transition:all 0.2s'>"
+        +"<div style='width:36px;height:36px;background:linear-gradient(135deg,var(--club-cel),var(--club-ama));border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0'>☕</div>"
+        +"<div style='text-align:left'>"
+        +"<div style='font-size:0.62rem;font-weight:700;color:var(--club-cel);letter-spacing:0.06em'>ANOTARME AL CAFÉ</div>"
+        +"<div style='font-size:0.6rem;color:var(--mut);margin-top:1px'>"+satLabel().toUpperCase()+"</div>"
+        +"</div>"
+        +"<div style='margin-left:auto;color:var(--club-cel);font-size:1rem'>→</div>"
+        +"</button></div>";
     }
   }
 
@@ -1844,6 +1852,7 @@
   function hideLoginScreen(){
     var ls=document.getElementById("login-screen");
     if(ls){ls.style.opacity="0";setTimeout(function(){ls.style.display="none";ls.style.opacity="1";},400);}
+    localStorage.setItem("last_login_ts",Date.now().toString());
   }
   function renderLoginGalanes(){} // vacía — usamos autocomplete
 
@@ -1903,6 +1912,7 @@
     hideLoginScreen();
     renderMyName();
     switchTab("stats");
+    setTimeout(function(){renderStats();},200);
     // Si no tiene pedido todavía, abrir modal de bebidas
     var yaTienePedido=Object.values(orders).some(function(o){return o.player===me;});
     if(!yaTienePedido&&!yaReservado){
@@ -1913,8 +1923,9 @@
     if(!me)return;
     hideLoginScreen();
     renderMyName();
-    switchTab("stats");
     showToast("Anotado como ausente 👋");
+    switchTab("stats");
+    setTimeout(function(){renderStats();},300);
   };
   window.loginSinConfirmar=function(){
     if(!me){showToast("Primero elegí tu nombre");return;}
@@ -2425,7 +2436,7 @@ header::after{
 <header>
   <div class="htop">
     <div class="htit">Mesa de <span>Galanes</span></div>
-    <div class="hmeta"><div id="fh">—</div><div id="hh">—</div></div>
+    <img src="icon-transparent.png" style="width:40px;height:40px;object-fit:contain;flex-shrink:0;align-self:center;opacity:0.9;filter:drop-shadow(0 0 8px rgba(116,174,214,0.4))">
   </div>
   <div class="nz">
     <div id="prompt" onclick="openModal('mnombre')">👤 Quien sos?</div>
@@ -2689,12 +2700,12 @@ header::after{
 </div>
 
 <script>
-  var APP_VERSION="9.2";
+  var APP_VERSION="9.3";
   var STORED_VERSION=localStorage.getItem("app_version");
 
   if("serviceWorker"in navigator){
     window.addEventListener("load",function(){
-      navigator.serviceWorker.register("sw.js?v=11").then(function(reg){
+      navigator.serviceWorker.register("sw.js?v=12").then(function(reg){
         // Chequear actualizaciones cada vez que abre
         reg.update();
         // Si hay nueva versión esperando, activarla
