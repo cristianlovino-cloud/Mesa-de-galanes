@@ -69,7 +69,6 @@
   var pDrink=null,pFor=null,selPlayers=[],dragIdx=null;
   var timerIv=null,timerD=null,editPP=null,editPT=null,fusionSel=[];
   var voiceOn=localStorage.getItem("voice")==="1",synth=window.speechSynthesis,esVoice=null;
-  var editMode=false;
 
   function loadVoice(){var v=synth.getVoices();esVoice=v.find(function(x){return x.lang.startsWith("es");})||v[0]||null;}
   if(synth.onvoiceschanged!==undefined)synth.onvoiceschanged=loadVoice;
@@ -82,48 +81,13 @@
       document.body.innerHTML = '<div style="background:#0d1117;color:#fff;padding:30px;font-family:monospace;min-height:100vh"><h2 style="color:#f85149">⚠️ Error de carga</h2><p style="margin-top:16px">Si usás Opera:</p><ol style="margin-top:12px;line-height:2"><li>Tocá el escudo en la barra de direcciones</li><li>Desactivá el bloqueador de anuncios</li><li>Desactivá la VPN integrada</li><li>Recargá la página</li></ol><p style="margin-top:20px;opacity:0.5;font-size:0.8rem">Error: '+e.message+'</p></div>';
     }
   }, true);
-  var _firebaseOk=false;
-  function hideSplash(){
-    var sp=document.getElementById('splash-screen');
-    if(sp){sp.style.opacity='0';setTimeout(function(){if(sp.parentNode)sp.parentNode.removeChild(sp);},500);}
-  }
-
   window.addEventListener("DOMContentLoaded",function(){
     updateClock();setInterval(updateClock,30000);
     switchTab("pedir");
-
-    // Mostrar botón reintentar en el splash a los 3s si Firebase no respondió
-    setTimeout(function(){
-      if(!_firebaseOk){
-        var msg=document.getElementById('splash-msg');if(msg)msg.textContent="Conectando...";
-        var retry=document.getElementById('splash-retry');if(retry)retry.style.display="flex";
-      }
-    },3000);
-
-    // Timeout de seguridad: si Firebase no responde en 4s, mostrar error y arrancar igual
-    var splashTimeout=setTimeout(function(){
-      if(!_firebaseOk){
-        hideSplash();
-        drinks=DRINKS_DEF.slice();
-        renderDrinks();
-        var sp2=document.getElementById('splash-screen');if(sp2)hideSplash();
-        showToast("⚠️ Sin conexión — modo offline");
-        // Mostrar banner de error
-        var banner=document.getElementById('pedido-status-banner');
-        if(banner){
-          banner.innerHTML="<div style='margin:12px 12px 0;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.25);border-radius:12px;padding:10px 14px;font-size:0.65rem;color:#f87171;letter-spacing:0.04em'>⚠️ No se pudo conectar a Firebase. Revisá tu conexión y recargá la página.</div>";
-          banner.style.display="block";
-        }
-      }
-    },4000);
-
     onValue(rG,function(s){galanes=s.exists()?s.val():KNOWN_DEF.slice();renderLoginGalanes();if(!s.exists())set(rG,galanes);});
-    onValue(rD,function(s){
-      _firebaseOk=true;
-      clearTimeout(splashTimeout);
-      drinks=s.exists()?s.val():DRINKS_DEF.slice();if(!s.exists())set(rD,drinks);renderDrinks();
-      hideSplash();
-    });
+    onValue(rD,function(s){drinks=s.exists()?s.val():DRINKS_DEF.slice();if(!s.exists())set(rD,drinks);renderDrinks();
+    var sp=document.getElementById('splash-screen');if(sp){sp.style.opacity='0';setTimeout(function(){if(sp.parentNode)sp.parentNode.removeChild(sp);},500);}
+  });
     onValue(rO,function(s){try{orders=s.exists()?s.val():{};renderDrinks();renderOrders();renderMesa();renderLista();renderConfirmBtn();maybeRenderStats();}catch(e){console.error("rO",e);}});
     onValue(rC,function(s){try{confirmed=s.exists()?s.val():{};renderConfirmBtn();renderOrders();renderMesa();renderLista();}catch(e){console.error("rC",e);}});
     onValue(rP,function(s){try{pagos=s.exists()?s.val():{};renderOrders();renderMesa();renderLista();renderPagosDetail();}catch(e){console.error("rP",e);}});
@@ -136,6 +100,9 @@
     onValue(rPres,function(s){presentes=s.exists()?s.val():{};renderLista();});
     var vb=document.getElementById("vbtn");if(vb)vb.textContent=voiceOn?"🔊":"🔇";
     var _vl=document.getElementById("version-label");if(_vl)_vl.textContent="v"+APP_VERSION;
+    // Ocultar splash en 5s
+    setTimeout(function(){var sp=document.getElementById('splash-screen');if(sp){sp.style.opacity='0';setTimeout(function(){if(sp.parentNode)sp.parentNode.removeChild(sp);},500);}},5000);
+    // Login: siempre mostrar al inicio (único sistema)
     if(me)renderMyName();
     setTimeout(function(){showLoginScreen();},400);
   });
@@ -692,30 +659,23 @@
   };
 
   // ── PEDIDOS ───────────────────────────────────────────────
-  // drinkId: identificador estable por id string (no índice), con fallback a idx para pedidos viejos
-  function getDrinkId(d,idx){return d.id||(String(idx));}
-  function myOrdersForDrink(drinkId,idx){
-    return Object.entries(orders).filter(function(e){
-      var o=e[1];if(o.player!==me)return false;
-      if(o.drinkId)return o.drinkId===drinkId;
-      return o.drinkIdx===idx; // compatibilidad pedidos viejos
-    });
-  }
   window.selectDrink=function(idx){
     if(!me){openModal("mnombre");return;}
-    var d=drinks[idx];var drinkId=getDrinkId(d,idx);
-    var myOrders=myOrdersForDrink(drinkId,idx);
-    if(myOrders.length>0){document.getElementById("dup-title").textContent=d.icon+" "+d.name;window._dupIdx=idx;openModal("mdup");return;}
+    // Si ya confirmó, solo avisar pero dejar continuar (puede querer cambiar)
+    // El bloqueo total solo aplica si el admin cerró la mesa
+    var myOrders=Object.entries(orders).filter(function(e){return e[1].player===me&&e[1].drinkIdx===idx;});
+    if(myOrders.length>0){document.getElementById("dup-title").textContent=drinks[idx].icon+" "+drinks[idx].name;window._dupIdx=idx;openModal("mdup");return;}
     if(!isAdmin()){var al=Object.values(orders).filter(function(o){return o.player===me&&o.loadedBy==="admin";});if(al.length>0&&!confirm("El admin ya te cargó un pedido. ¿Querés agregar otro?"))return;}
-    pDrink=Object.assign({},d,{idx:idx,drinkId:drinkId});pFor=null;
-    if(d.tipo==="comida"&&(!d.extras||!d.extras.length)){
+    pDrink=Object.assign({},drinks[idx],{idx:idx});pFor=null;
+    if(drinks[idx].tipo==="comida"&&(!drinks[idx].extras||!drinks[idx].extras.length)){
+      // Comida sin extras configurados: confirmar directo sin acompañamiento
       confirmOrderDirect(pDrink);
     } else {
-      speak("Elegiste "+d.name+". Con qué acompañamiento?");showExtras(d);
+      speak("Elegiste "+drinks[idx].name+". Con qué acompañamiento?");showExtras(drinks[idx]);
     }
   };
-  window.dupAgregar=function(){closeModal("mdup");var idx=window._dupIdx;var d=drinks[idx];pDrink=Object.assign({},d,{idx:idx,drinkId:getDrinkId(d,idx)});pFor=null;showExtras(d);};
-  window.dupQuitar=async function(){closeModal("mdup");var idx=window._dupIdx;var d=drinks[idx];var mo=myOrdersForDrink(getDrinkId(d,idx),idx);if(mo.length)await remove(ref(db,"pedido/orders/"+mo[mo.length-1][0]));};
+  window.dupAgregar=function(){closeModal("mdup");var idx=window._dupIdx;pDrink=Object.assign({},drinks[idx],{idx:idx});pFor=null;showExtras(drinks[idx]);};
+  window.dupQuitar=async function(){closeModal("mdup");var idx=window._dupIdx;var mo=Object.entries(orders).filter(function(e){return e[1].player===me&&e[1].drinkIdx===idx;});if(mo.length)await remove(ref(db,"pedido/orders/"+mo[mo.length-1][0]));};
   function showExtras(d){
     var extrasDisp=d.extras&&d.extras.length>0?d.extras:EXTRAS;
     var h="";for(var j=0;j<extrasDisp.length;j++)h+="<button class='xbtn' onclick='confirmOrder(this)' data-extra='"+extrasDisp[j].replace(/'/g,"&#39;")+"'>"+extrasDisp[j]+"</button>";
@@ -730,11 +690,11 @@
     var exVal=extra==="Sin acompanamiento"?null:extra;
     if(pFor==="__multi__"){
       var ps=selPlayers.slice(),n=ps.length;
-      await Promise.all(ps.map(function(pl){return push(rO,{player:pl,drinkIdx:pDrink.idx,drinkId:pDrink.drinkId||null,drink:label,icon:pDrink.icon,extra:exVal,loadedBy:"admin",ts:Date.now()});}));
+      await Promise.all(ps.map(function(pl){return push(rO,{player:pl,drinkIdx:pDrink.idx,drink:label,icon:pDrink.icon,extra:exVal,loadedBy:"admin",ts:Date.now()});}));
       selPlayers=[];pDrink=null;pFor=null;closeModal("mextra");showToast("✓ "+n+" pedidos cargados!");speak(n+" pedidos cargados.");
     } else {
       var player=pFor||me;
-      var obj={player:player,drinkIdx:pDrink.idx,drinkId:pDrink.drinkId||null,drink:label,icon:pDrink.icon,extra:exVal,ts:Date.now()};
+      var obj={player:player,drinkIdx:pDrink.idx,drink:label,icon:pDrink.icon,extra:exVal,ts:Date.now()};
       if(isAdmin()&&pFor)obj.loadedBy="admin";
       await push(rO,obj);speak("Perfecto! "+label+" agregado.");pDrink=null;pFor=null;closeModal("mextra");
     }
@@ -834,7 +794,7 @@
   // ── GALANES ───────────────────────────────────────────────
   window.confirmOrderDirect=async function(d){
     if(!d)return;
-    var obj={player:me,drinkIdx:d.idx,drinkId:d.drinkId||d.id||null,drink:d.name,icon:d.icon,extra:null,ts:Date.now()};
+    var obj={player:me,drinkIdx:d.idx,drink:d.name,icon:d.icon,extra:null,ts:Date.now()};
     await push(rO,obj);
     speak("Perfecto! "+d.name+" agregado.");
     pDrink=null;pFor=null;
@@ -918,58 +878,38 @@
   // ── RENDERS ───────────────────────────────────────────────
   function renderReserva(){}
 
-  window.toggleEditMode=function(){
-    editMode=!editMode;
-    var btn=document.getElementById("edit-drinks-btn");
-    if(btn){btn.textContent=editMode?"✓ Listo":"✏️ Editar orden";btn.classList.toggle("edit-active",editMode);}
-    renderDrinks();
-  };
-
   function renderDrinks(){
     var grid=document.getElementById("drinks-grid");if(!grid)return;
     if(!drinks||!drinks.length){grid.innerHTML="<div class='es' style='padding:40px 0;opacity:0.5'>No hay bebidas cargadas ☕</div>";return;}
+    var myOrders=Object.values(orders).filter(function(o){return o.player===me;});
+    var myIdxs=myOrders.map(function(o){return o.drinkIdx;});
     var html="";
     for(var i=0;i<drinks.length;i++){
       var d=drinks[i];
-      var drinkId=getDrinkId(d,i);
-      var myOrds=myOrdersForDrink(drinkId,i);
-      var cnt=myOrds.length,isSel=cnt>0;
-      var isEdit=editMode&&isAdmin();
-      html+="<div class='dc"+(isSel?" sel":"")+(isEdit?" dc-edit":"")+"' data-idx='"+i+"'";
-      if(!isEdit)html+=" onclick='selectDrink("+i+")'";
-      if(isEdit)html+=" draggable='true' ondragstart='dragStart(event,"+i+")' ondragover='dragOver(event)' ondrop='drop(event,"+i+")' ondragend='dragEnd()'";
-      html+=">";
-      if(isEdit)html+="<button class='ddel' onclick='delDrinkIdx("+i+",event)' style='display:flex'>✕</button>";
-      if(isEdit)html+="<button class='dhdl' style='opacity:0.5'>⠿</button>";
+      var cnt=myIdxs.filter(function(x){return x===i;}).length;
+      var isSel=cnt>0;
+      html+="<div class='dc"+(isSel?" sel":"")+"' onclick='selectDrink("+i+")'";
+      html+=" draggable='true' ondragstart='dragStart(event,"+i+")' ondragover='dragOver(event)' ondrop='drop(event,"+i+")' ondragend='dragEnd()'>";
+      if(isAdmin()&&drinks.length>1)html+="<button class='ddel' onclick='delDrinkIdx("+i+",event)'>✕</button>";
+      if(isAdmin())html+="<button class='dhdl'>⠿</button>";
       html+="<div class='ci'>";
       html+="<div class='ce'>"+d.icon+"</div>";
       html+="<div class='cn'>"+d.name+"</div>";
       if(d.sub)html+="<div class='cs'>"+d.sub+"</div>";
-      if(isSel&&!isEdit)html+="<div class='ck"+(cnt>1?" ck-multi":"")+"'>"+(cnt>1?cnt:"✓")+"</div>";
-      if(isAdmin()&&d.pendingReview&&!isEdit)html+="<div class='cx'>REVISAR</div>";
-      if(isEdit&&d.createdBy)html+="<div class='ccreated'>Por "+d.createdBy+"</div>";
-      if(isEdit)html+="<button class='ch' style='background:var(--sur2);border:1px solid var(--brd);border-radius:6px;padding:3px 8px;font-size:0.55rem;cursor:pointer;color:var(--mut)' onclick='editarExtras("+i+");event.stopPropagation()'>⚙ extras</button>";
+      if(isSel)html+="<div class='ck"+(cnt>1?" ck-multi":"")+"'>"+(cnt>1?cnt:"✓")+"</div>";
+      if(isAdmin()&&d.pendingReview)html+="<div class='cx'>REVISAR</div>";
+      if(isAdmin()&&d.createdBy)html+="<div class='ccreated'>Por "+d.createdBy+"</div>";
+      if(isAdmin())html+="<button class='ch' onclick='editarExtras("+i+");event.stopPropagation()'>⚙ extras</button>";
       html+="</div></div>";
     }
-    grid.innerHTML=html;
-    // Botón editar orden (solo admin) + agregar bebida
-    var editWrap=document.getElementById("drinks-edit-wrap");
-    if(!editWrap){
-      editWrap=document.createElement("div");editWrap.id="drinks-edit-wrap";
-      editWrap.style.cssText="display:flex;gap:8px;margin:10px 12px 0;";
-      grid.parentNode.insertBefore(editWrap,grid.nextSibling);
-    }
+    // Botón agregar bebida (solo admin)
     if(isAdmin()){
-      editWrap.style.display="flex";
-      editWrap.innerHTML="<button id='edit-drinks-btn' class='edit-drinks-btn"+(editMode?" edit-active":"")+"' onclick='toggleEditMode()'>"+(editMode?"✓ Listo":"✏️ Editar orden")+"</button>"
-        +(editMode?"<button class='edit-drinks-btn' onclick='openModal(\"mdrink\")' style='background:rgba(116,174,214,0.1);border-color:rgba(116,174,214,0.3);color:var(--club-cel)'>+ Bebida</button>":"");
-    } else {
-      editWrap.style.display="none";
+      html+="<div class='ac' onclick='openModal(\"mdrink\")'><div class='ap'>+</div><div class='rc'>Agregar bebida</div></div>";
     }
-    // Banner estado pedido propio
+    grid.innerHTML=html;
+    // Banner de pedido propio
     var banner=document.getElementById("pedido-status-banner");
     if(banner){
-      var myOrders=Object.values(orders).filter(function(o){return o.player===me;});
       if(me&&myOrders.length>0&&!confirmed[me]){
         banner.innerHTML="<div style='margin:10px 12px 0;background:rgba(116,174,214,0.08);border:1px solid rgba(116,174,214,0.2);border-radius:12px;padding:10px 14px;font-size:0.65rem;color:var(--club-cel);letter-spacing:0.04em'>☕ Pedido listo — confirmalo abajo!</div>";
         banner.style.display="block";
@@ -977,7 +917,7 @@
     }
   }
 
-
+  function renderOrders(){
     var total=Object.keys(orders).length;
     var by={},en=Object.entries(orders).sort(function(a,b){return a[1].ts-b[1].ts;});
     for(var i=0;i<en.length;i++){var k=en[i][0],o=en[i][1];if(!by[o.player])by[o.player]=[];by[o.player].push({key:k,drink:o.drink,icon:o.icon});}
@@ -1633,6 +1573,8 @@
   .modal input,.xbtn,.odbtn{background:#f5f8fa;border-color:#dde3ea;color:#1a1a2e;}
   #toast{background:#1a1a2e;color:var(--club-ama);}
 }
+
+
 /* LIGHT MODE — auto según dispositivo */
 @media(prefers-color-scheme:light){
   :root{
@@ -1644,10 +1586,10 @@
     --sh:rgba(0,0,0,0.06);
   }
   body::before{color:rgba(245,158,11,0.05)!important;}
-  header{background:#ffffff!important;border-bottom:2px solid rgba(37,99,235,0.1)!important;}
+  header{background:#ffffff!important;border-bottom:2px solid rgba(37,99,235,0.1)!important;color:#1a1a2e;}
   header::after{background:linear-gradient(90deg,transparent,rgba(37,99,235,0.3),rgba(180,83,9,0.25),transparent)!important;}
   .htit{color:#1a1a2e!important;}.htit span{color:var(--g2)!important;}
-  .hmeta{color:rgba(26,26,46,0.4)!important;}
+  .hmeta{color:rgba(26,26,46,0.45)!important;}
   #prompt{background:rgba(180,83,9,0.1);border-color:rgba(180,83,9,0.3);color:#92400e;}
   #badge{background:rgba(180,83,9,0.08);border-color:rgba(180,83,9,0.2);color:#92400e;}
   .lx{color:rgba(26,26,46,0.3)!important;}
@@ -1655,47 +1597,56 @@
   .tab{color:#64748b!important;}.tab.active{color:#2563eb!important;border-bottom-color:#2563eb!important;}
   .dc{background:#fff;border-color:#dde3ea;box-shadow:0 1px 4px rgba(0,0,0,0.06);}
   .dc:hover{background:#f0f4ff;border-color:#93c5fd;}
-  .dc.sel{border-left-color:var(--acc);}
+  .dc.sel{background:linear-gradient(135deg,rgba(180,83,9,0.06),transparent);border-left-color:var(--acc);}
   .cn{color:#1a1a2e!important;}.cs,.ch{color:#64748b!important;}
   .ac{background:#fff;border-color:#dde3ea;color:#64748b;}
   .ac:hover{color:var(--g2);background:#fffbeb;}
-  .sp{background:#fff;}.or,.pdi{background:#fff;}.pdi{background:#f5f7fa;border-color:#e5e7eb;}
+  .sp,.or,.pdi{background:#fff;}
+  .pdi{background:#f5f7fa;border-color:#e5e7eb;}
   .on{color:#1a1a2e!important;}.onm{color:var(--g2)!important;}
   .att{background:#fff;border-color:#dde3ea;box-shadow:0 1px 3px rgba(0,0,0,0.05);}
   .attme{border-color:rgba(180,83,9,0.3)!important;background:linear-gradient(90deg,rgba(180,83,9,0.05),transparent)!important;}
   .an{color:#1a1a2e!important;}.ao .ait{color:#64748b!important;}
   .lista-row{background:#fff;border-color:#dde3ea;box-shadow:0 1px 3px rgba(0,0,0,0.04);}
   .lista-name{color:#1a1a2e!important;}.lista-drinks{color:#64748b!important;}
-  .modal{background:#fff;border-color:#dde3ea;}.modal h3{color:#1a1a2e;}.msub{color:#64748b;}
+  .modal{background:#fff;border-color:#dde3ea;}
+  .modal h3{color:#1a1a2e;}
+  .msub{color:#64748b;}
   .modal input,.xbtn,.ppbtn,.odbtn{background:#f5f7fa;border-color:#dde3ea;color:#1a1a2e;}
   .xbtn:hover{border-color:var(--acc);color:var(--acc);background:#eff6ff;}
   .ppbtn:hover,.ppbtn.ppsel{background:#fffbeb;border-color:rgba(180,83,9,0.3);}
   .ppname{color:#1a1a2e!important;}
+  .odbtn:hover{border-color:var(--acc);color:#2563eb;}
   #toast{background:#1a1a2e;color:#fcd34d;}
-  #pago-resumen,#totals-panel{background:linear-gradient(135deg,#1e293b,#0f172a);}
-  .tt,.tq{color:#fcd34d!important;}.tr{color:#f1f5f9!important;}
+  #pago-resumen{background:linear-gradient(135deg,#1e293b,#0f172a);}
+  #totals-panel{background:linear-gradient(135deg,#1e293b,#0f172a);}
+  .tt,.tq{color:#fcd34d!important;}
+  .tr{color:#f1f5f9!important;}
   .slabel{color:var(--g2)!important;}
   .mabtn{background:#f5f7fa;color:#1a1a2e;border-color:#dde3ea;}
   .mabtn:hover{background:#fffbeb;border-color:rgba(180,83,9,0.4);color:var(--g2);}
   .admin-stab{color:#64748b!important;}.admin-stab.active{color:var(--g2)!important;border-bottom-color:var(--acc)!important;}
   .asist-btn{background:#f5f7fa;border-color:#dde3ea;color:#64748b;}
   .icon-btn{background:#f5f7fa;border-color:#dde3ea;}
-  .cumple-row{background:#fff;border-color:#dde3ea;}
+  .cumple-row{background:#fff;border-color:#dde3ea;box-shadow:0 1px 3px rgba(0,0,0,0.04);}
   .cumple-name{color:#1a1a2e!important;}.cumple-detalle{color:#64748b!important;}
+  .cumple-mes-title{color:#64748b!important;}
+  .stats-section{background:#fff;}
   .hist-row{background:#fff;border-color:#dde3ea;}
   .hist-label{color:#1a1a2e!important;}.hist-stats{color:#64748b!important;}
-  .stats-section{background:#fff;}
   #login-screen{background:#f5f7fa;}
   #login-sugerencias{background:#fff;border-color:rgba(37,99,235,0.2);}
   .login-input{background:#fff;border-color:rgba(180,83,9,0.2);color:#1a1a2e;}
   .login-card{background:rgba(255,255,255,0.9);border-color:rgba(180,83,9,0.15);}
   .login-titulo{color:#1a1a2e!important;}.login-sub{color:#b45309!important;}
-  .login-sat,.login-hola{color:#64748b!important;}.login-nombre{color:#b45309!important;}
+  .login-sat,.login-hola{color:#64748b!important;}
+  .login-nombre{color:#b45309!important;}
   .login-btn-no{background:#f5f7fa;border-color:#dde3ea;color:#64748b;}
-  #mesa-count{color:#64748b;background:#e5e7eb;}.mt{color:var(--g2)!important;}
+  #mesa-count{color:#64748b;background:#e5e7eb;}
+  .mt{color:var(--g2)!important;}
   .es{color:#64748b!important;}
-  .edit-drinks-btn{background:#f5f7fa;border-color:#dde3ea;color:#64748b;}
-  .edit-drinks-btn.edit-active{background:rgba(37,99,235,0.08);border-color:rgba(37,99,235,0.3);color:#2563eb;}
+  .lstat-total{background:#e5e7eb;color:#64748b;}
+  select{background:#f5f7fa;border-color:#dde3ea;color:#1a1a2e;}
 }
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
 body{
@@ -1800,14 +1751,6 @@ header::after{
 .ac:hover{color:var(--g2);background:var(--sur2);}
 .ap{font-size:1.4rem;line-height:1;font-weight:300;color:var(--acc);width:36px;text-align:center;}
 .rc{color:var(--mut);}
-
-/* EDITAR ORDEN — botón y modo */
-.edit-drinks-btn{background:var(--sur2);border:1px solid var(--brd);border-radius:100px;padding:8px 16px;font-family:var(--font-body);font-size:0.68rem;font-weight:600;color:var(--mut);cursor:pointer;transition:all 0.15s;letter-spacing:0.04em;text-transform:uppercase;white-space:nowrap;}
-.edit-drinks-btn:hover{border-color:var(--acc);color:var(--ink);}
-.edit-drinks-btn.edit-active{background:rgba(116,174,214,0.12);border-color:rgba(116,174,214,0.4);color:var(--club-cel);}
-.dc-edit{cursor:grab!important;opacity:0.9;}
-.dc-edit:active{cursor:grabbing!important;}
-.dc-edit .ck{display:none!important;}
 
 /* RESUMEN */
 .sp{margin:0 12px;background:var(--sur);border:1px solid var(--brd);border-radius:14px;overflow:hidden;}
@@ -2096,11 +2039,7 @@ header::after{
 </div>
 <div id="splash-screen" style="position:fixed;inset:0;background:#0a0a0a;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;transition:opacity 0.5s ease">
   <img src="icon-transparent.png" style="width:150px;height:150px;object-fit:contain;animation:splashPulse 1.4s ease-in-out infinite;filter:drop-shadow(0 0 28px rgba(100,174,220,0.7));margin-bottom:28px">
-  <div id="splash-msg" style="font-family:'DM Mono',monospace;font-size:0.75rem;color:rgba(255,255,255,0.5);letter-spacing:0.18em;text-transform:uppercase;animation:splashFadeIn 0.6s ease 0.2s both">Cargando...</div>
-  <div id="splash-retry" style="display:none;margin-top:20px;flex-direction:column;align-items:center;gap:10px">
-    <div style="font-size:0.6rem;color:rgba(239,68,68,0.8);letter-spacing:0.1em">SIN CONEXIÓN</div>
-    <button onclick="location.reload()" style="background:rgba(116,174,214,0.15);border:1px solid rgba(116,174,214,0.4);border-radius:100px;padding:10px 24px;font-family:'DM Mono',monospace;font-size:0.7rem;color:#74aed6;cursor:pointer;letter-spacing:0.1em">🔄 REINTENTAR</button>
-  </div>
+  <div style="font-family:'Playfair Display',serif;font-size:0.75rem;color:rgba(255,255,255,0.5);letter-spacing:0.18em;text-transform:uppercase;animation:splashFadeIn 0.6s ease 0.2s both">Cargando...</div>
 </div>
 <header>
   <div class="htop">
@@ -2368,7 +2307,7 @@ header::after{
 </div>
 
 <script>
-  var APP_VERSION="9.9";
+  var APP_VERSION="9.7";
   var STORED_VERSION=localStorage.getItem("app_version");
 
   if("serviceWorker"in navigator){
