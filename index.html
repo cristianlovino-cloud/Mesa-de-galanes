@@ -945,83 +945,7 @@
   };
 
   // ── RENDERS ───────────────────────────────────────────────
-  function renderReserva(){
-    var panel=document.getElementById("reserva-panel");if(!panel)return;
-    if(!me){panel.innerHTML="";return;}
-    if(isSat()){panel.innerHTML="";return;}
-    var myRes=reservas[me]||null;
-    if(myRes){
-      var peds=myRes.pedidos&&myRes.pedidos.length?myRes.pedidos.map(function(p){return p.icon+" "+p.drink;}).join(", "):"";
-      var sinPedido=!myRes.pedidos||myRes.pedidos.length===0;
-      panel.innerHTML="<div class='res-banner "+(sinPedido?"res-warn":"res-ok")+"'>"
-        +"<div style='flex:1'>"
-        +(sinPedido
-          ?"<div style='font-weight:700;color:#b45309;margin-bottom:4px'>✅ VAS — SIN BEBIDA</div>"
-           +"<button onclick='anotarme()' style='background:rgba(245,158,11,0.15);border:1px solid rgba(245,158,11,0.4);color:var(--g2);border-radius:8px;padding:5px 12px;font-size:0.68rem;font-weight:700;cursor:pointer;text-transform:uppercase;letter-spacing:0.04em'>☕ ELEGIR QUÉ TOMO</button>"
-          :"<div style='font-weight:700;color:#2a7a4a;margin-bottom:2px'>✓ ANOTADO — "+satLabel()+"</div>"
-           +"<div style='font-size:0.78rem;color:#3a8a5a'>"+peds+"</div>")
-        +"</div>"
-        +"<button onclick='cancelarReserva()' style='background:none;border:none;color:#e74c3c;font-size:0.78rem;font-weight:700;cursor:pointer;flex-shrink:0'>✕ No voy</button></div>";
-    } else {
-      panel.innerHTML="<div style='margin:10px 12px 0'>"
-        +"<button onclick='anotarme()' style='display:flex;align-items:center;gap:10px;width:100%;background:rgba(116,174,214,0.1);border:1.5px solid rgba(116,174,214,0.25);border-radius:14px;padding:12px 16px;cursor:pointer;font-family:var(--font-body);transition:all 0.2s'>"
-        +"<div style='width:36px;height:36px;background:linear-gradient(135deg,var(--club-cel),var(--club-ama));border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0'>☕</div>"
-        +"<div style='text-align:left'>"
-        +"<div style='font-size:0.62rem;font-weight:700;color:var(--club-cel);letter-spacing:0.06em'>ANOTARME AL CAFÉ</div>"
-        +"<div style='font-size:0.6rem;color:var(--mut);margin-top:1px'>"+satLabel().toUpperCase()+"</div>"
-        +"</div>"
-        +"<div style='margin-left:auto;color:var(--club-cel);font-size:1rem'>→</div>"
-        +"</button></div>";
-    }
-  }
-
-  function renderDrinks(){
-    var myIdxs=Object.values(orders).filter(function(o){return o.player===me;}).map(function(o){return o.drinkIdx;});
-    var admin=isAdmin(),rows=[];
-    // Banner estado del pedido propio
-    var bannerDiv=document.getElementById("pedido-status-banner");
-    if(bannerDiv&&me&&!admin){
-      var misPedidos=Object.values(orders).filter(function(o){return o.player===me;});
-      var adminMePidio=misPedidos.some(function(o){return o.loadedBy==="admin";});
-      var reservaMePidio=misPedidos.some(function(o){return o.loadedBy==="reserva";});
-      var yoConfirme=confirmed[me];
-      if(yoConfirme||reservaMePidio){
-        // Reserva ya implica confirmación — no pedir que reconfirme
-        bannerDiv.style.display="none";
-      } else if(adminMePidio&&misPedidos.length){
-        bannerDiv.innerHTML="<div class='status-banner status-admin'>☕ El admin ya te cargó un pedido — verificá en Resumen</div>";
-        bannerDiv.style.display="block";
-      } else if(misPedidos.length){
-        bannerDiv.innerHTML="<div class='status-banner status-warn'>⏳ Tenés un pedido sin confirmar — tocá Enviar mi pedido</div>";
-        bannerDiv.style.display="block";
-      } else {
-        bannerDiv.style.display="none";
-      }
-    } else if(bannerDiv){bannerDiv.style.display="none";}
-    for(var i=0;i<drinks.length;i++){
-      var d=drinks[i],active=myIdxs.indexOf(i)!==-1,mo=null,myCount=0;
-      var vals=Object.values(orders);for(var j=0;j<vals.length;j++)if(vals[j].player===me&&vals[j].drinkIdx===i){if(!mo)mo=vals[j];myCount++;}
-      var drag=admin?" draggable='true' ondragstart='dragStart(event,"+i+")' ondragover='dragOver(event)' ondrop='drop(event,"+i+")' ondragend='dragEnd()'":"";
-      var row="<div class='dc"+(active?" sel":"")+"' onclick='selectDrink("+i+")' "+drag+">";
-      if(admin){row+="<span class='ddel' onclick='delDrinkIdx("+i+",event)'>✕</span>";row+="<span class='dhdl' onclick='event.stopPropagation();editarExtras("+i+")' title='extras'>⚙</span>";}
-      // Tamaño del ícono según tipo de bebida
-      var iconSize=d.name&&(/doble|leche|grande|jarr/i.test(d.name))?"2.4rem":"1.7rem";
-      row+="<div class='ci'><div class='ce' style='font-size:"+iconSize+"'>"+d.icon+"</div><div class='cn'>"+d.name+"</div>";
-      if(d.sub)row+="<div class='cs'>"+d.sub+"</div>";
-      var esComida=d.tipo==="comida";
-      if(active&&mo&&mo.extra)row+="<div class='cx'>+ "+mo.extra+"</div>";
-      else if(!esComida)row+="<div class='ch'>+ acompañamiento</div>";
-      else row+="<div class='ch' style='color:var(--grn);opacity:0.6'>comida</div>";
-      if(admin&&d.createdBy)row+="<div class='ccreated'>+ "+d.createdBy+"</div>";
-      row+="</div>";
-      if(active){if(myCount>1)row+="<div class='ck ck-multi'>"+myCount+"</div>";else row+="<div class='ck'><svg width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3.5'><polyline points='20 6 9 17 4 12'/></svg></div>";}
-      row+="</div>";
-      rows.push(row);
-    }
-    rows.push("<div class='ac' onclick='openModal(\"mdrink\")'><span class='ap'>+</span><span>Agregar</span></div>");
-    if(admin)rows.push("<div class='ac rc' onclick='resetDrinks()'><span>↺</span><span>Restaurar</span></div>");
-    document.getElementById("drinks-grid").innerHTML=rows.join("");
-  }
+  function renderReserva(){}
 
   function renderOrders(){
     var total=Object.keys(orders).length;
@@ -1263,20 +1187,20 @@
       :"<div style='text-align:center;color:var(--mut);font-size:0.65rem;padding:12px'>Nadie pidió todavía ☕</div>";
     // Asistentes
     var byP={};Object.values(orders).forEach(function(o){byP[o.player]=1;});
-    var plrs=Object.keys(byP).sort();
-    var asisHtml=plrs.length
-      ?"<div style='display:flex;flex-wrap:wrap;gap:6px'>"+plrs.map(function(p){
-          return "<div style='display:flex;align-items:center;gap:5px;background:var(--sur2);border:1px solid var(--brd);border-radius:100px;padding:4px 10px'>"
-            +"<div style='width:20px;height:20px;border-radius:50%;background:"+col(p)+";display:flex;align-items:center;justify-content:center;font-size:0.52rem;font-weight:700;color:white;flex-shrink:0'>"+ini(p)+"</div>"
-            +"<span style='font-size:0.6rem;font-weight:600;color:var(--ink)'>"+p+"</span></div>";
-        }).join("")+"</div>"
-      :"<div style='text-align:center;color:var(--mut);font-size:0.65rem;padding:12px'>Nadie anotado todavía</div>";
+    var plrs=Object.keys(byP);
+    var totalPedidos=Object.values(orders).length;
+    var asisHtml="<div style='display:flex;align-items:center;justify-content:center;gap:20px;padding:10px 0'>"
+      +"<div style='text-align:center'><div style='font-family:var(--font-display);font-size:2.5rem;font-weight:700;color:var(--club-cel);line-height:1'>"+plrs.length+"</div><div style='font-size:0.58rem;color:var(--mut);margin-top:4px;letter-spacing:0.06em'>GALANES</div></div>"
+      +"<div style='width:1px;height:40px;background:var(--brd)'></div>"
+      +"<div style='text-align:center'><div style='font-family:var(--font-display);font-size:2.5rem;font-weight:700;color:var(--club-ama);line-height:1'>"+totalPedidos+"</div><div style='font-size:0.58rem;color:var(--mut);margin-top:4px;letter-spacing:0.06em'>PEDIDOS</div></div>"
+      +"</div>"
+      +(plrs.length===0?"<div style='text-align:center;color:var(--mut);font-size:0.65rem;padding:8px'>Nadie pidió todavía</div>":"");
     panel.innerHTML=cdHtml
       +"<div style='background:var(--sur);border:1px solid var(--brd);border-radius:14px;padding:14px;margin-bottom:12px'>"
       +"<div style='font-size:0.62rem;font-weight:700;color:var(--club-cel);letter-spacing:0.08em;margin-bottom:10px'>☕ TOP BEBIDAS HOY</div>"
       +bebidasHtml+"</div>"
       +"<div style='background:var(--sur);border:1px solid var(--brd);border-radius:14px;padding:14px'>"
-      +"<div style='font-size:0.62rem;font-weight:700;color:var(--club-cel);letter-spacing:0.08em;margin-bottom:10px'>👥 ANOTADOS ("+plrs.length+")</div>"
+      +"<div style='font-size:0.62rem;font-weight:700;color:var(--club-cel);letter-spacing:0.08em;margin-bottom:10px'>👥 ESTE SÁBADO</div>"
       +asisHtml+"</div>";
     if(window._sTimer)clearInterval(window._sTimer);
     window._sTimer=setInterval(function(){
@@ -2131,7 +2055,6 @@ header::after{
 </div>
 <div class="main">
   <div id="v-pedir">
-    <div id="reserva-panel"></div>
     <div id="pedido-status-banner" style="display:none"></div>
     <div class="slabel"><span class="ld"></span> Que tomas?</div>
     <div class="dg" id="drinks-grid"><div class="es" style="padding:40px 0;opacity:0.5">Conectando... ☕</div></div>
@@ -2371,12 +2294,12 @@ header::after{
 </div>
 
 <script>
-  var APP_VERSION="9.3";
+  var APP_VERSION="9.4";
   var STORED_VERSION=localStorage.getItem("app_version");
 
   if("serviceWorker"in navigator){
     window.addEventListener("load",function(){
-      navigator.serviceWorker.register("sw.js?v=12").then(function(reg){
+      navigator.serviceWorker.register("sw.js?v=13").then(function(reg){
         // Chequear actualizaciones cada vez que abre
         reg.update();
         // Si hay nueva versión esperando, activarla
