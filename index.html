@@ -88,7 +88,7 @@
     onValue(rD,function(s){drinks=s.exists()?s.val():DRINKS_DEF.slice();if(!s.exists())set(rD,drinks);renderDrinks();
     var sp=document.getElementById('splash-screen');if(sp){sp.style.opacity='0';setTimeout(function(){if(sp.parentNode)sp.parentNode.removeChild(sp);},500);}
   });
-    onValue(rO,function(s){try{orders=s.exists()?s.val():{};renderDrinks();renderOrders();renderMesa();renderLista();renderConfirmBtn();}catch(e){console.error("rO",e);}});
+    onValue(rO,function(s){try{orders=s.exists()?s.val():{};renderDrinks();renderOrders();renderMesa();renderLista();renderConfirmBtn();maybeRenderStats();}catch(e){console.error("rO",e);}});
     onValue(rC,function(s){try{confirmed=s.exists()?s.val():{};renderConfirmBtn();renderOrders();renderMesa();renderLista();}catch(e){console.error("rC",e);}});
     onValue(rP,function(s){try{pagos=s.exists()?s.val():{};renderOrders();renderMesa();renderLista();renderPagosDetail();}catch(e){console.error("rP",e);}});
     onValue(rB,function(s){try{totalBar=s.exists()?s.val():0;renderMesa();}catch(e){console.error("rB",e);}});
@@ -914,95 +914,17 @@
   // ── FAVORITO / RESERVA ────────────────────────────────────
   window.grabarFav=async function(){var mo=Object.values(orders).filter(function(o){return o.player===me;});if(!mo.length){showToast("Primero hace tu pedido!");return;}await set(rF,mo.map(function(o){return{drink:o.drink,icon:o.icon,drinkIdx:o.drinkIdx,extra:o.extra};}));showToast("⭐ Favorito guardado!");};
   window.cargarFav=async function(){var s=await get(rF);if(!s.exists()){showToast("No hay favorito guardado");return;}var favs=s.val(),en=Object.entries(orders);for(var i=0;i<en.length;i++)if(en[i][1].player===me)await remove(ref(db,"pedido/orders/"+en[i][0]));for(var j=0;j<favs.length;j++){var f=favs[j];await push(rO,{player:me,drinkIdx:f.drinkIdx,drink:f.drink,icon:f.icon,extra:f.extra||null,ts:Date.now()});}showToast("⭐ Mi habitual cargado!");};
-  window.anotarme=async function(){
-    if(!me){openModal("mnombre");return;}
-    var satStr=nextSatStr();
-    // No pisar reserva existente para este sábado
-    if(!reservas[me]||reservas[me].sat!==satStr){
-      var data={asistencia:true,pedidos:[],ts:Date.now(),sat:satStr};
-      try{await set(ref(db,"reserva/"+me),data);reservas[me]=data;}catch(err){}
-    }
-    openModal("mpedirreserva");
-    renderReserva();
-  };
+
   window.confirmarSinPedir=function(){
     closeModal("mpedirreserva");
     showToast("✓ Anotado para el "+satLabel()+"! Agregá tu pedido cuando quieras ☕");
     speak("Anotado para el próximo sábado!");
   };
-  window.guardarPedidoReserva=async function(){
-    var sel=window._reservaSeleccion||[];
-    if(!sel.length){showToast("Elegí al menos una bebida");return;}
-    var pedidos=sel.map(function(item){
-      var idx=typeof item==="object"?item.idx:item;
-      var extra=typeof item==="object"?item.extra:null;
-      var d=drinks[idx];
-      // El nombre visible incluye el extra para que se muestre completo
-      var drinkLabel=d.name+(extra&&extra!=="Sin acompanamiento"?" + "+extra:"");
-      return{drinkIdx:idx,drink:drinkLabel,icon:d.icon,extra:extra};
-    });
-    // Guardar reserva
-    var cur=reservas[me]||{asistencia:true,ts:Date.now(),sat:nextSatStr()};
-    cur.pedidos=pedidos;
-    await set(ref(db,"reserva/"+me),cur);reservas[me]=cur;
-    // También cargar como pedido del día para que aparezca en resumen y botón enviar
-    var yaHoy=Object.values(orders).filter(function(o){return o.player===me;});
-    if(!yaHoy.length){
-      for(var i=0;i<pedidos.length;i++){
-        var p=pedidos[i];
-        await push(rO,{player:me,drinkIdx:p.drinkIdx,drink:p.drink,icon:p.icon,extra:p.extra||null,ts:Date.now()+i,loadedBy:"reserva"});
-      }
-    }
-    closeModal("mpedirreserva");
-    showToast("✓ Anotado: "+pedidos.map(function(p){return p.icon+" "+p.drink;}).join(", ")+" ☕");
-    speak("Anotado para el próximo sábado!");
-    renderReserva();
-  };
-  window.toggleReservaSeleccion=function(idx,btn){
-    if(!window._reservaSeleccion)window._reservaSeleccion=[];
-    var pos=window._reservaSeleccion.indexOf(idx);
-    if(pos!==-1){
-      // Desmarcar
-      window._reservaSeleccion.splice(pos,1);
-      btn.classList.remove("odbtn-sel");
-      var lbl=document.getElementById("reserva-sel-label");
-      var count=window._reservaSeleccion.length;
-      if(lbl)lbl.textContent=count>0?count+" SELECCIONADO"+(count>1?"S":""):"¿QUÉ TOMÁS?";
-      return;
-    }
-    // Marcar — guardar idx y abrir extras
-    window._reservaIdx=idx;
-    var d=drinks[idx];
-    var extrasDisp=d.extras&&d.extras.length>0?d.extras:EXTRAS;
-    document.getElementById("rextras-title").textContent=d.icon+" "+d.name;
-    var grid=document.getElementById("rextras-grid");
-    grid.innerHTML=extrasDisp.map(function(ex){
-      return "<button class='xbtn' onclick='confirmarExtraReserva(this)' data-extra='"+ex.replace(/'/g,"&#39;")+"'>"+ex+"</button>";
-    }).join("");
-    // Guardar referencia al btn para marcarlo luego
-    window._reservaBtn=btn;
-    openModal("mrextras");
-  };
-  window.confirmarExtraReserva=function(btn){
-    var extra=btn.getAttribute("data-extra");
-    var idx=window._reservaIdx;
-    if(!window._reservaSeleccion)window._reservaSeleccion=[];
-    // Guardar como objeto con extra
-    window._reservaSeleccion.push({idx:idx,extra:extra});
-    if(window._reservaBtn)window._reservaBtn.classList.add("odbtn-sel");
-    closeModal("mrextras");
-    var count=window._reservaSeleccion.length;
-    var lbl=document.getElementById("reserva-sel-label");
-    if(lbl)lbl.textContent=count+" SELECCIONADO"+(count>1?"S":"");
-  };
+
+
+
   window.noEstoy=function(){if(confirm("¿Seguro que no venís el "+satLabel()+"?")){speak("Nos vemos otro sábado!");showToast("😔 Hasta la próxima!");setTimeout(function(){window.close();},1500);}};
-  window.cancelarReserva=async function(){
-    if(!confirm("Cancelar tu reserva para el "+satLabel()+"?"))return;
-    await set(ref(db,"reserva/"+me),null);
-    delete reservas[me];
-    showToast("Reserva cancelada");
-    renderReserva();
-  };
+
   window.guardarPedidoComoReserva=async function(){
     var myOrders=Object.values(orders).filter(function(o){return o.player===me;});
     if(!myOrders.length){showToast("Primero elegí qué tomás");return;}
@@ -1305,273 +1227,64 @@
 
 
   window.renderStats=async function(){
-    var panel=document.getElementById("stats-content");
-    if(!panel)return;
-    panel.innerHTML="<div class='es' style='padding:40px 0;opacity:0.5'>Cargando... 📊</div>";
-
-    // Cargar historial de Firebase
-    var snap=await get(rH);
-    var hist=snap.exists()?snap.val():{};
-    var fechas=Object.keys(hist).sort();
-
-    // Datos de sesión actual
-    var ordArr=Object.values(orders);
-
-    // ── PROCESAR HISTORIAL ──
-    var drinkCount={};    // bebida -> total pedidos
-    var playerCount={};   // jugador -> semanas presentes
-    var playerDrinks={};  // jugador -> {bebida: count}
-    var playerExtras={};  // jugador -> total extras
-    var semanasByPlayer={}; // jugador -> set de fechas
-    var totalSemanas=fechas.length;
-    var recaudadoTotal=0;
-    var pedidosTotal=0;
-
-    fechas.forEach(function(f){
-      var d=hist[f];
-      var pedArr=Object.values(d.pedidos||{});
-      pedidosTotal+=pedArr.length;
-      recaudadoTotal+=(d.recaudado||0);
-      var playersEnSemana=new Set();
-      pedArr.forEach(function(o){
-        var pl=o.player,dr=o.drink||"?",ex=o.extra||"";
-        // Bebidas
-        drinkCount[dr]=(drinkCount[dr]||0)+1;
-        // Jugadores
-        if(!playerDrinks[pl])playerDrinks[pl]={};
-        playerDrinks[pl][dr]=(playerDrinks[pl][dr]||0)+1;
-        // Extras
-        if(ex&&ex!=="Sin acompanamiento"&&ex!==""){
-          playerExtras[pl]=(playerExtras[pl]||0)+1;
-        }
-        playersEnSemana.add(pl);
-        if(!semanasByPlayer[pl])semanasByPlayer[pl]=new Set();
-        semanasByPlayer[pl].add(f);
-      });
-    });
-
-    // Agregar sesión actual al conteo de bebidas (sin guardar aún)
-    ordArr.forEach(function(o){
-      var dr=o.drink||"?";
-      drinkCount[dr]=(drinkCount[dr]||0)+1;
-    });
-
-    // ── CALCULAR STATS ──
-    // Bebida más pedida
-    var topDrinks=Object.entries(drinkCount).sort(function(a,b){return b[1]-a[1];}).slice(0,5);
-    
-    // Asistencia por jugador
-    var asistencia=Object.entries(semanasByPlayer).map(function(e){
-      return{name:e[0],semanas:e[1].size,pct:totalSemanas>0?Math.round(e[1].size/totalSemanas*100):0};
-    }).sort(function(a,b){return b.semanas-a.semanas;}).slice(0,10);
-
-    // El más rebuscado (más extras / total pedidos)
-    var masRebuscado=Object.entries(playerExtras).map(function(e){
-      var total=Object.values(playerDrinks[e[0]]||{}).reduce(function(s,v){return s+v;},0);
-      return{name:e[0],extras:e[1],total:total,pct:total>0?Math.round(e[1]/total*100):0};
-    }).sort(function(a,b){return b.pct-a.pct;}).slice(0,3);
-
-    // Bebida favorita por jugador
-    var favPorPlayer={};
-    Object.entries(playerDrinks).forEach(function(e){
-      var top=Object.entries(e[1]).sort(function(a,b){return b[1]-a[1];})[0];
-      if(top)favPorPlayer[e[0]]=top[0];
-    });
-
-    // Promedio de consumo
-    var avgConsumo=totalSemanas>0?Math.round(pedidosTotal/totalSemanas):0;
-    var avgRecaudado=totalSemanas>0?Math.round(recaudadoTotal/totalSemanas):0;
-
-    // ── RENDER ──
-    var html="";
-
-    // ── VISTA PERSONAL si no es admin ──
-    var misSemanas=semanasByPlayer[me]?semanasByPlayer[me].size:0;
-    var miPct=totalSemanas>0?Math.round(misSemanas/totalSemanas*100):0;
-    var miDrinkTop=playerDrinks[me]?Object.entries(playerDrinks[me]).sort(function(a,b){return b[1]-a[1];})[0]:null;
-    var miExtras=playerExtras[me]||0;
-    var miTotalPeds=playerDrinks[me]?Object.values(playerDrinks[me]).reduce(function(s,v){return s+v;},0):0;
-    var miRebuscado=miTotalPeds>0?Math.round(miExtras/miTotalPeds*100):0;
-
-    // COUNTDOWN
-    var now2=new Date(),sat2=nextSat();sat2.setHours(7,45,0,0);
-    var diff2=sat2-now2;
+    var panel=document.getElementById("stats-content");if(!panel)return;
+    // Countdown
+    var sat=nextSat();sat.setHours(7,45,0,0);
+    var diff=sat-new Date();
     var cdHtml="";
-    if(diff2<=0){
-      cdHtml="<div style='text-align:center;background:linear-gradient(135deg,rgba(245,158,11,0.15),rgba(245,158,11,0.05));border:1px solid rgba(245,158,11,0.3);border-radius:16px;padding:20px 16px;margin-bottom:16px'>"
-        +"<div style='font-size:2rem'>☕</div>"
-        +"<div style='font-family:var(--font-display);font-size:2rem;color:var(--g2);letter-spacing:0.04em'>HOY ES EL DÍA</div>"
-        +"<div style='font-size:0.65rem;color:var(--mut);margin-top:4px'>SÁBADO 7:45 — CRR TENIS</div>"
-        +"</div>";
+    if(diff<=0){
+      cdHtml="<div style='text-align:center;padding:18px;background:linear-gradient(135deg,rgba(116,174,214,0.15),rgba(251,191,36,0.1));border-radius:16px;margin-bottom:14px'><div style='font-size:2rem'>☕</div><div style='font-family:var(--font-display);font-size:1.6rem;color:var(--club-cel);margin-top:6px'>HOY ES EL DÍA</div></div>";
     } else {
-      var dias2=Math.floor(diff2/86400000),hrs2=Math.floor((diff2%86400000)/3600000),mins2=Math.floor((diff2%3600000)/60000);
-      cdHtml="<div style='text-align:center;background:var(--sur);border:1px solid var(--brd);border-radius:16px;padding:16px;margin-bottom:16px'>"
-        +"<div style='font-size:0.6rem;color:var(--mut);letter-spacing:0.08em;margin-bottom:8px'>PRÓXIMO CAFÉ</div>"
-        +"<div style='display:flex;justify-content:center;gap:12px;align-items:flex-end'>";
-      if(dias2>0)cdHtml+="<div><div style='font-family:var(--font-display);font-size:2.8rem;font-weight:700;color:var(--ink);line-height:1'>"+dias2+"</div><div style='font-size:0.55rem;color:var(--mut);letter-spacing:0.06em'>DÍAS</div></div><div style='font-size:1.5rem;color:var(--brd);padding-bottom:8px'>:</div>";
-      cdHtml+="<div><div style='font-family:var(--font-display);font-size:2.8rem;font-weight:700;color:var(--ink);line-height:1'>"+String(hrs2).padStart(2,"0")+"</div><div style='font-size:0.55rem;color:var(--mut);letter-spacing:0.06em'>HORAS</div></div>"
-        +"<div style='font-size:1.5rem;color:var(--brd);padding-bottom:8px'>:</div>"
-        +"<div><div style='font-family:var(--font-display);font-size:2.8rem;font-weight:700;color:var(--g2);line-height:1'>"+String(mins2).padStart(2,"0")+"</div><div style='font-size:0.55rem;color:var(--mut);letter-spacing:0.06em'>MIN</div></div>"
-        +"</div><div style='font-size:0.6rem;color:var(--mut);margin-top:8px'>SÁBADO "+sat2.getDate()+" "+MESES_C[sat2.getMonth()].toUpperCase()+" · 7:45 HS</div>"
-        +"</div>";
+      var d=Math.floor(diff/86400000),h=Math.floor((diff%86400000)/3600000),m2=Math.floor((diff%3600000)/60000),sv=Math.floor((diff%60000)/1000);
+      cdHtml="<div style='text-align:center;background:var(--sur);border:1px solid var(--brd);border-radius:16px;padding:20px 16px;margin-bottom:14px'>"
+        +"<div style='font-size:0.58rem;color:var(--mut);letter-spacing:0.1em;margin-bottom:12px'>☕ PRÓXIMO CAFÉ · CRR TENIS</div>"
+        +"<div style='display:flex;justify-content:center;gap:12px;align-items:flex-end;margin-bottom:10px'>"
+        +(d>0?"<div><div style='font-family:var(--font-display);font-size:2.8rem;font-weight:700;color:var(--ink);line-height:1'>"+d+"</div><div style='font-size:0.52rem;color:var(--mut);margin-top:3px'>DÍAS</div></div><div style='font-size:1.8rem;color:var(--brd);padding-bottom:10px'>:</div>":"")
+        +"<div><div style='font-family:var(--font-display);font-size:2.8rem;font-weight:700;color:var(--ink);line-height:1'>"+String(h).padStart(2,"0")+"</div><div style='font-size:0.52rem;color:var(--mut);margin-top:3px'>HS</div></div>"
+        +"<div style='font-size:1.8rem;color:var(--brd);padding-bottom:10px'>:</div>"
+        +"<div><div style='font-family:var(--font-display);font-size:2.8rem;font-weight:700;color:var(--ink);line-height:1'>"+String(m2).padStart(2,"0")+"</div><div style='font-size:0.52rem;color:var(--mut);margin-top:3px'>MIN</div></div>"
+        +"<div style='font-size:1.8rem;color:var(--brd);padding-bottom:10px'>:</div>"
+        +"<div><div id='scd-s' style='font-family:var(--font-display);font-size:2.8rem;font-weight:700;color:var(--club-cel);line-height:1'>"+String(sv).padStart(2,"0")+"</div><div style='font-size:0.52rem;color:var(--mut);margin-top:3px'>SEG</div></div>"
+        +"</div><div style='font-size:0.58rem;color:var(--mut)'>SÁB "+sat.getDate()+" "+MESES_C[sat.getMonth()].toUpperCase()+" · 7:45 HS</div></div>";
     }
-    html+=cdHtml;
-
-    // ASISTENCIA PRÓXIMO SÁBADO
-    var satStr=nextSatStr();
-    var van=galanes.filter(function(g){return reservas[g]&&reservas[g].sat===satStr;});
-    var noVan=galanes.filter(function(g){return !reservas[g]||reservas[g].sat!==satStr;});
-    var sinResp=noVan; // pendientes = sin reserva
-    // Calcular "confirmaron no van" — por ahora todos sin reserva son pendientes
-    var vanN=van.length,noVanN=0,sinRespN=sinResp.length;
-
-    html+="<div style='margin-bottom:16px'>";
-    // Cards VAN / NO VAN / PENDIENTE
-    html+="<div style='display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px'>";
-    html+="<div style='background:rgba(34,197,94,0.1);border:1.5px solid rgba(34,197,94,0.3);border-radius:14px;padding:14px 8px;text-align:center'>"
-      +"<div style='font-family:var(--font-display);font-size:2rem;font-weight:700;color:#4ade80'>"+vanN+"</div>"
-      +"<div style='font-size:0.55rem;color:#4ade80;letter-spacing:0.06em;margin-top:2px'>VAN ✅</div></div>";
-    html+="<div style='background:rgba(239,68,68,0.08);border:1.5px solid rgba(239,68,68,0.2);border-radius:14px;padding:14px 8px;text-align:center'>"
-      +"<div style='font-family:var(--font-display);font-size:2rem;font-weight:700;color:#f87171'>"+noVanN+"</div>"
-      +"<div style='font-size:0.55rem;color:#f87171;letter-spacing:0.06em;margin-top:2px'>NO VAN ❌</div></div>";
-    html+="<div style='background:var(--sur);border:1.5px solid var(--brd);border-radius:14px;padding:14px 8px;text-align:center'>"
-      +"<div style='font-family:var(--font-display);font-size:2rem;font-weight:700;color:var(--mut)'>"+sinRespN+"</div>"
-      +"<div style='font-size:0.55rem;color:var(--mut);letter-spacing:0.06em;margin-top:2px'>PENDIENTE ⏳</div></div>";
-    html+="</div>";
-    // Lista van
-    if(van.length){
-      html+="<div style='margin-bottom:8px'>";
-      html+="<div style='font-size:0.58rem;color:#4ade80;letter-spacing:0.06em;margin-bottom:6px;font-weight:700'>✅ VAN ("+van.length+")</div>";
-      html+="<div style='display:flex;flex-wrap:wrap;gap:5px'>";
-      van.forEach(function(g){html+="<span style='background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.25);border-radius:100px;padding:3px 10px;font-size:0.62rem;color:#4ade80;font-weight:600'>"+g+"</span>";});
-      html+="</div></div>";
-    }
-    // Lista sin responder
-    if(sinResp.length){
-      html+="<div>";
-      html+="<div style='font-size:0.58rem;color:var(--mut);letter-spacing:0.06em;margin-bottom:6px;font-weight:700'>⏳ SIN RESPONDER ("+sinResp.length+")</div>";
-      html+="<div style='font-size:0.62rem;color:var(--mut);line-height:1.8'>"+sinResp.join(" · ")+"</div>";
-      html+="</div>";
-    }
-    html+="</div>";
-
-    // HEADER
-    html+="<div style='margin-bottom:16px'>";
-    html+="<div style='font-family:var(--font-display);font-size:1.5rem;letter-spacing:0.04em;color:var(--ink)'>STATS</div>";
-    html+="<div style='font-size:0.65rem;color:var(--mut);margin-top:2px'>"+totalSemanas+" SÁBADOS REGISTRADOS</div>";
-    html+="</div>";
-
-    // MI RESUMEN PERSONAL (para todos)
-    if(me&&misSemanas>0){
-      html+="<div style='background:linear-gradient(135deg,rgba(245,158,11,0.08),rgba(245,158,11,0.03));border:1px solid rgba(245,158,11,0.2);border-radius:14px;padding:14px 16px;margin-bottom:16px'>";
-      html+="<div style='font-size:0.6rem;color:var(--g2);font-weight:700;letter-spacing:0.08em;margin-bottom:10px'>TU RESUMEN — "+me.toUpperCase()+"</div>";
-      html+="<div style='display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px'>";
-      html+=miniCard("📅",misSemanas+"x","sábados");
-      html+=miniCard("📊",miPct+"%","asistencia");
-      html+=miniCard("🎩",miRebuscado+"%","rebuscado");
-      html+="</div>";
-      if(miDrinkTop)html+="<div style='margin-top:10px;font-size:0.62rem;color:var(--mut)'>FAVORITA: <b style='color:var(--ink)'>"+autoEmoji(miDrinkTop[0])+" "+miDrinkTop[0].toUpperCase()+"</b> ("+miDrinkTop[1]+"x)</div>";
-      html+="</div>";
-    }
-
-    // STAT CARDS GLOBALES (solo admin)
-    if(isAdmin()){
-      html+="<div style='display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px'>";
-      html+=statCard("☕","Pedidos totales",pedidosTotal,"histórico","var(--club-cel)");
-      html+=statCard("📅","Sábados",totalSemanas,"registrados");
-      html+=statCard("👥","Promedio",avgConsumo,"pedidos/sáb");
-      html+=statCard("💰","Promedio",avgRecaudado>0?"$"+avgRecaudado:"—","recaudado/sáb");
-      html+="</div>";
-    }
-
-    // ASISTENCIA
-    if(asistencia.length){
-      html+="<div class='stats-section'>";
-      html+="<div class='stats-title'>🏆 TABLA DE ASISTENCIA</div>";
-      var maxSem=asistencia[0].semanas||1;
-      asistencia.forEach(function(p,i){
-        var medal=i===0?"🥇":i===1?"🥈":i===2?"🥉":"";
-        var barW=Math.round(p.semanas/maxSem*100);
-        var fav=favPorPlayer[p.name]?"<span style='font-size:0.6rem;color:var(--mut);margin-left:4px'>"+autoEmoji(favPorPlayer[p.name])+"</span>":"";
-        var esYo=p.name===me;
-        html+="<div class='stats-row'"+(esYo?" style='border-color:rgba(245,158,11,0.4);background:rgba(245,158,11,0.04)'":"")+">"; 
-        html+="<div style='display:flex;align-items:center;gap:8px;margin-bottom:5px'>";
-        html+="<div class='lista-av' style='background:"+col(p.name)+";width:28px;height:28px;font-size:0.7rem;flex-shrink:0'>"+ini(p.name)+"</div>";
-        html+="<div style='flex:1;min-width:0'>";
-        html+="<div style='font-size:0.72rem;font-weight:700;color:var(--ink);letter-spacing:0.03em'>"+medal+" "+p.name+fav+"</div>";
-        html+="<div style='margin-top:4px;height:4px;background:var(--brd);border-radius:2px;overflow:hidden'>";
-        html+="<div style='height:100%;width:"+barW+"%;background:linear-gradient(90deg,var(--acc),var(--acc2));border-radius:2px;transition:width 0.6s'></div>";
-        html+="</div></div>";
-        html+="<div style='text-align:right;flex-shrink:0'>";
-        html+="<div style='font-size:0.78rem;font-weight:800;color:var(--g2)'>"+p.pct+"%</div>";
-        html+="<div style='font-size:0.58rem;color:var(--mut)'>"+p.semanas+"/"+totalSemanas+"</div>";
-        html+="</div></div></div>";
-      });
-      html+="</div>";
-    }
-
-    // BEBIDAS MÁS PEDIDAS
-    if(topDrinks.length){
-      html+="<div class='stats-section'>";
-      html+="<div class='stats-title'>☕ BEBIDAS MÁS PEDIDAS</div>";
-      var maxDr=topDrinks[0][1]||1;
-      topDrinks.forEach(function(d,i){
-        var barW=Math.round(d[1]/maxDr*100);
-        var emoji=autoEmoji(d[0]);
-        html+="<div class='stats-row'>";
-        html+="<div style='display:flex;align-items:center;gap:8px;margin-bottom:5px'>";
-        html+="<div style='font-size:1.2rem;width:28px;text-align:center'>"+emoji+"</div>";
-        html+="<div style='flex:1;min-width:0'>";
-        html+="<div style='font-size:0.72rem;font-weight:600;color:var(--ink);letter-spacing:0.03em'>"+d[0].toUpperCase()+"</div>";
-        html+="<div style='margin-top:4px;height:4px;background:var(--brd);border-radius:2px;overflow:hidden'>";
-        html+="<div style='height:100%;width:"+barW+"%;background:linear-gradient(90deg,#6366f1,#8b5cf6);border-radius:2px'></div>";
-        html+="</div></div>";
-        html+="<div style='font-size:0.78rem;font-weight:800;color:#a5b4fc;flex-shrink:0'>"+d[1]+"x</div>";
-        html+="</div></div>";
-      });
-      html+="</div>";
-    }
-
-    // EL MÁS REBUSCADO (solo admin)
-    if(isAdmin()&&masRebuscado.length){
-      html+="<div class='stats-section'>";
-      html+="<div class='stats-title'>🎩 MÁS REBUSCADOS</div>";
-      html+="<div style='font-size:0.6rem;color:var(--mut);margin-bottom:10px'>% DE PEDIDOS CON ACOMPAÑAMIENTO</div>";
-      masRebuscado.forEach(function(p,i){
-        var medal=i===0?"🥇":i===1?"🥈":"🥉";
-        html+="<div class='stats-row' style='display:flex;align-items:center;gap:10px;padding:10px 12px'>";
-        html+="<div style='font-size:1.1rem'>"+medal+"</div>";
-        html+="<div class='lista-av' style='background:"+col(p.name)+";width:28px;height:28px;font-size:0.7rem;flex-shrink:0'>"+ini(p.name)+"</div>";
-        html+="<div style='flex:1'><div style='font-size:0.72rem;font-weight:700;color:var(--ink)'>"+p.name+"</div>";
-        html+="<div style='font-size:0.6rem;color:var(--mut)'>"+p.extras+" extras / "+p.total+" pedidos</div></div>";
-        html+="<div style='font-size:0.9rem;font-weight:800;color:var(--g2)'>"+p.pct+"%</div>";
-        html+="</div>";
-      });
-      html+="</div>";
-    }
-
-    // BEBIDA FAVORITA POR GALÁN
-    var favEntries=Object.entries(favPorPlayer).filter(function(e){return galanes.indexOf(e[0])!==-1;}).slice(0,8);
-    if(favEntries.length){
-      html+="<div class='stats-section'>";
-      html+="<div class='stats-title'>❤️ FAVORITO DE CADA UNO</div>";
-      html+="<div style='display:grid;grid-template-columns:1fr 1fr;gap:6px'>";
-      favEntries.forEach(function(e){
-        html+="<div style='background:var(--sur);border:1px solid var(--brd);border-radius:10px;padding:8px 10px;display:flex;align-items:center;gap:8px'>";
-        html+="<div class='lista-av' style='background:"+col(e[0])+";width:24px;height:24px;font-size:0.6rem;flex-shrink:0'>"+ini(e[0])+"</div>";
-        html+="<div style='min-width:0'><div style='font-size:0.6rem;font-weight:700;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis'>"+e[0]+"</div>";
-        html+="<div style='font-size:0.58rem;color:var(--mut)'>"+autoEmoji(e[1])+" "+e[1]+"</div></div>";
-        html+="</div>";
-      });
-      html+="</div></div>";
-    }
-
-    if(totalSemanas===0){
-      html="<div class='es' style='padding:60px 20px'>Todavía no hay historial para mostrar stats.<br><small style='opacity:0.6'>Cerrá la primera mesa para ver datos acá.</small></div>";
-    }
-
-    panel.innerHTML=html;
+    // Top bebidas
+    var tots={};Object.values(orders).forEach(function(o){var k=o.drink||"?";if(!tots[k])tots[k]={icon:o.icon||"☕",count:0};tots[k].count++;});
+    var sortedB=Object.entries(tots).sort(function(a,b){return b[1].count-a[1].count;});
+    var maxC=sortedB.length?sortedB[0][1].count:1;
+    var bebidasHtml=sortedB.length
+      ?sortedB.map(function(e){var pct=Math.round(e[1].count/maxC*100);
+        return "<div style='display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--brd)'>"
+          +"<div style='font-size:1.4rem;width:30px;text-align:center'>"+e[1].icon+"</div>"
+          +"<div style='flex:1'><div style='font-size:0.65rem;font-weight:600;color:var(--ink)'>"+e[0].toUpperCase()+"</div>"
+          +"<div style='margin-top:3px;height:4px;background:var(--brd);border-radius:2px'>"
+          +"<div style='height:100%;width:"+pct+"%;background:linear-gradient(90deg,var(--club-cel),var(--club-ama));border-radius:2px'></div></div></div>"
+          +"<b style='color:var(--club-cel);font-size:0.85rem'>"+e[1].count+"x</b></div>";
+      }).join("")
+      :"<div style='text-align:center;color:var(--mut);font-size:0.65rem;padding:12px'>Nadie pidió todavía ☕</div>";
+    // Asistentes
+    var byP={};Object.values(orders).forEach(function(o){byP[o.player]=1;});
+    var plrs=Object.keys(byP).sort();
+    var asisHtml=plrs.length
+      ?"<div style='display:flex;flex-wrap:wrap;gap:6px'>"+plrs.map(function(p){
+          return "<div style='display:flex;align-items:center;gap:5px;background:var(--sur2);border:1px solid var(--brd);border-radius:100px;padding:4px 10px'>"
+            +"<div style='width:20px;height:20px;border-radius:50%;background:"+col(p)+";display:flex;align-items:center;justify-content:center;font-size:0.52rem;font-weight:700;color:white;flex-shrink:0'>"+ini(p)+"</div>"
+            +"<span style='font-size:0.6rem;font-weight:600;color:var(--ink)'>"+p+"</span></div>";
+        }).join("")+"</div>"
+      :"<div style='text-align:center;color:var(--mut);font-size:0.65rem;padding:12px'>Nadie anotado todavía</div>";
+    panel.innerHTML=cdHtml
+      +"<div style='background:var(--sur);border:1px solid var(--brd);border-radius:14px;padding:14px;margin-bottom:12px'>"
+      +"<div style='font-size:0.62rem;font-weight:700;color:var(--club-cel);letter-spacing:0.08em;margin-bottom:10px'>☕ TOP BEBIDAS HOY</div>"
+      +bebidasHtml+"</div>"
+      +"<div style='background:var(--sur);border:1px solid var(--brd);border-radius:14px;padding:14px'>"
+      +"<div style='font-size:0.62rem;font-weight:700;color:var(--club-cel);letter-spacing:0.08em;margin-bottom:10px'>👥 ANOTADOS ("+plrs.length+")</div>"
+      +asisHtml+"</div>";
+    if(window._sTimer)clearInterval(window._sTimer);
+    window._sTimer=setInterval(function(){
+      var el=document.getElementById("scd-s");
+      if(el){var s2=nextSat();s2.setHours(7,45,0,0);var sv2=Math.floor((s2-new Date())%60000/1000);if(sv2>=0)el.textContent=String(sv2).padStart(2,"0");}
+    },1000);
   };
+  function maybeRenderStats(){var v=document.getElementById("v-stats");if(v&&v.style.display!=="none")renderStats();}
 
   function miniCard(emoji,value,sub){
     return "<div style='text-align:center;background:rgba(0,0,0,0.2);border-radius:10px;padding:8px 4px'>"
@@ -1836,9 +1549,6 @@
     // Sat label
     var sl=document.getElementById("login-sat-label");
     if(sl){var sat=nextSat();sl.textContent="PRÓXIMO: SÁB "+sat.getDate()+" "+MESES_C[sat.getMonth()].toUpperCase();}
-    // Sábado con nombre → entrar directo
-    if(me&&isSat()){hideLoginScreen();renderMyName();switchTab("pedir");return;}
-    // Si ya tiene nombre → step2 (confirmar asistencia)
     if(me){
       document.getElementById("login-step1").style.display="none";
       var s2=document.getElementById("login-step2");s2.style.display="flex";
@@ -1874,66 +1584,29 @@
     me=nombre;localStorage.setItem("galan_name",nombre);
     var inp=document.getElementById("login-input-nombre");if(inp)inp.value=nombre;
     var sug=document.getElementById("login-sugerencias");if(sug)sug.style.display="none";
-    if(isSat()){
-      // Sábado: entrar directo sin preguntar
-      hideLoginScreen();renderMyName();switchTab("pedir");
-    } else {
-      document.getElementById("login-step1").style.display="none";
-      var s2=document.getElementById("login-step2");s2.style.display="flex";
-      var nl=document.getElementById("login-nombre-label");if(nl)nl.textContent=nombre.toUpperCase();
-    }
+    document.getElementById("login-step1").style.display="none";
+    var s2=document.getElementById("login-step2");if(s2)s2.style.display="flex";
+    var nl=document.getElementById("login-nombre-label");if(nl)nl.textContent=nombre.toUpperCase();
   };
   window.loginConfirmarNombre=function(){
     var inp=document.getElementById("login-input-nombre");
     var nombre=inp?inp.value.trim():"";
     if(!nombre){showToast("Escribí tu nombre");return;}
     nombre=nombre.charAt(0).toUpperCase()+nombre.slice(1).toLowerCase();
-    // Buscar si coincide exactamente con un galán registrado
     var exact=galanes.find(function(g){return g.toLowerCase()===nombre.toLowerCase();});
     if(exact)nombre=exact;
     me=nombre;localStorage.setItem("galan_name",nombre);
-    if(isSat()){
-      hideLoginScreen();renderMyName();switchTab("pedir");
-    } else {
-      document.getElementById("login-step1").style.display="none";
-      var s2=document.getElementById("login-step2");s2.style.display="flex";
-      var nl=document.getElementById("login-nombre-label");if(nl)nl.textContent=nombre.toUpperCase();
-    }
+    document.getElementById("login-step1").style.display="none";
+    var s2=document.getElementById("login-step2");if(s2)s2.style.display="flex";
+    var nl=document.getElementById("login-nombre-label");if(nl)nl.textContent=nombre.toUpperCase();
   };
-  window.loginVoy=async function(){
-    if(!me)return;
-    // Si ya tiene reserva para este sábado, no pisarla
-    var satStr=nextSatStr();
-    var yaReservado=reservas[me]&&reservas[me].sat===satStr;
-    if(!yaReservado){
-      var data={asistencia:true,pedidos:[],ts:Date.now(),sat:satStr};
-      try{await set(ref(db,"reserva/"+me),data);reservas[me]=data;}catch(e){}
-    }
-    hideLoginScreen();
-    renderMyName();
-    switchTab("stats");
-    setTimeout(function(){renderStats();},200);
-    // Si no tiene pedido todavía, abrir modal de bebidas
-    var yaTienePedido=Object.values(orders).some(function(o){return o.player===me;});
-    if(!yaTienePedido&&!yaReservado){
-      setTimeout(function(){openModal("mpedirreserva");},500);
-    }
-  };
-  window.loginNoVoy=async function(){
+  window.loginEntrar=function(){
     if(!me)return;
     hideLoginScreen();
     renderMyName();
-    showToast("Anotado como ausente 👋");
-    switchTab("stats");
-    setTimeout(function(){renderStats();},300);
+    switchTab("pedir");
   };
-  window.loginSinConfirmar=function(){
-    if(!me){showToast("Primero elegí tu nombre");return;}
-    hideLoginScreen();
-    renderMyName();
-    switchTab("stats");
-  };
-  window.loginCambiarNombre=function(){
+    window.loginCambiarNombre=function(){
     me=null;localStorage.removeItem("galan_name");
     document.getElementById("login-step2").style.display="none";
     document.getElementById("login-step1").style.display="flex";
@@ -2419,13 +2092,11 @@ header::after{
     <div class="login-card">
       <div class="login-hola">HOLA</div>
       <div class="login-nombre" id="login-nombre-label">—</div>
-      <div style="font-size:0.62rem;color:var(--mut);text-align:center;margin-bottom:16px;letter-spacing:0.06em">¿VAS AL CAFÉ?</div>
-      <div class="login-btns">
-        <button class="login-btn-voy" onclick="loginVoy()">✅ VOY</button>
-        <button class="login-btn-no" onclick="loginNoVoy()">❌ NO PUEDO</button>
+      <div style="font-size:0.62rem;color:var(--mut);text-align:center;margin-bottom:16px;letter-spacing:0.06em">LISTO PARA PEDIR ☕</div>
+      <div>
+        <button class="login-btn-voy" style="width:100%" onclick="loginEntrar()">☕ ENTRAR Y PEDIR</button>
       </div>
     </div>
-    <button class="login-sin-confirmar" onclick="loginSinConfirmar()">Entrar sin confirmar</button>
     <button onclick="loginCambiarNombre()" style="background:none;border:none;color:var(--mut);font-size:0.6rem;cursor:pointer;margin-top:12px;letter-spacing:0.06em;text-decoration:underline;font-family:var(--font-body)">No soy yo, cambiar</button>
   </div>
 </div>
