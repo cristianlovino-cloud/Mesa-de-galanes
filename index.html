@@ -101,13 +101,15 @@
     var vb=document.getElementById("vbtn");if(vb)vb.textContent=voiceOn?"🔊":"🔇";
     checkSession();
     var _vl=document.getElementById("version-label");if(_vl)_vl.textContent="v"+APP_VERSION;
-    // Timeout: si Firebase no responde en 8s mostrar error
+    // Timeout: si Firebase no responde en 15s mostrar error (solo si realmente no cargaron bebidas)
     setTimeout(function(){
       var dg=document.getElementById("drinks-grid");
-      if(dg&&dg.children.length===1&&dg.firstChild.classList&&dg.firstChild.classList.contains("es")){
+      var sinBebidas=dg&&dg.children.length===1&&dg.firstChild.classList&&dg.firstChild.classList.contains("es");
+      var sinDrinks=!drinks||drinks.length===0;
+      if(sinBebidas&&sinDrinks){
         dg.innerHTML="<div class='es' style='padding:30px 12px;color:var(--red)'>⚠️ Sin conexión a Firebase.<br><small style='opacity:0.6'>Revisá tu internet y recargá.</small><br><br><button onclick='location.reload()' style='margin-top:10px;background:var(--acc);border:none;border-radius:8px;padding:10px 20px;font-weight:700;cursor:pointer'>🔄 Recargar</button></div>";
       }
-    }, 8000);
+    }, 15000);
     // Fallback: ocultar splash en 5s aunque Firebase no responda
     setTimeout(function(){var sp=document.getElementById('splash-screen');if(sp){sp.style.opacity='0';setTimeout(function(){if(sp.parentNode)sp.parentNode.removeChild(sp);},500);}},5000);
     // Mostrar login screen siempre al inicio
@@ -2294,7 +2296,7 @@ header::after{
 </div>
 
 <script>
-  var APP_VERSION="9.4";
+  var APP_VERSION="9.5";
   var STORED_VERSION=localStorage.getItem("app_version");
 
   if("serviceWorker"in navigator){
