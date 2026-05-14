@@ -1470,7 +1470,7 @@
     sug.innerHTML=matches.map(function(g){
       return "<button data-gn='"+g+"' onclick='loginSelectGalan(this.dataset.gn)' style='display:flex;align-items:center;gap:10px;width:100%;background:none;border:none;border-bottom:1px solid rgba(255,255,255,0.05);padding:10px 14px;cursor:pointer;font-family:var(--font-body);'>"
         +"<div style='width:28px;height:28px;border-radius:50%;background:"+col(g)+";display:flex;align-items:center;justify-content:center;font-size:0.7rem;font-weight:700;color:white;flex-shrink:0'>"+ini(g)+"</div>"
-        +"<span style='font-size:0.65rem;font-weight:600;color:var(--ink);letter-spacing:0.04em'>"+g+"</span>"
+        +"<span style='font-size:0.65rem;font-weight:600;color:#f0f0f0;letter-spacing:0.04em'>"+g+"</span>"
         +"</button>";
     }).join("");
   };
@@ -1560,20 +1560,6 @@
   --font-display:'DM Mono',monospace;
   --font-body:'DM Sans',sans-serif;
 }
-@media(prefers-color-scheme:light){
-  :root{
-    --bg:#f5f8fa;--sur:#ffffff;--sur2:#eef2f5;--hbg:#ffffff;
-    --ink:#1a1a2e;--mut:#6b7280;--brd:#dde3ea;--b2:#c8d0d8;
-  }
-  body::before{color:rgba(116,174,214,0.05)!important;}
-  header{background:#ffffff!important;border-bottom:2px solid rgba(116,174,214,0.15)!important;}
-  .tabs{background:rgba(255,255,255,0.97)!important;box-shadow:0 1px 8px rgba(0,0,0,0.08);}
-  .dc{box-shadow:0 2px 8px rgba(0,0,0,0.07)!important;}
-  .modal{background:#fff;border-color:#dde3ea;}
-  .modal input,.xbtn,.odbtn{background:#f5f8fa;border-color:#dde3ea;color:#1a1a2e;}
-  #toast{background:#1a1a2e;color:var(--club-ama);}
-}
-
 
 /* LIGHT MODE — auto según dispositivo */
 @media(prefers-color-scheme:light){
@@ -2307,7 +2293,7 @@ header::after{
 </div>
 
 <script>
-  var APP_VERSION="9.7";
+  var APP_VERSION="9.7.1";
   var STORED_VERSION=localStorage.getItem("app_version");
 
   if("serviceWorker"in navigator){
