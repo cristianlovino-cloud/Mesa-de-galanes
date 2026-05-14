@@ -913,10 +913,12 @@
   window.cargarFav=async function(){var s=await get(rF);if(!s.exists()){showToast("No hay favorito guardado");return;}var favs=s.val(),en=Object.entries(orders);for(var i=0;i<en.length;i++)if(en[i][1].player===me)await remove(ref(db,"pedido/orders/"+en[i][0]));for(var j=0;j<favs.length;j++){var f=favs[j];await push(rO,{player:me,drinkIdx:f.drinkIdx,drink:f.drink,icon:f.icon,extra:f.extra||null,ts:Date.now()});}showToast("⭐ Mi habitual cargado!");};
   window.anotarme=async function(){
     if(!me){openModal("mnombre");return;}
-    // Guardar asistencia YA (sin esperar al pedido)
-    var data={asistencia:true,pedidos:[],ts:Date.now(),sat:nextSatStr()};
-    try{await set(ref(db,"reserva/"+me),data);reservas[me]=data;}catch(err){}
-    // Abrir modal de pedir para que elijan qué toman en el mismo paso
+    var satStr=nextSatStr();
+    // No pisar reserva existente para este sábado
+    if(!reservas[me]||reservas[me].sat!==satStr){
+      var data={asistencia:true,pedidos:[],ts:Date.now(),sat:satStr};
+      try{await set(ref(db,"reserva/"+me),data);reservas[me]=data;}catch(err){}
+    }
     openModal("mpedirreserva");
     renderReserva();
   };
@@ -1891,13 +1893,21 @@
   };
   window.loginVoy=async function(){
     if(!me)return;
-    var data={asistencia:true,pedidos:[],ts:Date.now(),sat:nextSatStr()};
-    try{await set(ref(db,"reserva/"+me),data);reservas[me]=data;}catch(e){}
+    // Si ya tiene reserva para este sábado, no pisarla
+    var satStr=nextSatStr();
+    var yaReservado=reservas[me]&&reservas[me].sat===satStr;
+    if(!yaReservado){
+      var data={asistencia:true,pedidos:[],ts:Date.now(),sat:satStr};
+      try{await set(ref(db,"reserva/"+me),data);reservas[me]=data;}catch(e){}
+    }
     hideLoginScreen();
     renderMyName();
     switchTab("stats");
-    // Abrir modal de pedido
-    setTimeout(function(){openModal("mpedirreserva");},500);
+    // Si no tiene pedido todavía, abrir modal de bebidas
+    var yaTienePedido=Object.values(orders).some(function(o){return o.player===me;});
+    if(!yaTienePedido&&!yaReservado){
+      setTimeout(function(){openModal("mpedirreserva");},500);
+    }
   };
   window.loginNoVoy=async function(){
     if(!me)return;
