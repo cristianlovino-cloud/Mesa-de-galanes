@@ -1036,7 +1036,10 @@
         +"</div>"
         +"<button onclick='cancelarReserva()' style='background:none;border:none;color:#e74c3c;font-size:0.78rem;font-weight:700;cursor:pointer;flex-shrink:0'>✕ No voy</button></div>";
     } else {
-      panel.innerHTML="<div class='res-banner'><div><div style='font-weight:600;font-size:0.84rem;color:var(--ink)'>Próximo sáb: <b>"+satLabel()+"</b></div><div style='font-size:0.74rem;color:var(--mut);margin-top:2px'>¿Venís al 7:45?</div></div><div style='display:flex;gap:6px;flex-shrink:0'><button onclick='anotarme()' class='res-apunto-btn'>Estoy 🙂</button><button onclick='noEstoy()' class='res-apunto-btn' style='background:#666'>No estoy 😔</button></div></div>";
+      panel.innerHTML="<div class='res-banner res-warn'><div style='flex:1'>"
+        +"<div style='font-size:0.62rem;color:var(--mut);margin-bottom:6px'>"+satLabel().toUpperCase()+"</div>"
+        +"<button onclick='anotarme()' style='background:rgba(116,174,214,0.15);border:1px solid rgba(116,174,214,0.3);color:var(--club-cel);border-radius:10px;padding:8px 16px;font-size:0.68rem;font-weight:700;cursor:pointer;letter-spacing:0.04em;text-transform:uppercase'>☕ ANOTARME</button>"
+        +"</div></div>";
     }
   }
 
@@ -1069,7 +1072,9 @@
       var drag=admin?" draggable='true' ondragstart='dragStart(event,"+i+")' ondragover='dragOver(event)' ondrop='drop(event,"+i+")' ondragend='dragEnd()'":"";
       var row="<div class='dc"+(active?" sel":"")+"' onclick='selectDrink("+i+")' "+drag+">";
       if(admin){row+="<span class='ddel' onclick='delDrinkIdx("+i+",event)'>✕</span>";row+="<span class='dhdl' onclick='event.stopPropagation();editarExtras("+i+")' title='extras'>⚙</span>";}
-      row+="<div class='ci'><div class='ce'>"+d.icon+"</div><div class='cn'>"+d.name+"</div>";
+      // Tamaño del ícono según tipo de bebida
+      var iconSize=d.name&&(/doble|leche|grande|jarr/i.test(d.name))?"2.4rem":"1.7rem";
+      row+="<div class='ci'><div class='ce' style='font-size:"+iconSize+"'>"+d.icon+"</div><div class='cn'>"+d.name+"</div>";
       if(d.sub)row+="<div class='cs'>"+d.sub+"</div>";
       var esComida=d.tipo==="comida";
       if(active&&mo&&mo.extra)row+="<div class='cx'>+ "+mo.extra+"</div>";
@@ -1821,7 +1826,9 @@
     // Sat label
     var sl=document.getElementById("login-sat-label");
     if(sl){var sat=nextSat();sl.textContent="PRÓXIMO: SÁB "+sat.getDate()+" "+MESES_C[sat.getMonth()].toUpperCase();}
-    // Si ya tiene nombre → step2
+    // Sábado con nombre → entrar directo
+    if(me&&isSat()){hideLoginScreen();renderMyName();switchTab("pedir");return;}
+    // Si ya tiene nombre → step2 (confirmar asistencia)
     if(me){
       document.getElementById("login-step1").style.display="none";
       var s2=document.getElementById("login-step2");s2.style.display="flex";
@@ -1836,31 +1843,51 @@
     var ls=document.getElementById("login-screen");
     if(ls){ls.style.opacity="0";setTimeout(function(){ls.style.display="none";ls.style.opacity="1";},400);}
   }
-  function renderLoginGalanes(){
-    var list=document.getElementById("login-galanes-list");if(!list)return;
-    var sorted=galanes.slice().sort();
-    list.innerHTML=sorted.map(function(g){
-      return "<button class='login-galan-btn' onclick=\"loginSelectGalan('"+g+"')\">" 
-        +"<div class='login-galan-ini' style='background:"+col(g)+"'>"+ini(g)+"</div>"
-        +"<div class='login-galan-name'>"+g+"</div>"
+  function renderLoginGalanes(){} // vacía — usamos autocomplete
+
+  window.loginFiltrar=function(val){
+    var sug=document.getElementById("login-sugerencias");if(!sug)return;
+    var q=val.trim().toLowerCase();
+    if(!q){sug.style.display="none";return;}
+    var matches=galanes.filter(function(g){return g.toLowerCase().startsWith(q);}).slice(0,5);
+    if(!matches.length){sug.style.display="none";return;}
+    sug.style.display="block";
+    sug.innerHTML=matches.map(function(g){
+      return "<button data-gn='"+g+"' onclick='loginSelectGalan(this.dataset.gn)' style='display:flex;align-items:center;gap:10px;width:100%;background:none;border:none;border-bottom:1px solid rgba(255,255,255,0.05);padding:10px 14px;cursor:pointer;font-family:var(--font-body);'>"
+        +"<div style='width:28px;height:28px;border-radius:50%;background:"+col(g)+";display:flex;align-items:center;justify-content:center;font-size:0.7rem;font-weight:700;color:white;flex-shrink:0'>"+ini(g)+"</div>"
+        +"<span style='font-size:0.65rem;font-weight:600;color:var(--ink);letter-spacing:0.04em'>"+g+"</span>"
         +"</button>";
     }).join("");
-  }
+  };
   window.loginSelectGalan=function(nombre){
     me=nombre;localStorage.setItem("galan_name",nombre);
-    document.getElementById("login-step1").style.display="none";
-    var s2=document.getElementById("login-step2");s2.style.display="flex";
-    var nl=document.getElementById("login-nombre-label");if(nl)nl.textContent=nombre.toUpperCase();
+    var inp=document.getElementById("login-input-nombre");if(inp)inp.value=nombre;
+    var sug=document.getElementById("login-sugerencias");if(sug)sug.style.display="none";
+    if(isSat()){
+      // Sábado: entrar directo sin preguntar
+      hideLoginScreen();renderMyName();switchTab("pedir");
+    } else {
+      document.getElementById("login-step1").style.display="none";
+      var s2=document.getElementById("login-step2");s2.style.display="flex";
+      var nl=document.getElementById("login-nombre-label");if(nl)nl.textContent=nombre.toUpperCase();
+    }
   };
   window.loginConfirmarNombre=function(){
     var inp=document.getElementById("login-input-nombre");
     var nombre=inp?inp.value.trim():"";
     if(!nombre){showToast("Escribí tu nombre");return;}
     nombre=nombre.charAt(0).toUpperCase()+nombre.slice(1).toLowerCase();
+    // Buscar si coincide exactamente con un galán registrado
+    var exact=galanes.find(function(g){return g.toLowerCase()===nombre.toLowerCase();});
+    if(exact)nombre=exact;
     me=nombre;localStorage.setItem("galan_name",nombre);
-    document.getElementById("login-step1").style.display="none";
-    var s2=document.getElementById("login-step2");s2.style.display="flex";
-    var nl=document.getElementById("login-nombre-label");if(nl)nl.textContent=nombre.toUpperCase();
+    if(isSat()){
+      hideLoginScreen();renderMyName();switchTab("pedir");
+    } else {
+      document.getElementById("login-step1").style.display="none";
+      var s2=document.getElementById("login-step2");s2.style.display="flex";
+      var nl=document.getElementById("login-nombre-label");if(nl)nl.textContent=nombre.toUpperCase();
+    }
   };
   window.loginVoy=async function(){
     if(!me)return;
@@ -2354,14 +2381,15 @@ header::after{
   <div class="login-sub">☕ SÁBADOS 7:45 · CRR TENIS</div>
   <div class="login-sat" id="login-sat-label">PRÓXIMO: SÁB 16 MAY</div>
 
-  <!-- Estado: sin nombre → mostrar lista de galanes -->
+  <!-- Estado: sin nombre → input con autocomplete -->
   <div id="login-step1" style="width:100%;max-width:340px;display:flex;flex-direction:column;align-items:center">
-    <div style="font-size:0.6rem;color:var(--mut);letter-spacing:0.1em;margin-bottom:12px">¿QUIÉN SOS?</div>
-    <div class="login-galanes-list" id="login-galanes-list"></div>
-    <div style="font-size:0.6rem;color:var(--mut);letter-spacing:0.08em;margin:8px 0 6px">O ESCRIBÍ TU NOMBRE</div>
+    <div style="font-size:0.6rem;color:var(--mut);letter-spacing:0.1em;margin-bottom:14px">¿QUIÉN SOS?</div>
     <div class="login-input-wrap">
-      <input class="login-input" id="login-input-nombre" placeholder="TU NOMBRE" maxlength="20" autocomplete="off">
-      <button onclick="loginConfirmarNombre()" style="width:100%;background:var(--acc);color:#0a0805;border:none;border-radius:14px;padding:14px;font-family:var(--font-body);font-size:0.75rem;font-weight:700;cursor:pointer;letter-spacing:0.06em;">ENTRAR →</button>
+      <input class="login-input" id="login-input-nombre" placeholder="TU NOMBRE" maxlength="20" autocomplete="off"
+        oninput="loginFiltrar(this.value)" onkeydown="if(event.key==='Enter')loginConfirmarNombre()">
+      <!-- Sugerencias autocomplete -->
+      <div id="login-sugerencias" style="display:none;width:100%;background:#1a1a1a;border:1px solid rgba(116,174,214,0.2);border-radius:12px;margin-top:6px;overflow:hidden;margin-bottom:8px"></div>
+      <button onclick="loginConfirmarNombre()" style="width:100%;background:var(--acc);color:#0a0805;border:none;border-radius:14px;padding:14px;font-family:var(--font-body);font-size:0.75rem;font-weight:700;cursor:pointer;letter-spacing:0.06em;margin-top:4px">ENTRAR →</button>
     </div>
   </div>
 
