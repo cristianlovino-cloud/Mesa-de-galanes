@@ -99,75 +99,14 @@
     onValue(rPend,function(s){pendientes=s.exists()?s.val():{};renderPendientes();});
     onValue(rPres,function(s){presentes=s.exists()?s.val():{};renderLista();});
     var vb=document.getElementById("vbtn");if(vb)vb.textContent=voiceOn?"🔊":"🔇";
-    checkSession();
     var _vl=document.getElementById("version-label");if(_vl)_vl.textContent="v"+APP_VERSION;
-    // Timeout: si Firebase no responde en 8s mostrar error
-    setTimeout(function(){
-      var dg=document.getElementById("drinks-grid");
-      if(dg&&dg.children.length===1&&dg.firstChild.classList&&dg.firstChild.classList.contains("es")){
-        dg.innerHTML="<div class='es' style='padding:30px 12px;color:var(--red)'>⚠️ Sin conexión a Firebase.<br><small style='opacity:0.6'>Revisá tu internet y recargá.</small><br><br><button onclick='location.reload()' style='margin-top:10px;background:var(--acc);border:none;border-radius:8px;padding:10px 20px;font-weight:700;cursor:pointer'>🔄 Recargar</button></div>";
-      }
-    }, 8000);
-    // Fallback: ocultar splash en 5s aunque Firebase no responda
+    // Ocultar splash en 5s
     setTimeout(function(){var sp=document.getElementById('splash-screen');if(sp){sp.style.opacity='0';setTimeout(function(){if(sp.parentNode)sp.parentNode.removeChild(sp);},500);}},5000);
-    // Mostrar login screen siempre al inicio
-    // Mostrar login solo si pasaron más de 4hs o no hay nombre (evita aparición molesta)
-    var _lastLogin=parseInt(localStorage.getItem("last_login_ts")||"0");
-    var _horasDesde=(Date.now()-_lastLogin)/(1000*60*60);
-    if(_horasDesde>4||!me){showLoginScreen();}
-    if(me)renderMyName();else{
-    setTimeout(function(){
-      openModal("mnombre");
-      // Pre-completar si había nombre guardado antes
-      var saved=localStorage.getItem("galan_name_last");
-      if(saved){
-        var inp=document.getElementById("inp-name");
-        if(inp){inp.value=saved;sugerirNombres(saved);}
-      }
-    },400);
-  }
+    // Login: siempre mostrar al inicio (único sistema)
+    if(me)renderMyName();
+    setTimeout(function(){showLoginScreen();},400);
   });
 
-  async function checkSession(){
-    // Solo importar reservas automáticamente el sábado
-    if(!isSat())return;
-    var today=new Date().toISOString().slice(0,10);
-    var s=await get(rS);
-    // Si ya importamos hoy, no volver a hacerlo
-    if(s.exists()&&s.val()===today+"_imported")return;
-    // Si hay reservas, importarlas
-    var rs=await get(rR);
-    if(!rs.exists())return;
-    var res=rs.val(),pls=Object.keys(res);
-    if(!pls.length)return;
-    // Obtener pedidos actuales para no duplicar
-    var ordSnap=await get(rO);
-    var existPlayers=ordSnap.exists()?Object.values(ordSnap.val()).map(function(o){return o.player;}):[]; 
-    var importados=0;
-    var borrar=[];
-    for(var i=0;i<pls.length;i++){
-      var pl=pls[i];
-      var resData=res[pl];
-      // Solo importar reservas que son para el sábado de HOY
-      if(!resData||!resData.sat||resData.sat!==today)continue;
-      if(existPlayers.indexOf(pl)!==-1){borrar.push(pl);continue;}
-      var peds=resData.pedidos||[];
-      for(var j=0;j<peds.length;j++){
-        var p=peds[j];
-        await push(rO,{player:pl,drinkIdx:p.drinkIdx,drink:p.drink,icon:p.icon,extra:p.extra||null,loadedBy:"reserva",ts:Date.now()+j});
-      }
-      borrar.push(pl);
-      importados++;
-    }
-    // Borrar SOLO las reservas de hoy, no las futuras
-    for(var k=0;k<borrar.length;k++){
-      await set(ref(db,"reserva/"+borrar[k]),null);
-    }
-    if(importados>0){
-      await set(rS,today+"_imported");
-      showToast("✓ "+importados+" reservas importadas!");
-    }
-  }
 
   // ── NOMBRE ────────────────────────────────────────────────
   window.setName=function(name){
@@ -175,17 +114,9 @@
     localStorage.setItem("galan_name",me);
     closeModal("mnombre");
     var ahora=Date.now(),cur=accesos[me]||{count:0};
-    var accData={count:(cur.count||0)+1,lastAccess:ahora};
-    set(ref(db,"config/accesos/"+me),accData);accesos[me]=accData;
-    renderMyName();renderDrinks();renderOrders();renderMesa();renderLista();renderConfirmBtn();renderReserva();renderCumpleBanner();
-    speak("Hola "+me+"!");switchTab("stats");
-    // Preguntar cumpleaños primero, sino mostrar "lo de siempre"
-    if(!cumples[me]){
-      setTimeout(function(){openModal("mcumple");},800);
-    } else {
-      setTimeout(function(){mostrarLoDeSimepre();},600);
-    }
-    // Notificar admin si es galán no registrado
+    set(ref(db,"config/accesos/"+me),{count:(cur.count||0)+1,lastAccess:ahora});
+    renderMyName();renderDrinks();renderOrders();renderMesa();renderLista();renderConfirmBtn();renderCumpleBanner();
+    switchTab("pedir");
     if(galanes.indexOf(me)===-1&&me!==ADMIN){
       set(ref(db,"config/pendientes/"+me),{ts:Date.now(),nombre:me});
     }
@@ -211,7 +142,6 @@
     var adminBtn=document.querySelector("[data-tab='admin']");if(adminBtn)adminBtn.style.cssText=isAdmin()?"display:flex!important":"display:none!important";;
     // Resumen y Cumples visibles con login
     ["resumen","cumples","stats"].forEach(function(t){var btn=document.querySelector("[data-tab='"+t+"']");if(btn)btn.style.cssText="display:flex!important";});
-    var adminBtn=document.querySelector("[data-tab='admin']");if(adminBtn)adminBtn.style.cssText=isAdmin()?"display:flex!important":"display:none!important";
     renderConfirmBtn();renderCumpleBanner();
   }
 
@@ -1470,8 +1400,8 @@
   // ── LOGIN SCREEN ──
   function showLoginScreen(){
     var ls=document.getElementById("login-screen");
-    if(ls)ls.style.display="flex";
-    // Sat label
+    if(!ls)return;
+    ls.style.display="flex";
     var sl=document.getElementById("login-sat-label");
     if(sl){var sat=nextSat();sl.textContent="PRÓXIMO: SÁB "+sat.getDate()+" "+MESES_C[sat.getMonth()].toUpperCase();}
     if(me){
@@ -1527,8 +1457,12 @@
   };
   window.loginEntrar=function(){
     if(!me)return;
+    localStorage.setItem("last_login_ts",Date.now().toString());
+    var cur=accesos[me]||{count:0};
+    set(ref(db,"config/accesos/"+me),{count:(cur.count||0)+1,lastAccess:Date.now()});
     hideLoginScreen();
     renderMyName();
+    renderDrinks();
     switchTab("pedir");
   };
     window.loginCambiarNombre=function(){
@@ -2048,8 +1982,8 @@ header::after{
 </div>
 <div class="tabs">
   <button class="tab" data-tab="pedir"   onclick="switchTab('pedir')">☕ Pedir</button>
-  <button class="tab" data-tab="resumen" onclick="switchTab('resumen')" style="display:none">📋 Resumen</button>
-  <button class="tab" data-tab="cumples" onclick="switchTab('cumples')" style="display:none">🎂 Cumples</button>
+  <button class="tab" data-tab="resumen" onclick="switchTab('resumen')">📋 Resumen</button>
+  <button class="tab" data-tab="cumples" onclick="switchTab('cumples')">🎂 Cumples</button>
   <button class="tab" data-tab="stats"   onclick="switchTab('stats')" style="display:none">📊 Stats</button>
   <button class="tab" data-tab="mundial" onclick="switchTab('mundial')">🌍 Mundial</button>
   <button class="tab" data-tab="admin"   onclick="switchTab('admin')" style="display:none">⚙️ Admin</button>
@@ -2295,12 +2229,12 @@ header::after{
 </div>
 
 <script>
-  var APP_VERSION="9.4";
+  var APP_VERSION="9.6";
   var STORED_VERSION=localStorage.getItem("app_version");
 
   if("serviceWorker"in navigator){
     window.addEventListener("load",function(){
-      navigator.serviceWorker.register("sw.js?v=13").then(function(reg){
+      navigator.serviceWorker.register("sw.js?v=14").then(function(reg){
         // Chequear actualizaciones cada vez que abre
         reg.update();
         // Si hay nueva versión esperando, activarla
