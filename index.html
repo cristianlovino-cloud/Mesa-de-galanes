@@ -82,13 +82,48 @@
       document.body.innerHTML = '<div style="background:#0d1117;color:#fff;padding:30px;font-family:monospace;min-height:100vh"><h2 style="color:#f85149">⚠️ Error de carga</h2><p style="margin-top:16px">Si usás Opera:</p><ol style="margin-top:12px;line-height:2"><li>Tocá el escudo en la barra de direcciones</li><li>Desactivá el bloqueador de anuncios</li><li>Desactivá la VPN integrada</li><li>Recargá la página</li></ol><p style="margin-top:20px;opacity:0.5;font-size:0.8rem">Error: '+e.message+'</p></div>';
     }
   }, true);
+  var _firebaseOk=false;
+  function hideSplash(){
+    var sp=document.getElementById('splash-screen');
+    if(sp){sp.style.opacity='0';setTimeout(function(){if(sp.parentNode)sp.parentNode.removeChild(sp);},500);}
+  }
+
   window.addEventListener("DOMContentLoaded",function(){
     updateClock();setInterval(updateClock,30000);
     switchTab("pedir");
+
+    // Mostrar botón reintentar en el splash a los 3s si Firebase no respondió
+    setTimeout(function(){
+      if(!_firebaseOk){
+        var msg=document.getElementById('splash-msg');if(msg)msg.textContent="Conectando...";
+        var retry=document.getElementById('splash-retry');if(retry)retry.style.display="flex";
+      }
+    },3000);
+
+    // Timeout de seguridad: si Firebase no responde en 4s, mostrar error y arrancar igual
+    var splashTimeout=setTimeout(function(){
+      if(!_firebaseOk){
+        hideSplash();
+        drinks=DRINKS_DEF.slice();
+        renderDrinks();
+        var sp2=document.getElementById('splash-screen');if(sp2)hideSplash();
+        showToast("⚠️ Sin conexión — modo offline");
+        // Mostrar banner de error
+        var banner=document.getElementById('pedido-status-banner');
+        if(banner){
+          banner.innerHTML="<div style='margin:12px 12px 0;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.25);border-radius:12px;padding:10px 14px;font-size:0.65rem;color:#f87171;letter-spacing:0.04em'>⚠️ No se pudo conectar a Firebase. Revisá tu conexión y recargá la página.</div>";
+          banner.style.display="block";
+        }
+      }
+    },4000);
+
     onValue(rG,function(s){galanes=s.exists()?s.val():KNOWN_DEF.slice();renderLoginGalanes();if(!s.exists())set(rG,galanes);});
-    onValue(rD,function(s){drinks=s.exists()?s.val():DRINKS_DEF.slice();if(!s.exists())set(rD,drinks);renderDrinks();
-    var sp=document.getElementById('splash-screen');if(sp){sp.style.opacity='0';setTimeout(function(){if(sp.parentNode)sp.parentNode.removeChild(sp);},500);}
-  });
+    onValue(rD,function(s){
+      _firebaseOk=true;
+      clearTimeout(splashTimeout);
+      drinks=s.exists()?s.val():DRINKS_DEF.slice();if(!s.exists())set(rD,drinks);renderDrinks();
+      hideSplash();
+    });
     onValue(rO,function(s){try{orders=s.exists()?s.val():{};renderDrinks();renderOrders();renderMesa();renderLista();renderConfirmBtn();maybeRenderStats();}catch(e){console.error("rO",e);}});
     onValue(rC,function(s){try{confirmed=s.exists()?s.val():{};renderConfirmBtn();renderOrders();renderMesa();renderLista();}catch(e){console.error("rC",e);}});
     onValue(rP,function(s){try{pagos=s.exists()?s.val():{};renderOrders();renderMesa();renderLista();renderPagosDetail();}catch(e){console.error("rP",e);}});
@@ -101,9 +136,6 @@
     onValue(rPres,function(s){presentes=s.exists()?s.val():{};renderLista();});
     var vb=document.getElementById("vbtn");if(vb)vb.textContent=voiceOn?"🔊":"🔇";
     var _vl=document.getElementById("version-label");if(_vl)_vl.textContent="v"+APP_VERSION;
-    // Ocultar splash en 5s
-    setTimeout(function(){var sp=document.getElementById('splash-screen');if(sp){sp.style.opacity='0';setTimeout(function(){if(sp.parentNode)sp.parentNode.removeChild(sp);},500);}},5000);
-    // Login: siempre mostrar al inicio (único sistema)
     if(me)renderMyName();
     setTimeout(function(){showLoginScreen();},400);
   });
@@ -2064,7 +2096,11 @@ header::after{
 </div>
 <div id="splash-screen" style="position:fixed;inset:0;background:#0a0a0a;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;transition:opacity 0.5s ease">
   <img src="icon-transparent.png" style="width:150px;height:150px;object-fit:contain;animation:splashPulse 1.4s ease-in-out infinite;filter:drop-shadow(0 0 28px rgba(100,174,220,0.7));margin-bottom:28px">
-  <div style="font-family:'Playfair Display',serif;font-size:0.75rem;color:rgba(255,255,255,0.5);letter-spacing:0.18em;text-transform:uppercase;animation:splashFadeIn 0.6s ease 0.2s both">Cargando...</div>
+  <div id="splash-msg" style="font-family:'DM Mono',monospace;font-size:0.75rem;color:rgba(255,255,255,0.5);letter-spacing:0.18em;text-transform:uppercase;animation:splashFadeIn 0.6s ease 0.2s both">Cargando...</div>
+  <div id="splash-retry" style="display:none;margin-top:20px;flex-direction:column;align-items:center;gap:10px">
+    <div style="font-size:0.6rem;color:rgba(239,68,68,0.8);letter-spacing:0.1em">SIN CONEXIÓN</div>
+    <button onclick="location.reload()" style="background:rgba(116,174,214,0.15);border:1px solid rgba(116,174,214,0.4);border-radius:100px;padding:10px 24px;font-family:'DM Mono',monospace;font-size:0.7rem;color:#74aed6;cursor:pointer;letter-spacing:0.1em">🔄 REINTENTAR</button>
+  </div>
 </div>
 <header>
   <div class="htop">
@@ -2332,7 +2368,7 @@ header::after{
 </div>
 
 <script>
-  var APP_VERSION="9.8";
+  var APP_VERSION="9.9";
   var STORED_VERSION=localStorage.getItem("app_version");
 
   if("serviceWorker"in navigator){
