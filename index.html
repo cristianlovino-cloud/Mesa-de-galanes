@@ -1064,14 +1064,32 @@
     for(var k in accesos){
       if(galanes.indexOf(k)===-1)await set(ref(db,"config/accesos/"+k),null);
     }
-    // Limpiar reservas viejas: si hoy NO es sábado Y hay reservas guardadas → son de semanas anteriores
-    var hoy=new Date(),esSabado=hoy.getDay()===6;
-    if(!esSabado&&Object.keys(reservas).length>0){
-      console.log("Limpiando reservas de semana anterior...");
-      await set(rR,null);
-      showToast("🧹 Reservas viejas limpiadas");
+    // Limpiar reservas viejas: buscar el sábado de esta semana (hoy o pasado)
+    // Si las reservas tienen timestamp de una semana anterior → borrar
+    var keys=Object.keys(reservas);
+    if(keys.length>0){
+      // Calcular el sábado de esta semana (AR time)
+      var hoy=new Date();
+      var arDay=(hoy.getUTCDay());// 0=dom...6=sab en UTC (AR es UTC-3, pero el día cambia a medianoche)
+      var diffToSat=arDay===6?0:6-arDay; // dias hasta el proximo sab (0 si hoy es sab)
+      var esteViernes=new Date(hoy);esteViernes.setDate(hoy.getDate()-1); // viernes previo como límite
+      // Revisar timestamp de cualquier reserva
+      var primerRes=reservas[keys[0]];
+      var tsRes=primerRes&&primerRes.ts?primerRes.ts:0;
+      // Si el timestamp es de más de 7 días atrás → son viejas
+      var diasAtras=(Date.now()-tsRes)/(1000*60*60*24);
+      if(tsRes>0&&diasAtras>7){
+        console.log("Limpiando reservas viejas ("+Math.round(diasAtras)+" días)...");
+        await set(rR,null);
+        showToast("🧹 Reservas viejas limpiadas");
+      } else if(tsRes===0){
+        // Sin timestamp: son de antes del fix, borrar igual
+        console.log("Limpiando reservas sin timestamp...");
+        await set(rR,null);
+        showToast("🧹 Reservas viejas limpiadas");
+      }
     }
-    console.log("Limpieza de huérfanos completada");
+    console.log("Limpieza completada");
   }
 
   function renderPagosDetail(){
@@ -1626,10 +1644,29 @@
   .att{background:#fff;border-color:#dde3ea;box-shadow:0 1px 3px rgba(0,0,0,0.05);}
   .attme{border-color:rgba(180,83,9,0.3)!important;background:linear-gradient(90deg,rgba(180,83,9,0.05),transparent)!important;}
   .an{color:#1a1a2e!important;}.ao .ait{color:#64748b!important;}
-  .lista-row{background:#fff;border-color:#dde3ea;box-shadow:0 1px 3px rgba(0,0,0,0.04);}
-  .lista-row:hover{background:#f5f7fa;border-color:#c8d0d8;}
-  .lista-pidio{background:rgba(16,185,129,0.04)!important;border-color:rgba(16,185,129,0.2)!important;}
-  .lista-name{color:#1a1a2e!important;}.lista-drinks{color:#64748b!important;}.lista-nd{color:#94a3b8!important;}
+  .lista-row{background:#fff;border-color:#dde3ea;box-shadow:0 2px 6px rgba(0,0,0,0.05);}
+  .lista-row:hover{background:#f8faff;border-color:#b8c4d0;}
+  .lista-pendiente{background:#fafafa;border-color:#e2e8f0;}
+  .lista-pidio{background:linear-gradient(135deg,rgba(16,185,129,0.04),#fff)!important;border-color:rgba(16,185,129,0.25)!important;border-left:3px solid rgba(16,185,129,0.5)!important;}
+  /* nombres y textos — máximo contraste */
+  .lista-name{color:#111827!important;font-weight:800!important;}
+  .lista-drinks{color:#374151!important;font-weight:500!important;}
+  .lista-nd{color:#9ca3af!important;font-style:italic!important;font-weight:400!important;}
+  /* tags de estado */
+  .ctg{background:rgba(16,185,129,0.12)!important;color:#059669!important;}
+  .ytg{background:rgba(180,83,9,0.1)!important;color:#92400e!important;}
+  .res-tag{background:rgba(245,158,11,0.12)!important;color:#92400e!important;}
+  .falta{color:#dc2626!important;}
+  /* stats row */
+  .lstat-ok{background:rgba(16,185,129,0.1);color:#059669;border-color:rgba(16,185,129,0.25);}
+  .lstat-warn{background:rgba(245,158,11,0.1);color:#92400e;border-color:rgba(245,158,11,0.25);}
+  .lstat-total{background:#e5e7eb;color:#374151;border-color:#d1d5db;}
+  /* botón + PEDIR */
+  .lista-add-btn{background:#2563eb!important;color:#fff!important;}
+  /* sección galanes admin */
+  #galanes-panel{background:#f8faff;}
+  /* avatar sombra */
+  .lista-av{box-shadow:0 2px 6px rgba(0,0,0,0.15)!important;}
   .modal{background:#fff;border-color:#dde3ea;}
   .modal h3{color:#1a1a2e;}
   .msub{color:#64748b;}
@@ -1653,11 +1690,12 @@
   .mabtn{background:#f5f7fa;color:#1a1a2e;border-color:#dde3ea;}
   .mabtn:hover{background:#fffbeb;border-color:rgba(180,83,9,0.4);color:var(--g2);}
   .admin-stab{color:#64748b!important;}.admin-stab.active{color:var(--g2)!important;border-bottom-color:var(--acc)!important;}
-  .asist-btn{background:#f5f7fa;border-color:#dde3ea;color:#64748b;}
-  .asist-btn.asist-va{background:rgba(34,197,94,0.1);border-color:rgba(34,197,94,0.3);color:#16a34a;}
-  .asist-btn.asist-load{background:rgba(180,83,9,0.08);border-color:rgba(180,83,9,0.25);color:#b45309;}
-  .icon-btn{background:#f5f7fa;border-color:#dde3ea;color:#64748b;}
-  .icon-btn:hover{background:#e5e7eb;border-color:#c8d0d8;}
+  .asist-btn{background:#f1f5f9;border-color:#cbd5e1;color:#475569;font-weight:700;}
+  .asist-btn:hover{background:#e2e8f0;border-color:#94a3b8;}
+  .asist-btn.asist-va{background:rgba(16,185,129,0.1);border-color:rgba(16,185,129,0.35);color:#059669;}
+  .asist-btn.asist-load{background:rgba(37,99,235,0.08);border-color:rgba(37,99,235,0.3);color:#2563eb;}
+  .icon-btn{background:#f1f5f9;border-color:#cbd5e1;color:#475569;}
+  .icon-btn:hover{background:#e2e8f0;border-color:#94a3b8;}
   .cumple-row{background:#fff;border-color:#dde3ea;box-shadow:0 1px 3px rgba(0,0,0,0.04);}
   .cumple-name{color:#1a1a2e!important;}.cumple-detalle{color:#64748b!important;}
   .cumple-mes-title{color:#64748b!important;}
@@ -2339,7 +2377,7 @@ header::after{
 </div>
 
 <script>
-  var APP_VERSION="9.7.7";
+  var APP_VERSION="9.7.8";
   var STORED_VERSION=localStorage.getItem("app_version");
 
   if("serviceWorker"in navigator){
