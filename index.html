@@ -50,7 +50,20 @@
     if(/fruta/.test(n))return"🍎";
     return"☕";
   }
-  function nextSat(){var now=new Date(),d=now.getDay(),diff=d===6?7:6-d,r=new Date(now);r.setDate(now.getDate()+diff);return r;}
+  function nextSat(){
+    var now=new Date();
+    var d=now.getDay(); // 0=dom ... 6=sab
+    // Hora Argentina = UTC-3
+    var arHour=((now.getUTCHours()-3)+24)%24;
+    var arMin=now.getUTCMinutes();
+    // Si hoy es sábado y todavía no pasaron las 9:30 AR → el café es HOY
+    if(d===6&&(arHour<9||(arHour===9&&arMin<30))){
+      var r=new Date(now);r.setDate(now.getDate());return r;
+    }
+    // Si hoy es sábado pero ya pasó el café → próximo sábado (7 días)
+    var diff=d===6?7:6-d;
+    var r=new Date(now);r.setDate(now.getDate()+diff);return r;
+  }
   function nextSatStr(){return nextSat().toISOString().slice(0,10);}
   function isSat(){return new Date().getDay()===6;}
   function satLabel(d){var dt=d?new Date(d+"T12:00:00"):nextSat();return"Sáb "+dt.getDate()+" "+MESES_C[dt.getMonth()];}
@@ -1141,8 +1154,8 @@
 
   window.renderStats=async function(){
     var panel=document.getElementById("stats-content");if(!panel)return;
-    // Countdown
-    var sat=nextSat();sat.setHours(7,45,0,0);
+    // Countdown — target: sábado 9:15 hora Argentina (UTC-3) = 12:15 UTC
+    var sat=nextSat();sat.setUTCHours(12,15,0,0);
     var diff=sat-new Date();
     var cdHtml="";
     if(diff<=0){
@@ -1158,7 +1171,7 @@
         +"<div><div style='font-family:var(--font-display);font-size:2.8rem;font-weight:700;color:var(--ink);line-height:1'>"+String(m2).padStart(2,"0")+"</div><div style='font-size:0.52rem;color:var(--mut);margin-top:3px'>MIN</div></div>"
         +"<div style='font-size:1.8rem;color:var(--brd);padding-bottom:10px'>:</div>"
         +"<div><div id='scd-s' style='font-family:var(--font-display);font-size:2.8rem;font-weight:700;color:var(--club-cel);line-height:1'>"+String(sv).padStart(2,"0")+"</div><div style='font-size:0.52rem;color:var(--mut);margin-top:3px'>SEG</div></div>"
-        +"</div><div style='font-size:0.58rem;color:var(--mut)'>SÁB "+sat.getDate()+" "+MESES_C[sat.getMonth()].toUpperCase()+" · 7:45 HS</div></div>";
+        +"</div><div style='font-size:0.58rem;color:var(--mut)'>SÁB "+sat.getDate()+" "+MESES_C[sat.getMonth()].toUpperCase()+" · 9:15 HS</div></div>";
     }
     // Top bebidas
     var tots={};Object.values(orders).forEach(function(o){var k=o.drink||"?";if(!tots[k])tots[k]={icon:o.icon||"☕",count:0};tots[k].count++;});
@@ -1194,7 +1207,7 @@
     if(window._sTimer)clearInterval(window._sTimer);
     window._sTimer=setInterval(function(){
       var el=document.getElementById("scd-s");
-      if(el){var s2=nextSat();s2.setHours(7,45,0,0);var sv2=Math.floor((s2-new Date())%60000/1000);if(sv2>=0)el.textContent=String(sv2).padStart(2,"0");}
+      if(el){var s2=nextSat();s2.setUTCHours(12,15,0,0);var sv2=Math.floor((s2-new Date())%60000/1000);if(sv2>=0)el.textContent=String(sv2).padStart(2,"0");}
     },1000);
   };
   function maybeRenderStats(){var v=document.getElementById("v-stats");if(v&&v.style.display!=="none")renderStats();}
@@ -2312,7 +2325,7 @@ header::after{
 </div>
 
 <script>
-  var APP_VERSION="9.7.2";
+  var APP_VERSION="9.7.3";
   var STORED_VERSION=localStorage.getItem("app_version");
 
   if("serviceWorker"in navigator){
