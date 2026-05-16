@@ -103,7 +103,13 @@
     onValue(rVer,function(s){
       if(!s.exists())return;
       var remoteV=s.val();
-      if(remoteV&&remoteV!==APP_VERSION){
+      // Solo recargar si la versión remota es MAYOR a la local (evita loops)
+      function verNum(v){return (v||"0").split(".").map(Number).reduce(function(a,n,i){return a+n*Math.pow(1000,3-i);},0);}
+      if(remoteV&&verNum(remoteV)>verNum(APP_VERSION)){
+        // Protección anti-loop: no recargar si ya recargamos hace menos de 10s
+        var lastReload=parseInt(sessionStorage.getItem("lastVerReload")||"0");
+        if(Date.now()-lastReload<10000)return;
+        sessionStorage.setItem("lastVerReload",Date.now());
         console.log("Nueva versión: "+remoteV+". Recargando...");
         if("caches"in window)caches.keys().then(function(ns){ns.forEach(function(n){caches.delete(n);});});
         setTimeout(function(){window.location.reload(true);},1200);
@@ -2320,7 +2326,7 @@ header::after{
 </div>
 
 <script>
-  var APP_VERSION="9.7.5";
+  var APP_VERSION="9.7.6";
   var STORED_VERSION=localStorage.getItem("app_version");
 
   if("serviceWorker"in navigator){
