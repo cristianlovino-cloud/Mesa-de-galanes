@@ -5,7 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Mesa de Galanes</title>
 <meta name='app-version' content='2.5'>
-<meta name="theme-color" content="#0b0f19">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#080808">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
@@ -1610,112 +1611,9 @@
   --acc:#6ab0d8;--acc2:#4a90b8;--acc-ama:#f5c518;
   --font-display:'Bebas Neue',sans-serif;
   --font-body:'Inter',sans-serif;
+  color-scheme: dark;
 }
 
-/* LIGHT MODE — auto según dispositivo */
-@media(prefers-color-scheme:light){
-  :root{
-    --bg:#f5f7fa;--sur:#ffffff;--sur2:#eef1f5;--hbg:#ffffff;
-    --ink:#1a1a2e;--mut:#64748b;--brd:#dde3ea;--b2:#c8d0d8;
-    --gold:#b45309;--g2:#b45309;--gl:#92400e;--gd:#78350f;
-    --acc:#2563eb;--acc2:#1d4ed8;--acc-ama:#b45309;
-    --grn:#16a34a;--red:#dc2626;
-    --sh:rgba(0,0,0,0.06);
-  }
-  body::before{color:rgba(245,158,11,0.05)!important;}
-  header{background:#ffffff!important;border-bottom:2px solid rgba(37,99,235,0.1)!important;color:#1a1a2e;}
-  header::after{background:linear-gradient(90deg,transparent,rgba(37,99,235,0.3),rgba(180,83,9,0.25),transparent)!important;}
-  .htit{color:#1a1a2e!important;}.htit span{color:var(--g2)!important;}
-  .hmeta{color:rgba(26,26,46,0.45)!important;}
-  #prompt{background:rgba(180,83,9,0.1);border-color:rgba(180,83,9,0.3);color:#92400e;}
-  #badge{background:rgba(180,83,9,0.08);border-color:rgba(180,83,9,0.2);color:#92400e;}
-  .lx{color:rgba(26,26,46,0.3)!important;}
-  .tabs{background:rgba(255,255,255,0.97)!important;box-shadow:0 1px 8px rgba(0,0,0,0.08);}
-  .tab{color:#64748b!important;}.tab.active{color:#2563eb!important;border-bottom-color:#2563eb!important;}
-  .dc{background:#fff;border-color:#dde3ea;box-shadow:0 1px 4px rgba(0,0,0,0.06);}
-  .dc:hover{background:#f0f4ff;border-color:#93c5fd;}
-  .dc.sel{background:linear-gradient(135deg,rgba(180,83,9,0.06),transparent);border-left-color:var(--acc);}
-  .cn{color:#1a1a2e!important;}.cs,.ch{color:#64748b!important;}
-  .ac{background:#fff;border-color:#dde3ea;color:#64748b;}
-  .ac:hover{color:var(--g2);background:#fffbeb;}
-  .sp,.or,.pdi{background:#fff;}
-  .pdi{background:#f5f7fa;border-color:#e5e7eb;}
-  .on{color:#1a1a2e!important;}.onm{color:var(--g2)!important;}
-  .att{background:#fff;border-color:#dde3ea;box-shadow:0 1px 3px rgba(0,0,0,0.05);}
-  .attme{border-color:rgba(180,83,9,0.3)!important;background:linear-gradient(90deg,rgba(180,83,9,0.05),transparent)!important;}
-  .an{color:#1a1a2e!important;}.ao .ait{color:#64748b!important;}
-  .lista-row{background:#fff;border-color:#dde3ea;box-shadow:0 2px 6px rgba(0,0,0,0.05);}
-  .lista-row:hover{background:#f8faff;border-color:#b8c4d0;}
-  .lista-pendiente{background:#fafafa;border-color:#e2e8f0;}
-  .lista-pidio{background:linear-gradient(135deg,rgba(16,185,129,0.04),#fff)!important;border-color:rgba(16,185,129,0.25)!important;border-left:3px solid rgba(16,185,129,0.5)!important;}
-  /* nombres y textos — máximo contraste */
-  .lista-name{color:#111827!important;font-weight:800!important;}
-  .lista-drinks{color:#374151!important;font-weight:500!important;}
-  .lista-nd{color:#9ca3af!important;font-style:italic!important;font-weight:400!important;}
-  /* tags de estado */
-  .ctg{background:rgba(16,185,129,0.12)!important;color:#059669!important;}
-  .ytg{background:rgba(180,83,9,0.1)!important;color:#92400e!important;}
-  .res-tag{background:rgba(245,158,11,0.12)!important;color:#92400e!important;}
-  .falta{color:#dc2626!important;}
-  /* stats row */
-  .lstat-ok{background:rgba(16,185,129,0.1);color:#059669;border-color:rgba(16,185,129,0.25);}
-  .lstat-warn{background:rgba(245,158,11,0.1);color:#92400e;border-color:rgba(245,158,11,0.25);}
-  .lstat-total{background:#e5e7eb;color:#374151;border-color:#d1d5db;}
-  /* botón + PEDIR */
-  .lista-add-btn{background:#2563eb!important;color:#fff!important;}
-  /* sección galanes admin */
-  #galanes-panel{background:#f8faff;}
-  /* avatar sombra */
-  .lista-av{box-shadow:0 2px 6px rgba(0,0,0,0.15)!important;}
-  .modal{background:#fff;border-color:#dde3ea;}
-  .modal h3{color:#1a1a2e;}
-  .msub{color:#64748b;}
-  .modal input,.xbtn,.ppbtn,.odbtn{background:#f5f7fa;border-color:#dde3ea;color:#1a1a2e;}
-  .xbtn:hover{border-color:var(--acc);color:var(--acc);background:#eff6ff;}
-  .ppbtn:hover,.ppbtn.ppsel{background:#eff6ff;border-color:rgba(37,99,235,0.4);color:#1a1a2e;}
-  .ppbtn.ppya{opacity:0.5;}
-  .ppname{color:#1a1a2e!important;}
-  .odbtn:hover,.odbtn.odsel{background:#eff6ff;border-color:rgba(37,99,235,0.4);color:#2563eb;}
-  /* selector de galanes en cargar admin */
-  #pp-list{background:#f5f7fa!important;}
-  .slabel{color:var(--g2)!important;}
-  #od-list .odbtn{background:#fff;border-color:#dde3ea;}
-  #cargar-listo{background:#2563eb!important;color:#fff!important;}
-  #toast{background:#1a1a2e;color:#fcd34d;}
-  #pago-resumen{background:linear-gradient(135deg,#1e293b,#0f172a);}
-  #totals-panel{background:linear-gradient(135deg,#1e293b,#0f172a);}
-  .tt,.tq{color:#fcd34d!important;}
-  .tr{color:#f1f5f9!important;}
-  .slabel{color:var(--g2)!important;}
-  .mabtn{background:#f5f7fa;color:#1a1a2e;border-color:#dde3ea;}
-  .mabtn:hover{background:#fffbeb;border-color:rgba(180,83,9,0.4);color:var(--g2);}
-  .admin-stab{color:#64748b!important;}.admin-stab.active{color:var(--g2)!important;border-bottom-color:var(--acc)!important;}
-  .asist-btn{background:#f1f5f9;border-color:#cbd5e1;color:#475569;font-weight:700;}
-  .asist-btn:hover{background:#e2e8f0;border-color:#94a3b8;}
-  .asist-btn.asist-va{background:rgba(16,185,129,0.1);border-color:rgba(16,185,129,0.35);color:#059669;}
-  .asist-btn.asist-load{background:rgba(37,99,235,0.08);border-color:rgba(37,99,235,0.3);color:#2563eb;}
-  .icon-btn{background:#f1f5f9;border-color:#cbd5e1;color:#475569;}
-  .icon-btn:hover{background:#e2e8f0;border-color:#94a3b8;}
-  .cumple-row{background:#fff;border-color:#dde3ea;box-shadow:0 1px 3px rgba(0,0,0,0.04);}
-  .cumple-name{color:#1a1a2e!important;}.cumple-detalle{color:#64748b!important;}
-  .cumple-mes-title{color:#64748b!important;}
-  .stats-section{background:#fff;}
-  .hist-row{background:#fff;border-color:#dde3ea;}
-  .hist-label{color:#1a1a2e!important;}.hist-stats{color:#64748b!important;}
-  #login-screen{background:#f5f7fa;}
-  #login-sugerencias{background:#fff;border-color:rgba(37,99,235,0.2);}
-  .login-input{background:#fff;border-color:rgba(180,83,9,0.2);color:#1a1a2e;}
-  .login-card{background:rgba(255,255,255,0.9);border-color:rgba(180,83,9,0.15);}
-  .login-titulo{color:#1a1a2e!important;}.login-sub{color:#b45309!important;}
-  .login-sat,.login-hola{color:#64748b!important;}
-  .login-nombre{color:#b45309!important;}
-  .login-btn-no{background:#f5f7fa;border-color:#dde3ea;color:#64748b;}
-  #mesa-count{color:#64748b;background:#e5e7eb;}
-  .mt{color:var(--g2)!important;}
-  .es{color:#64748b!important;}
-  .lstat-total{background:#e5e7eb;color:#64748b;}
-  select{background:#f5f7fa;border-color:#dde3ea;color:#1a1a2e;}
-}
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
 body{
   background:var(--bg);color:var(--ink);
@@ -2535,7 +2433,7 @@ header::after{
 </div>
 
 <script>
-  var APP_VERSION="9.8.1";
+  var APP_VERSION="9.8.2";
   var STORED_VERSION=localStorage.getItem("app_version");
 
   if("serviceWorker"in navigator){
