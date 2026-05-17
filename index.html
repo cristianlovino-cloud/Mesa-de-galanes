@@ -259,19 +259,9 @@
   window.doConfirm=async function(){
     if(!me||confirmado())return;
     await set(ref(db,"pedido/confirmed/"+me),true);
-    // Auto-marcar VA (asistencia) al confirmar
+    // Auto-marcar VA al confirmar
     await set(ref(db,"config/accesos/"+me),{va:true,ts:Date.now()});
     showToast("✓ Pedido enviado!");speak("Tu pedido fue enviado. Gracias "+me+"!");
-    // Auto-guardar como reserva para el próximo sábado
-    var myOrders=Object.values(orders).filter(function(o){return o.player===me;});
-    var resExist=reservas[me]&&reservas[me].pedidos&&reservas[me].pedidos.length>0;
-    if(myOrders.length&&!resExist){
-      var peds=myOrders.map(function(o){return{drinkIdx:o.drinkIdx,drink:o.drink,icon:o.icon,extra:o.extra||null};});
-      var cur={asistencia:true,ts:Date.now(),sat:nextSatStr(),pedidos:peds};
-      set(ref(db,"reserva/"+me),cur);
-      reservas[me]=cur;
-      renderReserva();
-    }
   };
 
   // ── PAGOS ─────────────────────────────────────────────────
@@ -741,7 +731,15 @@
     } else {
       var player=pFor||me;
       var obj={player:player,drinkIdx:pDrink.idx,drink:label,icon:pDrink.icon,extra:exVal,ts:Date.now()};
-      if(isAdmin()&&pFor)obj.loadedBy="admin";
+      // Agregar meta solo si es el usuario propio
+      if(player===me){var m2=await getClientMeta();obj.device=m2.device;obj.ip=m2.ip;}
+      if(isAdmin()&&pFor){
+        obj.loadedBy="admin";
+      } else {
+        // Pedido propio: agregar device e IP
+        var meta=await getClientMeta();
+        obj.device=meta.device;obj.ip=meta.ip;
+      }
       await push(rO,obj);speak("Perfecto! "+label+" agregado.");pDrink=null;pFor=null;closeModal("mextra");
     }
   };
@@ -838,9 +836,31 @@
   window.dragEnd=function(){document.querySelectorAll(".dc").forEach(function(el){el.classList.remove("dragging");});dragIdx=null;};
 
   // ── GALANES ───────────────────────────────────────────────
+  // Obtener IP del cliente (últimos 3 dígitos) y device info
+  var _clientMeta=null;
+  async function getClientMeta(){
+    if(_clientMeta)return _clientMeta;
+    var ua=navigator.userAgent;
+    var device="?";
+    if(/iPhone|iPad/.test(ua))device="iOS";
+    else if(/Android/.test(ua))device="Android";
+    else if(/Windows/.test(ua))device="Win";
+    else if(/Mac/.test(ua))device="Mac";
+    var ipSuffix="";
+    try{
+      var r=await fetch("https://api.ipify.org?format=json");
+      var j=await r.json();
+      var parts=(j.ip||"").split(".");
+      ipSuffix=parts.length>=4?parts[2]+"."+parts[3]:"?";
+    }catch(e){ipSuffix="?";}
+    _clientMeta={device:device,ip:ipSuffix,ts:Date.now()};
+    return _clientMeta;
+  }
+
   window.confirmOrderDirect=async function(d){
     if(!d)return;
-    var obj={player:me,drinkIdx:d.idx,drink:d.name,icon:d.icon,extra:null,ts:Date.now()};
+    var meta=await getClientMeta();
+    var obj={player:me,drinkIdx:d.idx,drink:d.name,icon:d.icon,extra:null,ts:Date.now(),device:meta.device,ip:meta.ip};
     await push(rO,obj);
     speak("Perfecto! "+d.name+" agregado.");
     pDrink=null;pFor=null;
@@ -1020,7 +1040,19 @@
       if(isAdmin()){row+="<button class='pbtn pb-cash"+(cash>0?" pb-on":"")+"' onclick='openPago(\""+pl+"\",\"cash\")'>"+(cash>0?"💵 $"+Math.round(cash):"💵")+"</button>";row+="<button class='pbtn pb-tr"+(transfer>0?" pb-on":"")+"' onclick='openPago(\""+pl+"\",\"transfer\")'>"+(transfer>0?"📲 $"+Math.round(transfer):"📲")+"</button>";}
       else if((cash+transfer)>0)row+="<span class='pago-ok'>✓ $"+Math.round(cash+transfer)+"</span>";
       row+="<span class='oq'>"+items.length+"</span></div><div class='pd'>";
-      for(var d=0;d<items.length;d++){var it=items[d];row+="<div class='pdi'><span class='pdt'>"+it.icon+" "+it.drink+"</span>";if(canDel)row+="<span class='cdel' onclick='removeOrder(\""+it.key+"\")'>✕</span>";row+="</div>";}
+      for(var d=0;d<items.length;d++){
+        var it=items[d];
+        var hora="";
+        if(it.ts){var dt=new Date(it.ts);hora=dt.getHours().toString().padStart(2,"0")+":"+dt.getMinutes().toString().padStart(2,"0");}
+        var meta="";
+        if(isAdmin()&&it.ip)meta=" · "+it.device+" "+it.ip;
+        if(isAdmin()&&it.loadedBy==="admin")meta=" · 👑admin";
+        row+="<div class='pdi'>";
+        row+="<span class='pdt'>"+it.icon+" "+it.drink+"</span>";
+        if(hora||meta)row+="<span style='font-size:0.58rem;color:rgba(255,255,255,0.55);margin-left:6px;white-space:nowrap;font-family:var(--font-display)'>"+hora+meta+"</span>";
+        if(canDel)row+="<span class='cdel' onclick='removeOrder(\""+it.key+"\")'>✕</span>";
+        row+="</div>";
+      }
       row+="</div></div>";rows.push(row);
     }
     document.getElementById("sum-panel").innerHTML=rows.join("");
@@ -2414,7 +2446,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="9.8.6";
+  var APP_VERSION="9.8.7";
   var STORED_VERSION=localStorage.getItem("app_version");
 
   if("serviceWorker"in navigator){
