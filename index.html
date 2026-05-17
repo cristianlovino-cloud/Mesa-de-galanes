@@ -260,8 +260,26 @@
   function renderConfirmBtn(){
     var w=document.getElementById("confirm-wrap");if(!w)return;
     if(!me){w.style.display="none";return;}
-    // Mostrar botón si hay cualquier pedido propio (incluidos importados de reserva) y no confirmó
     var misPed=Object.values(orders).filter(function(o){return o.player===me;});
+    // Banner de estado en el tab PEDIR
+    var banner=document.getElementById("pedido-status-banner");
+    if(banner){
+      if(confirmado()&&misPed.length>0){
+        // Ya confirmó — mostrar banner verde prominente
+        banner.innerHTML="<div style='margin:12px 12px 0;background:rgba(22,197,94,0.12);border:1px solid rgba(22,197,94,0.3);border-radius:14px;padding:14px 16px;display:flex;align-items:center;gap:10px'>"
+          +"<span style='font-size:1.5rem'>✅</span>"
+          +"<div><div style='font-size:0.75rem;font-weight:700;color:#4ade80;letter-spacing:0.06em'>PEDIDO ENVIADO</div>"
+          +"<div style='font-size:0.62rem;color:rgba(255,255,255,0.5);margin-top:2px;letter-spacing:0.03em'>"+misPed[0].drink+(misPed[0].extra?" + "+misPed[0].extra:"")+"</div></div>"
+          +"</div>";
+        banner.style.display="block";
+      } else if(misPed.length>0&&!confirmado()){
+        banner.innerHTML="<div style='margin:12px 12px 0;background:rgba(106,176,216,0.08);border:1px solid rgba(106,176,216,0.2);border-radius:14px;padding:10px 14px;font-size:0.65rem;color:var(--club-cel);letter-spacing:0.04em'>☕ Pedido listo — confirmalo abajo!</div>";
+        banner.style.display="block";
+      } else {
+        banner.style.display="none";
+      }
+    }
+    // Botón enviar
     if(misPed.length>0&&!confirmado()){w.style.display="flex";}
     else{w.style.display="none";}
   }
@@ -1023,14 +1041,8 @@
     } else {
       editWrap.style.display="none";
     }
-    // Banner pedido propio
-    var banner=document.getElementById("pedido-status-banner");
-    if(banner){
-      if(me&&myOrders.length>0&&!confirmed[me]){
-        banner.innerHTML="<div style='margin:10px 12px 0;background:rgba(106,176,216,0.08);border:1px solid rgba(106,176,216,0.2);border-radius:12px;padding:10px 14px;font-size:0.65rem;color:var(--club-cel);letter-spacing:0.04em'>☕ Pedido listo — confirmalo abajo!</div>";
-        banner.style.display="block";
-      } else { banner.style.display="none"; }
-    }
+    // Banner manejado por renderConfirmBtn
+    renderConfirmBtn();
   }
 
   // Aprobar bebida propuesta por usuario (quita flag pendingReview)
@@ -2452,7 +2464,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="9.9.0";
+  var APP_VERSION="9.9.1";
   var STORED_VERSION=localStorage.getItem("app_version");
 
   if("serviceWorker"in navigator){
