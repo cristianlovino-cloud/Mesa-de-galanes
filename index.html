@@ -1600,21 +1600,20 @@
   });
 </script>
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@400;500&family=Inter:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:ital,wght@0,300;0,400;0,500;1,400&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap');
 /* DARK MODE — default */
 :root{
   --bg:#080808;--sur:#111111;--sur2:#191919;--hbg:#050505;
   --club-cel:#6ab0d8;--club-ama:#f5c518;
   --gold:#f5c518;--g2:#f5c518;--gl:#fdd835;--gd:#b8860b;
-  --ink:#f0ece4;--mut:#555;--brd:#1e1e1e;--b2:#2a2a2a;
+  --ink:#f0f0f0;--mut:#777;--brd:#1e1e1e;--b2:#2a2a2a;
   --grn:#22c55e;--red:#ef4444;--sh:rgba(106,176,216,0.06);
   --acc:#6ab0d8;--acc2:#4a90b8;--acc-ama:#f5c518;
-  --font-display:'Bebas Neue',sans-serif;
-  --font-body:'Inter',sans-serif;
-  color-scheme: dark;
+  --font-display:'DM Mono',monospace;
+  --font-body:'DM Sans',sans-serif;
+  color-scheme:dark;
 }
 
-*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
 body{
   background:var(--bg);color:var(--ink);
   font-family:var(--font-body);
@@ -1970,195 +1969,60 @@ header::after{
   justify-content:center;font-family:var(--font-display);font-size:0.9rem;
   font-weight:700;color:white;flex-shrink:0;}
 .login-galan-name{font-size:0.65rem;font-weight:600;color:var(--ink);letter-spacing:0.04em;}
-/* ── REDISEÑO v9.8 — overrides ──────────────────────── */
-
-/* Tipografía display */
-.htit,.mt,.tt,.slabel,.tq,.oq,
-.cumple-mes-title,.res-pending-title,
-.login-titulo,.login-nombre,
-.cbtn,#t-count{
-  font-family:'Bebas Neue',sans-serif;
-}
-body{font-family:'Inter',sans-serif;}
-.tab,.admin-stab,#mesa-count,.lstat,
-.asist-btn,.lista-add-btn,
-.edit-drinks-btn,.admin-action-btn{
-  font-family:'DM Mono',monospace;
-}
-
-/* Header */
-header{background:#050503;padding:18px 16px 16px;}
-header::after{
-  background:linear-gradient(90deg,transparent 0%,var(--club-cel) 35%,var(--club-ama) 65%,transparent 100%);
-  opacity:0.6;
-}
-.htit{font-size:2.4rem;letter-spacing:0.08em;color:#ffffff;}
+/* ── MEJORAS VISUALES v9.8 ───────────────────────────── */
+/* Bebas Neue solo en títulos grandes — NO en body/login */
+.htit{font-family:'Bebas Neue',sans-serif;font-size:2.4rem;letter-spacing:0.08em;color:#fff;}
 .htit span{color:var(--club-ama);}
+.mt,.tt{font-family:'Bebas Neue',sans-serif;}
+.slabel{font-family:'Bebas Neue',sans-serif;font-size:1.05rem;letter-spacing:0.16em;color:var(--club-ama);}
 
-/* Tabs — todo más visible */
-.tabs{background:#050503;border-bottom:1px solid #1a1a1a;}
-.tab{font-size:0.58rem;letter-spacing:0.06em;color:rgba(255,255,255,0.45);}
+/* Header más oscuro */
+header{background:#050503;}
+header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,var(--club-ama) 65%,transparent);opacity:0.55;}
+
+/* Tabs — más visibles */
+.tabs{background:#050503;}
+.tab{color:rgba(255,255,255,0.4);}
 .tab.active{color:var(--club-ama);border-bottom-color:var(--club-ama);}
-.tab:hover:not(.active){color:rgba(255,255,255,0.75);}
 
-/* Section label */
-.slabel{font-size:1.05rem;letter-spacing:0.16em;color:var(--club-ama);}
-.slabel::after{background:linear-gradient(to right,rgba(106,176,216,0.4),transparent);}
+/* Cards bebida */
+.dc{background:#0d0d0d;border-color:#1a1a1a;}
+.dc:hover{background:#131313;}
+.cn{color:#fff;font-weight:700;}
+.cs{color:rgba(255,255,255,0.45);}
 
-/* Badge usuario */
-#prompt{color:rgba(245,197,24,0.9);}
-#badge{color:rgba(245,197,24,0.9);}
+/* Lista admin — nombres blancos */
+.lista-name{color:#fff!important;font-weight:800!important;}
+.lista-drinks{color:rgba(255,255,255,0.5)!important;}
+.lista-nd{color:rgba(255,255,255,0.25)!important;font-style:italic!important;}
 
-/* Drink cards — nombres bien visibles */
-.dc{background:#0e0e0e;border-color:#1e1e1e;border-radius:16px;min-height:100px;}
-.dc:hover{background:#141414;border-color:#2a2a2a;}
-.dc.sel{background:rgba(106,176,216,0.08);border-color:var(--club-cel);border-left:3px solid var(--club-cel);}
-.ce{font-size:2.2rem;filter:drop-shadow(0 2px 8px rgba(0,0,0,0.6));}
-.cn{font-weight:700;font-size:0.7rem;color:#ffffff;letter-spacing:0.05em;}
-.cs{font-size:0.62rem;color:rgba(255,255,255,0.5);letter-spacing:0.03em;}
-.ch{font-size:0.58rem;color:rgba(255,255,255,0.4);}
-.ck{box-shadow:0 0 14px rgba(106,176,216,0.45);}
+/* Tabs admin */
+.admin-stab{color:rgba(255,255,255,0.35);}
+.admin-stab.active{color:var(--club-ama);border-bottom-color:var(--club-ama);}
 
-/* Botón extras en cards */
-.ch,.dc button[onclick*="editarExtras"]{
-  background:rgba(255,255,255,0.08)!important;
-  border:1px solid rgba(255,255,255,0.12)!important;
-  color:rgba(255,255,255,0.6)!important;
-  border-radius:6px;padding:3px 10px;
-}
+/* Botones admin más visibles */
+.admin-action-btn{color:rgba(255,255,255,0.65);border-color:rgba(255,255,255,0.1);}
+.asist-btn{color:rgba(255,255,255,0.55);border-color:rgba(255,255,255,0.1);}
+.icon-btn{border-color:rgba(255,255,255,0.1);}
 
-/* Card agregar */
-.ac{background:transparent;border-color:#252525;}
-.ac:hover{border-color:#3a3a3a;color:rgba(255,255,255,0.6);}
-
-/* Confirm button */
-.cbtn{font-size:1.1rem;letter-spacing:0.14em;padding:17px;border-radius:16px;
-  background:linear-gradient(135deg,var(--club-cel),var(--acc2));
-  box-shadow:0 8px 28px rgba(106,176,216,0.2);}
+/* lstat badges */
+.lstat-ok{color:#6ee7b7;border:1px solid rgba(22,197,94,0.25);}
+.lstat-warn{color:var(--club-ama);border:1px solid rgba(245,197,24,0.25);}
+.lstat-total{background:#1a1a1a;color:rgba(255,255,255,0.45);}
 
 /* Resumen */
-.sp{background:#0e0e0e;border-color:#1e1e1e;border-radius:16px;}
-.or{border-bottom-color:#1a1a1a;}
-.on{font-weight:700;font-size:0.68rem;color:#ffffff;letter-spacing:0.04em;}
-.ait{color:rgba(255,255,255,0.6);}
+.on{color:#fff;font-weight:700;}
+.an{color:#fff;font-weight:700;}
 
-/* Mesa att cards */
-.att{background:#0e0e0e;border-color:#1e1e1e;border-radius:16px;}
-.attok{border-color:rgba(22,197,94,0.25);}
-.attme{border-color:rgba(245,197,24,0.28);}
-.av{box-shadow:0 2px 12px rgba(0,0,0,0.5);}
-.an{font-weight:700;font-size:0.68rem;color:#ffffff;letter-spacing:0.04em;}
-
-/* Admin lista — todo blanco */
-.lista-row{background:rgba(255,255,255,0.03);border-color:rgba(255,255,255,0.07);}
-.lista-row:hover{background:rgba(255,255,255,0.06);}
-.lista-pidio{background:rgba(22,197,94,0.05)!important;border-color:rgba(22,197,94,0.2)!important;}
-.lista-name{font-weight:800;font-size:0.72rem;color:#ffffff;letter-spacing:0.04em;}
-.lista-drinks{font-size:0.64rem;color:rgba(255,255,255,0.55);}
-.lista-nd{color:rgba(255,255,255,0.28);font-style:italic;}
-.lista-av{box-shadow:0 2px 12px rgba(0,0,0,0.5);}
-
-/* Admin subtabs */
-.admin-subtabs{background:#0a0805;border-bottom:1px solid #1a1a1a;}
-.admin-stab{color:rgba(255,255,255,0.35);font-size:0.62rem;letter-spacing:0.06em;}
-.admin-stab.active{color:var(--club-ama);border-bottom-color:var(--club-ama);}
-.admin-stab:hover{color:rgba(255,255,255,0.7);}
-
-/* Admin badges de stats */
-.lstat{font-size:0.6rem;letter-spacing:0.06em;}
-.lstat-ok{background:rgba(22,197,94,0.12);color:#6ee7b7;border:1px solid rgba(22,197,94,0.25);}
-.lstat-warn{background:rgba(245,197,24,0.12);color:var(--club-ama);border:1px solid rgba(245,197,24,0.25);}
-.lstat-total{background:#1e1e1e;color:rgba(255,255,255,0.5);}
-
-/* Admin action buttons */
-.admin-action-btn{background:rgba(255,255,255,0.06);border-color:rgba(255,255,255,0.1);
-  color:rgba(255,255,255,0.7);font-size:0.62rem;letter-spacing:0.05em;}
-.admin-action-btn:hover{border-color:rgba(106,176,216,0.4);color:#fff;}
-
-/* VA / + Pedir / iconos */
-.asist-btn{background:rgba(255,255,255,0.06);border-color:rgba(255,255,255,0.1);
-  color:rgba(255,255,255,0.6);font-size:0.6rem;}
-.asist-btn.asist-va{background:rgba(22,197,94,0.14);border-color:rgba(22,197,94,0.35);color:#6ee7b7;}
-.asist-btn.asist-load{background:rgba(245,197,24,0.12);border-color:rgba(245,197,24,0.3);color:var(--club-ama);}
-.icon-btn{background:rgba(255,255,255,0.05);border-color:rgba(255,255,255,0.1);}
-.icon-btn:hover{background:rgba(255,255,255,0.1);border-color:rgba(255,255,255,0.2);}
-
-/* Totals */
-#totals-panel{background:linear-gradient(135deg,#0a0805,#141008);border-color:#1e1e1e;}
-#pago-resumen{background:linear-gradient(135deg,#0a0805,#141008);border-color:#1e1e1e;}
-.tt{font-size:1rem;letter-spacing:0.16em;color:var(--club-ama);}
-.tr{color:rgba(255,255,255,0.75);}
-.tq{color:var(--club-ama);}
-
-/* Cumpleaños */
-.cumple-row{background:#0e0e0e;border-color:#1e1e1e;border-radius:14px;}
-.cumple-name{font-weight:700;color:#ffffff;letter-spacing:0.04em;}
-.cumple-detalle{color:rgba(255,255,255,0.55);}
-
-/* Modal */
-.modal{background:#0e0e0e;border-color:#222;}
-.modal h3{color:#ffffff;}
-.msub{color:rgba(255,255,255,0.45);}
-.modal input{background:#161616;border-color:#2a2a2a;color:#ffffff;}
-.modal input:focus{border-color:rgba(106,176,216,0.4);}
-.modal input::placeholder{color:rgba(255,255,255,0.25);}
-.ppbtn{background:#161616;border-color:#252525;}
-.ppbtn:hover,.ppbtn.ppsel{background:rgba(106,176,216,0.08);border-color:rgba(106,176,216,0.3);}
-.ppname{color:#ffffff;}
-.odbtn{background:#161616;border-color:#252525;color:rgba(255,255,255,0.75);}
-.odbtn:hover,.odbtn.odsel{background:rgba(106,176,216,0.08);border-color:rgba(106,176,216,0.35);color:#fff;}
-.xbtn{background:#161616;border-color:#252525;color:rgba(255,255,255,0.6);}
-.xbtn:hover{border-color:rgba(106,176,216,0.35);color:#fff;}
-
-/* Toast */
-#toast{bottom:80px;top:auto;background:#141414;border:1px solid #252525;
-  border-radius:100px;font-family:'DM Mono',monospace;font-size:0.68rem;
-  letter-spacing:0.06em;box-shadow:0 8px 32px rgba(0,0,0,0.6);color:var(--club-ama);}
-
-/* Mesa count */
-#mesa-count{background:#1e1e1e;color:rgba(255,255,255,0.5);}
-
-/* Edit mode btn */
-.edit-drinks-btn{font-size:0.6rem;letter-spacing:0.06em;color:rgba(255,255,255,0.5);}
-.edit-drinks-btn:hover{color:rgba(255,255,255,0.8);}
-.edit-drinks-btn.edit-active{background:rgba(106,176,216,0.1);border-color:rgba(106,176,216,0.35);color:var(--club-cel);}
-
-/* Login */
-#login-screen{background:#050503;}
-.login-titulo{font-size:2rem;letter-spacing:0.1em;color:#ffffff;}
-.login-sub{font-family:'DM Mono',monospace;font-size:0.64rem;letter-spacing:0.12em;color:var(--club-ama);}
-.login-sat{font-family:'DM Mono',monospace;letter-spacing:0.08em;color:rgba(255,255,255,0.45);}
-.login-card{background:rgba(17,17,17,0.95);border-color:rgba(245,197,24,0.12);}
-.login-hola{font-family:'DM Mono',monospace;font-size:0.62rem;letter-spacing:0.12em;color:rgba(255,255,255,0.45);}
-.login-nombre{font-size:1.5rem;letter-spacing:0.08em;color:var(--club-ama);}
-.login-btn-voy{font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:0.1em;border:none;}
-.login-galan-btn{background:rgba(17,17,17,0.9);border-color:rgba(255,255,255,0.06);}
-.login-galan-btn:hover{border-color:rgba(245,197,24,0.25);background:rgba(245,197,24,0.04);}
-.login-galan-name{font-weight:700;color:#ffffff;letter-spacing:0.04em;}
-.login-input{font-family:'DM Mono',monospace;background:rgba(17,17,17,0.9);
-  border-color:rgba(106,176,216,0.2);color:#ffffff;letter-spacing:0.06em;}
-.login-input::placeholder{color:rgba(255,255,255,0.25);}
-.login-input:focus{border-color:rgba(106,176,216,0.5);}
+/* Cumples */
+.cumple-name{color:#fff!important;}
 
 /* Hist */
-.hist-label{color:#ffffff;}.hist-stats{color:rgba(255,255,255,0.5);}
-.hist-row{background:#111;border-color:#1e1e1e;}
-.hist-row:hover{border-color:rgba(245,197,24,0.3);}
-
-/* Stats */
-.stats-section{background:#0e0e0e;border-color:#1e1e1e;}
-.stats-title{color:var(--club-ama);}
-
-/* Res tag */
-.res-tag{background:rgba(245,197,24,0.1);color:rgba(245,197,24,0.75);}
-.ytg{color:var(--club-ama);}
-.ctg{color:#6ee7b7;}
+.hist-label{color:#fff!important;}
 
 /* Misc */
 .es{color:rgba(255,255,255,0.3);}
-.clr{color:rgba(255,255,255,0.3);}
-select{background:#161616;border-color:#252525;color:#ffffff;}
-
+</style>
 </head>
 <body>
 <div id="login-screen">
@@ -2169,31 +2033,32 @@ select{background:#161616;border-color:#252525;color:#ffffff;}
 
   <!-- Estado: sin nombre → input con autocomplete -->
   <div id="login-step1" style="width:100%;max-width:340px;display:flex;flex-direction:column;align-items:center">
-    <div style="font-size:0.62rem;color:rgba(240,236,228,0.5);letter-spacing:0.1em;margin-bottom:14px">¿QUIÉN SOS?</div>
+    <div style="font-size:0.6rem;color:var(--mut);letter-spacing:0.1em;margin-bottom:14px">¿QUIÉN SOS?</div>
     <div class="login-input-wrap">
-      <input class="login-input" id="login-input-nombre" placeholder="TU NOMBRE O APODO" maxlength="20" autocomplete="off"
+      <input class="login-input" id="login-input-nombre" placeholder="TU NOMBRE" maxlength="20" autocomplete="off"
         oninput="loginFiltrar(this.value)" onkeydown="if(event.key==='Enter')loginConfirmarNombre()">
-      <div id="login-sugerencias" style="display:none;width:100%;background:#1a1a1a;border:1px solid rgba(106,176,216,0.2);border-radius:12px;margin-top:6px;overflow:hidden;margin-bottom:8px"></div>
-      <button onclick="loginConfirmarNombre()" style="width:100%;background:linear-gradient(135deg,var(--club-cel),var(--club-ama));color:#080808;border:none;border-radius:14px;padding:15px;font-family:'Bebas Neue',sans-serif;font-size:1.1rem;font-weight:400;cursor:pointer;letter-spacing:0.12em;margin-top:4px">ENTRAR →</button>
+      <!-- Sugerencias autocomplete -->
+      <div id="login-sugerencias" style="display:none;width:100%;background:#1a1a1a;border:1px solid rgba(116,174,214,0.2);border-radius:12px;margin-top:6px;overflow:hidden;margin-bottom:8px"></div>
+      <button onclick="loginConfirmarNombre()" style="width:100%;background:var(--acc);color:#0a0805;border:none;border-radius:14px;padding:14px;font-family:var(--font-body);font-size:0.75rem;font-weight:700;cursor:pointer;letter-spacing:0.06em;margin-top:4px">ENTRAR →</button>
     </div>
   </div>
 
   <!-- Estado: tiene nombre → confirmar asistencia -->
-  <div id="login-step2" style="display:none;width:100%;max-width:340px;flex-direction:column;align-items:center">
+  <div id="login-step2" style="display:none;width:100%;max-width:340px;display:none;flex-direction:column;align-items:center">
     <div class="login-card">
       <div class="login-hola">HOLA</div>
       <div class="login-nombre" id="login-nombre-label">—</div>
-      <div style="font-size:0.62rem;color:rgba(240,236,228,0.5);text-align:center;margin-bottom:16px;letter-spacing:0.08em;font-family:'DM Mono',monospace">LISTO PARA PEDIR ☕</div>
+      <div style="font-size:0.62rem;color:var(--mut);text-align:center;margin-bottom:16px;letter-spacing:0.06em">LISTO PARA PEDIR ☕</div>
       <div>
         <button class="login-btn-voy" style="width:100%" onclick="loginEntrar()">☕ ENTRAR Y PEDIR</button>
       </div>
     </div>
-    <button onclick="loginCambiarNombre()" style="background:none;border:none;color:rgba(240,236,228,0.3);font-size:0.62rem;cursor:pointer;margin-top:12px;letter-spacing:0.06em;text-decoration:underline;font-family:'DM Mono',monospace">No soy yo, cambiar</button>
+    <button onclick="loginCambiarNombre()" style="background:none;border:none;color:var(--mut);font-size:0.6rem;cursor:pointer;margin-top:12px;letter-spacing:0.06em;text-decoration:underline;font-family:var(--font-body)">No soy yo, cambiar</button>
   </div>
 </div>
 <div id="splash-screen" style="position:fixed;inset:0;background:#0a0a0a;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;transition:opacity 0.5s ease">
   <img src="icon-transparent.png" style="width:150px;height:150px;object-fit:contain;animation:splashPulse 1.4s ease-in-out infinite;filter:drop-shadow(0 0 28px rgba(100,174,220,0.7));margin-bottom:28px">
-  <div style="font-family:'Bebas Neue',sans-serif;font-size:0.9rem;color:rgba(255,255,255,0.35);letter-spacing:0.2em;text-transform:uppercase;animation:splashFadeIn 0.6s ease 0.2s both">Cargando...</div>
+  <div style="font-family:'Playfair Display',serif;font-size:0.75rem;color:rgba(255,255,255,0.5);letter-spacing:0.18em;text-transform:uppercase;animation:splashFadeIn 0.6s ease 0.2s both">Cargando...</div>
 </div>
 <header>
   <div class="htop">
@@ -2462,7 +2327,7 @@ select{background:#161616;border-color:#252525;color:#ffffff;}
 </div>
 
 <script>
-  var APP_VERSION="9.8.3";
+  var APP_VERSION="9.8.4";
   var STORED_VERSION=localStorage.getItem("app_version");
 
   if("serviceWorker"in navigator){
