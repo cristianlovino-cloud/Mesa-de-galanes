@@ -137,9 +137,17 @@
     var _vl=document.getElementById("version-label");if(_vl)_vl.textContent="v"+APP_VERSION;
     // Ocultar splash en 5s
     setTimeout(function(){var sp=document.getElementById('splash-screen');if(sp){sp.style.opacity='0';setTimeout(function(){if(sp.parentNode)sp.parentNode.removeChild(sp);},500);}},5000);
-    // Login: siempre mostrar al inicio (único sistema)
-    if(me)renderMyName();
-    setTimeout(function(){showLoginScreen();},400);
+    // Login: si ya tiene nombre guardado, entrar directo. Si no, mostrar login.
+    if(me){
+      renderMyName();
+      setTimeout(function(){
+        var ls=document.getElementById("login-screen");
+        if(ls)ls.style.display="none";
+        renderDrinks();switchTab("pedir");
+      },500);
+    } else {
+      setTimeout(function(){showLoginScreen();},400);
+    }
   });
 
 
@@ -252,7 +260,8 @@
   function renderConfirmBtn(){
     var w=document.getElementById("confirm-wrap");if(!w)return;
     if(!me){w.style.display="none";return;}
-    var misPed=Object.values(orders).filter(function(o){return o.player===me&&o.loadedBy!=="admin"&&o.loadedBy!=="reserva";});
+    // Mostrar botón si hay cualquier pedido propio (incluidos importados de reserva) y no confirmó
+    var misPed=Object.values(orders).filter(function(o){return o.player===me;});
     if(misPed.length>0&&!confirmado()){w.style.display="flex";}
     else{w.style.display="none";}
   }
@@ -1597,15 +1606,23 @@
     var ls=document.getElementById("login-screen");
     if(!ls)return;
     ls.style.display="flex";
+    // Resetear logo por si el fallback quedó visible
+    var logo=document.getElementById("login-logo-img");
+    var fallback=document.getElementById("login-logo-fallback");
+    if(logo){logo.style.display="block";}
+    if(fallback){fallback.style.display="none";}
     var sl=document.getElementById("login-sat-label");
     if(sl){var sat=nextSat();sl.textContent="PRÓXIMO: SÁB "+sat.getDate()+" "+MESES_C[sat.getMonth()].toUpperCase();}
     if(me){
       document.getElementById("login-step1").style.display="none";
       var s2=document.getElementById("login-step2");s2.style.display="flex";
       var nl=document.getElementById("login-nombre-label");if(nl)nl.textContent=me.toUpperCase();
+      // Ocultar "PRÓXIMO:" en step2 — el nombre lo dice todo
+      var sl2=document.getElementById("login-sat-label");if(sl2)sl2.style.display="none";
     } else {
       document.getElementById("login-step1").style.display="flex";
       document.getElementById("login-step2").style.display="none";
+      var sl3=document.getElementById("login-sat-label");if(sl3)sl3.style.display="block";
       renderLoginGalanes();
     }
   }
@@ -1632,11 +1649,8 @@
   };
   window.loginSelectGalan=function(nombre){
     me=nombre;localStorage.setItem("galan_name",nombre);
-    var inp=document.getElementById("login-input-nombre");if(inp)inp.value=nombre;
     var sug=document.getElementById("login-sugerencias");if(sug)sug.style.display="none";
-    document.getElementById("login-step1").style.display="none";
-    var s2=document.getElementById("login-step2");if(s2)s2.style.display="flex";
-    var nl=document.getElementById("login-nombre-label");if(nl)nl.textContent=nombre.toUpperCase();
+    loginEntrar();
   };
   window.loginConfirmarNombre=function(){
     var inp=document.getElementById("login-input-nombre");
@@ -1646,9 +1660,7 @@
     var exact=galanes.find(function(g){return g.toLowerCase()===nombre.toLowerCase();});
     if(exact)nombre=exact;
     me=nombre;localStorage.setItem("galan_name",nombre);
-    document.getElementById("login-step1").style.display="none";
-    var s2=document.getElementById("login-step2");if(s2)s2.style.display="flex";
-    var nl=document.getElementById("login-nombre-label");if(nl)nl.textContent=nombre.toUpperCase();
+    loginEntrar();
   };
   window.loginEntrar=function(){
     if(!me)return;
@@ -1660,11 +1672,9 @@
     renderDrinks();
     switchTab("pedir");
   };
-    window.loginCambiarNombre=function(){
+  window.loginCambiarNombre=function(){
     me=null;localStorage.removeItem("galan_name");
-    document.getElementById("login-step2").style.display="none";
-    document.getElementById("login-step1").style.display="flex";
-    renderLoginGalanes();
+    showLoginScreen();
   };
 
 
@@ -2155,35 +2165,20 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </head>
 <body>
 <div id="login-screen">
-  <img src="icon-transparent.png" class="login-logo" onerror="this.style.display='none';document.getElementById('login-logo-fallback').style.display='block'">
+  <img id="login-logo-img" src="icon-transparent.png" class="login-logo" onerror="this.style.display='none';document.getElementById('login-logo-fallback').style.display='block'">
   <div id="login-logo-fallback" style="display:none;font-size:5rem;margin-bottom:20px;filter:drop-shadow(0 0 24px rgba(106,176,216,0.5))">☕</div>
-  <div class="login-titulo">MESA DE <span style="color:var(--g2)">GALANES</span></div>
-  <div class="login-sub">☕ SÁBADOS 7:45 · CRR TENIS</div>
-  <div class="login-sat" id="login-sat-label">PRÓXIMO: SÁB 16 MAY</div>
+  <div class="login-titulo" style="font-size:2.2rem;letter-spacing:0.1em">MESA DE <span style="color:var(--g2)">GALANES</span></div>
+  <div class="login-sub" style="font-size:0.72rem;letter-spacing:0.12em;margin-bottom:6px">☕ SÁBADOS 7:45 · CRR TENIS</div>
+  <div class="login-sat" id="login-sat-label" style="font-size:0.75rem;letter-spacing:0.1em;margin-bottom:22px">PRÓXIMO: SÁB 23 MAY</div>
 
-  <!-- Estado: sin nombre → input con autocomplete -->
   <div id="login-step1" style="width:100%;max-width:340px;display:flex;flex-direction:column;align-items:center">
-    <div style="font-size:0.6rem;color:var(--mut);letter-spacing:0.1em;margin-bottom:14px">¿QUIÉN SOS?</div>
-    <div class="login-input-wrap">
+    <div style="font-size:0.68rem;color:rgba(255,255,255,0.55);letter-spacing:0.12em;margin-bottom:12px;text-align:center">¿QUIÉN SOS?</div>
+    <div class="login-input-wrap" style="width:100%">
       <input class="login-input" id="login-input-nombre" placeholder="TU NOMBRE" maxlength="20" autocomplete="off"
         oninput="loginFiltrar(this.value)" onkeydown="if(event.key==='Enter')loginConfirmarNombre()">
-      <!-- Sugerencias autocomplete -->
       <div id="login-sugerencias" style="display:none;width:100%;background:#1a1a1a;border:1px solid rgba(116,174,214,0.2);border-radius:12px;margin-top:6px;overflow:hidden;margin-bottom:8px"></div>
-      <button onclick="loginConfirmarNombre()" style="width:100%;background:var(--acc);color:#0a0805;border:none;border-radius:14px;padding:14px;font-family:var(--font-body);font-size:0.75rem;font-weight:700;cursor:pointer;letter-spacing:0.06em;margin-top:4px">ENTRAR →</button>
+      <button onclick="loginConfirmarNombre()" style="width:100%;background:linear-gradient(135deg,var(--club-cel),var(--club-ama));color:#080808;border:none;border-radius:14px;padding:16px;font-family:'Bebas Neue',sans-serif;font-size:1.1rem;font-weight:400;cursor:pointer;letter-spacing:0.1em;margin-top:6px">ENTRAR →</button>
     </div>
-  </div>
-
-  <!-- Estado: tiene nombre → confirmar asistencia -->
-  <div id="login-step2" style="display:none;width:100%;max-width:340px;flex-direction:column;align-items:center">
-    <div class="login-card">
-      <div class="login-hola">HOLA</div>
-      <div class="login-nombre" id="login-nombre-label">—</div>
-      <div style="font-size:0.62rem;color:rgba(240,240,240,0.6);text-align:center;margin-bottom:16px;letter-spacing:0.06em">LISTO PARA PEDIR ☕</div>
-      <div>
-        <button class="login-btn-voy" style="width:100%" onclick="loginEntrar()">☕ ENTRAR Y PEDIR</button>
-      </div>
-    </div>
-    <button onclick="loginCambiarNombre()" style="background:none;border:none;color:rgba(240,240,240,0.4);font-size:0.6rem;cursor:pointer;margin-top:12px;letter-spacing:0.06em;text-decoration:underline;font-family:var(--font-body)">No soy yo, cambiar</button>
   </div>
 </div>
 <div id="splash-screen" style="position:fixed;inset:0;background:#0a0a0a;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;transition:opacity 0.5s ease">
@@ -2457,7 +2452,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="9.8.8";
+  var APP_VERSION="9.9.0";
   var STORED_VERSION=localStorage.getItem("app_version");
 
   if("serviceWorker"in navigator){
