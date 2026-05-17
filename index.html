@@ -87,6 +87,7 @@
   var pDrink=null,pFor=null,selPlayers=[],dragIdx=null;
   var timerIv=null,timerD=null,editPP=null,editPT=null,fusionSel=[];
   var voiceOn=localStorage.getItem("voice")==="1",synth=window.speechSynthesis,esVoice=null;
+  var editMode=false;
 
   function loadVoice(){var v=synth.getVoices();esVoice=v.find(function(x){return x.lang.startsWith("es");})||v[0]||null;}
   if(synth.onvoiceschanged!==undefined)synth.onvoiceschanged=loadVoice;
@@ -258,8 +259,10 @@
   window.doConfirm=async function(){
     if(!me||confirmado())return;
     await set(ref(db,"pedido/confirmed/"+me),true);
+    // Auto-marcar VA (asistencia) al confirmar
+    await set(ref(db,"config/accesos/"+me),{va:true,ts:Date.now()});
     showToast("✓ Pedido enviado!");speak("Tu pedido fue enviado. Gracias "+me+"!");
-    // Auto-guardar como reserva para el próximo sábado (solo si no hay reserva previa con pedidos)
+    // Auto-guardar como reserva para el próximo sábado
     var myOrders=Object.values(orders).filter(function(o){return o.player===me;});
     var resExist=reservas[me]&&reservas[me].pedidos&&reservas[me].pedidos.length>0;
     if(myOrders.length&&!resExist){
@@ -921,44 +924,86 @@
   // ── RENDERS ───────────────────────────────────────────────
   function renderReserva(){}
 
+  window.toggleEditMode=function(){
+    editMode=!editMode;
+    renderDrinks();
+  };
+
   function renderDrinks(){
     var grid=document.getElementById("drinks-grid");if(!grid)return;
     if(!drinks||!drinks.length){grid.innerHTML="<div class='es' style='padding:40px 0;opacity:0.5'>No hay bebidas cargadas ☕</div>";return;}
     var myOrders=Object.values(orders).filter(function(o){return o.player===me;});
     var myIdxs=myOrders.map(function(o){return o.drinkIdx;});
+    var isEdit=editMode&&isAdmin();
     var html="";
     for(var i=0;i<drinks.length;i++){
       var d=drinks[i];
       var cnt=myIdxs.filter(function(x){return x===i;}).length;
       var isSel=cnt>0;
-      html+="<div class='dc"+(isSel?" sel":"")+"' onclick='selectDrink("+i+")'";
-      html+=" draggable='true' ondragstart='dragStart(event,"+i+")' ondragover='dragOver(event)' ondrop='drop(event,"+i+")' ondragend='dragEnd()'>";
-      if(isAdmin()&&drinks.length>1)html+="<button class='ddel' onclick='delDrinkIdx("+i+",event)'>✕</button>";
-      if(isAdmin())html+="<button class='dhdl'>⠿</button>";
+      html+="<div class='dc"+(isSel?" sel":"")+(isEdit?" dc-edit":"")+"'";
+      if(!isEdit)html+=" onclick='selectDrink("+i+")'";
+      if(isEdit){html+=" draggable='true' ondragstart='dragStart(event,"+i+")' ondragover='dragOver(event)' ondrop='drop(event,"+i+")' ondragend='dragEnd()'";};
+      html+=">";
+      // X y handle SOLO en modo edición
+      if(isEdit&&drinks.length>1)html+="<button class='ddel' onclick='delDrinkIdx("+i+",event)' style='display:flex'>✕</button>";
+      if(isEdit)html+="<button class='dhdl' style='opacity:0.5'>⠿</button>";
       html+="<div class='ci'>";
       html+="<div class='ce'>"+d.icon+"</div>";
       html+="<div class='cn'>"+d.name+"</div>";
       if(d.sub)html+="<div class='cs'>"+d.sub+"</div>";
-      if(isSel)html+="<div class='ck"+(cnt>1?" ck-multi":"")+"'>"+(cnt>1?cnt:"✓")+"</div>";
-      if(isAdmin()&&d.pendingReview)html+="<div class='cx'>REVISAR</div>";
-      if(isAdmin()&&d.createdBy)html+="<div class='ccreated'>Por "+d.createdBy+"</div>";
-      if(isAdmin())html+="<button class='ch' onclick='editarExtras("+i+");event.stopPropagation()'>⚙ extras</button>";
+      if(isSel&&!isEdit)html+="<div class='ck"+(cnt>1?" ck-multi":"")+"'>"+(cnt>1?cnt:"✓")+"</div>";
+      // REVISAR: solo en edit mode y solo si realmente tiene el flag
+      if(isEdit&&d.pendingReview)html+="<div class='cx' onclick='aprobarBebida("+i+",event)' style='cursor:pointer'>✓ APROBAR</div>";
+      if(isEdit&&d.createdBy)html+="<div class='ccreated'>Por "+d.createdBy+"</div>";
+      if(isEdit)html+="<button class='ch' style='background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.12);border-radius:6px;padding:3px 8px;font-size:0.55rem;cursor:pointer;color:rgba(255,255,255,0.6)' onclick='editarExtras("+i+");event.stopPropagation()'>⚙ extras</button>";
       html+="</div></div>";
     }
-    // Botón agregar bebida (solo admin)
-    if(isAdmin()){
+    // Botón agregar bebida solo en edit mode
+    if(isEdit){
       html+="<div class='ac' onclick='openModal(\"mdrink\")'><div class='ap'>+</div><div class='rc'>Agregar bebida</div></div>";
     }
     grid.innerHTML=html;
-    // Banner de pedido propio
+    // Botón editar (solo admin) debajo del grid
+    var editWrap=document.getElementById("drinks-edit-wrap");
+    if(!editWrap){
+      editWrap=document.createElement("div");
+      editWrap.id="drinks-edit-wrap";
+      editWrap.style.cssText="padding:8px 12px 4px;display:flex;gap:8px;";
+      grid.parentNode.insertBefore(editWrap,grid.nextSibling);
+    }
+    if(isAdmin()){
+      editWrap.style.display="flex";
+      editWrap.innerHTML="<button onclick='toggleEditMode()' style='"
+        +"background:"+(editMode?"rgba(106,176,216,0.15)":"rgba(255,255,255,0.06)")+";"
+        +"border:1px solid "+(editMode?"rgba(106,176,216,0.4)":"rgba(255,255,255,0.12)")+";"
+        +"border-radius:100px;padding:8px 18px;"
+        +"font-family:var(--font-body);font-size:0.65rem;font-weight:700;"
+        +"color:"+(editMode?"#6ab0d8":"rgba(255,255,255,0.6)")+";"
+        +"cursor:pointer;letter-spacing:0.05em;text-transform:uppercase;'>"
+        +(editMode?"✓ Listo":"✏️ Editar bebidas")+"</button>";
+    } else {
+      editWrap.style.display="none";
+    }
+    // Banner pedido propio
     var banner=document.getElementById("pedido-status-banner");
     if(banner){
       if(me&&myOrders.length>0&&!confirmed[me]){
-        banner.innerHTML="<div style='margin:10px 12px 0;background:rgba(116,174,214,0.08);border:1px solid rgba(116,174,214,0.2);border-radius:12px;padding:10px 14px;font-size:0.65rem;color:var(--club-cel);letter-spacing:0.04em'>☕ Pedido listo — confirmalo abajo!</div>";
+        banner.innerHTML="<div style='margin:10px 12px 0;background:rgba(106,176,216,0.08);border:1px solid rgba(106,176,216,0.2);border-radius:12px;padding:10px 14px;font-size:0.65rem;color:var(--club-cel);letter-spacing:0.04em'>☕ Pedido listo — confirmalo abajo!</div>";
         banner.style.display="block";
       } else { banner.style.display="none"; }
     }
   }
+
+  // Aprobar bebida propuesta por usuario (quita flag pendingReview)
+  window.aprobarBebida=async function(idx,event){
+    if(event)event.stopPropagation();
+    var d=drinks[idx];
+    if(!d)return;
+    delete d.pendingReview;delete d.createdBy;
+    drinks[idx]=d;
+    await set(rD,drinks);
+    showToast("✓ Bebida aprobada");
+  };
 
   function renderOrders(){
     var total=Object.keys(orders).length;
@@ -1718,6 +1763,9 @@ header::after{
 .dc:hover{background:var(--sur2);}
 .dc.sel{background:linear-gradient(90deg,rgba(245,158,11,0.08),transparent);border-left:3px solid var(--acc);}
 .dc.dragging{opacity:0.4;}
+.dc-edit{cursor:grab!important;border-style:dashed!important;border-color:#2a2a2a!important;}
+.dc-edit:active{cursor:grabbing!important;}
+.dc-edit .ck{display:none!important;}
 .ci{display:flex;flex-direction:column;align-items:center;gap:4px;width:100%;position:relative;z-index:1;}
 .ce{font-size:2rem;line-height:1;text-align:center;}
 .cn{font-weight:600;font-size:0.62rem;color:var(--ink);line-height:1.2;text-align:center;letter-spacing:0.03em;}
@@ -2366,7 +2414,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="9.8.5";
+  var APP_VERSION="9.8.6";
   var STORED_VERSION=localStorage.getItem("app_version");
 
   if("serviceWorker"in navigator){
