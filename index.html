@@ -1976,7 +1976,6 @@ header::after{
 .htit,.mt,.tt,.slabel,.tq,.oq,
 .cumple-mes-title,.res-pending-title,
 .login-titulo,.login-nombre,
-.admin-subtabs .admin-stab,
 .cbtn,#t-count{
   font-family:'Bebas Neue',sans-serif;
 }
@@ -1987,148 +1986,179 @@ body{font-family:'Inter',sans-serif;}
   font-family:'DM Mono',monospace;
 }
 
-/* Header más dramático */
+/* Header */
 header{background:#050503;padding:18px 16px 16px;}
 header::after{
   background:linear-gradient(90deg,transparent 0%,var(--club-cel) 35%,var(--club-ama) 65%,transparent 100%);
   opacity:0.6;
 }
-.htit{font-size:2.4rem;letter-spacing:0.08em;color:#e8e0d0;}
+.htit{font-size:2.4rem;letter-spacing:0.08em;color:#ffffff;}
 .htit span{color:var(--club-ama);}
 
-/* Tabs más oscuras */
-.tabs{background:#050503;border-bottom:1px solid #151210;}
-.tab{font-size:0.58rem;letter-spacing:0.06em;color:rgba(240,236,228,0.25);}
+/* Tabs — todo más visible */
+.tabs{background:#050503;border-bottom:1px solid #1a1a1a;}
+.tab{font-size:0.58rem;letter-spacing:0.06em;color:rgba(255,255,255,0.45);}
 .tab.active{color:var(--club-ama);border-bottom-color:var(--club-ama);}
+.tab:hover:not(.active){color:rgba(255,255,255,0.75);}
 
 /* Section label */
 .slabel{font-size:1.05rem;letter-spacing:0.16em;color:var(--club-ama);}
+.slabel::after{background:linear-gradient(to right,rgba(106,176,216,0.4),transparent);}
 
-/* Drink cards */
-.dc{background:#0e0e0e;border-color:#1a1a1a;border-radius:16px;min-height:100px;}
-.dc:hover{background:#141414;border-color:#282828;}
-.dc.sel{background:rgba(106,176,216,0.07);border-color:var(--club-cel);border-left:3px solid var(--club-cel);}
+/* Badge usuario */
+#prompt{color:rgba(245,197,24,0.9);}
+#badge{color:rgba(245,197,24,0.9);}
+
+/* Drink cards — nombres bien visibles */
+.dc{background:#0e0e0e;border-color:#1e1e1e;border-radius:16px;min-height:100px;}
+.dc:hover{background:#141414;border-color:#2a2a2a;}
+.dc.sel{background:rgba(106,176,216,0.08);border-color:var(--club-cel);border-left:3px solid var(--club-cel);}
 .ce{font-size:2.2rem;filter:drop-shadow(0 2px 8px rgba(0,0,0,0.6));}
-.cn{font-weight:700;font-size:0.68rem;letter-spacing:0.05em;}
+.cn{font-weight:700;font-size:0.7rem;color:#ffffff;letter-spacing:0.05em;}
+.cs{font-size:0.62rem;color:rgba(255,255,255,0.5);letter-spacing:0.03em;}
+.ch{font-size:0.58rem;color:rgba(255,255,255,0.4);}
 .ck{box-shadow:0 0 14px rgba(106,176,216,0.45);}
 
-/* Cards bebida "agregar" */
-.ac{background:transparent;border-color:#1e1e1e;}
-.ac:hover{border-color:#333;background:rgba(245,197,24,0.03);}
+/* Botón extras en cards */
+.ch,.dc button[onclick*="editarExtras"]{
+  background:rgba(255,255,255,0.08)!important;
+  border:1px solid rgba(255,255,255,0.12)!important;
+  color:rgba(255,255,255,0.6)!important;
+  border-radius:6px;padding:3px 10px;
+}
+
+/* Card agregar */
+.ac{background:transparent;border-color:#252525;}
+.ac:hover{border-color:#3a3a3a;color:rgba(255,255,255,0.6);}
 
 /* Confirm button */
-.cbtn{
-  font-size:1.1rem;letter-spacing:0.14em;
-  padding:17px;border-radius:16px;
+.cbtn{font-size:1.1rem;letter-spacing:0.14em;padding:17px;border-radius:16px;
   background:linear-gradient(135deg,var(--club-cel),var(--acc2));
-  box-shadow:0 8px 28px rgba(106,176,216,0.2);
-}
+  box-shadow:0 8px 28px rgba(106,176,216,0.2);}
 
-/* Resumen panel */
-.sp{background:#0e0e0e;border-color:#1a1a1a;border-radius:16px;}
-.or{border-bottom-color:#151515;}
-.on{font-weight:700;font-size:0.66rem;letter-spacing:0.05em;}
+/* Resumen */
+.sp{background:#0e0e0e;border-color:#1e1e1e;border-radius:16px;}
+.or{border-bottom-color:#1a1a1a;}
+.on{font-weight:700;font-size:0.68rem;color:#ffffff;letter-spacing:0.04em;}
+.ait{color:rgba(255,255,255,0.6);}
 
 /* Mesa att cards */
-.att{background:#0e0e0e;border-color:#1a1a1a;border-radius:16px;}
-.attok{border-color:rgba(22,197,94,0.22);}
-.attme{border-color:rgba(245,197,24,0.25);}
+.att{background:#0e0e0e;border-color:#1e1e1e;border-radius:16px;}
+.attok{border-color:rgba(22,197,94,0.25);}
+.attme{border-color:rgba(245,197,24,0.28);}
 .av{box-shadow:0 2px 12px rgba(0,0,0,0.5);}
-.an{font-weight:700;font-size:0.66rem;letter-spacing:0.05em;}
+.an{font-weight:700;font-size:0.68rem;color:#ffffff;letter-spacing:0.04em;}
 
-/* Admin lista */
-.lista-row{background:rgba(255,255,255,0.025);border-color:rgba(255,255,255,0.06);}
-.lista-row:hover{background:rgba(255,255,255,0.05);}
-.lista-pidio{background:rgba(22,197,94,0.045);border-color:rgba(22,197,94,0.15);}
-.lista-name{font-weight:800;font-size:0.7rem;color:#f0ece4;letter-spacing:0.05em;}
-.lista-drinks{font-size:0.62rem;color:rgba(240,236,228,0.4);}
-.lista-nd{color:rgba(240,236,228,0.2);}
+/* Admin lista — todo blanco */
+.lista-row{background:rgba(255,255,255,0.03);border-color:rgba(255,255,255,0.07);}
+.lista-row:hover{background:rgba(255,255,255,0.06);}
+.lista-pidio{background:rgba(22,197,94,0.05)!important;border-color:rgba(22,197,94,0.2)!important;}
+.lista-name{font-weight:800;font-size:0.72rem;color:#ffffff;letter-spacing:0.04em;}
+.lista-drinks{font-size:0.64rem;color:rgba(255,255,255,0.55);}
+.lista-nd{color:rgba(255,255,255,0.28);font-style:italic;}
 .lista-av{box-shadow:0 2px 12px rgba(0,0,0,0.5);}
 
-/* Admin botones */
-.admin-action-btn{
-  background:rgba(255,255,255,0.04);
-  border-color:rgba(255,255,255,0.08);
-  color:rgba(240,236,228,0.55);
-  font-size:0.6rem;letter-spacing:0.06em;
-}
-.admin-action-btn:hover{border-color:rgba(106,176,216,0.35);color:var(--club-cel);}
-.asist-btn{
-  background:rgba(255,255,255,0.04);
-  border-color:rgba(255,255,255,0.08);
-  color:rgba(240,236,228,0.45);
-  font-size:0.58rem;letter-spacing:0.04em;
-}
-.asist-btn.asist-va{background:rgba(22,197,94,0.12);border-color:rgba(22,197,94,0.3);color:#4ade80;}
-.asist-btn.asist-load{background:rgba(245,197,24,0.1);border-color:rgba(245,197,24,0.28);color:var(--g2);}
-.icon-btn{background:rgba(255,255,255,0.04);border-color:rgba(255,255,255,0.08);}
-.icon-btn:hover{background:rgba(255,255,255,0.08);border-color:rgba(255,255,255,0.18);}
+/* Admin subtabs */
+.admin-subtabs{background:#0a0805;border-bottom:1px solid #1a1a1a;}
+.admin-stab{color:rgba(255,255,255,0.35);font-size:0.62rem;letter-spacing:0.06em;}
+.admin-stab.active{color:var(--club-ama);border-bottom-color:var(--club-ama);}
+.admin-stab:hover{color:rgba(255,255,255,0.7);}
 
-/* Lstat badges */
-.lstat{font-size:0.58rem;letter-spacing:0.06em;}
-.lstat-ok{background:rgba(22,197,94,0.1);color:#4ade80;border:1px solid rgba(22,197,94,0.2);}
-.lstat-warn{background:rgba(245,197,24,0.1);color:var(--g2);border:1px solid rgba(245,197,24,0.2);}
-.lstat-total{background:#1a1a1a;color:var(--mut);}
+/* Admin badges de stats */
+.lstat{font-size:0.6rem;letter-spacing:0.06em;}
+.lstat-ok{background:rgba(22,197,94,0.12);color:#6ee7b7;border:1px solid rgba(22,197,94,0.25);}
+.lstat-warn{background:rgba(245,197,24,0.12);color:var(--club-ama);border:1px solid rgba(245,197,24,0.25);}
+.lstat-total{background:#1e1e1e;color:rgba(255,255,255,0.5);}
+
+/* Admin action buttons */
+.admin-action-btn{background:rgba(255,255,255,0.06);border-color:rgba(255,255,255,0.1);
+  color:rgba(255,255,255,0.7);font-size:0.62rem;letter-spacing:0.05em;}
+.admin-action-btn:hover{border-color:rgba(106,176,216,0.4);color:#fff;}
+
+/* VA / + Pedir / iconos */
+.asist-btn{background:rgba(255,255,255,0.06);border-color:rgba(255,255,255,0.1);
+  color:rgba(255,255,255,0.6);font-size:0.6rem;}
+.asist-btn.asist-va{background:rgba(22,197,94,0.14);border-color:rgba(22,197,94,0.35);color:#6ee7b7;}
+.asist-btn.asist-load{background:rgba(245,197,24,0.12);border-color:rgba(245,197,24,0.3);color:var(--club-ama);}
+.icon-btn{background:rgba(255,255,255,0.05);border-color:rgba(255,255,255,0.1);}
+.icon-btn:hover{background:rgba(255,255,255,0.1);border-color:rgba(255,255,255,0.2);}
 
 /* Totals */
-#totals-panel{background:linear-gradient(135deg,#0a0805,#141008);border-color:#1a1a1a;}
-#pago-resumen{background:linear-gradient(135deg,#0a0805,#141008);border-color:#1a1a1a;}
-.tt{font-size:1rem;letter-spacing:0.16em;}
+#totals-panel{background:linear-gradient(135deg,#0a0805,#141008);border-color:#1e1e1e;}
+#pago-resumen{background:linear-gradient(135deg,#0a0805,#141008);border-color:#1e1e1e;}
+.tt{font-size:1rem;letter-spacing:0.16em;color:var(--club-ama);}
+.tr{color:rgba(255,255,255,0.75);}
+.tq{color:var(--club-ama);}
+
+/* Cumpleaños */
+.cumple-row{background:#0e0e0e;border-color:#1e1e1e;border-radius:14px;}
+.cumple-name{font-weight:700;color:#ffffff;letter-spacing:0.04em;}
+.cumple-detalle{color:rgba(255,255,255,0.55);}
+
+/* Modal */
+.modal{background:#0e0e0e;border-color:#222;}
+.modal h3{color:#ffffff;}
+.msub{color:rgba(255,255,255,0.45);}
+.modal input{background:#161616;border-color:#2a2a2a;color:#ffffff;}
+.modal input:focus{border-color:rgba(106,176,216,0.4);}
+.modal input::placeholder{color:rgba(255,255,255,0.25);}
+.ppbtn{background:#161616;border-color:#252525;}
+.ppbtn:hover,.ppbtn.ppsel{background:rgba(106,176,216,0.08);border-color:rgba(106,176,216,0.3);}
+.ppname{color:#ffffff;}
+.odbtn{background:#161616;border-color:#252525;color:rgba(255,255,255,0.75);}
+.odbtn:hover,.odbtn.odsel{background:rgba(106,176,216,0.08);border-color:rgba(106,176,216,0.35);color:#fff;}
+.xbtn{background:#161616;border-color:#252525;color:rgba(255,255,255,0.6);}
+.xbtn:hover{border-color:rgba(106,176,216,0.35);color:#fff;}
 
 /* Toast */
-#toast{
-  bottom:80px;top:auto;
-  background:#141414;
-  border:1px solid #252525;
-  border-radius:100px;
-  font-family:'DM Mono',monospace;
-  font-size:0.68rem;letter-spacing:0.06em;
-  box-shadow:0 8px 32px rgba(0,0,0,0.6);
-}
+#toast{bottom:80px;top:auto;background:#141414;border:1px solid #252525;
+  border-radius:100px;font-family:'DM Mono',monospace;font-size:0.68rem;
+  letter-spacing:0.06em;box-shadow:0 8px 32px rgba(0,0,0,0.6);color:var(--club-ama);}
+
+/* Mesa count */
+#mesa-count{background:#1e1e1e;color:rgba(255,255,255,0.5);}
+
+/* Edit mode btn */
+.edit-drinks-btn{font-size:0.6rem;letter-spacing:0.06em;color:rgba(255,255,255,0.5);}
+.edit-drinks-btn:hover{color:rgba(255,255,255,0.8);}
+.edit-drinks-btn.edit-active{background:rgba(106,176,216,0.1);border-color:rgba(106,176,216,0.35);color:var(--club-cel);}
 
 /* Login */
 #login-screen{background:#050503;}
-.login-titulo{font-size:1.9rem;letter-spacing:0.1em;color:#f0ece4;}
-.login-sub{font-family:'DM Mono',monospace;font-size:0.62rem;letter-spacing:0.12em;}
-.login-sat{font-family:'DM Mono',monospace;letter-spacing:0.08em;}
-.login-card{background:rgba(14,14,14,0.95);border-color:rgba(245,197,24,0.1);}
-.login-hola{font-family:'DM Mono',monospace;font-size:0.6rem;letter-spacing:0.1em;}
-.login-nombre{font-size:1.4rem;letter-spacing:0.08em;}
-.login-btn-voy{
-  font-family:'Bebas Neue',sans-serif;
-  font-size:1rem;letter-spacing:0.1em;
-  background:linear-gradient(135deg,var(--club-cel),var(--club-ama));
-  border:none;
-}
-.login-galan-btn{background:rgba(14,14,14,0.9);border-color:rgba(255,255,255,0.06);}
-.login-galan-btn:hover{border-color:rgba(245,197,24,0.2);background:rgba(245,197,24,0.03);}
-.login-galan-name{font-weight:700;letter-spacing:0.05em;}
-.login-input{
-  font-family:'DM Mono',monospace;
-  background:rgba(14,14,14,0.9);
-  border-color:rgba(245,197,24,0.15);
-  letter-spacing:0.08em;
-}
+.login-titulo{font-size:2rem;letter-spacing:0.1em;color:#ffffff;}
+.login-sub{font-family:'DM Mono',monospace;font-size:0.64rem;letter-spacing:0.12em;color:var(--club-ama);}
+.login-sat{font-family:'DM Mono',monospace;letter-spacing:0.08em;color:rgba(255,255,255,0.45);}
+.login-card{background:rgba(17,17,17,0.95);border-color:rgba(245,197,24,0.12);}
+.login-hola{font-family:'DM Mono',monospace;font-size:0.62rem;letter-spacing:0.12em;color:rgba(255,255,255,0.45);}
+.login-nombre{font-size:1.5rem;letter-spacing:0.08em;color:var(--club-ama);}
+.login-btn-voy{font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:0.1em;border:none;}
+.login-galan-btn{background:rgba(17,17,17,0.9);border-color:rgba(255,255,255,0.06);}
+.login-galan-btn:hover{border-color:rgba(245,197,24,0.25);background:rgba(245,197,24,0.04);}
+.login-galan-name{font-weight:700;color:#ffffff;letter-spacing:0.04em;}
+.login-input{font-family:'DM Mono',monospace;background:rgba(17,17,17,0.9);
+  border-color:rgba(106,176,216,0.2);color:#ffffff;letter-spacing:0.06em;}
+.login-input::placeholder{color:rgba(255,255,255,0.25);}
+.login-input:focus{border-color:rgba(106,176,216,0.5);}
 
-/* Cumpleaños */
-.cumple-row{background:#0e0e0e;border-color:#1a1a1a;border-radius:14px;}
-.cumple-name{font-weight:700;letter-spacing:0.05em;}
+/* Hist */
+.hist-label{color:#ffffff;}.hist-stats{color:rgba(255,255,255,0.5);}
+.hist-row{background:#111;border-color:#1e1e1e;}
+.hist-row:hover{border-color:rgba(245,197,24,0.3);}
 
-/* Modal */
-.modal{background:#0e0e0e;border-color:#1e1e1e;}
-.modal input{background:#161616;border-color:#252525;}
-.modal input:focus{border-color:rgba(106,176,216,0.4);}
-.ppbtn{background:#161616;border-color:#252525;}
-.ppbtn:hover,.ppbtn.ppsel{background:rgba(106,176,216,0.07);border-color:rgba(106,176,216,0.3);}
-.odbtn{background:#161616;border-color:#252525;color:rgba(240,236,228,0.65);}
-.odbtn:hover,.odbtn.odsel{background:rgba(106,176,216,0.07);border-color:rgba(106,176,216,0.35);color:var(--ink);}
-.xbtn{background:#161616;border-color:#252525;}
-.xbtn:hover{border-color:rgba(106,176,216,0.35);color:var(--club-cel);}
+/* Stats */
+.stats-section{background:#0e0e0e;border-color:#1e1e1e;}
+.stats-title{color:var(--club-ama);}
 
-/* Edit mode btn */
-.edit-drinks-btn{font-size:0.6rem;letter-spacing:0.06em;}
-.edit-drinks-btn.edit-active{background:rgba(106,176,216,0.1);border-color:rgba(106,176,216,0.35);color:var(--club-cel);}
-</style>
+/* Res tag */
+.res-tag{background:rgba(245,197,24,0.1);color:rgba(245,197,24,0.75);}
+.ytg{color:var(--club-ama);}
+.ctg{color:#6ee7b7;}
+
+/* Misc */
+.es{color:rgba(255,255,255,0.3);}
+.clr{color:rgba(255,255,255,0.3);}
+select{background:#161616;border-color:#252525;color:#ffffff;}
+
 </head>
 <body>
 <div id="login-screen">
@@ -2139,27 +2169,26 @@ header::after{
 
   <!-- Estado: sin nombre → input con autocomplete -->
   <div id="login-step1" style="width:100%;max-width:340px;display:flex;flex-direction:column;align-items:center">
-    <div style="font-size:0.6rem;color:var(--mut);letter-spacing:0.1em;margin-bottom:14px">¿QUIÉN SOS?</div>
+    <div style="font-size:0.62rem;color:rgba(240,236,228,0.5);letter-spacing:0.1em;margin-bottom:14px">¿QUIÉN SOS?</div>
     <div class="login-input-wrap">
-      <input class="login-input" id="login-input-nombre" placeholder="TU NOMBRE" maxlength="20" autocomplete="off"
+      <input class="login-input" id="login-input-nombre" placeholder="TU NOMBRE O APODO" maxlength="20" autocomplete="off"
         oninput="loginFiltrar(this.value)" onkeydown="if(event.key==='Enter')loginConfirmarNombre()">
-      <!-- Sugerencias autocomplete -->
-      <div id="login-sugerencias" style="display:none;width:100%;background:#1a1a1a;border:1px solid rgba(116,174,214,0.2);border-radius:12px;margin-top:6px;overflow:hidden;margin-bottom:8px"></div>
-      <button onclick="loginConfirmarNombre()" style="width:100%;background:var(--acc);color:#0a0805;border:none;border-radius:14px;padding:14px;font-family:var(--font-body);font-size:0.75rem;font-weight:700;cursor:pointer;letter-spacing:0.06em;margin-top:4px">ENTRAR →</button>
+      <div id="login-sugerencias" style="display:none;width:100%;background:#1a1a1a;border:1px solid rgba(106,176,216,0.2);border-radius:12px;margin-top:6px;overflow:hidden;margin-bottom:8px"></div>
+      <button onclick="loginConfirmarNombre()" style="width:100%;background:linear-gradient(135deg,var(--club-cel),var(--club-ama));color:#080808;border:none;border-radius:14px;padding:15px;font-family:'Bebas Neue',sans-serif;font-size:1.1rem;font-weight:400;cursor:pointer;letter-spacing:0.12em;margin-top:4px">ENTRAR →</button>
     </div>
   </div>
 
   <!-- Estado: tiene nombre → confirmar asistencia -->
-  <div id="login-step2" style="display:none;width:100%;max-width:340px;display:none;flex-direction:column;align-items:center">
+  <div id="login-step2" style="display:none;width:100%;max-width:340px;flex-direction:column;align-items:center">
     <div class="login-card">
       <div class="login-hola">HOLA</div>
       <div class="login-nombre" id="login-nombre-label">—</div>
-      <div style="font-size:0.62rem;color:var(--mut);text-align:center;margin-bottom:16px;letter-spacing:0.06em">LISTO PARA PEDIR ☕</div>
+      <div style="font-size:0.62rem;color:rgba(240,236,228,0.5);text-align:center;margin-bottom:16px;letter-spacing:0.08em;font-family:'DM Mono',monospace">LISTO PARA PEDIR ☕</div>
       <div>
         <button class="login-btn-voy" style="width:100%" onclick="loginEntrar()">☕ ENTRAR Y PEDIR</button>
       </div>
     </div>
-    <button onclick="loginCambiarNombre()" style="background:none;border:none;color:var(--mut);font-size:0.6rem;cursor:pointer;margin-top:12px;letter-spacing:0.06em;text-decoration:underline;font-family:var(--font-body)">No soy yo, cambiar</button>
+    <button onclick="loginCambiarNombre()" style="background:none;border:none;color:rgba(240,236,228,0.3);font-size:0.62rem;cursor:pointer;margin-top:12px;letter-spacing:0.06em;text-decoration:underline;font-family:'DM Mono',monospace">No soy yo, cambiar</button>
   </div>
 </div>
 <div id="splash-screen" style="position:fixed;inset:0;background:#0a0a0a;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;transition:opacity 0.5s ease">
@@ -2433,7 +2462,7 @@ header::after{
 </div>
 
 <script>
-  var APP_VERSION="9.8.2";
+  var APP_VERSION="9.8.3";
   var STORED_VERSION=localStorage.getItem("app_version");
 
   if("serviceWorker"in navigator){
