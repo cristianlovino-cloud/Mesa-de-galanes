@@ -51,8 +51,24 @@
     if(/fruta/.test(n))return"🍎";
     return"☕";
   }
-  function nextSat(){var now=new Date(),d=now.getDay(),diff=d===6?7:6-d,r=new Date(now);r.setDate(now.getDate()+diff);return r;}
+  function nextSat(){
+    var now=new Date(),d=now.getDay();
+    var arHour=((now.getUTCHours()-3)+24)%24;
+    var arMin=now.getUTCMinutes();
+    // Si hoy es sábado y antes de las 14:00 AR → el café es HOY (usar próximo para reserva)
+    var diff=d===6?7:6-d;
+    var r=new Date(now);r.setDate(now.getDate()+diff);return r;
+  }
   function nextSatStr(){return nextSat().toISOString().slice(0,10);}
+  // Sábado de esta semana (o el pasado si hoy no es sábado) — para identificar reservas viejas
+  function thisSatStr(){
+    var now=new Date(),d=now.getDay();
+    var diff=d===6?0:-(d===0?1:d+1);// días hacia atrás hasta el último sábado
+    // Más simple: sábado más reciente
+    var backDays=d===6?0:((d+1)%7);
+    var r=new Date(now);r.setDate(now.getDate()-backDays);
+    return r.toISOString().slice(0,10);
+  }
   function isSat(){return new Date().getDay()===6;}
   function satLabel(d){var dt=d?new Date(d+"T12:00:00"):nextSat();return"Sáb "+dt.getDate()+" "+MESES_C[dt.getMonth()];}
   function fmtAcceso(ts){var d=new Date(ts);return DIAS[d.getDay()]+" "+d.getDate()+" "+MESES_C[d.getMonth()]+" "+d.getHours()+":"+String(d.getMinutes()).padStart(2,"0");}
@@ -1065,27 +1081,28 @@
     for(var k in accesos){
       if(galanes.indexOf(k)===-1)await set(ref(db,"config/accesos/"+k),null);
     }
-    // Limpiar reservas viejas: buscar el sábado de esta semana (hoy o pasado)
-    // Si las reservas tienen timestamp de una semana anterior → borrar
+    // Limpiar reservas viejas
     var keys=Object.keys(reservas);
     if(keys.length>0){
-      // Calcular el sábado de esta semana (AR time)
-      var hoy=new Date();
-      var arDay=(hoy.getUTCDay());// 0=dom...6=sab en UTC (AR es UTC-3, pero el día cambia a medianoche)
-      var diffToSat=arDay===6?0:6-arDay; // dias hasta el proximo sab (0 si hoy es sab)
-      var esteViernes=new Date(hoy);esteViernes.setDate(hoy.getDate()-1); // viernes previo como límite
-      // Revisar timestamp de cualquier reserva
+      var thisSat=thisSatStr(); // sábado de esta semana
+      var nextSatS=nextSatStr(); // próximo sábado
       var primerRes=reservas[keys[0]];
+      var satRes=primerRes&&primerRes.sat?primerRes.sat:null;
       var tsRes=primerRes&&primerRes.ts?primerRes.ts:0;
-      // Si el timestamp es de más de 7 días atrás → son viejas
       var diasAtras=(Date.now()-tsRes)/(1000*60*60*24);
-      if(tsRes>0&&diasAtras>7){
-        console.log("Limpiando reservas viejas ("+Math.round(diasAtras)+" días)...");
-        await set(rR,null);
-        showToast("🧹 Reservas viejas limpiadas");
-      } else if(tsRes===0){
-        // Sin timestamp: son de antes del fix, borrar igual
-        console.log("Limpiando reservas sin timestamp...");
+      var esVieja=false;
+      if(!satRes){
+        // Sin campo sat: reservas antiguas → borrar
+        esVieja=true;
+      } else if(satRes<thisSat){
+        // La reserva apunta a un sábado anterior al de esta semana → vieja
+        esVieja=true;
+      } else if(tsRes>0&&diasAtras>13){
+        // Más de 2 semanas de antigüedad → borrar igual
+        esVieja=true;
+      }
+      if(esVieja){
+        console.log("Limpiando reservas viejas (sat="+satRes+", thisSat="+thisSat+")...");
         await set(rR,null);
         showToast("🧹 Reservas viejas limpiadas");
       }
@@ -1976,52 +1993,74 @@ header::after{
 .mt,.tt{font-family:'Bebas Neue',sans-serif;}
 .slabel{font-family:'Bebas Neue',sans-serif;font-size:1.05rem;letter-spacing:0.16em;color:var(--club-ama);}
 
-/* Header más oscuro */
+/* Header */
 header{background:#050503;}
-header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,var(--club-ama) 65%,transparent);opacity:0.55;}
+header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,var(--club-ama) 65%,transparent);opacity:0.6;}
 
-/* Tabs — más visibles */
+/* Tabs — bien visibles */
 .tabs{background:#050503;}
-.tab{color:rgba(255,255,255,0.4);}
+.tab{color:rgba(255,255,255,0.6);}
 .tab.active{color:var(--club-ama);border-bottom-color:var(--club-ama);}
+.tab:hover:not(.active){color:rgba(255,255,255,0.85);}
 
 /* Cards bebida */
-.dc{background:#0d0d0d;border-color:#1a1a1a;}
-.dc:hover{background:#131313;}
+.dc{background:#0d0d0d;border-color:#1e1e1e;}
+.dc:hover{background:#131313;border-color:#2a2a2a;}
 .cn{color:#fff;font-weight:700;}
-.cs{color:rgba(255,255,255,0.45);}
+.cs{color:rgba(255,255,255,0.65);}
+.ch{color:rgba(255,255,255,0.55);}
 
-/* Lista admin — nombres blancos */
+/* Lista admin */
 .lista-name{color:#fff!important;font-weight:800!important;}
-.lista-drinks{color:rgba(255,255,255,0.5)!important;}
-.lista-nd{color:rgba(255,255,255,0.25)!important;font-style:italic!important;}
+.lista-drinks{color:rgba(255,255,255,0.7)!important;}
+.lista-nd{color:rgba(255,255,255,0.45)!important;font-style:italic!important;}
 
 /* Tabs admin */
-.admin-stab{color:rgba(255,255,255,0.35);}
+.admin-stab{color:rgba(255,255,255,0.5);}
 .admin-stab.active{color:var(--club-ama);border-bottom-color:var(--club-ama);}
+.admin-stab:hover:not(.active){color:rgba(255,255,255,0.8);}
 
-/* Botones admin más visibles */
-.admin-action-btn{color:rgba(255,255,255,0.65);border-color:rgba(255,255,255,0.1);}
-.asist-btn{color:rgba(255,255,255,0.55);border-color:rgba(255,255,255,0.1);}
-.icon-btn{border-color:rgba(255,255,255,0.1);}
+/* Botones admin */
+.admin-action-btn{color:rgba(255,255,255,0.75);border-color:rgba(255,255,255,0.15);}
+.admin-action-btn:hover{color:#fff;border-color:rgba(255,255,255,0.3);}
+.asist-btn{color:rgba(255,255,255,0.7);border-color:rgba(255,255,255,0.15);}
+.asist-btn:hover{color:#fff;}
+.icon-btn{border-color:rgba(255,255,255,0.15);color:rgba(255,255,255,0.7);}
+.icon-btn:hover{border-color:rgba(255,255,255,0.3);color:#fff;}
 
 /* lstat badges */
-.lstat-ok{color:#6ee7b7;border:1px solid rgba(22,197,94,0.25);}
-.lstat-warn{color:var(--club-ama);border:1px solid rgba(245,197,24,0.25);}
-.lstat-total{background:#1a1a1a;color:rgba(255,255,255,0.45);}
+.lstat-ok{color:#6ee7b7;border:1px solid rgba(22,197,94,0.3);}
+.lstat-warn{color:var(--club-ama);border:1px solid rgba(245,197,24,0.3);}
+.lstat-total{background:#1e1e1e;color:rgba(255,255,255,0.6);}
 
-/* Resumen */
+/* Resumen / Mesa */
 .on{color:#fff;font-weight:700;}
 .an{color:#fff;font-weight:700;}
+.ait{color:rgba(255,255,255,0.65);}
+.hmeta{color:rgba(255,255,255,0.5);}
 
 /* Cumples */
 .cumple-name{color:#fff!important;}
+.cumple-detalle{color:rgba(255,255,255,0.65)!important;}
 
 /* Hist */
 .hist-label{color:#fff!important;}
+.hist-stats{color:rgba(255,255,255,0.65)!important;}
+
+/* Modal textos */
+.msub{color:rgba(255,255,255,0.6)!important;}
+.ppname{color:#fff!important;}
+
+/* Login textos */
+.login-hola{color:rgba(255,255,255,0.6)!important;}
+.login-sub{color:var(--club-ama)!important;}
+.login-sat{color:rgba(255,255,255,0.6)!important;}
 
 /* Misc */
-.es{color:rgba(255,255,255,0.3);}
+.es{color:rgba(255,255,255,0.45);}
+.clr{color:rgba(255,255,255,0.45);}
+#mesa-count{color:rgba(255,255,255,0.65)!important;}
+.hmeta{color:rgba(255,255,255,0.5)!important;}
 </style>
 </head>
 <body>
@@ -2044,16 +2083,16 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
   </div>
 
   <!-- Estado: tiene nombre → confirmar asistencia -->
-  <div id="login-step2" style="display:none;width:100%;max-width:340px;display:none;flex-direction:column;align-items:center">
+  <div id="login-step2" style="display:none;width:100%;max-width:340px;flex-direction:column;align-items:center">
     <div class="login-card">
       <div class="login-hola">HOLA</div>
       <div class="login-nombre" id="login-nombre-label">—</div>
-      <div style="font-size:0.62rem;color:var(--mut);text-align:center;margin-bottom:16px;letter-spacing:0.06em">LISTO PARA PEDIR ☕</div>
+      <div style="font-size:0.62rem;color:rgba(240,240,240,0.6);text-align:center;margin-bottom:16px;letter-spacing:0.06em">LISTO PARA PEDIR ☕</div>
       <div>
         <button class="login-btn-voy" style="width:100%" onclick="loginEntrar()">☕ ENTRAR Y PEDIR</button>
       </div>
     </div>
-    <button onclick="loginCambiarNombre()" style="background:none;border:none;color:var(--mut);font-size:0.6rem;cursor:pointer;margin-top:12px;letter-spacing:0.06em;text-decoration:underline;font-family:var(--font-body)">No soy yo, cambiar</button>
+    <button onclick="loginCambiarNombre()" style="background:none;border:none;color:rgba(240,240,240,0.4);font-size:0.6rem;cursor:pointer;margin-top:12px;letter-spacing:0.06em;text-decoration:underline;font-family:var(--font-body)">No soy yo, cambiar</button>
   </div>
 </div>
 <div id="splash-screen" style="position:fixed;inset:0;background:#0a0a0a;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;transition:opacity 0.5s ease">
@@ -2327,7 +2366,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="9.8.4";
+  var APP_VERSION="9.8.5";
   var STORED_VERSION=localStorage.getItem("app_version");
 
   if("serviceWorker"in navigator){
