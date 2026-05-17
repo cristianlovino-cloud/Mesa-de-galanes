@@ -256,12 +256,22 @@
     if(misPed.length>0&&!confirmado()){w.style.display="flex";}
     else{w.style.display="none";}
   }
+  var _confirmando=false;
   window.doConfirm=async function(){
-    if(!me||confirmado())return;
-    await set(ref(db,"pedido/confirmed/"+me),true);
-    // Auto-marcar VA al confirmar
-    await set(ref(db,"config/accesos/"+me),{va:true,ts:Date.now()});
-    showToast("✓ Pedido enviado!");speak("Tu pedido fue enviado. Gracias "+me+"!");
+    if(!me||confirmado()||_confirmando)return;
+    _confirmando=true;
+    var btn=document.querySelector(".cbtn");
+    if(btn){btn.disabled=true;btn.textContent="Enviando...";btn.style.opacity="0.6";}
+    try{
+      await set(ref(db,"pedido/confirmed/"+me),true);
+      await set(ref(db,"config/accesos/"+me),{va:true,ts:Date.now()});
+      showToast("✅ Pedido confirmado!");
+      speak("Tu pedido fue enviado. Gracias "+me+"!");
+    }catch(e){
+      showToast("❌ Error al enviar, intentá de nuevo");
+      if(btn){btn.disabled=false;btn.textContent="☕ Enviar mi pedido";btn.style.opacity="1";}
+      _confirmando=false;
+    }
   };
 
   // ── PAGOS ─────────────────────────────────────────────────
@@ -2145,7 +2155,8 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </head>
 <body>
 <div id="login-screen">
-  <img src="icon-transparent.png" class="login-logo">
+  <img src="icon-transparent.png" class="login-logo" onerror="this.style.display='none';document.getElementById('login-logo-fallback').style.display='block'">
+  <div id="login-logo-fallback" style="display:none;font-size:5rem;margin-bottom:20px;filter:drop-shadow(0 0 24px rgba(106,176,216,0.5))">☕</div>
   <div class="login-titulo">MESA DE <span style="color:var(--g2)">GALANES</span></div>
   <div class="login-sub">☕ SÁBADOS 7:45 · CRR TENIS</div>
   <div class="login-sat" id="login-sat-label">PRÓXIMO: SÁB 16 MAY</div>
@@ -2446,12 +2457,12 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="9.8.7";
+  var APP_VERSION="9.8.8";
   var STORED_VERSION=localStorage.getItem("app_version");
 
   if("serviceWorker"in navigator){
     window.addEventListener("load",function(){
-      navigator.serviceWorker.register("sw.js?v=14").then(function(reg){
+      navigator.serviceWorker.register("sw.js?v=15").then(function(reg){
         // Chequear actualizaciones cada vez que abre
         reg.update();
         // Si hay nueva versión esperando, activarla
