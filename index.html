@@ -269,7 +269,7 @@
         banner.innerHTML="<div style='margin:12px 12px 0;background:rgba(22,197,94,0.12);border:1px solid rgba(22,197,94,0.3);border-radius:14px;padding:14px 16px;display:flex;align-items:center;gap:10px'>"
           +"<span style='font-size:1.5rem'>✅</span>"
           +"<div><div style='font-size:0.75rem;font-weight:700;color:#4ade80;letter-spacing:0.06em'>PEDIDO ENVIADO</div>"
-          +"<div style='font-size:0.62rem;color:rgba(255,255,255,0.5);margin-top:2px;letter-spacing:0.03em'>"+misPed[0].drink+(misPed[0].extra?" + "+misPed[0].extra:"")+"</div></div>"
+          +"<div style='font-size:0.62rem;color:rgba(255,255,255,0.5);margin-top:2px;letter-spacing:0.03em'>"+misPed[0].drink+"</div></div>"
           +"</div>";
         banner.style.display="block";
       } else if(misPed.length>0&&!confirmado()){
@@ -2464,7 +2464,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="9.9.1";
+  var APP_VERSION="9.9.2";
   var STORED_VERSION=localStorage.getItem("app_version");
 
   if("serviceWorker"in navigator){
