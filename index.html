@@ -261,25 +261,37 @@
     var w=document.getElementById("confirm-wrap");if(!w)return;
     if(!me){w.style.display="none";return;}
     var misPed=Object.values(orders).filter(function(o){return o.player===me;});
-    // Banner de estado en el tab PEDIR
+    var last=localStorage.getItem("last_order_"+me);
     var banner=document.getElementById("pedido-status-banner");
     if(banner){
+      var pills="<div style='display:flex;gap:8px;flex-wrap:wrap;margin:12px 12px 0;'>";
       if(confirmado()&&misPed.length>0){
-        // Ya confirmó — mostrar banner verde prominente
-        banner.innerHTML="<div style='margin:12px 12px 0;background:rgba(22,197,94,0.12);border:1px solid rgba(22,197,94,0.3);border-radius:14px;padding:14px 16px;display:flex;align-items:center;gap:10px'>"
-          +"<span style='font-size:1.5rem'>✅</span>"
-          +"<div><div style='font-size:0.75rem;font-weight:700;color:#4ade80;letter-spacing:0.06em'>PEDIDO ENVIADO</div>"
-          +"<div style='font-size:0.62rem;color:rgba(255,255,255,0.5);margin-top:2px;letter-spacing:0.03em'>"+misPed[0].drink+"</div></div>"
+        // Verde — enviado
+        pills+="<div style='flex:1;min-width:140px;background:rgba(22,197,94,0.13);border:1.5px solid rgba(22,197,94,0.4);border-radius:14px;padding:12px 14px;display:flex;align-items:center;gap:10px'>"
+          +"<span style='font-size:1.4rem'>✅</span>"
+          +"<div><div style='font-size:0.72rem;font-weight:700;color:#4ade80;letter-spacing:0.06em'>PEDIDO ENVIADO</div>"
+          +"<div style='font-size:0.68rem;color:rgba(255,255,255,0.6);margin-top:2px'>"+misPed[0].drink+"</div></div>"
           +"</div>";
-        banner.style.display="block";
-      } else if(misPed.length>0&&!confirmado()){
-        banner.innerHTML="<div style='margin:12px 12px 0;background:rgba(106,176,216,0.08);border:1px solid rgba(106,176,216,0.2);border-radius:14px;padding:10px 14px;font-size:0.65rem;color:var(--club-cel);letter-spacing:0.04em'>☕ Pedido listo — confirmalo abajo!</div>";
-        banner.style.display="block";
-      } else {
-        banner.style.display="none";
+      } else if(misPed.length>0){
+        // Naranja — sin enviar
+        pills+="<div style='flex:1;min-width:140px;background:rgba(251,146,60,0.12);border:1.5px solid rgba(251,146,60,0.4);border-radius:14px;padding:12px 14px;display:flex;align-items:center;gap:10px;cursor:pointer' onclick='document.querySelector(\".cbtn\")&&document.querySelector(\".cbtn\").click()'>"
+          +"<span style='font-size:1.4rem'>🟠</span>"
+          +"<div><div style='font-size:0.72rem;font-weight:700;color:#fb923c;letter-spacing:0.06em'>SIN ENVIAR</div>"
+          +"<div style='font-size:0.68rem;color:rgba(255,255,255,0.6);margin-top:2px'>"+misPed[0].drink+"</div></div>"
+          +"</div>";
       }
+      if(last&&!confirmado()){
+        var ld=JSON.parse(last);
+        pills+="<div style='background:rgba(245,197,24,0.1);border:1.5px solid rgba(245,197,24,0.35);border-radius:14px;padding:12px 14px;display:flex;align-items:center;gap:10px;cursor:pointer' onclick='repetirUltimo()'>"
+          +"<span style='font-size:1.4rem'>🔁</span>"
+          +"<div><div style='font-size:0.68rem;font-weight:700;color:var(--g2);letter-spacing:0.06em'>REPETIR</div>"
+          +"<div style='font-size:0.65rem;color:rgba(255,255,255,0.55);margin-top:2px'>"+ld.icon+" "+ld.drink+"</div></div>"
+          +"</div>";
+      }
+      pills+="</div>";
+      if(misPed.length>0||last){banner.innerHTML=pills;banner.style.display="block";}
+      else{banner.style.display="none";}
     }
-    // Botón enviar
     if(misPed.length>0&&!confirmado()){w.style.display="flex";}
     else{w.style.display="none";}
   }
@@ -2038,7 +2050,8 @@ header::after{
 .bp{flex:1;background:var(--acc);color:#111111;border:none;border-radius:11px;padding:13px;font-family:var(--font-body);font-weight:700;cursor:pointer;font-size:0.65rem;letter-spacing:0.04em;}
 .bs{flex:1;background:var(--sur2);color:var(--mut);border:1px solid var(--brd);border-radius:11px;padding:13px;font-family:var(--font-body);font-weight:500;cursor:pointer;font-size:0.65rem;letter-spacing:0.03em;}
 .xg{display:flex;flex-direction:column;gap:6px;}
-.xbtn{background:var(--sur2);border:1px solid var(--brd);border-radius:11px;padding:13px 16px;font-family:var(--font-body);font-size:0.65rem;font-weight:500;color:var(--ink);cursor:pointer;text-align:left;transition:all 0.15s;letter-spacing:0.08em;text-transform:uppercase;}
+.xbtn{background:var(--sur2);border:1px solid var(--brd);border-radius:14px;padding:16px 18px;font-family:var(--font-body);font-size:0.88rem;font-weight:600;color:var(--ink);cursor:pointer;text-align:left;transition:all 0.15s;letter-spacing:0.04em;text-transform:uppercase;width:100%;}
+.xbtn:hover,.xbtn:active{background:rgba(106,176,216,0.12);border-color:rgba(106,176,216,0.4);color:#fff;}
 .xbtn:hover{border-color:var(--acc);color:var(--g2);background:rgba(245,158,11,0.06);}
 .topt{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
 .tob{background:var(--sur2);border:1px solid var(--brd);border-radius:11px;padding:16px 8px;font-family:var(--font-display);font-size:1.4rem;font-weight:700;color:var(--ink);cursor:pointer;text-align:center;transition:all 0.15s;}
@@ -2238,10 +2251,26 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 .msub{color:rgba(255,255,255,0.6)!important;}
 .ppname{color:#fff!important;}
 
-/* Login textos */
-.login-hola{color:rgba(255,255,255,0.6)!important;}
-.login-sub{color:var(--club-ama)!important;}
-.login-sat{color:rgba(255,255,255,0.6)!important;}
+/* Login textos — más grandes */
+.login-hola{color:rgba(255,255,255,0.6)!important;font-size:0.8rem!important;letter-spacing:0.12em!important;}
+.login-sub{color:var(--club-ama)!important;font-size:0.8rem!important;}
+.login-sat{color:rgba(255,255,255,0.6)!important;font-size:0.82rem!important;}
+.login-titulo{font-size:2.4rem!important;}
+
+/* Input login más grande */
+.login-input{font-size:1rem!important;padding:16px 18px!important;letter-spacing:0.04em!important;}
+.login-input::placeholder{font-size:0.85rem;}
+
+/* ¿Quién sos? label */
+#login-step1 > div:first-child{font-size:0.82rem!important;color:rgba(255,255,255,0.7)!important;}
+
+/* Modal textos */
+.msub{color:rgba(255,255,255,0.6)!important;font-size:0.82rem!important;}
+.ppname{color:#fff!important;font-size:0.82rem!important;}
+.modal h3{font-size:1.5rem!important;}
+
+/* Nombres en sugerencias login */
+.login-galan-name{font-size:0.85rem!important;}
 
 /* Misc */
 .es{color:rgba(255,255,255,0.45);}
@@ -2539,7 +2568,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="9.9.5";
+  var APP_VERSION="9.9.6";
   var STORED_VERSION=localStorage.getItem("app_version");
 
   if("serviceWorker"in navigator){
