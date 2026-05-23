@@ -764,24 +764,37 @@
     if(pFor==="__multi__"){
       var ps=selPlayers.slice(),n=ps.length;
       await Promise.all(ps.map(function(pl){return push(rO,{player:pl,drinkIdx:pDrink.idx,drink:label,icon:pDrink.icon,extra:exVal,loadedBy:"admin",ts:Date.now()});}));
-      selPlayers=[];pDrink=null;pFor=null;closeModal("mextra");showToast("✓ "+n+" pedidos cargados!");speak(n+" pedidos cargados.");
+      selPlayers=[];pDrink=null;pFor=null;closeModal("mextra");
+      showToast("✅ "+n+" pedidos cargados!");speak(n+" pedidos cargados.");
     } else {
       var player=pFor||me;
       var obj={player:player,drinkIdx:pDrink.idx,drink:label,icon:pDrink.icon,extra:exVal,ts:Date.now()};
-      // Agregar meta solo si es el usuario propio
       if(player===me){var m2=await getClientMeta();obj.device=m2.device;obj.ip=m2.ip;}
-      if(isAdmin()&&pFor){
-        obj.loadedBy="admin";
-      } else {
-        // Pedido propio: agregar device e IP
-        var meta=await getClientMeta();
-        obj.device=meta.device;obj.ip=meta.ip;
-      }
-      await push(rO,obj);speak("Perfecto! "+label+" agregado.");pDrink=null;pFor=null;closeModal("mextra");
+      if(isAdmin()&&pFor){obj.loadedBy="admin";}
+      else{var meta=await getClientMeta();obj.device=meta.device;obj.ip=meta.ip;}
+      await push(rO,obj);
+      // Guardar último pedido para repetir
+      if(player===me){localStorage.setItem("last_order_"+me,JSON.stringify({drinkIdx:pDrink.idx,drink:label,icon:pDrink.icon,extra:exVal}));}
+      speak("Perfecto! "+label+" agregado.");
+      pDrink=null;pFor=null;closeModal("mextra");
+      // Toast grande con confirmación
+      showToast("✅ "+label+" agregado!");
     }
   };
   window.removeOrder=async function(key){await remove(ref(db,"pedido/orders/"+key));};
   window.clearAll=async function(){if(!isAdmin()){showToast("Solo el admin puede limpiar");return;}if(!confirm("Limpiar todos los pedidos?"))return;await set(rO,null);await set(rC,null);await set(rP,null);};
+
+  window.repetirUltimo=async function(){
+    if(!me)return;
+    var last=localStorage.getItem("last_order_"+me);
+    if(!last){showToast("No tenés pedidos anteriores");return;}
+    var d=JSON.parse(last);
+    var meta=await getClientMeta();
+    var obj={player:me,drinkIdx:d.drinkIdx,drink:d.drink,icon:d.icon,extra:d.extra||null,ts:Date.now(),device:meta.device,ip:meta.ip};
+    await push(rO,obj);
+    showToast("🔁 "+d.drink+" repetido!");
+    speak("Repetido! "+d.drink);
+  };
 
   // ── CARGAR POR OTRO ───────────────────────────────────────
   window.pedirPorOtro=function(){selPlayers=[];renderMultiList();document.getElementById("multi-confirm").style.display="none";openModal("motro");};
@@ -1043,6 +1056,28 @@
     }
     // Banner manejado por renderConfirmBtn
     renderConfirmBtn();
+    // Botón repetir último pedido
+    var repWrap=document.getElementById("repeat-last-wrap");
+    if(!repWrap){
+      repWrap=document.createElement("div");repWrap.id="repeat-last-wrap";
+      repWrap.style.cssText="padding:0 12px 8px;";
+      grid.parentNode.insertBefore(repWrap,grid);
+    }
+    var last=me?localStorage.getItem("last_order_"+me):null;
+    if(last&&!confirmado()){
+      var ld=JSON.parse(last);
+      repWrap.innerHTML="<button onclick='repetirUltimo()' style='"
+        +"width:100%;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);"
+        +"border-radius:12px;padding:10px 14px;display:flex;align-items:center;gap:10px;"
+        +"cursor:pointer;text-align:left;transition:all 0.15s;'>"
+        +"<span style='font-size:1.1rem'>🔁</span>"
+        +"<div><div style='font-size:0.62rem;color:rgba(255,255,255,0.4);letter-spacing:0.06em;margin-bottom:1px'>REPETIR ÚLTIMO</div>"
+        +"<div style='font-size:0.75rem;font-weight:600;color:#fff'>"+ld.icon+" "+ld.drink+"</div></div>"
+        +"</button>";
+      repWrap.style.display="block";
+    } else {
+      repWrap.style.display="none";
+    }
   }
 
   // Aprobar bebida propuesta por usuario (quita flag pendingReview)
@@ -1225,21 +1260,28 @@
     var rows=["<div class='lista-grid'>"];
     players.forEach(function(pl){
       var pg=pagos[pl]||{},cash=pg.cash||0,tr=pg.transfer||0,total=cash+tr;
-      var row="<div class='lista-row lista-pidio' style='cursor:default'>";
+      var row="<div class='lista-row lista-pagado' style='cursor:default'>";
       row+="<div class='lista-av' style='background:"+col(pl)+";width:42px;height:42px;font-size:1rem;flex-shrink:0'>"+ini(pl)+"</div>";
-      row+="<div class='lista-info'><div class='lista-name' style='font-size:0.8rem'>"+pl+"</div>";
-      row+="<div class='lista-drinks' style='font-size:0.78rem'>";
-      if(cash>0)row+="💵 $"+Math.round(cash)+" ";
-      if(tr>0)row+="📲 $"+Math.round(tr);
-      if(total>0)row+=" <strong style='color:var(--grn)'>= $"+Math.round(total)+"</strong>";
+      row+="<div class='lista-info' style='flex:1'>";
+      row+="<div class='lista-name' style='font-size:0.8rem'>"+pl+"</div>";
+      // Saldo grande y visible
+      row+="<div style='display:flex;gap:12px;align-items:baseline;margin-top:4px'>";
+      row+="<span style='font-family:\"Bebas Neue\",sans-serif;font-size:1.4rem;color:var(--grn);letter-spacing:0.04em'>$"+Math.round(total)+"</span>";
+      if(cash>0&&tr>0){
+        row+="<span style='font-size:0.62rem;color:rgba(255,255,255,0.45)'>💵$"+Math.round(cash)+" + 📲$"+Math.round(tr)+"</span>";
+      } else if(cash>0){
+        row+="<span style='font-size:0.62rem;color:rgba(255,255,255,0.45)'>💵 efectivo</span>";
+      } else {
+        row+="<span style='font-size:0.62rem;color:rgba(255,255,255,0.45)'>📲 transfer</span>";
+      }
       row+="</div></div>";
       if(isAdmin()){
         row+="<div style='display:flex;flex-direction:column;gap:4px;align-items:flex-end;flex-shrink:0'>";
         row+="<div style='display:flex;gap:4px'>";
         row+="<button class='asist-btn"+(cash>0?" asist-va":"")+"' onclick='openPago(\""+pl+"\",\"cash\")' title='Efectivo'>💵"+(cash>0?" ✓":"")+"</button>";
-        row+="<button class='asist-btn"+(tr>0?" asist-va":"")+"' onclick='openPago(\""+pl+"\",\"transfer\")' title='Transferencia'>📲"+(tr>0?" ✓":"")+"</button>";
+        row+="<button class='asist-btn"+(tr>0?" asist-va":"")+"' onclick='openPago(\""+pl+"\",\"transfer\")' title='Transfer'>📲"+(tr>0?" ✓":"")+"</button>";
         row+="</div>";
-        if(total>0)row+="<button class='icon-btn' style='font-size:0.55rem;padding:3px 8px;color:var(--red)' onclick='resetPago(\""+pl+"\")'>✕ resetear</button>";
+        if(total>0)row+="<button class='icon-btn' style='font-size:0.55rem;padding:3px 8px;color:var(--red)' onclick='resetPago(\""+pl+"\")'>✕ reset</button>";
         row+="</div>";
       }
       row+="</div>";rows.push(row);
@@ -1271,7 +1313,7 @@
       var presente=presentes[pl]||(conf&&peds.length>0)||false;
       var adminPidio=peds.some(function(p){return p.loadedBy==="admin";});
       var esExtra=lista.indexOf(pl)===-1;
-      var estado=peds.length>0?"pidio":"pendiente";
+      var estado=pago?"pagado":(peds.length>0?"pidio":"pendiente");
       var row="<div class='lista-row lista-"+estado+"'>";
       row+="<div class='lista-av' style='background:"+col(pl)+";width:42px;height:42px;font-size:1rem;flex-shrink:0'>"+ini(pl)+"</div>";
       row+="<div class='lista-info' style='flex:1;min-width:0'>";
@@ -2123,7 +2165,33 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 .tab:hover:not(.active){color:rgba(255,255,255,0.85);}
 
 /* Cards bebida */
-.dc{background:#0d0d0d;border-color:#1e1e1e;}
+.dc{background:#0d0d0d;border-color:#1e1e1e;min-height:120px;gap:10px;}
+.dc:hover{background:#131313;border-color:#2a2a2a;}
+
+/* + PEDIR más protagonista */
+.asist-btn.asist-load{
+  background:linear-gradient(135deg,rgba(245,158,11,0.2),rgba(245,158,11,0.1));
+  border-color:rgba(245,158,11,0.5);
+  color:var(--g2);
+  font-weight:700;
+  font-size:0.65rem;
+  padding:7px 12px;
+}
+.asist-btn.asist-load:hover{background:rgba(245,158,11,0.3);border-color:var(--g2);}
+
+/* Estado visual en lista */
+.lista-row{gap:14px;padding:14px 16px;margin-bottom:2px;}
+.lista-row.lista-pidio{border-left:3px solid rgba(22,197,94,0.4);}
+.lista-row.lista-pendiente{border-left:3px solid rgba(255,255,255,0.08);}
+.lista-row.lista-pagado{border-left:3px solid rgba(245,158,11,0.5);background:rgba(245,158,11,0.04);}
+
+/* Botones de acción más separados y grandes */
+.icon-btn{padding:8px 10px;font-size:1rem;}
+.asist-btn{padding:7px 11px;font-size:0.62rem;}
+
+/* Saldo en pagos más visible */
+.pago-total-big{font-family:'Bebas Neue',sans-serif;font-size:2rem;color:var(--grn);letter-spacing:0.06em;}
+.pago-falta-big{font-family:'Bebas Neue',sans-serif;font-size:1.4rem;color:var(--red);letter-spacing:0.06em;}
 .dc:hover{background:#131313;border-color:#2a2a2a;}
 .cn{color:#ffffff!important;font-weight:700;font-size:1rem!important;}
 .cs{color:rgba(255,255,255,0.65);font-size:0.7rem;}
@@ -2471,7 +2539,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="9.9.4";
+  var APP_VERSION="9.9.5";
   var STORED_VERSION=localStorage.getItem("app_version");
 
   if("serviceWorker"in navigator){
