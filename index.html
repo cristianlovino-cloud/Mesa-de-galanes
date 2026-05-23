@@ -104,9 +104,30 @@
     updateClock();setInterval(updateClock,30000);
     switchTab("pedir");
     onValue(rG,function(s){galanes=s.exists()?s.val():KNOWN_DEF.slice();renderLoginGalanes();if(!s.exists())set(rG,galanes);});
-    onValue(rD,function(s){drinks=s.exists()?s.val():DRINKS_DEF.slice();if(!s.exists())set(rD,drinks);renderDrinks();
-    var sp=document.getElementById('splash-screen');if(sp){sp.style.opacity='0';setTimeout(function(){if(sp.parentNode)sp.parentNode.removeChild(sp);},500);}
-  });
+    onValue(rD,function(s){
+      drinks=s.exists()?s.val():DRINKS_DEF.slice();
+      if(!s.exists())set(rD,drinks);
+      // Si las bebidas no tienen precio, traer del último historial
+      var sinPrecio=drinks.every(function(d){return !d.precio;});
+      if(sinPrecio){
+        get(rH).then(function(hSnap){
+          if(!hSnap.exists())return;
+          var hist=hSnap.val(),fechas=Object.keys(hist).sort().reverse();
+          var lastPrecios=null;
+          for(var i=0;i<fechas.length;i++){if(hist[fechas[i]].precios){lastPrecios=hist[fechas[i]].precios;break;}}
+          if(!lastPrecios)return;
+          var updated=false;
+          var nd=drinks.map(function(d){
+            var key=d.id||d.name;
+            if(lastPrecios[key]&&!d.precio){updated=true;return Object.assign({},d,{precio:lastPrecios[key]});}
+            return d;
+          });
+          if(updated){drinks=nd;set(rD,nd);renderDrinks();showToast("💲 Precios del último sábado cargados");}
+        }).catch(function(){});
+      }
+      renderDrinks();
+      var sp=document.getElementById('splash-screen');if(sp){sp.style.opacity='0';setTimeout(function(){if(sp.parentNode)sp.parentNode.removeChild(sp);},500);}
+    });
     onValue(rO,function(s){try{orders=s.exists()?s.val():{};renderDrinks();renderOrders();renderMesa();renderLista();renderConfirmBtn();maybeRenderStats();}catch(e){console.error("rO",e);}});
     onValue(rC,function(s){try{confirmed=s.exists()?s.val():{};renderConfirmBtn();renderOrders();renderMesa();renderLista();}catch(e){console.error("rC",e);}});
     onValue(rP,function(s){try{pagos=s.exists()?s.val():{};renderOrders();renderMesa();renderLista();renderPagosDetail();renderMiSaldo();renderConfirmBtn();}catch(e){console.error("rP",e);}});
@@ -676,7 +697,9 @@
     if(!confirm("Cerrar y archivar la mesa de hoy?"))return;
     var now=new Date(),fecha=now.toISOString().slice(0,10),hora=now.toLocaleTimeString("es-AR",{hour:"2-digit",minute:"2-digit"});
     var sumC=0,sumT=0;Object.values(pagos).forEach(function(pg){sumC+=(pg.cash||0);sumT+=(pg.transfer||0);});
-    await set(ref(db,"historial/"+fecha),{fecha:fecha,hora:hora,pedidos:orders,pagos:pagos,totalBar:totalBar,recaudado:sumC+sumT});
+    // Guardar precios actuales junto con la mesa
+    var precios={};drinks.forEach(function(d){if(d.precio)precios[d.id||d.name]=d.precio;});
+    await set(ref(db,"historial/"+fecha),{fecha:fecha,hora:hora,pedidos:orders,pagos:pagos,totalBar:totalBar,recaudado:sumC+sumT,precios:precios});
     // Limpiar pedidos, pagos, timer, presentes Y reservas del sábado anterior
     await Promise.all([set(rO,null),set(rC,null),set(rP,null),set(rT,null),set(rB,0),set(rPres,null),set(rR,null)]);
     showToast("✓ Mesa archivada!");speak("Mesa cerrada. Hasta el próximo sábado!");switchTab("admin");
@@ -896,21 +919,27 @@
     document.getElementById("edit-extras-input").value=d.extras?d.extras.join(", "):"";
     document.getElementById("edit-extras-hint").textContent=
       d.extras?"Actuales: "+d.extras.join(" · "):"Usa los 4 default (Sin, Medialunas saladas, Medialunas dulces, Tostadas)";
+    // Precio
+    var precioEl=document.getElementById("edit-precio-input");
+    if(precioEl)precioEl.value=d.precio||"";
     openModal("mEditExtras");
   };
   window.guardarExtras=async function(){
     var idx=window._editExtrasIdx;
     if(idx===undefined||idx===null)return;
     var val=document.getElementById("edit-extras-input").value.trim();
+    var precioEl=document.getElementById("edit-precio-input");
+    var precioVal=precioEl?parseFloat(precioEl.value)||0:0;
     var nd=drinks.slice(),obj=Object.assign({},nd[idx]);
     if(!val||val==="default"){delete obj.extras;}
     else if(val==="ninguno"){obj.extras=["Sin acompanamiento"];}
     else{obj.extras=val.split(",").map(function(e){return e.trim();}).filter(Boolean);}
+    if(precioVal>0)obj.precio=precioVal;else delete obj.precio;
     nd[idx]=obj;
     await set(rD,nd);
     closeModal("mEditExtras");
-    showToast("Actualizados: "+obj.name);
-  };;
+    showToast("✓ "+obj.name+(precioVal>0?" · $"+Math.round(precioVal):""));
+  };
   window.resetDrinks=async function(){if(!confirm("Restaurar 4 categorias originales?"))return;await set(rD,DRINKS_DEF);};
   window.dragStart=function(e,idx){dragIdx=idx;setTimeout(function(){e.target.classList.add("dragging");},0);};
   window.dragOver=function(e){e.preventDefault();};
@@ -1053,6 +1082,7 @@
       html+="<div class='ce'>"+d.icon+"</div>";
       html+="<div class='cn'>"+d.name+"</div>";
       if(d.sub)html+="<div class='cs'>"+d.sub+"</div>";
+      if(d.precio&&!isEdit)html+="<div style='font-family:\"Bebas Neue\",sans-serif;font-size:0.9rem;color:rgba(245,197,24,0.8);letter-spacing:0.04em'>$"+Math.round(d.precio)+"</div>";
       if(isSel&&!isEdit)html+="<div class='ck"+(cnt>1?" ck-multi":"")+"'>"+(cnt>1?cnt:"✓")+"</div>";
       // REVISAR: solo en edit mode y solo si realmente tiene el flag
       if(isEdit&&d.pendingReview)html+="<div class='cx' onclick='aprobarBebida("+i+",event)' style='cursor:pointer'>✓ APROBAR</div>";
@@ -1128,31 +1158,46 @@
     var pg=pagos[me]||{},pagado=(pg.cash||0)+(pg.transfer||0);
     var misPed=Object.values(orders).filter(function(o){return o.player===me;});
     if(!misPed.length&&!pagado){card.innerHTML="";return;}
+    // Calcular lo que debe según precio de la bebida
+    var deuda=0;
+    misPed.forEach(function(o){
+      var d=drinks.find(function(dr){return dr.name===o.drink||(o.drink&&o.drink.startsWith(dr.name));});
+      if(d&&d.precio)deuda+=d.precio;
+    });
     var html="<div style='margin:14px 12px 0;background:linear-gradient(135deg,rgba(17,17,17,0.9),rgba(26,26,26,0.8));border:1.5px solid rgba(255,255,255,0.08);border-radius:16px;padding:16px 18px'>";
-    html+="<div style='font-size:0.65rem;color:rgba(255,255,255,0.4);letter-spacing:0.1em;margin-bottom:10px;font-family:\"DM Mono\",monospace'>TU CUENTA</div>";
-    html+="<div style='display:flex;align-items:center;justify-content:space-between;gap:12px'>";
+    html+="<div style='font-size:0.65rem;color:rgba(255,255,255,0.4);letter-spacing:0.1em;margin-bottom:12px;font-family:\"DM Mono\",monospace'>TU CUENTA</div>";
+    html+="<div style='display:flex;align-items:stretch;gap:12px'>";
     // Pedido
     if(misPed.length){
-      html+="<div>"
-        +"<div style='font-size:0.62rem;color:rgba(255,255,255,0.4);letter-spacing:0.06em;margin-bottom:3px'>PEDISTE</div>"
-        +"<div style='font-size:0.82rem;font-weight:600;color:#fff'>"+misPed[0].icon+" "+misPed[0].drink+"</div>"
+      html+="<div style='flex:1'>"
+        +"<div style='font-size:0.6rem;color:rgba(255,255,255,0.35);letter-spacing:0.06em;margin-bottom:4px'>PEDISTE</div>"
+        +"<div style='font-size:0.8rem;font-weight:600;color:#fff;line-height:1.3'>"+misPed[0].icon+" "+misPed[0].drink+"</div>"
+        +(deuda>0?"<div style='font-family:\"Bebas Neue\",sans-serif;font-size:1rem;color:rgba(245,197,24,0.7);margin-top:4px;letter-spacing:0.04em'>Precio: $"+Math.round(deuda)+"</div>":"")
         +"</div>";
     }
     // Saldo
+    html+="<div style='text-align:right;border-left:1px solid rgba(255,255,255,0.08);padding-left:14px;flex-shrink:0'>";
     if(pagado>0){
-      html+="<div style='text-align:right'>"
-        +"<div style='font-size:0.62rem;color:rgba(255,255,255,0.4);letter-spacing:0.06em;margin-bottom:3px'>PAGASTE</div>"
-        +"<div style='font-family:\"Bebas Neue\",sans-serif;font-size:2rem;color:#4ade80;letter-spacing:0.04em;line-height:1'>$"+Math.round(pagado)+"</div>"
-        +(pg.cash>0&&pg.transfer>0?"<div style='font-size:0.6rem;color:rgba(255,255,255,0.35);margin-top:2px'>💵$"+Math.round(pg.cash||0)+" + 📲$"+Math.round(pg.transfer||0)+"</div>":"")
-        +"</div>";
+      var saldo=deuda>0?pagado-deuda:0;
+      html+="<div style='font-size:0.6rem;color:rgba(255,255,255,0.35);letter-spacing:0.06em;margin-bottom:2px'>PAGASTE</div>"
+        +"<div style='font-family:\"Bebas Neue\",sans-serif;font-size:2rem;color:#4ade80;letter-spacing:0.04em;line-height:1'>$"+Math.round(pagado)+"</div>";
+      if(deuda>0){
+        if(saldo===0)html+="<div style='font-size:0.65rem;color:#4ade80;margin-top:4px'>✓ Cuadra!</div>";
+        else if(saldo>0)html+="<div style='font-size:0.65rem;color:#fbbf24;margin-top:4px'>Sobran $"+Math.round(saldo)+"</div>";
+        else html+="<div style='font-size:0.65rem;color:#fb923c;margin-top:4px'>Faltan $"+Math.round(Math.abs(saldo))+"</div>";
+      }
+      if(pg.cash>0&&pg.transfer>0)html+="<div style='font-size:0.58rem;color:rgba(255,255,255,0.3);margin-top:2px'>💵$"+Math.round(pg.cash)+" + 📲$"+Math.round(pg.transfer)+"</div>";
     } else {
-      html+="<div style='text-align:right'>"
-        +"<div style='font-size:0.62rem;color:rgba(251,146,60,0.7);letter-spacing:0.06em;margin-bottom:3px'>SALDO</div>"
-        +"<div style='font-size:0.82rem;font-weight:700;color:#fb923c'>Pendiente</div>"
-        +"<div style='font-size:0.6rem;color:rgba(255,255,255,0.35);margin-top:2px'>Lo carga el admin</div>"
-        +"</div>";
+      html+="<div style='font-size:0.6rem;color:rgba(251,146,60,0.7);letter-spacing:0.06em;margin-bottom:4px'>PENDIENTE</div>";
+      if(deuda>0){
+        html+="<div style='font-family:\"Bebas Neue\",sans-serif;font-size:1.8rem;color:#fb923c;letter-spacing:0.04em;line-height:1'>$"+Math.round(deuda)+"</div>"
+          +"<div style='font-size:0.6rem;color:rgba(255,255,255,0.3);margin-top:2px'>a pagar</div>";
+      } else {
+        html+="<div style='font-size:0.75rem;font-weight:600;color:#fb923c'>—</div>"
+          +"<div style='font-size:0.58rem;color:rgba(255,255,255,0.3);margin-top:2px'>Admin carga valor</div>";
+      }
     }
-    html+="</div></div>";
+    html+="</div></div></div>";
     card.innerHTML=html;
   }
 
@@ -2595,6 +2640,22 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
     <div class="ma"><button class="bs" onclick="closeModal('mrextras')">Cancelar</button></div>
   </div>
 </div>
+
+<div class="modal-overlay mc" id="mEditExtras" onclick="if(event.target===this)closeModal('mEditExtras')">
+  <div class="modal">
+    <div class="mh2"></div>
+    <h3 id="edit-extras-title" style="margin-bottom:6px">Bebida</h3>
+    <p class="msub" id="edit-extras-hint" style="margin-bottom:16px"></p>
+    <div style="font-size:0.68rem;color:rgba(255,255,255,0.5);letter-spacing:0.08em;margin-bottom:6px">ACOMPAÑAMIENTOS (separados por coma)</div>
+    <input type="text" id="edit-extras-input" placeholder="Tostadas, Medialunas, Sin acompanamiento" style="width:100%;background:#161616;border:1px solid #2a2a2a;border-radius:10px;padding:12px 14px;font-family:var(--font-body);font-size:0.85rem;color:var(--ink);outline:none;margin-bottom:12px">
+    <div style="font-size:0.68rem;color:rgba(255,255,255,0.5);letter-spacing:0.08em;margin-bottom:6px">💲 PRECIO (dejar vacío si no aplica)</div>
+    <input type="number" id="edit-precio-input" placeholder="Ej: 7000" min="0" step="100" style="width:100%;background:#161616;border:1px solid rgba(245,197,24,0.25);border-radius:10px;padding:12px 14px;font-family:var(--font-body);font-size:1rem;color:var(--g2);outline:none;margin-bottom:16px;font-weight:700">
+    <div class="ma">
+      <button class="bs" onclick="closeModal('mEditExtras')">Cancelar</button>
+      <button class="bp" onclick="guardarExtras()">Guardar ✓</button>
+    </div>
+  </div>
+</div>
 <div class="modal-overlay" id="mmerge" onclick="if(event.target===this)closeModal('mmerge')">
   <div class="modal">
     <div class="mh2"></div>
@@ -2622,7 +2683,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="9.9.7";
+  var APP_VERSION="9.9.8";
   var STORED_VERSION=localStorage.getItem("app_version");
 
   if("serviceWorker"in navigator){
