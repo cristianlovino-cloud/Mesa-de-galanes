@@ -832,8 +832,14 @@
       if(player===me){localStorage.setItem("last_order_"+me,JSON.stringify({drinkIdx:pDrink.idx,drink:label,icon:pDrink.icon,extra:exVal}));}
       speak("Perfecto! "+label+" agregado.");
       pDrink=null;pFor=null;closeModal("mextra");
-      // Toast grande con confirmación
-      showToast("✅ "+label+" agregado!");
+      // Toast con precio si está configurado
+      var precioBase=drinks.find(function(d){return d.name===pDrink2||label.startsWith(d.name);})||{};
+      var precioTotal=0;
+      drinks.forEach(function(d){if(label.startsWith(d.name)){
+        precioTotal=d.precio||0;
+        if(exVal&&d.comboPrices){var ck=exVal.toLowerCase().replace(/\s+/g,"_");precioTotal+=(d.comboPrices[ck]||0);}
+      }});
+      showToast("✅ "+label+(precioTotal>0?" · $"+Math.round(precioTotal):"")+"!");
     }
   };
   window.removeOrder=async function(key){await remove(ref(db,"pedido/orders/"+key));};
@@ -1140,7 +1146,7 @@
       html+="<div class='ce'>"+d.icon+"</div>";
       html+="<div class='cn'>"+d.name+"</div>";
       if(d.sub)html+="<div class='cs'>"+d.sub+"</div>";
-      if(d.precio&&!isEdit)html+="<div style='font-family:\"Bebas Neue\",sans-serif;font-size:0.9rem;color:rgba(245,197,24,0.8);letter-spacing:0.04em'>$"+Math.round(d.precio)+"</div>";
+      if(d.precio&&isEdit)html+="<div style='font-size:0.62rem;color:rgba(245,197,24,0.6);letter-spacing:0.04em'>$"+Math.round(d.precio)+"</div>";
       if(isSel&&!isEdit)html+="<div class='ck"+(cnt>1?" ck-multi":"")+"'>"+(cnt>1?cnt:"✓")+"</div>";
       // REVISAR: solo en edit mode y solo si realmente tiene el flag
       if(isEdit&&d.pendingReview)html+="<div class='cx' onclick='aprobarBebida("+i+",event)' style='cursor:pointer'>✓ APROBAR</div>";
@@ -2770,7 +2776,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.0";
+  var APP_VERSION="10.0.1";
   var STORED_VERSION=localStorage.getItem("app_version");
 
   if("serviceWorker"in navigator){
