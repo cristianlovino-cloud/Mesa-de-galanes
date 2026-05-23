@@ -109,7 +109,7 @@
   });
     onValue(rO,function(s){try{orders=s.exists()?s.val():{};renderDrinks();renderOrders();renderMesa();renderLista();renderConfirmBtn();maybeRenderStats();}catch(e){console.error("rO",e);}});
     onValue(rC,function(s){try{confirmed=s.exists()?s.val():{};renderConfirmBtn();renderOrders();renderMesa();renderLista();}catch(e){console.error("rC",e);}});
-    onValue(rP,function(s){try{pagos=s.exists()?s.val():{};renderOrders();renderMesa();renderLista();renderPagosDetail();}catch(e){console.error("rP",e);}});
+    onValue(rP,function(s){try{pagos=s.exists()?s.val():{};renderOrders();renderMesa();renderLista();renderPagosDetail();renderMiSaldo();renderConfirmBtn();}catch(e){console.error("rP",e);}});
     onValue(rB,function(s){try{totalBar=s.exists()?s.val():0;renderMesa();}catch(e){console.error("rB",e);}});
     onValue(rT,function(s){timerD=s.exists()?s.val():null;renderTimer();});
     onValue(rR,function(s){try{reservas=s.exists()?s.val():{};renderReserva();renderMesa();renderLista();if(document.getElementById("v-stats")&&document.getElementById("v-stats").style.display!=="none")renderStats();}catch(e){console.error("rR",e);}});
@@ -218,6 +218,7 @@
       var b=document.querySelector("[data-tab='"+t+"']");if(b)b.classList.toggle("active",t===tab);
     });
     if(tab==="admin"){renderLista();renderMesa();renderPendientes();if(!window._cleaned){window._cleaned=true;limpiarHuerfanos();}}
+    if(tab==="resumen"){renderOrders();renderMiSaldo();}
     if(tab==="cumples")renderCumples();
     if(tab==="stats")renderStats();
     if(tab==="mundial"&&!window._mundialLoaded)renderMundial();
@@ -265,21 +266,39 @@
     var banner=document.getElementById("pedido-status-banner");
     if(banner){
       var pills="<div style='display:flex;gap:8px;flex-wrap:wrap;margin:12px 12px 0;'>";
+      // Pill 1: estado pedido
       if(confirmado()&&misPed.length>0){
-        // Verde — enviado
         pills+="<div style='flex:1;min-width:140px;background:rgba(22,197,94,0.13);border:1.5px solid rgba(22,197,94,0.4);border-radius:14px;padding:12px 14px;display:flex;align-items:center;gap:10px'>"
           +"<span style='font-size:1.4rem'>✅</span>"
           +"<div><div style='font-size:0.72rem;font-weight:700;color:#4ade80;letter-spacing:0.06em'>PEDIDO ENVIADO</div>"
           +"<div style='font-size:0.68rem;color:rgba(255,255,255,0.6);margin-top:2px'>"+misPed[0].drink+"</div></div>"
           +"</div>";
       } else if(misPed.length>0){
-        // Naranja — sin enviar
         pills+="<div style='flex:1;min-width:140px;background:rgba(251,146,60,0.12);border:1.5px solid rgba(251,146,60,0.4);border-radius:14px;padding:12px 14px;display:flex;align-items:center;gap:10px;cursor:pointer' onclick='document.querySelector(\".cbtn\")&&document.querySelector(\".cbtn\").click()'>"
           +"<span style='font-size:1.4rem'>🟠</span>"
           +"<div><div style='font-size:0.72rem;font-weight:700;color:#fb923c;letter-spacing:0.06em'>SIN ENVIAR</div>"
           +"<div style='font-size:0.68rem;color:rgba(255,255,255,0.6);margin-top:2px'>"+misPed[0].drink+"</div></div>"
           +"</div>";
       }
+      // Pill 2: saldo (solo si el admin cargó algo)
+      if(!isAdmin()&&me){
+        var pg=pagos[me]||{},pagado=(pg.cash||0)+(pg.transfer||0);
+        if(pagado>0){
+          pills+="<div style='background:rgba(22,197,94,0.1);border:1.5px solid rgba(22,197,94,0.3);border-radius:14px;padding:12px 14px;display:flex;align-items:center;gap:10px'>"
+            +"<span style='font-size:1.4rem'>💰</span>"
+            +"<div><div style='font-size:0.68rem;font-weight:700;color:#4ade80;letter-spacing:0.06em'>PAGASTE</div>"
+            +"<div style='font-family:\"Bebas Neue\",sans-serif;font-size:1.3rem;color:#4ade80;line-height:1.1'>$"+Math.round(pagado)+"</div></div>"
+            +"</div>";
+        } else if(misPed.length>0&&confirmado()){
+          // Confirmó pero no pagó aún
+          pills+="<div style='background:rgba(251,146,60,0.08);border:1.5px solid rgba(251,146,60,0.25);border-radius:14px;padding:12px 14px;display:flex;align-items:center;gap:10px'>"
+            +"<span style='font-size:1.4rem'>💸</span>"
+            +"<div><div style='font-size:0.68rem;font-weight:700;color:#fb923c;letter-spacing:0.06em'>PENDIENTE PAGO</div>"
+            +"<div style='font-size:0.62rem;color:rgba(255,255,255,0.5);margin-top:2px'>El admin lo carga</div></div>"
+            +"</div>";
+        }
+      }
+      // Pill 3: repetir
       if(last&&!confirmado()){
         var ld=JSON.parse(last);
         pills+="<div style='background:rgba(245,197,24,0.1);border:1.5px solid rgba(245,197,24,0.35);border-radius:14px;padding:12px 14px;display:flex;align-items:center;gap:10px;cursor:pointer' onclick='repetirUltimo()'>"
@@ -289,8 +308,9 @@
           +"</div>";
       }
       pills+="</div>";
-      if(misPed.length>0||last){banner.innerHTML=pills;banner.style.display="block";}
-      else{banner.style.display="none";}
+      if(misPed.length>0||last||(pagos[me]&&((pagos[me].cash||0)+(pagos[me].transfer||0))>0)){
+        banner.innerHTML=pills;banner.style.display="block";
+      } else {banner.style.display="none";}
     }
     if(misPed.length>0&&!confirmado()){w.style.display="flex";}
     else{w.style.display="none";}
@@ -1102,6 +1122,39 @@
     await set(rD,drinks);
     showToast("✓ Bebida aprobada");
   };
+
+  function renderMiSaldo(){
+    var card=document.getElementById("mi-saldo-card");if(!card||isAdmin()||!me)return;
+    var pg=pagos[me]||{},pagado=(pg.cash||0)+(pg.transfer||0);
+    var misPed=Object.values(orders).filter(function(o){return o.player===me;});
+    if(!misPed.length&&!pagado){card.innerHTML="";return;}
+    var html="<div style='margin:14px 12px 0;background:linear-gradient(135deg,rgba(17,17,17,0.9),rgba(26,26,26,0.8));border:1.5px solid rgba(255,255,255,0.08);border-radius:16px;padding:16px 18px'>";
+    html+="<div style='font-size:0.65rem;color:rgba(255,255,255,0.4);letter-spacing:0.1em;margin-bottom:10px;font-family:\"DM Mono\",monospace'>TU CUENTA</div>";
+    html+="<div style='display:flex;align-items:center;justify-content:space-between;gap:12px'>";
+    // Pedido
+    if(misPed.length){
+      html+="<div>"
+        +"<div style='font-size:0.62rem;color:rgba(255,255,255,0.4);letter-spacing:0.06em;margin-bottom:3px'>PEDISTE</div>"
+        +"<div style='font-size:0.82rem;font-weight:600;color:#fff'>"+misPed[0].icon+" "+misPed[0].drink+"</div>"
+        +"</div>";
+    }
+    // Saldo
+    if(pagado>0){
+      html+="<div style='text-align:right'>"
+        +"<div style='font-size:0.62rem;color:rgba(255,255,255,0.4);letter-spacing:0.06em;margin-bottom:3px'>PAGASTE</div>"
+        +"<div style='font-family:\"Bebas Neue\",sans-serif;font-size:2rem;color:#4ade80;letter-spacing:0.04em;line-height:1'>$"+Math.round(pagado)+"</div>"
+        +(pg.cash>0&&pg.transfer>0?"<div style='font-size:0.6rem;color:rgba(255,255,255,0.35);margin-top:2px'>💵$"+Math.round(pg.cash||0)+" + 📲$"+Math.round(pg.transfer||0)+"</div>":"")
+        +"</div>";
+    } else {
+      html+="<div style='text-align:right'>"
+        +"<div style='font-size:0.62rem;color:rgba(251,146,60,0.7);letter-spacing:0.06em;margin-bottom:3px'>SALDO</div>"
+        +"<div style='font-size:0.82rem;font-weight:700;color:#fb923c'>Pendiente</div>"
+        +"<div style='font-size:0.6rem;color:rgba(255,255,255,0.35);margin-top:2px'>Lo carga el admin</div>"
+        +"</div>";
+    }
+    html+="</div></div>";
+    card.innerHTML=html;
+  }
 
   function renderOrders(){
     var total=Object.keys(orders).length;
@@ -2343,6 +2396,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
     </div>
   </div>
   <div id="v-resumen" style="display:none">
+    <div id="mi-saldo-card"></div>
     <div class="slabel">Pedidos en vivo <button class="clr" onclick="clearAll()">limpiar</button></div>
     <div class="sp" id="sum-panel"><div class="es">Nadie pidio nada todavia 👀</div></div>
     <div id="totals-panel"></div>
@@ -2568,7 +2622,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="9.9.6";
+  var APP_VERSION="9.9.7";
   var STORED_VERSION=localStorage.getItem("app_version");
 
   if("serviceWorker"in navigator){
