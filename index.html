@@ -1224,15 +1224,22 @@
     if(!players.length){panel.innerHTML="<div class='es' style='padding:20px 0'>Sin pagos registrados</div>";return;}
     var rows=["<div class='lista-grid'>"];
     players.forEach(function(pl){
-      var pg=pagos[pl]||{},cash=pg.cash||0,tr=pg.transfer||0;
+      var pg=pagos[pl]||{},cash=pg.cash||0,tr=pg.transfer||0,total=cash+tr;
       var row="<div class='lista-row lista-pidio' style='cursor:default'>";
       row+="<div class='lista-av' style='background:"+col(pl)+";width:42px;height:42px;font-size:1rem;flex-shrink:0'>"+ini(pl)+"</div>";
       row+="<div class='lista-info'><div class='lista-name' style='font-size:0.8rem'>"+pl+"</div>";
-      row+="<div class='lista-drinks'>"+(cash>0?"💵 $"+Math.round(cash)+" ":"")+(tr>0?"📲 $"+Math.round(tr):"")+"</div></div>";
+      row+="<div class='lista-drinks' style='font-size:0.78rem'>";
+      if(cash>0)row+="💵 $"+Math.round(cash)+" ";
+      if(tr>0)row+="📲 $"+Math.round(tr);
+      if(total>0)row+=" <strong style='color:var(--grn)'>= $"+Math.round(total)+"</strong>";
+      row+="</div></div>";
       if(isAdmin()){
-        row+="<div style='display:flex;gap:4px;flex-shrink:0'>";
-        row+="<button class='asist-btn' onclick='openPago(\""+pl+"\",\"cash\")'>💵</button>";
-        row+="<button class='asist-btn' onclick='openPago(\""+pl+"\",\"transfer\")'>📲</button>";
+        row+="<div style='display:flex;flex-direction:column;gap:4px;align-items:flex-end;flex-shrink:0'>";
+        row+="<div style='display:flex;gap:4px'>";
+        row+="<button class='asist-btn"+(cash>0?" asist-va":"")+"' onclick='openPago(\""+pl+"\",\"cash\")' title='Efectivo'>💵"+(cash>0?" ✓":"")+"</button>";
+        row+="<button class='asist-btn"+(tr>0?" asist-va":"")+"' onclick='openPago(\""+pl+"\",\"transfer\")' title='Transferencia'>📲"+(tr>0?" ✓":"")+"</button>";
+        row+="</div>";
+        if(total>0)row+="<button class='icon-btn' style='font-size:0.55rem;padding:3px 8px;color:var(--red)' onclick='resetPago(\""+pl+"\")'>✕ resetear</button>";
         row+="</div>";
       }
       row+="</div>";rows.push(row);
@@ -1240,59 +1247,59 @@
     rows.push("</div>");panel.innerHTML=rows.join("");
   }
 
+  window.resetPago=async function(pl){
+    if(!confirm("¿Borrar pago de "+pl+"?"))return;
+    await set(ref(db,"pedido/pagos/"+pl),null);
+    showToast("Pago de "+pl+" reseteado");
+  };
+
   function renderLista(){
     var panel=document.getElementById("lista-panel");if(!panel)return;
     var lista=galanes.length>0?galanes.slice().sort():[];
     var byPlayer={};Object.values(orders).forEach(function(o){if(!byPlayer[o.player])byPlayer[o.player]=[];byPlayer[o.player].push(o);});
-    var pidieron=Object.keys(byPlayer).filter(function(p){return lista.indexOf(p)!==-1;}).length;
+    // FIX 3: incluir "extras" (no registrados) en la lista principal, al final
+    var extras=Object.keys(byPlayer).filter(function(p){return lista.indexOf(p)===-1;});
+    var listaCompleta=lista.concat(extras);
+    var pidieron=Object.keys(byPlayer).filter(function(p){return lista.indexOf(p)!==-1;}).length+extras.length;
     var statsEl=document.getElementById("galanes-stats");
-    if(statsEl){statsEl.innerHTML="<span class='lstat lstat-ok'>"+pidieron+" pidieron</span><span class='lstat lstat-warn'>"+(lista.length-pidieron)+" pendientes</span><span class='lstat lstat-total'>"+lista.length+" total</span>";}
+    if(statsEl){statsEl.innerHTML="<span class='lstat lstat-ok'>"+pidieron+" pidieron</span><span class='lstat lstat-warn'>"+(lista.length-pidieron+extras.length<=0?0:lista.length-Object.keys(byPlayer).filter(function(p){return lista.indexOf(p)!==-1;}).length)+" pendientes</span><span class='lstat lstat-total'>"+lista.length+" total</span>";}
     var rows=["<div class='lista-grid'>"];
-    lista.forEach(function(pl){
+    listaCompleta.forEach(function(pl){
       var peds=byPlayer[pl]||[],conf=confirmed[pl],pg=pagos[pl]||{},pago=(pg.cash||0)+(pg.transfer||0)>0;
-      var res=reservas[pl],cumpl=cumples[pl],presente=presentes[pl]||false;
+      var res=reservas[pl],cumpl=cumples[pl];
+      // FIX 4: marcar VA automático si confirmó su pedido
+      var presente=presentes[pl]||(conf&&peds.length>0)||false;
       var adminPidio=peds.some(function(p){return p.loadedBy==="admin";});
+      var esExtra=lista.indexOf(pl)===-1;
       var estado=peds.length>0?"pidio":"pendiente";
       var row="<div class='lista-row lista-"+estado+"'>";
       row+="<div class='lista-av' style='background:"+col(pl)+";width:42px;height:42px;font-size:1rem;flex-shrink:0'>"+ini(pl)+"</div>";
       row+="<div class='lista-info' style='flex:1;min-width:0'>";
+      // FIX 1: nombre más grande (0.8rem ya está) y drinks más grande (0.78rem)
       row+="<div class='lista-name' style='font-size:0.8rem'>"+pl;
+      if(esExtra)row+=" <span style='font-size:0.55rem;color:var(--mut);opacity:0.6'>*</span>";
       if(conf&&peds.length>0)row+=" <span class='ctg'>✓</span>";
       if(pago)row+=" <span class='pago-ok' style='font-size:0.58rem'>💰</span>";
       if(res&&!peds.length)row+=" <span class='res-tag'>📋</span>";
-      if(adminPidio)row+=" <span style='font-size:0.6rem;opacity:0.5'>👤</span>";
       row+="</div>";
-      if(peds.length){row+="<div class='lista-drinks'>"+peds.map(function(p){return p.icon+" "+p.drink;}).join(" · ")+"</div>";}
-      else{row+="<div class='lista-drinks lista-nd'>"+(res?"📋 Tiene reserva":"Sin pedido")+"</div>";}
+      if(peds.length){row+="<div class='lista-drinks' style='font-size:0.78rem'>"+peds.map(function(p){return p.icon+" "+p.drink;}).join(" · ")+"</div>";}
+      else{row+="<div class='lista-drinks lista-nd' style='font-size:0.78rem'>"+(res?"📋 Tiene reserva":"Sin pedido")+"</div>";}
       if(cumpl)row+="<div style='font-size:0.65rem;color:var(--mut);margin-top:1px'>🎂 "+cumpl.dia+"/"+cumpl.mes+"</div>";
       row+="</div>";
       if(isAdmin()){
         row+="<div style='display:flex;flex-direction:column;gap:4px;align-items:flex-end;flex-shrink:0'>";
         row+="<div style='display:flex;gap:4px'>";
-        row+="<button class='asist-btn"+(presente?" asist-va":"")+"' data-name='"+pl+"' onclick='togglePresente(this)'>"+(presente?"🟢":"⚫")+" VA</button>";
+        if(!esExtra)row+="<button class='asist-btn"+(presente?" asist-va":"")+"' data-name='"+pl+"' onclick='togglePresente(this)'>"+(presente?"🟢":"⚫")+" VA</button>";
         if(!peds.length)row+="<button class='asist-btn asist-load' data-name='"+pl+"' onclick='quickLoad(this)'>+ Pedir</button>";
         row+="</div>";
         row+="<div style='display:flex;gap:4px'>";
-        row+="<button class='icon-btn' data-name='"+pl+"' onclick='abrirEditarNombre(this)' title='Editar'>✏️</button>";
+        if(!esExtra)row+="<button class='icon-btn' data-name='"+pl+"' onclick='abrirEditarNombre(this)' title='Editar'>✏️</button>";
         row+="<button class='icon-btn' data-name='"+pl+"' onclick='abrirMergeModal(this)' title='Fusionar'>⇄</button>";
-        row+="<button class='icon-btn' style='color:var(--red)' data-name='"+pl+"' onclick='eliminarDeListaBase(this)' title='Eliminar'>🗑</button>";
+        if(!esExtra)row+="<button class='icon-btn' style='color:var(--red)' data-name='"+pl+"' onclick='eliminarDeListaBase(this)' title='Eliminar'>🗑</button>";
         row+="</div></div>";
       }
       row+="</div>";rows.push(row);
     });
-    var extras=Object.keys(byPlayer).filter(function(p){return lista.indexOf(p)===-1;});
-    if(extras.length){
-      rows.push("<div class='lista-sep' style='margin:10px 0 6px'>Otros (no registrados)</div>");
-      extras.forEach(function(pl){
-        var peds2=byPlayer[pl];
-        var row="<div class='lista-row lista-pidio'>";
-        row+="<div class='lista-av' style='background:"+col(pl)+";width:42px;height:42px;font-size:1rem;flex-shrink:0'>"+ini(pl)+"</div>";
-        row+="<div class='lista-info'><div class='lista-name' style='font-size:0.8rem'>"+pl+"</div>";
-        row+="<div class='lista-drinks'>"+peds2.map(function(p){return p.icon+" "+p.drink;}).join(" · ")+"</div></div>";
-        if(isAdmin()){row+="<div style='display:flex;gap:4px;flex-shrink:0'><button class='icon-btn' data-name='"+pl+"' onclick='abrirEditarNombre(this)'>✏️</button><button class='icon-btn' data-name='"+pl+"' onclick='abrirMergeModal(this)'>⇄</button></div>";}
-        row+="</div>";rows.push(row);
-      });
-    }
     rows.push("</div>");panel.innerHTML=rows.join("");
   }
 
@@ -2464,7 +2471,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="9.9.2";
+  var APP_VERSION="9.9.3";
   var STORED_VERSION=localStorage.getItem("app_version");
 
   if("serviceWorker"in navigator){
