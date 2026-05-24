@@ -246,7 +246,6 @@
     b.style.display="flex";document.getElementById("prompt").style.display="none";
     // Mostrar tabs según rol
     var adminBtn=document.querySelector("[data-tab='admin']");if(adminBtn)adminBtn.style.cssText=isAdmin()?"display:flex!important":"display:none!important";;
-    // admin-menu gestionado por toggleBadgeMenu dinamicamente
     // Resumen y Cumples visibles con login
     ["resumen","cumples","stats","mundial"].forEach(function(t){var btn=document.querySelector("[data-tab='"+t+"']");if(btn)btn.style.cssText="display:flex!important";});
     renderConfirmBtn();renderCumpleBanner();
@@ -1916,13 +1915,10 @@
     },1000);
 
     try{
-      // Grupos via backend proxy en Render (evita CORS + protege key)
       var r1=await fetch(SPORTS_BACKEND+"/mundial/grupos");
       var j1=await r1.json();
-
-      // Adaptar formato backend → formato api-sports que espera renderMundialGroups
       var d1={response:[]};
-      if(j1.ok && j1.data){
+      if(j1.ok&&j1.data){
         if(j1.source==="static"){
           d1={response:[{league:{standings:j1.data.map(function(g){
             return g.equipos.map(function(e){
@@ -1934,10 +1930,7 @@
           d1={response:[{league:{standings:j1.data}}]};
         }
       }
-
-      // Bracket estático (se llena con datos live cuando arranque el torneo)
       var d2={response:[]};
-
       renderMundialGroups(d1,d2,panel,getCountdownHtml());
     }catch(err){
       console.error("Mundial fetch error:",err);
@@ -2259,24 +2252,17 @@
 
   // ── MENÚ BADGE ────────────────────────────────────────────
   window.toggleBadgeMenu=function(){
-    var m=document.getElementById("badge-menu");
-    if(!m)return;
+    var m=document.getElementById("badge-menu");if(!m)return;
     if(m.style.display==="none"){
       m.style.display="block";
-      // Mostrar opciones admin solo si es admin
       var adminOpts=document.getElementById("badge-menu-admin");
       if(adminOpts)adminOpts.style.display=isAdmin()?"block":"none";
       setTimeout(function(){document.addEventListener("click",closeMenuOutside,{once:true});},10);
-    } else {
-      m.style.display="none";
-    }
+    }else{m.style.display="none";}
   };
-  window.closeMenu=function(){
-    var m=document.getElementById("badge-menu");if(m)m.style.display="none";
-  };
+  window.closeMenu=function(){var m=document.getElementById("badge-menu");if(m)m.style.display="none";};
   function closeMenuOutside(e){
-    var m=document.getElementById("badge-menu");
-    var b=document.getElementById("badge");
+    var m=document.getElementById("badge-menu"),b=document.getElementById("badge");
     if(m&&b&&!m.contains(e.target)&&!b.contains(e.target))m.style.display="none";
   }
 </script>
@@ -2777,10 +2763,8 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </head>
 <body>
 <script>
-  // Precalentar el backend de Render al cargar la página (evita cold start)
-  setTimeout(function(){
-    fetch("https://asado-sports-api.onrender.com/").catch(function(){});
-  }, 1000);
+  // Precalentar el backend Render (evita cold start en Mundial)
+  setTimeout(function(){fetch("https://asado-sports-api.onrender.com/").catch(function(){});},800);
 </script>
 <div id="login-screen">
   <img id="login-logo-img" src="icon-transparent.png" class="login-logo" onerror="this.style.display='none';document.getElementById('login-logo-fallback').style.display='block'">
@@ -2812,8 +2796,8 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
   </div>
   <div class="nz">
     <div id="prompt" onclick="showLoginScreen()" style="cursor:pointer">👤 Quien sos?</div>
-    <div id="badge" onclick="toggleBadgeMenu()" style="cursor:pointer"></div>
-    <div id="badge-menu" style="display:none;position:absolute;top:60px;left:12px;background:#1a1a1a;border:1px solid #333;border-radius:12px;z-index:200;min-width:200px;overflow:hidden;box-shadow:0 8px 24px rgba(0,0,0,0.6)">
+    <div id="badge" onclick="toggleBadgeMenu()" style="cursor:pointer;position:relative"></div>
+    <div id="badge-menu" style="display:none;position:fixed;top:62px;left:12px;background:#1a1a1a;border:1px solid #333;border-radius:14px;z-index:300;min-width:210px;overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,0.7)">
       <div onclick="closeMenu();showLoginScreen()" style="padding:14px 18px;font-size:0.8rem;cursor:pointer;border-bottom:1px solid #252525;color:#eee">👤 Cambiar usuario</div>
       <div id="badge-menu-admin" style="display:none">
         <div onclick="closeMenu();switchTab('admin')" style="padding:14px 18px;font-size:0.8rem;cursor:pointer;border-bottom:1px solid #252525;color:#a5b4fc">⚙️ Administrar</div>
@@ -2823,7 +2807,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
       </div>
       <div onclick="closeMenu();logout()" style="padding:14px 18px;font-size:0.8rem;cursor:pointer;color:#f87171">🚪 Salir</div>
     </div>
-    <button id="vbtn" onclick="toggleVoice()">🔇</button>
+    <button id="vbtn" onclick="toggleVoice()" style="margin-left:auto">🔇</button>
   </div>
 </header>
 <div id="cumple-banner" style="display:none"></div>
@@ -2839,6 +2823,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
   <button class="tab" data-tab="stats"   onclick="switchTab('stats')" style="display:none">📊 Stats</button>
   <button class="tab" data-tab="mundial" onclick="switchTab('mundial')">🌍 Mundial</button>
   <button class="tab" onclick="window.open('https://cristianlovino-cloud.github.io/asado-caleta/','_blank')" style="color:rgba(255,140,0,0.7)">🔥 Asado</button>
+  <button class="tab" data-tab="admin"   onclick="switchTab('admin')" style="display:none">⚙️ Admin</button>
 </div>
 <div class="main">
   <div id="v-pedir">
