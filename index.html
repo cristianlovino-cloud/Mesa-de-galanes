@@ -1872,9 +1872,12 @@
 
 
   // API-Football (api-sports.io)
-  var APISPORTS_KEY="2d8784c16aa24de785ada85592566d5e";
-  var APISPORTS_BASE="https://v3.football.api-sports.io";
-  var WC_LEAGUE=1;    // FIFA World Cup
+  // ── Backend proxy (Render) — evita CORS y protege las keys ──
+  var SPORTS_BACKEND="https://asado-sports-api.onrender.com";
+  // Legacy — no se usan directamente, el backend las maneja
+  var APISPORTS_KEY="";
+  var APISPORTS_BASE="";
+  var WC_LEAGUE=1;
   var WC_SEASON=2026;
   var F1_LEAGUE=9;    // Formula 1 (bonus!)
 
@@ -1914,18 +1917,30 @@
     },1000);
 
     try{
-      var headers={"x-apisports-key":APISPORTS_KEY};
+      // Grupos via backend proxy en Render (evita CORS y protege la API key)
+      var r1=await fetch(SPORTS_BACKEND+"/mundial/grupos");
+      var j1=await r1.json();
 
-      // Grupos / standings
-      var r1=await fetch(APISPORTS_BASE+"/standings?league="+WC_LEAGUE+"&season="+WC_SEASON,{headers:headers});
-      var d1=await r1.json();
+      // Adaptar formato del backend al que espera renderMundialGroups
+      var d1={response:[]};
+      if(j1.ok && j1.data){
+        if(j1.source==="static"){
+          // source:static → convertir estructura propia a formato api-sports
+          d1={response:[{league:{standings:j1.data.map(function(g){
+            return g.equipos.map(function(e){
+              return{team:{name:e.nombre,id:0},points:e.pts,
+                all:{played:e.pj,win:e.pg,draw:e.pe,lose:e.pp,goals:{for:e.gf,against:e.gc}}};
+            });
+          })}}]};
+        } else if(j1.source==="live"){
+          d1={response:[{league:{standings:j1.data}}]};
+        }
+      }
 
-      // Partidos
-      var r2=await fetch(APISPORTS_BASE+"/fixtures?league="+WC_LEAGUE+"&season="+WC_SEASON,{headers:headers});
-      var d2=await r2.json();
+      // Fixtures: vacío hasta que arranque el torneo (11 jun 2026)
+      var d2={response:[]};
 
-      console.log("API standings:", JSON.stringify(d1).slice(0,200));
-      console.log("API fixtures:", JSON.stringify(d2).slice(0,200));
+      console.log("Backend grupos ok, source:", j1.source, "grupos:", j1.data&&j1.data.length);
 
       renderMundialGroups(d1,d2,panel,getCountdownHtml());
     }catch(err){
