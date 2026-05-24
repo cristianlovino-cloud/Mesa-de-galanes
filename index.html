@@ -594,60 +594,69 @@
         if(dia.pagos)Object.keys(dia.pagos).forEach(function(p){todosSet[p]=true;});
       });
     }
-    var todos=Object.keys(todosSet).sort();
-    var opts=todos.map(function(g){
-      var isGalan=galanes.indexOf(g)!==-1;
-      return "<option value='"+g+"'>"+(isGalan?"✓ ":"★ ")+g+"</option>";
-    }).join("");
+    // Agrupar por nombre normalizado para resaltar duplicados
+    var todos=Object.keys(todosSet).sort(function(a,b){return a.toLowerCase().localeCompare(b.toLowerCase());});
 
-    // Modal de fusión masiva con DOS selects
-    var content="<div style='margin-bottom:14px'>"
-      +"<div style='font-size:0.65rem;color:var(--mut);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:8px'>Nombre VIEJO (a eliminar)</div>"
-      +"<select id='merge-origen-sel' style='width:100%;background:#161616;border:1px solid #252525;border-radius:11px;padding:13px 16px;font-family:var(--font-body);font-size:0.88rem;color:var(--ink);outline:none'>"+opts+"</select>"
+    var html="<div style='font-size:0.65rem;color:rgba(255,255,255,0.5);letter-spacing:0.08em;margin-bottom:8px'>① MARCÁ LOS NOMBRES VIEJOS</div>"
+      +"<div id='merge-viejos-list' style='max-height:200px;overflow-y:auto;background:#0d0d0d;border:1px solid #252525;border-radius:12px;margin-bottom:14px'>"
+      +todos.map(function(g){
+        var isGalan=galanes.indexOf(g)!==-1;
+        return "<label style='display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid #1a1a1a;cursor:pointer'>"
+          +"<input type='checkbox' value='"+g+"' style='width:18px;height:18px;accent-color:var(--club-cel);flex-shrink:0'>"
+          +"<span style='font-size:0.82rem;color:"+(isGalan?"rgba(255,255,255,0.5)":"#fff")+";'>"
+          +(isGalan?"":"<b>")
+          +g
+          +(isGalan?"":"</b>")
+          +"</span>"
+          +(isGalan?"<span style='margin-left:auto;font-size:0.6rem;color:rgba(255,255,255,0.25)'>lista</span>":"<span style='margin-left:auto;font-size:0.6rem;color:var(--club-ama)'>historial</span>")
+          +"</label>";
+      }).join("")
       +"</div>"
-      +"<div style='margin-bottom:18px'>"
-      +"<div style='font-size:0.65rem;color:var(--mut);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:8px'>Nombre NUEVO (queda activo)</div>"
-      +"<select id='merge-destino-masivo' style='width:100%;background:#161616;border:1px solid rgba(245,197,24,0.25);border-radius:11px;padding:13px 16px;font-family:var(--font-body);font-size:0.88rem;color:var(--g2);outline:none'>"+opts+"</select>"
-      +"</div>"
-      +"<div style='font-size:0.65rem;color:rgba(255,255,255,0.35);background:rgba(239,68,68,0.08);border-radius:8px;padding:8px 12px'>"
-      +"⚠️ El nombre viejo se elimina de todos los pedidos, pagos e historial</div>";
+      +"<div style='font-size:0.65rem;color:rgba(255,255,255,0.5);letter-spacing:0.08em;margin-bottom:8px'>② NOMBRE NUEVO (queda activo)</div>"
+      +"<select id='merge-nuevo-sel' style='width:100%;background:#161616;border:1px solid rgba(245,197,24,0.3);border-radius:11px;padding:13px 16px;font-family:var(--font-body);font-size:0.88rem;color:var(--g2);outline:none;margin-bottom:4px'>"
+      +galanes.slice().sort().map(function(g){return"<option value='"+g+"'>"+g+"</option>";}).join("")
+      +"</select>";
 
-    document.getElementById("merge-principal-name").innerHTML=content;
-    document.getElementById("merge-principal-name").style.background="none";
-    document.getElementById("merge-principal-name").style.border="none";
-    document.getElementById("merge-principal-name").style.padding="0";
+    document.getElementById("merge-principal-name").innerHTML=html;
+    document.getElementById("merge-principal-name").style.cssText="background:none;border:none;padding:0;color:inherit;font-size:inherit;";
     document.getElementById("merge-destino-sel").style.display="none";
     var tit=document.getElementById("mmerge-title");if(tit)tit.textContent="Fusión masiva";
     window._mergeOrigen="__masivo__";
     openModal("mmerge");
-    showToast(""+todos.length+" nombres encontrados");
+    showToast(todos.length+" nombres encontrados");
   };
   window.ejecutarMerge=async function(){
-    var origen,destino;
     if(window._mergeOrigen==="__masivo__"){
-      // Modo masivo: dos selects
-      var selO=document.getElementById("merge-origen-sel");
-      var selD=document.getElementById("merge-destino-masivo");
-      if(!selO||!selD){showToast("Error en el modal");return;}
-      origen=selO.value;destino=selD.value;
+      var destino=document.getElementById("merge-nuevo-sel").value;
+      var checks=document.querySelectorAll("#merge-viejos-list input[type=checkbox]:checked");
+      var origenes=Array.from(checks).map(function(c){return c.value;}).filter(function(v){return v!==destino;});
+      if(!origenes.length){showToast("Marcá al menos un nombre viejo");return;}
+      if(!confirm("Fusionar "+origenes.length+" nombres → '"+destino+"'?\n\n"+origenes.join(", ")+"\n\nEstos nombres desaparecen de todo el historial."))return;
+      closeModal("mmerge");
+      // Resetear modal
+      var mp=document.getElementById("merge-principal-name");
+      if(mp){mp.style.cssText="";mp.innerHTML="—";}
+      var selDef=document.getElementById("merge-destino-sel");if(selDef)selDef.style.display="";
+      // Fusionar uno por uno
+      for(var i=0;i<origenes.length;i++){
+        await fusionarGalan(origenes[i],destino);
+        var nl=galanes.filter(function(g){return g!==origenes[i];});
+        if(nl.length!==galanes.length){galanes=nl;await set(rG,nl);}
+      }
+      showToast("✅ "+origenes.length+" nombres fusionados → "+destino);
+      renderLista();renderMesa();
     } else {
-      origen=window._mergeOrigen;
-      destino=document.getElementById("merge-destino-sel").value;
+      var origen=window._mergeOrigen;
+      var dest=document.getElementById("merge-destino-sel").value;
+      if(!origen||!dest||origen===dest){showToast("Seleccioná dos nombres distintos");return;}
+      if(!confirm("Fusionar '"+origen+"' → '"+dest+"'?"))return;
+      closeModal("mmerge");
+      await fusionarGalan(origen,dest);
+      var nl2=galanes.filter(function(g){return g!==origen;});
+      if(nl2.length!==galanes.length)await set(rG,nl2);
+      showToast("✓ "+origen+" → "+dest);
+      renderLista();renderMesa();
     }
-    if(!origen||!destino||origen===destino){showToast("Seleccioná dos nombres distintos");return;}
-    if(!confirm("Fusionar '"+origen+"' → '"+destino+"'?\nTodos los pedidos, pagos e historial del nombre viejo pasan al nuevo."))return;
-    closeModal("mmerge");
-    // Resetear el modal para la próxima vez
-    var mp=document.getElementById("merge-principal-name");
-    if(mp){mp.style.background="";mp.style.border="";mp.style.padding="";}
-    var selDef=document.getElementById("merge-destino-sel");
-    if(selDef)selDef.style.display="";
-    await fusionarGalan(origen,destino);
-    // Si el origen estaba en la lista de galanes, sacarlo
-    var nl=galanes.filter(function(g){return g!==origen;});
-    if(nl.length!==galanes.length)await set(rG,nl);
-    showToast("✓ "+origen+" → "+destino);
-    renderLista();renderMesa();
   };
 
   window.eliminarDeListaBase=async function(el){
@@ -2984,7 +2993,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.6";
+  var APP_VERSION="10.0.7";
   var STORED_VERSION=localStorage.getItem("app_version");
 
   if("serviceWorker"in navigator){
