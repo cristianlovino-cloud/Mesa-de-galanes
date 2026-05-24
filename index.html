@@ -631,20 +631,24 @@
       var checks=document.querySelectorAll("#merge-viejos-list input[type=checkbox]:checked");
       var origenes=Array.from(checks).map(function(c){return c.value;}).filter(function(v){return v!==destino;});
       if(!origenes.length){showToast("Marcá al menos un nombre viejo");return;}
-      if(!confirm("Fusionar "+origenes.length+" nombres → '"+destino+"'?\n\n"+origenes.join(", ")+"\n\nEstos nombres desaparecen de todo el historial."))return;
-      closeModal("mmerge");
-      // Resetear modal
-      var mp=document.getElementById("merge-principal-name");
-      if(mp){mp.style.cssText="";mp.innerHTML="—";}
-      var selDef=document.getElementById("merge-destino-sel");if(selDef)selDef.style.display="";
-      // Fusionar uno por uno
+      if(!confirm("Fusionar "+origenes.length+" nombres → '"+destino+"'?\n\n"+origenes.join("\n")))return;
+      // Procesar sin cerrar modal
+      var btnFusionar=document.querySelector("#mmerge .bp");
+      if(btnFusionar){btnFusionar.disabled=true;btnFusionar.textContent="Fusionando...";}
       for(var i=0;i<origenes.length;i++){
+        showToast("Procesando "+(i+1)+"/"+origenes.length+": "+origenes[i]);
         await fusionarGalan(origenes[i],destino);
+        // Sacar de lista de galanes
         var nl=galanes.filter(function(g){return g!==origenes[i];});
         if(nl.length!==galanes.length){galanes=nl;await set(rG,nl);}
+        // Tachar el checkbox en el modal
+        var cb=document.querySelector("#merge-viejos-list input[value='"+CSS.escape(origenes[i])+"']");
+        if(cb){var lbl=cb.closest("label");if(lbl)lbl.style.cssText="opacity:0.3;text-decoration:line-through;pointer-events:none";}
       }
+      if(btnFusionar){btnFusionar.disabled=false;btnFusionar.textContent="⇄ Fusionar";}
       showToast("✅ "+origenes.length+" nombres fusionados → "+destino);
       renderLista();renderMesa();
+      // NO cerrar — dejar abierto para seguir fusionando
     } else {
       var origen=window._mergeOrigen;
       var dest=document.getElementById("merge-destino-sel").value;
@@ -703,10 +707,12 @@
     showToast("✓ "+nombre+" aceptado!");renderPendientes();renderLista();
   };
   window.fusionarGalan=async function(origen,destino){
+    // 1. Orders actuales
     var en=Object.entries(orders);
     for(var i=0;i<en.length;i++){
       if(en[i][1].player===origen){var u=Object.assign({},en[i][1]);u.player=destino;await set(ref(db,"pedido/orders/"+en[i][0]),u);}
     }
+    // 2. Pagos actuales
     if(pagos[origen]){
       var pgD=pagos[destino]||{cash:0,transfer:0};
       pgD.cash=(pgD.cash||0)+(pagos[origen].cash||0);
@@ -714,7 +720,9 @@
       await set(ref(db,"pedido/pagos/"+destino),pgD);
       await set(ref(db,"pedido/pagos/"+origen),null);
     }
+    // 3. Confirmed
     if(confirmed[origen]){await set(ref(db,"pedido/confirmed/"+destino),true);await set(ref(db,"pedido/confirmed/"+origen),null);}
+    // 4. Accesos
     if(accesos[origen]){
       var acD=accesos[destino]||{count:0};
       acD.count=(acD.count||0)+(accesos[origen].count||0);
@@ -722,8 +730,37 @@
       await set(ref(db,"config/accesos/"+destino),acD);
       await set(ref(db,"config/accesos/"+origen),null);
     }
+    // 5. Cumples y reservas
     if(cumples[origen]&&!cumples[destino]){await set(ref(db,"config/cumples/"+destino),cumples[origen]);await set(ref(db,"config/cumples/"+origen),null);}
     if(reservas[origen]&&!reservas[destino]){await set(ref(db,"reserva/"+destino),reservas[origen]);await set(ref(db,"reserva/"+origen),null);}
+    // 6. HISTORIAL — recorrer cada fecha y reemplazar el nombre
+    try{
+      var hSnap=await get(rH);
+      if(hSnap.exists()){
+        var hist=hSnap.val();
+        for(var fecha in hist){
+          var dia=hist[fecha];var changed=false;
+          // Pedidos del historial
+          if(dia.pedidos){
+            for(var k in dia.pedidos){
+              if(dia.pedidos[k].player===origen){
+                await set(ref(db,"historial/"+fecha+"/pedidos/"+k+"/player"),destino);
+                changed=true;
+              }
+            }
+          }
+          // Pagos del historial
+          if(dia.pagos&&dia.pagos[origen]){
+            var pgHD=dia.pagos[destino]||{cash:0,transfer:0};
+            pgHD.cash=(pgHD.cash||0)+(dia.pagos[origen].cash||0);
+            pgHD.transfer=(pgHD.transfer||0)+(dia.pagos[origen].transfer||0);
+            await set(ref(db,"historial/"+fecha+"/pagos/"+destino),pgHD);
+            await set(ref(db,"historial/"+fecha+"/pagos/"+origen),null);
+            changed=true;
+          }
+        }
+      }
+    }catch(e){console.error("historial merge error",e);}
   };
 
   window.rechazarPendiente=async function(el){
@@ -2993,7 +3030,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.7";
+  var APP_VERSION="10.0.8";
   var STORED_VERSION=localStorage.getItem("app_version");
 
   if("serviceWorker"in navigator){
