@@ -1798,10 +1798,10 @@
             var dt=new Date(f.fecha);
             var dstr=(dt.getDate())+"/"+(dt.getMonth()+1);
             if(f.faltó){
-              return "<div style='display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #161616;opacity:0.45'>"
+              return "<div style='display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #161616'>"
                 +"<span style='font-family:\"DM Mono\",monospace;font-size:0.62rem;color:var(--mut);width:32px;flex-shrink:0'>"+dstr+"</span>"
                 +"<span style='font-size:0.75rem'>😴</span>"
-                +"<span style='font-size:0.68rem;color:var(--mut);flex:1;font-style:italic'>No fue</span>"
+                +"<span style='font-size:0.68rem;color:rgba(251,146,60,0.6);flex:1;font-style:italic;letter-spacing:0.04em'>NO FUE</span>"
                 +"</div>";
             }
             return "<div style='display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #161616'>"
@@ -2132,11 +2132,11 @@
 
   window.loginFiltrar=function(val){
     var sug=document.getElementById("login-sugerencias");if(!sug)return;
-    var q=normStr(val);
+    var q=val.trim().toUpperCase();
     if(!q){sug.style.display="none";return;}
     var matches=galanes.filter(function(g){
-      var gn=normStr(g);
-      return gn.startsWith(q)||gn.split(" ").some(function(p){return p.startsWith(q);});
+      var gu=g.toUpperCase();
+      return gu.startsWith(q)||gu.split(" ").some(function(p){return p.startsWith(q);});
     }).slice(0,5);
     if(!matches.length){sug.style.display="none";return;}
     sug.style.display="block";
@@ -2152,7 +2152,7 @@
         +"display:flex;align-items:center;justify-content:center;flex-shrink:0;"
         +"font-family:\"Bebas Neue\",sans-serif;font-size:1rem;color:white;letter-spacing:0.04em'>"
         +ini(g)+"</div>"
-        +"<span style='font-size:0.88rem;font-weight:600;color:#fff;letter-spacing:0.04em;text-transform:uppercase'>"+g+"</span>"
+        +"<span style='font-size:0.88rem;font-weight:600;color:#fff;letter-spacing:0.06em'>"+g.toUpperCase()+"</span>"
         +"</button>";
     }).join("");
   };
@@ -2163,34 +2163,13 @@
     var sug=document.getElementById("login-sugerencias");if(sug)sug.style.display="none";
     loginEntrar();
   };
-  function normStr(s){
-    return s.trim().toLowerCase()
-      .normalize("NFD").replace(/[\u0300-\u036f]/g,"")
-      .replace(/[^a-z0-9 ]/g,"");
-  }
-  function matchGalan(input){
-    var q=normStr(input);
-    if(!q)return null;
-    // Match exacto ignorando case/acentos
-    var exact=galanes.find(function(g){return normStr(g)===q;});
-    if(exact)return exact;
-    // Match por primer nombre
-    var byFirst=galanes.find(function(g){return normStr(g).split(" ")[0]===q;});
-    if(byFirst)return byFirst;
-    return null;
-  }
   window.loginConfirmarNombre=function(){
     var inp=document.getElementById("login-input-nombre");
-    var raw=inp?inp.value.trim():"";
+    var raw=inp?inp.value.trim().toUpperCase():"";
     if(!raw){showToast("Escribí tu nombre");return;}
-    // Intentar match con lista existente
-    var matched=matchGalan(raw);
-    if(matched){
-      me=matched;
-    } else {
-      // Capitalizar primer letra de cada palabra
-      me=raw.replace(/\b\w/g,function(l){return l.toUpperCase();});
-    }
+    // Buscar match exacto en la lista (ya todo en mayúsculas)
+    var exact=galanes.find(function(g){return g.toUpperCase()===raw;});
+    me=exact||raw;
     localStorage.setItem("galan_name",me);
     loginEntrar();
   };
@@ -2755,8 +2734,8 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
   <div id="login-step1" style="width:100%;max-width:360px;display:flex;flex-direction:column;align-items:center;padding:0 20px;box-sizing:border-box">
     <!-- Input principal -->
     <input class="login-input" id="login-input-nombre" placeholder="TU NOMBRE" maxlength="30" autocomplete="off"
-      style="width:100%;box-sizing:border-box;font-size:1.1rem;text-align:left;letter-spacing:0.06em;margin-bottom:8px"
-      oninput="loginFiltrar(this.value)"
+      style="width:100%;box-sizing:border-box;font-size:1.1rem;text-align:left;letter-spacing:0.08em;margin-bottom:8px;text-transform:uppercase"
+      oninput="this.value=this.value.toUpperCase();loginFiltrar(this.value)"
       onkeydown="if(event.key==='Enter')loginConfirmarNombre()">
     <!-- Sugerencias dinámicas — solo aparecen al escribir -->
     <div id="login-sugerencias" style="display:none;width:100%;background:#161616;border:1px solid rgba(255,255,255,0.1);border-radius:14px;overflow:hidden;margin-bottom:10px"></div>
@@ -3077,7 +3056,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.10";
+  var APP_VERSION="10.0.11";
   var STORED_VERSION=localStorage.getItem("app_version");
 
   if("serviceWorker"in navigator){
