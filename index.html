@@ -594,8 +594,11 @@
         if(dia.pagos)Object.keys(dia.pagos).forEach(function(p){todosSet[p]=true;});
       });
     }
-    // Agrupar por nombre normalizado para resaltar duplicados
-    var todos=Object.keys(todosSet).sort(function(a,b){return a.toLowerCase().localeCompare(b.toLowerCase());});
+    // Deduplicar por valor exacto
+    var seen={};
+    var todos=Object.keys(todosSet).filter(function(g){
+      var k=g.trim();if(seen[k])return false;seen[k]=true;return true;
+    }).sort(function(a,b){return a.toLowerCase().localeCompare(b.toLowerCase());});
 
     var html="<div style='font-size:0.65rem;color:rgba(255,255,255,0.5);letter-spacing:0.08em;margin-bottom:8px'>① MARCÁ LOS NOMBRES VIEJOS</div>"
       +"<div id='merge-viejos-list' style='max-height:200px;overflow-y:auto;background:#0d0d0d;border:1px solid #252525;border-radius:12px;margin-bottom:14px'>"
@@ -631,29 +634,26 @@
       var checks=document.querySelectorAll("#merge-viejos-list input[type=checkbox]:checked");
       var origenes=Array.from(checks).map(function(c){return c.value;}).filter(function(v){return v!==destino;});
       if(!origenes.length){showToast("Marcá al menos un nombre viejo");return;}
-      if(!confirm("Fusionar "+origenes.length+" nombres → '"+destino+"'?\n\n"+origenes.join("\n")))return;
-      // Procesar sin cerrar modal
-      var btnFusionar=document.querySelector("#mmerge .bp");
-      if(btnFusionar){btnFusionar.disabled=true;btnFusionar.textContent="Fusionando...";}
-      for(var i=0;i<origenes.length;i++){
-        showToast("Procesando "+(i+1)+"/"+origenes.length+": "+origenes[i]);
-        await fusionarGalan(origenes[i],destino);
-        // Sacar de lista de galanes
-        var nl=galanes.filter(function(g){return g!==origenes[i];});
-        if(nl.length!==galanes.length){galanes=nl;await set(rG,nl);}
-        // Tachar el checkbox en el modal
-        var cb=document.querySelector("#merge-viejos-list input[value='"+CSS.escape(origenes[i])+"']");
-        if(cb){var lbl=cb.closest("label");if(lbl)lbl.style.cssText="opacity:0.3;text-decoration:line-through;pointer-events:none";}
+      // Confirmación inline — no native confirm()
+      var confDiv=document.getElementById("merge-confirm-inline");
+      if(confDiv){
+        confDiv.innerHTML="<div style='background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:12px;padding:12px 14px;margin-bottom:10px'>"
+          +"<div style='font-size:0.72rem;font-weight:700;color:#f87171;margin-bottom:6px'>⚠️ Fusionar "+origenes.length+" → "+destino+"</div>"
+          +"<div style='font-size:0.65rem;color:rgba(255,255,255,0.6);margin-bottom:10px'>"+origenes.join(" · ")+"</div>"
+          +"<div style='display:flex;gap:8px'>"
+          +"<button onclick='document.getElementById(\"merge-confirm-inline\").innerHTML=\"\"' style='flex:1;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:8px;cursor:pointer;color:rgba(255,255,255,0.6);font-size:0.72rem'>Cancelar</button>"
+          +"<button onclick='confirmarFusionMasiva()' style='flex:2;background:rgba(239,68,68,0.2);border:1px solid rgba(239,68,68,0.4);border-radius:8px;padding:8px;cursor:pointer;color:#f87171;font-size:0.72rem;font-weight:700'>✓ Confirmar fusión</button>"
+          +"</div></div>";
+        confDiv.style.display="block";
+        // Guardar los valores para cuando confirme
+        window._pendingOrigenes=origenes;
+        window._pendingDestino=destino;
+        return;
       }
-      if(btnFusionar){btnFusionar.disabled=false;btnFusionar.textContent="⇄ Fusionar";}
-      showToast("✅ "+origenes.length+" nombres fusionados → "+destino);
-      renderLista();renderMesa();
-      // NO cerrar — dejar abierto para seguir fusionando
     } else {
       var origen=window._mergeOrigen;
       var dest=document.getElementById("merge-destino-sel").value;
       if(!origen||!dest||origen===dest){showToast("Seleccioná dos nombres distintos");return;}
-      if(!confirm("Fusionar '"+origen+"' → '"+dest+"'?"))return;
       closeModal("mmerge");
       await fusionarGalan(origen,dest);
       var nl2=galanes.filter(function(g){return g!==origen;});
@@ -661,6 +661,29 @@
       showToast("✓ "+origen+" → "+dest);
       renderLista();renderMesa();
     }
+  };
+
+  window.confirmarFusionMasiva=async function(){
+    var origenes=window._pendingOrigenes;
+    var destino=window._pendingDestino;
+    if(!origenes||!destino)return;
+    var confDiv=document.getElementById("merge-confirm-inline");
+    if(confDiv)confDiv.innerHTML="";
+    var btnFusionar=document.querySelector("#mmerge .bp");
+    if(btnFusionar){btnFusionar.disabled=true;btnFusionar.textContent="Fusionando...";}
+    for(var i=0;i<origenes.length;i++){
+      showToast("Procesando "+(i+1)+"/"+origenes.length+": "+origenes[i]);
+      await fusionarGalan(origenes[i],destino);
+      var nl=galanes.filter(function(g){return g!==origenes[i];});
+      if(nl.length!==galanes.length){galanes=nl;await set(rG,nl);}
+      // Sacar de la lista del modal
+      var cb=document.querySelector("#merge-viejos-list input[value='"+origenes[i].replace(/'/g,"\\'")+"']");
+      if(cb){var lbl=cb.closest("label");if(lbl)lbl.remove();}
+    }
+    if(btnFusionar){btnFusionar.disabled=false;btnFusionar.textContent="⇄ Fusionar";}
+    window._pendingOrigenes=null;window._pendingDestino=null;
+    showToast("✅ "+origenes.length+" fusionados → "+destino);
+    renderLista();renderMesa();
   };
 
   window.eliminarDeListaBase=async function(el){
@@ -1745,17 +1768,13 @@
           var filas=fechas.map(function(f){
             var h=hist[f];
             var miPed=null;
-            // Buscar mi pedido en esa fecha
             if(h.pedidos){Object.values(h.pedidos).forEach(function(o){if(o.player===me&&!miPed)miPed=o;});}
-            if(!miPed)return null;
-            // Acumular top bebidas
-            var dk=miPed.drink||"?";if(!miTops[dk])miTops[dk]={icon:miPed.icon||"☕",count:0};miTops[dk].count++;
-            // Pago de esa fecha
+            // Acumular top bebidas solo si pidió
+            if(miPed){var dk=miPed.drink||"?";if(!miTops[dk])miTops[dk]={icon:miPed.icon||"☕",count:0};miTops[dk].count++;}
             var pg=h.pagos&&h.pagos[me]?h.pagos[me]:{};
             var pagado=(pg.cash||0)+(pg.transfer||0);
-            if(pagado>0)miPagos.push(pagado);
-            return {fecha:f,drink:miPed.drink,icon:miPed.icon||"☕",pagado:pagado};
-          }).filter(Boolean);
+            return {fecha:f,drink:miPed?miPed.drink:null,icon:miPed?miPed.icon||"☕":null,pagado:pagado,faltó:!miPed};
+          });
 
           // Top 3 mis bebidas
           var top3=Object.entries(miTops).sort(function(a,b){return b[1].count-a[1].count;}).slice(0,3);
@@ -1778,6 +1797,13 @@
           var filasHtml=filas.length?filas.map(function(f){
             var dt=new Date(f.fecha);
             var dstr=(dt.getDate())+"/"+(dt.getMonth()+1);
+            if(f.faltó){
+              return "<div style='display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #161616;opacity:0.45'>"
+                +"<span style='font-family:\"DM Mono\",monospace;font-size:0.62rem;color:var(--mut);width:32px;flex-shrink:0'>"+dstr+"</span>"
+                +"<span style='font-size:0.75rem'>😴</span>"
+                +"<span style='font-size:0.68rem;color:var(--mut);flex:1;font-style:italic'>No fue</span>"
+                +"</div>";
+            }
             return "<div style='display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #161616'>"
               +"<span style='font-family:\"DM Mono\",monospace;font-size:0.62rem;color:var(--mut);width:32px;flex-shrink:0'>"+dstr+"</span>"
               +"<span style='font-size:0.75rem'>"+f.icon+"</span>"
@@ -2106,16 +2132,15 @@
 
   window.loginFiltrar=function(val){
     var sug=document.getElementById("login-sugerencias");if(!sug)return;
-    var q=val.trim().toLowerCase();
+    var q=normStr(val);
     if(!q){sug.style.display="none";return;}
     var matches=galanes.filter(function(g){
-      return g.toLowerCase().startsWith(q)||
-             g.toLowerCase().split(" ").some(function(p){return p.startsWith(q);});
+      var gn=normStr(g);
+      return gn.startsWith(q)||gn.split(" ").some(function(p){return p.startsWith(q);});
     }).slice(0,5);
     if(!matches.length){sug.style.display="none";return;}
     sug.style.display="block";
     sug.innerHTML=matches.map(function(g,idx){
-      var initials=ini(g);
       var isLast=idx===matches.length-1;
       return "<button data-gn='"+g+"' onclick='loginSelectGalan(this.dataset.gn)' "
         +"style='display:flex;align-items:center;gap:12px;width:100%;background:none;border:none;"
@@ -2126,7 +2151,7 @@
         +"<div style='width:40px;height:40px;border-radius:50%;background:"+col(g)+";"
         +"display:flex;align-items:center;justify-content:center;flex-shrink:0;"
         +"font-family:\"Bebas Neue\",sans-serif;font-size:1rem;color:white;letter-spacing:0.04em'>"
-        +initials+"</div>"
+        +ini(g)+"</div>"
         +"<span style='font-size:0.88rem;font-weight:600;color:#fff;letter-spacing:0.04em;text-transform:uppercase'>"+g+"</span>"
         +"</button>";
     }).join("");
@@ -2138,14 +2163,35 @@
     var sug=document.getElementById("login-sugerencias");if(sug)sug.style.display="none";
     loginEntrar();
   };
+  function normStr(s){
+    return s.trim().toLowerCase()
+      .normalize("NFD").replace(/[\u0300-\u036f]/g,"")
+      .replace(/[^a-z0-9 ]/g,"");
+  }
+  function matchGalan(input){
+    var q=normStr(input);
+    if(!q)return null;
+    // Match exacto ignorando case/acentos
+    var exact=galanes.find(function(g){return normStr(g)===q;});
+    if(exact)return exact;
+    // Match por primer nombre
+    var byFirst=galanes.find(function(g){return normStr(g).split(" ")[0]===q;});
+    if(byFirst)return byFirst;
+    return null;
+  }
   window.loginConfirmarNombre=function(){
     var inp=document.getElementById("login-input-nombre");
-    var nombre=inp?inp.value.trim():"";
-    if(!nombre){showToast("Escribí tu nombre");return;}
-    nombre=nombre.charAt(0).toUpperCase()+nombre.slice(1).toLowerCase();
-    var exact=galanes.find(function(g){return g.toLowerCase()===nombre.toLowerCase();});
-    if(exact)nombre=exact;
-    me=nombre;localStorage.setItem("galan_name",nombre);
+    var raw=inp?inp.value.trim():"";
+    if(!raw){showToast("Escribí tu nombre");return;}
+    // Intentar match con lista existente
+    var matched=matchGalan(raw);
+    if(matched){
+      me=matched;
+    } else {
+      // Capitalizar primer letra de cada palabra
+      me=raw.replace(/\b\w/g,function(l){return l.toUpperCase();});
+    }
+    localStorage.setItem("galan_name",me);
     loginEntrar();
   };
   window.loginEntrar=function(){
@@ -3019,6 +3065,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
       <div style="font-size:0.65rem;color:var(--mut);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:6px">Fusionar con</div>
       <select id="merge-destino-sel"></select>
     </div>
+    <div id="merge-confirm-inline" style="display:none;margin-bottom:8px"></div>
     <div class="ma">
       <button class="bs" style="flex:0.5" onclick="closeModal('mmerge')">Cancelar</button>
       <button class="bp" onclick="ejecutarMerge()" style="background:linear-gradient(135deg,#7c3aed,#5b21b6)">⇄ Fusionar</button>
@@ -3030,7 +3077,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.8";
+  var APP_VERSION="10.0.10";
   var STORED_VERSION=localStorage.getItem("app_version");
 
   if("serviceWorker"in navigator){
