@@ -224,6 +224,7 @@
     // Ocultar todo lo del usuario
     document.getElementById("badge").style.display="none";
     document.getElementById("prompt").style.display="flex";
+    var adminFab=document.getElementById("admin-fab");if(adminFab)adminFab.style.display="none";
     document.getElementById("confirm-wrap").style.display="none";
     // Ocultar banner de pedido enviado
     var banner=document.getElementById("pedido-status-banner");if(banner)banner.style.display="none";
@@ -246,8 +247,9 @@
     b.style.display="flex";document.getElementById("prompt").style.display="none";
     // Mostrar tabs según rol
     var adminBtn=document.querySelector("[data-tab='admin']");if(adminBtn)adminBtn.style.cssText=isAdmin()?"display:flex!important":"display:none!important";;
+    var adminFab=document.getElementById("admin-fab");if(adminFab)adminFab.style.display=isAdmin()?"inline-flex":"none";
     // Resumen y Cumples visibles con login
-    ["resumen","cumples","stats","mundial"].forEach(function(t){var btn=document.querySelector("[data-tab='"+t+"']");if(btn)btn.style.cssText="display:flex!important";});
+    ["resumen","cumples","stats"].forEach(function(t){var btn=document.querySelector("[data-tab='"+t+"']");if(btn)btn.style.cssText="display:flex!important";});
     renderConfirmBtn();renderCumpleBanner();
   }
 
@@ -2783,7 +2785,8 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
   <div class="nz">
     <div id="prompt" onclick="showLoginScreen()" style="cursor:pointer">👤 Quien sos?</div>
     <div id="badge" onclick="showLoginScreen()" style="cursor:pointer"></div>
-    <button id="vbtn" onclick="toggleVoice()" style="margin-left:auto">🔇</button>
+    <button id="vbtn" onclick="toggleVoice()">🔇</button>
+    <button id="admin-fab" onclick="switchTab('admin')" style="display:none;margin-left:6px;background:rgba(99,102,241,0.15);border:1px solid rgba(99,102,241,0.35);border-radius:50%;width:32px;height:32px;font-size:1rem;cursor:pointer;padding:0;line-height:1;color:#a5b4fc" title="Admin">⚙️</button>
   </div>
 </header>
 <div id="cumple-banner" style="display:none"></div>
@@ -2799,7 +2802,6 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
   <button class="tab" data-tab="stats"   onclick="switchTab('stats')" style="display:none">📊 Stats</button>
   <button class="tab" data-tab="mundial" onclick="switchTab('mundial')">🌍 Mundial</button>
   <button class="tab" onclick="window.open('https://cristianlovino-cloud.github.io/asado-caleta/','_blank')" style="color:rgba(255,140,0,0.7)">🔥 Asado</button>
-  <button class="tab" data-tab="admin"   onclick="switchTab('admin')" style="display:none">⚙️ Admin</button>
 </div>
 <div class="main">
   <div id="v-pedir">
