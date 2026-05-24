@@ -103,7 +103,7 @@
   }, true);
   window.addEventListener("DOMContentLoaded",function(){
     updateClock();setInterval(updateClock,30000);
-    switchTab("pedir");
+    switchTab("pedir",true);
     onValue(rG,function(s){
       galanes=s.exists()?s.val():KNOWN_DEF.slice();
       if(!s.exists())set(rG,galanes);
@@ -194,7 +194,7 @@
       setTimeout(function(){
         var ls=document.getElementById("login-screen");
         if(ls)ls.style.display="none";
-        renderDrinks();switchTab("pedir");
+        renderDrinks();switchTab("pedir",true);
       },500);
     } else {
       setTimeout(function(){showLoginScreen();},400);
@@ -210,22 +210,34 @@
     var ahora=Date.now(),cur=accesos[me]||{count:0};
     set(ref(db,"config/accesos/"+me),{count:(cur.count||0)+1,lastAccess:ahora});
     renderMyName();renderDrinks();renderOrders();renderMesa();renderLista();renderConfirmBtn();renderCumpleBanner();
-    switchTab("pedir");
+    switchTab("pedir",true);
     if(galanes.indexOf(me)===-1&&me!==ADMIN){
       set(ref(db,"config/pendientes/"+me),{ts:Date.now(),nombre:me});
     }
   };
   window.changeName=function(){document.getElementById("inp-name").value=me||"";openModal("mnombre");};
   window.logout=function(e){
-    e.stopPropagation();
+    if(e)e.stopPropagation();
     if(me)localStorage.setItem("galan_name_last",me);
     me=null;localStorage.removeItem("galan_name");
+    _confirmando=false;
+    // Ocultar todo lo del usuario
     document.getElementById("badge").style.display="none";
     document.getElementById("prompt").style.display="flex";
     document.getElementById("confirm-wrap").style.display="none";
+    // Ocultar banner de pedido enviado
+    var banner=document.getElementById("pedido-status-banner");if(banner)banner.style.display="none";
+    var repWrap=document.getElementById("repeat-last-wrap");if(repWrap)repWrap.style.display="none";
+    var miSaldo=document.getElementById("mi-saldo-card");if(miSaldo)miSaldo.innerHTML="";
     // Ocultar tabs que requieren login
-    ["admin","resumen","cumples","stats"].forEach(function(t){var b=document.querySelector("[data-tab='"+t+"']");if(b)b.style.cssText="display:none!important";});
-    renderDrinks();renderOrders();renderMesa();renderLista();renderReserva();switchTab("pedir");
+    ["admin","resumen","cumples","stats","mundial"].forEach(function(t){
+      var b=document.querySelector("[data-tab='"+t+"']");
+      if(b)b.style.cssText="display:none!important";
+    });
+    // Mostrar login screen con logo
+    renderDrinks();
+    switchTab("pedir",true);
+    setTimeout(function(){showLoginScreen();},150);
   };
   function isAdmin(){return me===ADMIN;}
   function renderMyName(){
@@ -261,8 +273,8 @@
   };
 
   // ── TABS ─────────────────────────────────────────────────
-  window.switchTab=function(tab){
-    if(!me&&tab!=="pedir"){showLoginScreen();return;}
+  window.switchTab=function(tab,force){
+    if(!me&&!force){showLoginScreen();return;}
     if(tab==="admin"&&!isAdmin()){showToast("Solo el admin puede ver esta sección");return;}
     ["pedir","resumen","cumples","stats","mundial","admin"].forEach(function(t){
       var v=document.getElementById("v-"+t);if(v)v.style.display=t===tab?"block":"none";
@@ -311,10 +323,12 @@
   function confirmado(){return me&&confirmed[me];}
   function renderConfirmBtn(){
     var w=document.getElementById("confirm-wrap");if(!w)return;
-    if(!me){w.style.display="none";return;}
-    var misPed=Object.values(orders).filter(function(o){return o.player===me;});
-    var last=localStorage.getItem("last_order_"+me);
     var banner=document.getElementById("pedido-status-banner");
+    if(!me){
+      w.style.display="none";
+      if(banner)banner.style.display="none";
+      return;
+    }
     if(banner){
       var pills="<div style='display:flex;gap:8px;flex-wrap:wrap;margin:12px 12px 0;'>";
       // Pill 1: estado pedido
@@ -2185,7 +2199,7 @@
     hideLoginScreen();
     renderMyName();
     renderDrinks();
-    switchTab("pedir");
+    switchTab("pedir",true);
   };
   window.loginCambiarNombre=function(){
     me=null;localStorage.removeItem("galan_name");
@@ -3057,7 +3071,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.13";
+  var APP_VERSION="10.0.14";
   var STORED_VERSION=localStorage.getItem("app_version");
 
   if("serviceWorker"in navigator){
