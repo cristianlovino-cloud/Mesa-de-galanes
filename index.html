@@ -1872,9 +1872,7 @@
 
 
   // API-Football (api-sports.io)
-  // ── Backend proxy (Render) — evita CORS y protege las keys ──
   var SPORTS_BACKEND="https://asado-sports-api.onrender.com";
-  // Legacy — no se usan directamente, el backend las maneja
   var APISPORTS_KEY="";
   var APISPORTS_BASE="";
   var WC_LEAGUE=1;
@@ -1917,19 +1915,18 @@
     },1000);
 
     try{
-      // Grupos via backend proxy en Render (evita CORS y protege la API key)
+      // Grupos via backend proxy en Render (evita CORS + protege key)
       var r1=await fetch(SPORTS_BACKEND+"/mundial/grupos");
       var j1=await r1.json();
 
-      // Adaptar formato del backend al que espera renderMundialGroups
+      // Adaptar formato backend → formato api-sports que espera renderMundialGroups
       var d1={response:[]};
       if(j1.ok && j1.data){
         if(j1.source==="static"){
-          // source:static → convertir estructura propia a formato api-sports
           d1={response:[{league:{standings:j1.data.map(function(g){
             return g.equipos.map(function(e){
-              return{team:{name:e.nombre,id:0},points:e.pts,
-                all:{played:e.pj,win:e.pg,draw:e.pe,lose:e.pp,goals:{for:e.gf,against:e.gc}}};
+              return{team:{name:e.nombre,id:0,flag:"https://flagcdn.com/28x21/"+e.flag.toLowerCase()+".png"},
+                points:e.pts,all:{played:e.pj,win:e.pg,draw:e.pe,lose:e.pp,goals:{for:e.gf,against:e.gc}}};
             });
           })}}]};
         } else if(j1.source==="live"){
@@ -1937,10 +1934,8 @@
         }
       }
 
-      // Fixtures: vacío hasta que arranque el torneo (11 jun 2026)
+      // Bracket estático (se llena con datos live cuando arranque el torneo)
       var d2={response:[]};
-
-      console.log("Backend grupos ok, source:", j1.source, "grupos:", j1.data&&j1.data.length);
 
       renderMundialGroups(d1,d2,panel,getCountdownHtml());
     }catch(err){
@@ -2022,7 +2017,9 @@
       html+='</div>';
       equipos.slice(0,4).forEach(function(e){
         var nm=e.team?e.team.name:"?";
-        html+='<div style="font-size:0.58rem;color:var(--ink);margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+nm+'</div>';
+        var flagUrl=e.team&&e.team.flag?e.team.flag:"";
+        var flagHtml=flagUrl?"<img src='"+flagUrl+"' style='width:14px;height:10px;object-fit:cover;border-radius:1px;margin-right:4px;vertical-align:middle'>":"";
+        html+='<div style="font-size:0.58rem;color:var(--ink);margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+flagHtml+nm+'</div>';
       });
       html+='</div>';
     });
@@ -2082,7 +2079,9 @@
         var gd=(e.goalsFor||0)-(e.goalsAgainst||0);
         h+="<tr style='"+(esArg?"background:rgba(116,166,214,0.08)":"")+"'>";
         h+="<td style='padding:4px 3px;color:"+(i<2?"#4ade80":"var(--mut)")+"'>"+(i+1)+"</td>";
-        h+="<td style='font-weight:600;color:var(--ink)'>"+nm+"</td>";
+        var tFlag=e.team&&e.team.flag?e.team.flag:"";
+        var tFlagHtml=tFlag?"<img src='"+tFlag+"' style='width:16px;height:11px;object-fit:cover;border-radius:1px;margin-right:5px;vertical-align:middle'>":"";
+        h+="<td style='font-weight:600;color:var(--ink)'>"+tFlagHtml+nm+"</td>";
         h+="<td style='text-align:center;color:var(--mut)'>"+(e.playedGames||0)+"</td>";
         h+="<td style='text-align:center;color:var(--mut)'>"+(e.won||0)+"</td>";
         h+="<td style='text-align:center;color:var(--mut)'>"+(e.draw||0)+"</td>";
