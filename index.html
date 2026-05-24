@@ -262,7 +262,7 @@
 
   // ── TABS ─────────────────────────────────────────────────
   window.switchTab=function(tab){
-    if(!me&&tab!=="pedir"){openModal("mnombre");return;}
+    if(!me&&tab!=="pedir"){showLoginScreen();return;}
     if(tab==="admin"&&!isAdmin()){showToast("Solo el admin puede ver esta sección");return;}
     ["pedir","resumen","cumples","stats","mundial","admin"].forEach(function(t){
       var v=document.getElementById("v-"+t);if(v)v.style.display=t===tab?"block":"none";
@@ -963,7 +963,7 @@
 
   // ── PEDIDOS ───────────────────────────────────────────────
   window.selectDrink=function(idx){
-    if(!me){openModal("mnombre");return;}
+    if(!me){showLoginScreen();return;}
     // Si ya confirmó, solo avisar pero dejar continuar (puede querer cambiar)
     // El bloqueo total solo aplica si el admin cerró la mesa
     var myOrders=Object.entries(orders).filter(function(e){return e[1].player===me&&e[1].drinkIdx===idx;});
@@ -2753,8 +2753,8 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
     <img src="icon-transparent.png" style="width:40px;height:40px;object-fit:contain;flex-shrink:0;align-self:center;opacity:0.9;filter:drop-shadow(0 0 8px rgba(116,174,214,0.4))">
   </div>
   <div class="nz">
-    <div id="prompt" onclick="openModal('mnombre')">👤 Quien sos?</div>
-    <div id="badge" onclick="changeName()"></div>
+    <div id="prompt" onclick="showLoginScreen()" style="cursor:pointer">👤 Quien sos?</div>
+    <div id="badge" onclick="showLoginScreen()" style="cursor:pointer"></div>
     <button id="vbtn" onclick="toggleVoice()" style="margin-left:auto">🔇</button>
   </div>
 </header>
@@ -2770,6 +2770,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
   <button class="tab" data-tab="cumples" onclick="switchTab('cumples')">🎂 Cumples</button>
   <button class="tab" data-tab="stats"   onclick="switchTab('stats')" style="display:none">📊 Stats</button>
   <button class="tab" data-tab="mundial" onclick="switchTab('mundial')">🌍 Mundial</button>
+  <button class="tab" onclick="window.open('https://cristianlovino-cloud.github.io/asado-caleta/','_blank')" style="color:rgba(255,140,0,0.7)">🔥 Asado</button>
   <button class="tab" data-tab="admin"   onclick="switchTab('admin')" style="display:none">⚙️ Admin</button>
 </div>
 <div class="main">
@@ -3056,7 +3057,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.11";
+  var APP_VERSION="10.0.13";
   var STORED_VERSION=localStorage.getItem("app_version");
 
   if("serviceWorker"in navigator){
