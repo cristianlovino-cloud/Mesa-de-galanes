@@ -107,12 +107,11 @@
     onValue(rG,function(s){
       galanes=s.exists()?s.val():KNOWN_DEF.slice();
       if(!s.exists())set(rG,galanes);
-      // Actualizar grid de login si está visible
+      // Actualizar sugerencias si está escribiendo
+      var inp=document.getElementById("login-input-nombre");
       var ls=document.getElementById("login-screen");
-      var sug=document.getElementById("login-sugerencias");
-      if(ls&&ls.style.display!=="none"&&sug&&!me){
-        sug.style.display="block";
-        renderLoginGrid(sug,galanes);
+      if(inp&&ls&&ls.style.display!=="none"&&!me&&inp.value){
+        loginFiltrar(inp.value);
       }
       renderLoginGalanes();
     });
@@ -563,9 +562,46 @@
     var origen=el.getAttribute("data-name");if(!origen)return;
     window._mergeOrigen=origen;
     document.getElementById("merge-principal-name").textContent=origen;
-    var otros=galanes.filter(function(g){return g!==origen;}).slice().sort();
+    // Incluir todos los nombres: galanes + orders actuales + historial
+    var todosSet={};
+    galanes.forEach(function(g){todosSet[g]=true;});
+    Object.values(orders).forEach(function(o){if(o.player)todosSet[o.player]=true;});
+    Object.keys(pagos||{}).forEach(function(p){todosSet[p]=true;});
+    var todos=Object.keys(todosSet).filter(function(g){return g!==origen;}).sort();
     var sel=document.getElementById("merge-destino-sel");
-    sel.innerHTML=otros.map(function(g){return"<option value='"+g+"'>"+g+"</option>";}).join("");
+    sel.innerHTML=todos.map(function(g){
+      var isGalan=galanes.indexOf(g)!==-1;
+      return "<option value='"+g+"'>"+(isGalan?"":"★ ")+g+"</option>";
+    }).join("");
+    // Mostrar cuántos tiene el origen en orders
+    var countOrigen=Object.values(orders).filter(function(o){return o.player===origen;}).length;
+    var mp=document.getElementById("merge-principal-name");
+    if(mp)mp.textContent=origen+(countOrigen>0?" ("+countOrigen+" pedidos)":"");
+    openModal("mmerge");
+  };
+  // Fusión desde Admin → también buscar en historial
+  window.abrirMergeMasivo=async function(){
+    if(!isAdmin())return;
+    var hSnap=await get(rH);
+    var todosSet={};
+    galanes.forEach(function(g){todosSet[g]=true;});
+    Object.values(orders).forEach(function(o){if(o.player)todosSet[o.player]=true;});
+    if(hSnap.exists()){
+      Object.values(hSnap.val()).forEach(function(dia){
+        if(dia.pedidos)Object.values(dia.pedidos).forEach(function(o){if(o.player)todosSet[o.player]=true;});
+        if(dia.pagos)Object.keys(dia.pagos).forEach(function(p){todosSet[p]=true;});
+      });
+    }
+    var todos=Object.keys(todosSet).sort();
+    // Mostrar modal con lista completa para elegir origen
+    var opts=todos.map(function(g){return"<option value='"+g+"'>"+g+"</option>";}).join("");
+    document.getElementById("merge-principal-name").textContent="Seleccioná el nombre VIEJO";
+    var sel=document.getElementById("merge-destino-sel");
+    sel.innerHTML=opts;
+    // Override: primer select es el origen
+    window._mergeOrigen=null;
+    window._mergeMasivo=todos;
+    document.getElementById("mmerge-title").textContent="Fusión masiva";
     openModal("mmerge");
   };
   window.ejecutarMerge=async function(){
@@ -1977,11 +2013,9 @@
       document.getElementById("login-step1").style.display="flex";
       document.getElementById("login-step2").style.display="none";
       var sl3=document.getElementById("login-sat-label");if(sl3)sl3.style.display="block";
-      // Mostrar grid de iniciales inmediatamente
-      setTimeout(function(){
-        var sug=document.getElementById("login-sugerencias");
-        if(sug&&galanes.length){sug.style.display="block";renderLoginGrid(sug,galanes);}
-      },150);
+      // Limpiar input y sugerencias
+      var inp=document.getElementById("login-input-nombre");if(inp)inp.value="";
+      var sug=document.getElementById("login-sugerencias");if(sug)sug.style.display="none";
     }
   }
   function hideLoginScreen(){
@@ -1994,47 +2028,32 @@
   window.loginFiltrar=function(val){
     var sug=document.getElementById("login-sugerencias");if(!sug)return;
     var q=val.trim().toLowerCase();
-    if(!q){
-      // Sin texto — mostrar todos en grid de iniciales
-      sug.style.display="block";
-      renderLoginGrid(sug,galanes);
-      return;
-    }
+    if(!q){sug.style.display="none";return;}
     var matches=galanes.filter(function(g){
-      var lower=g.toLowerCase();
-      return lower.startsWith(q)||ini(g).toLowerCase().startsWith(q);
-    }).slice(0,12);
+      return g.toLowerCase().startsWith(q)||
+             g.toLowerCase().split(" ").some(function(p){return p.startsWith(q);});
+    }).slice(0,5);
     if(!matches.length){sug.style.display="none";return;}
     sug.style.display="block";
-    renderLoginGrid(sug,matches);
+    sug.innerHTML=matches.map(function(g,idx){
+      var initials=ini(g);
+      var isLast=idx===matches.length-1;
+      return "<button data-gn='"+g+"' onclick='loginSelectGalan(this.dataset.gn)' "
+        +"style='display:flex;align-items:center;gap:12px;width:100%;background:none;border:none;"
+        +(isLast?"":"border-bottom:1px solid rgba(255,255,255,0.06);")
+        +"padding:12px 16px;cursor:pointer;transition:background 0.1s;' "
+        +"onmouseenter=\"this.style.background='rgba(255,255,255,0.05)'\" "
+        +"onmouseleave=\"this.style.background='none'\">"
+        +"<div style='width:40px;height:40px;border-radius:50%;background:"+col(g)+";"
+        +"display:flex;align-items:center;justify-content:center;flex-shrink:0;"
+        +"font-family:\"Bebas Neue\",sans-serif;font-size:1rem;color:white;letter-spacing:0.04em'>"
+        +initials+"</div>"
+        +"<span style='font-size:0.88rem;font-weight:600;color:#fff;letter-spacing:0.04em;text-transform:uppercase'>"+g+"</span>"
+        +"</button>";
+    }).join("");
   };
 
-  function renderLoginGrid(sug,lista){
-    // 4 columnas en grid, iniciales grandes, nombre completo abajo pequeño
-    sug.innerHTML="<div style='display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:12px'>"
-      +lista.map(function(g){
-        var initials=ini(g);
-        return "<button data-gn='"+g+"' onclick='loginSelectGalan(this.dataset.gn)' "
-          +"title='"+g+"' "
-          +"style='display:flex;flex-direction:column;align-items:center;gap:5px;"
-          +"background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);"
-          +"border-radius:12px;padding:10px 4px 8px;cursor:pointer;transition:all 0.15s;"
-          +"min-width:0;overflow:hidden;' "
-          +"onmouseenter=\"this.style.borderColor='rgba(106,176,216,0.4)';this.style.background='rgba(106,176,216,0.08)'\" "
-          +"onmouseleave=\"this.style.borderColor='rgba(255,255,255,0.08)';this.style.background='rgba(255,255,255,0.04)'\">"
-          +"<div style='width:46px;height:46px;border-radius:50%;background:"+col(g)+";"
-          +"display:flex;align-items:center;justify-content:center;flex-shrink:0;"
-          +"font-family:\"Bebas Neue\",sans-serif;font-size:1.2rem;color:white;letter-spacing:0.04em'>"
-          +initials+"</div>"
-          +"<span style='font-size:0.55rem;color:rgba(255,255,255,0.45);letter-spacing:0.02em;"
-          +"text-align:center;width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"
-          +"padding:0 3px;line-height:1.2'>"
-          +g.split(" ")[0].toUpperCase()  // Solo primer nombre abajo
-          +"</span>"
-          +"</button>";
-      }).join("")
-      +"</div>";
-  }
+  function renderLoginGrid(){} // ya no se usa
   window.loginSelectGalan=function(nombre){
     me=nombre;localStorage.setItem("galan_name",nombre);
     var sug=document.getElementById("login-sugerencias");if(sug)sug.style.display="none";
@@ -2608,23 +2627,16 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
   <div class="login-sub" style="font-size:0.72rem;letter-spacing:0.12em;margin-bottom:6px">☕ SÁBADOS 7:45 · CRR TENIS</div>
   <div class="login-sat" id="login-sat-label" style="font-size:0.75rem;letter-spacing:0.1em;margin-bottom:22px">PRÓXIMO: SÁB 23 MAY</div>
 
-  <div id="login-step1" style="width:100%;max-width:380px;display:flex;flex-direction:column;align-items:center;padding:0 16px;box-sizing:border-box">
-    <div style="font-size:0.75rem;color:rgba(255,255,255,0.5);letter-spacing:0.12em;margin-bottom:14px;text-align:center">¿QUIÉN SOS?</div>
-    <!-- Grid fijo de iniciales -->
-    <div id="login-sugerencias" style="width:100%;background:rgba(17,17,17,0.95);border:1px solid rgba(255,255,255,0.08);border-radius:16px;overflow:hidden;margin-bottom:14px;min-height:80px">
-      <div style="padding:20px;text-align:center;color:rgba(255,255,255,0.2);font-size:0.7rem">Cargando...</div>
-    </div>
-    <!-- Input para nombre no registrado — oculto por defecto -->
-    <div id="login-input-wrap" style="display:none;width:100%;box-sizing:border-box">
-      <input class="login-input" id="login-input-nombre" placeholder="TU NOMBRE" maxlength="30" autocomplete="off"
-        style="width:100%;box-sizing:border-box"
-        onkeydown="if(event.key==='Enter')loginConfirmarNombre()">
-      <button onclick="loginConfirmarNombre()" style="width:100%;box-sizing:border-box;background:linear-gradient(135deg,var(--club-cel),var(--club-ama));color:#080808;border:none;border-radius:14px;padding:16px;font-family:'Bebas Neue',sans-serif;font-size:1.1rem;font-weight:400;cursor:pointer;letter-spacing:0.1em;margin-top:8px">ENTRAR →</button>
-    </div>
-    <button onclick="var w=document.getElementById('login-input-wrap');w.style.display=w.style.display==='none'?'flex':'none';w.style.flexDirection='column'"
-      style="background:none;border:none;color:rgba(255,255,255,0.3);font-size:0.68rem;cursor:pointer;letter-spacing:0.04em;text-decoration:underline;font-family:var(--font-body);margin-top:4px">
-      No estás en la lista — escribí tu nombre
-    </button>
+  <div id="login-step1" style="width:100%;max-width:360px;display:flex;flex-direction:column;align-items:center;padding:0 20px;box-sizing:border-box">
+    <!-- Input principal -->
+    <input class="login-input" id="login-input-nombre" placeholder="TU NOMBRE" maxlength="30" autocomplete="off"
+      style="width:100%;box-sizing:border-box;font-size:1.1rem;text-align:left;letter-spacing:0.06em;margin-bottom:8px"
+      oninput="loginFiltrar(this.value)"
+      onkeydown="if(event.key==='Enter')loginConfirmarNombre()">
+    <!-- Sugerencias dinámicas — solo aparecen al escribir -->
+    <div id="login-sugerencias" style="display:none;width:100%;background:#161616;border:1px solid rgba(255,255,255,0.1);border-radius:14px;overflow:hidden;margin-bottom:10px"></div>
+    <!-- Botón entrar -->
+    <button onclick="loginConfirmarNombre()" style="width:100%;box-sizing:border-box;background:linear-gradient(135deg,var(--club-cel),var(--club-ama));color:#080808;border:none;border-radius:14px;padding:16px;font-family:'Bebas Neue',sans-serif;font-size:1.2rem;font-weight:400;cursor:pointer;letter-spacing:0.1em">ENTRAR →</button>
   </div>
 </div>
 <div id="splash-screen" style="position:fixed;inset:0;background:#0a0a0a;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;transition:opacity 0.5s ease">
@@ -2705,6 +2717,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
       <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 14px 10px;flex-wrap:wrap;gap:8px">
         <span id="mesa-count" style="font-size:0.78rem;font-weight:700;color:var(--mut);background:var(--brd);padding:4px 12px;border-radius:100px;letter-spacing:0.06em">0 galanes</span>
         <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <button class="admin-action-btn" onclick="abrirMergeMasivo()" style="background:rgba(99,102,241,0.12);color:#a5b4fc;border-color:rgba(99,102,241,0.3)">⇄ Fusionar</button>
           <button class="admin-action-btn" onclick="pedirPorOtro()">+ Cargar</button>
           <button class="admin-action-btn" id="import-res-btn" onclick="importarReservas()" style="display:none;background:rgba(34,197,94,0.15);color:#4ade80;border-color:rgba(34,197,94,0.3)">📋 Importar</button>
           <button class="admin-action-btn" onclick="openTimerModal()">⏱ Timer</button>
@@ -2916,7 +2929,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
     <div class="mh2"></div>
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:18px">
       <span style="font-size:1.4rem">⇄</span>
-      <h3 style="margin:0">Fusionar participante</h3>
+      <h3 id="mmerge-title" style="margin:0">Fusionar participante</h3>
     </div>
     <p class="msub" style="margin-bottom:16px">El nombre principal queda activo. El otro se elimina y sus datos pasan al principal.</p>
     <div style="margin-bottom:14px">
@@ -2938,7 +2951,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.4";
+  var APP_VERSION="10.0.5";
   var STORED_VERSION=localStorage.getItem("app_version");
 
   if("serviceWorker"in navigator){
