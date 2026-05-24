@@ -104,7 +104,18 @@
   window.addEventListener("DOMContentLoaded",function(){
     updateClock();setInterval(updateClock,30000);
     switchTab("pedir");
-    onValue(rG,function(s){galanes=s.exists()?s.val():KNOWN_DEF.slice();renderLoginGalanes();if(!s.exists())set(rG,galanes);});
+    onValue(rG,function(s){
+      galanes=s.exists()?s.val():KNOWN_DEF.slice();
+      if(!s.exists())set(rG,galanes);
+      // Actualizar grid de login si está visible
+      var ls=document.getElementById("login-screen");
+      var sug=document.getElementById("login-sugerencias");
+      if(ls&&ls.style.display!=="none"&&sug&&!me){
+        sug.style.display="block";
+        renderLoginGrid(sug,galanes);
+      }
+      renderLoginGalanes();
+    });
     onValue(rD,function(s){
       drinks=s.exists()?s.val():DRINKS_DEF.slice();
       if(!s.exists())set(rD,drinks);
@@ -1989,22 +2000,37 @@
       renderLoginGrid(sug,galanes);
       return;
     }
-    var matches=galanes.filter(function(g){return g.toLowerCase().startsWith(q);}).slice(0,8);
+    var matches=galanes.filter(function(g){
+      var lower=g.toLowerCase();
+      return lower.startsWith(q)||ini(g).toLowerCase().startsWith(q);
+    }).slice(0,12);
     if(!matches.length){sug.style.display="none";return;}
     sug.style.display="block";
     renderLoginGrid(sug,matches);
   };
 
   function renderLoginGrid(sug,lista){
+    // 4 columnas en grid, iniciales grandes, nombre completo abajo pequeño
     sug.innerHTML="<div style='display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:12px'>"
       +lista.map(function(g){
+        var initials=ini(g);
         return "<button data-gn='"+g+"' onclick='loginSelectGalan(this.dataset.gn)' "
-          +"style='display:flex;flex-direction:column;align-items:center;gap:6px;background:rgba(255,255,255,0.04);"
-          +"border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:12px 4px;cursor:pointer;transition:all 0.15s;'>"
-          +"<div style='width:48px;height:48px;border-radius:50%;background:"+col(g)+";"
-          +"display:flex;align-items:center;justify-content:center;"
-          +"font-family:\"Bebas Neue\",sans-serif;font-size:1.3rem;color:white;font-weight:400'>"+ini(g)+"</div>"
-          +"<span style='font-size:0.55rem;color:rgba(255,255,255,0.5);letter-spacing:0.04em;text-align:center;line-height:1.2'>"+ini(g)+"</span>"
+          +"title='"+g+"' "
+          +"style='display:flex;flex-direction:column;align-items:center;gap:5px;"
+          +"background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);"
+          +"border-radius:12px;padding:10px 4px 8px;cursor:pointer;transition:all 0.15s;"
+          +"min-width:0;overflow:hidden;' "
+          +"onmouseenter=\"this.style.borderColor='rgba(106,176,216,0.4)';this.style.background='rgba(106,176,216,0.08)'\" "
+          +"onmouseleave=\"this.style.borderColor='rgba(255,255,255,0.08)';this.style.background='rgba(255,255,255,0.04)'\">"
+          +"<div style='width:46px;height:46px;border-radius:50%;background:"+col(g)+";"
+          +"display:flex;align-items:center;justify-content:center;flex-shrink:0;"
+          +"font-family:\"Bebas Neue\",sans-serif;font-size:1.2rem;color:white;letter-spacing:0.04em'>"
+          +initials+"</div>"
+          +"<span style='font-size:0.55rem;color:rgba(255,255,255,0.45);letter-spacing:0.02em;"
+          +"text-align:center;width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"
+          +"padding:0 3px;line-height:1.2'>"
+          +g.split(" ")[0].toUpperCase()  // Solo primer nombre abajo
+          +"</span>"
           +"</button>";
       }).join("")
       +"</div>";
@@ -2404,10 +2430,12 @@ header::after{
 
 /* PANTALLA LOGIN ESTILO ASADO */
 #login-screen{
-  position:fixed;inset:0;background:#0a0a0a;
+  position:fixed;inset:0;background:#050503;
   display:flex;flex-direction:column;align-items:center;justify-content:center;
-  z-index:9998;padding:32px 24px;
+  z-index:9998;padding:24px 0 40px;
   transition:opacity 0.4s ease;
+  overflow-y:auto;overflow-x:hidden;
+  box-sizing:border-box;
 }
 #login-screen.hidden{opacity:0;pointer-events:none;}
 .login-logo{width:110px;height:110px;object-fit:contain;margin-bottom:20px;
@@ -2580,22 +2608,23 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
   <div class="login-sub" style="font-size:0.72rem;letter-spacing:0.12em;margin-bottom:6px">☕ SÁBADOS 7:45 · CRR TENIS</div>
   <div class="login-sat" id="login-sat-label" style="font-size:0.75rem;letter-spacing:0.1em;margin-bottom:22px">PRÓXIMO: SÁB 23 MAY</div>
 
-  <div id="login-step1" style="width:100%;max-width:380px;display:flex;flex-direction:column;align-items:center">
+  <div id="login-step1" style="width:100%;max-width:380px;display:flex;flex-direction:column;align-items:center;padding:0 16px;box-sizing:border-box">
     <div style="font-size:0.75rem;color:rgba(255,255,255,0.5);letter-spacing:0.12em;margin-bottom:14px;text-align:center">¿QUIÉN SOS?</div>
-    <!-- Grid de iniciales — aparece inmediatamente -->
-    <div id="login-sugerencias" style="display:none;width:100%;background:rgba(17,17,17,0.95);border:1px solid rgba(255,255,255,0.08);border-radius:16px;overflow:hidden;margin-bottom:12px"></div>
-    <!-- Input para nombre no registrado -->
-    <div style="width:100%;text-align:center;margin-bottom:8px">
-      <button onclick="document.getElementById('login-input-wrap').style.display=document.getElementById('login-input-wrap').style.display==='none'?'block':'none'"
-        style="background:none;border:none;color:rgba(255,255,255,0.3);font-size:0.65rem;cursor:pointer;letter-spacing:0.06em;text-decoration:underline;font-family:var(--font-body)">
-        No estás en la lista? Escribí tu nombre
-      </button>
+    <!-- Grid fijo de iniciales -->
+    <div id="login-sugerencias" style="width:100%;background:rgba(17,17,17,0.95);border:1px solid rgba(255,255,255,0.08);border-radius:16px;overflow:hidden;margin-bottom:14px;min-height:80px">
+      <div style="padding:20px;text-align:center;color:rgba(255,255,255,0.2);font-size:0.7rem">Cargando...</div>
     </div>
-    <div id="login-input-wrap" style="display:none;width:100%">
-      <input class="login-input" id="login-input-nombre" placeholder="TU NOMBRE" maxlength="20" autocomplete="off"
-        oninput="loginFiltrar(this.value)" onkeydown="if(event.key==='Enter')loginConfirmarNombre()">
-      <button onclick="loginConfirmarNombre()" style="width:100%;background:linear-gradient(135deg,var(--club-cel),var(--club-ama));color:#080808;border:none;border-radius:14px;padding:16px;font-family:'Bebas Neue',sans-serif;font-size:1.1rem;font-weight:400;cursor:pointer;letter-spacing:0.1em;margin-top:8px">ENTRAR →</button>
+    <!-- Input para nombre no registrado — oculto por defecto -->
+    <div id="login-input-wrap" style="display:none;width:100%;box-sizing:border-box">
+      <input class="login-input" id="login-input-nombre" placeholder="TU NOMBRE" maxlength="30" autocomplete="off"
+        style="width:100%;box-sizing:border-box"
+        onkeydown="if(event.key==='Enter')loginConfirmarNombre()">
+      <button onclick="loginConfirmarNombre()" style="width:100%;box-sizing:border-box;background:linear-gradient(135deg,var(--club-cel),var(--club-ama));color:#080808;border:none;border-radius:14px;padding:16px;font-family:'Bebas Neue',sans-serif;font-size:1.1rem;font-weight:400;cursor:pointer;letter-spacing:0.1em;margin-top:8px">ENTRAR →</button>
     </div>
+    <button onclick="var w=document.getElementById('login-input-wrap');w.style.display=w.style.display==='none'?'flex':'none';w.style.flexDirection='column'"
+      style="background:none;border:none;color:rgba(255,255,255,0.3);font-size:0.68rem;cursor:pointer;letter-spacing:0.04em;text-decoration:underline;font-family:var(--font-body);margin-top:4px">
+      No estás en la lista — escribí tu nombre
+    </button>
   </div>
 </div>
 <div id="splash-screen" style="position:fixed;inset:0;background:#0a0a0a;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;transition:opacity 0.5s ease">
@@ -2909,7 +2938,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.3";
+  var APP_VERSION="10.0.4";
   var STORED_VERSION=localStorage.getItem("app_version");
 
   if("serviceWorker"in navigator){
