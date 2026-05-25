@@ -187,7 +187,7 @@
     var vb=document.getElementById("vbtn");if(vb)vb.textContent=voiceOn?"🔊":"🔇";
     var _vl=document.getElementById("version-label");if(_vl)_vl.textContent="v"+APP_VERSION;
     // Ocultar splash en 5s
-    setTimeout(function(){var sp=document.getElementById('splash-screen');if(sp){sp.style.opacity='0';setTimeout(function(){if(sp.parentNode)sp.parentNode.removeChild(sp);},500);}},5000);
+    setTimeout(function(){var sp=document.getElementById('splash-screen');if(sp){sp.style.opacity='0';setTimeout(function(){if(sp.parentNode)sp.parentNode.removeChild(sp);},300);}},1500);
     // Login: si ya tiene nombre guardado, entrar directo. Si no, mostrar login.
     if(me){
       renderMyName();
@@ -3158,6 +3158,14 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
   });
 </script>
 <script>
+  // Forzar ocultar splash después de 3s pase lo que pase
+  window.addEventListener('load', function(){
+    setTimeout(function(){
+      var sp=document.getElementById('splash-screen');
+      if(sp){sp.style.opacity='0';setTimeout(function(){if(sp&&sp.parentNode)sp.parentNode.removeChild(sp);},400);}
+    }, 3000);
+  });
+
   // Badge menu
   window.toggleBadgeMenu=function(){
     var m=document.getElementById("badge-menu");if(!m)return;
