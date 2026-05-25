@@ -367,8 +367,8 @@
             +"</div>";
         }
       }
-      // Pill 3: repetir
-      if(last&&!confirmado()){
+      // Pill 3: repetir (solo si no tiene pedido aún)
+      if(last&&!confirmado()&&!misPed.length){
         var ld=JSON.parse(last);
         pills+="<div style='background:rgba(245,197,24,0.1);border:1.5px solid rgba(245,197,24,0.35);border-radius:14px;padding:12px 14px;display:flex;align-items:center;gap:10px;cursor:pointer' onclick='repetirUltimo()'>"
           +"<span style='font-size:1.4rem'>🔁</span>"
@@ -393,6 +393,8 @@
     try{
       await set(ref(db,"pedido/confirmed/"+me),true);
       await set(ref(db,"config/accesos/"+me),{va:true,ts:Date.now()});
+      confirmed[me]=true; // actualizar local para render inmediato
+      renderConfirmBtn();renderDrinks();renderMiSaldo();
       showToast("✅ Pedido confirmado!");
       speak("Tu pedido fue enviado. Gracias "+me+"!");
     }catch(e){
@@ -1431,6 +1433,16 @@
       if(extra&&d.comboPrices){
         var comboKey=extra.toLowerCase().replace(/\s+/g,"_");
         comboAdd=d.comboPrices[comboKey]||0;
+        // fallback: buscar sin tildes
+        if(!comboAdd){
+          var ck2=extra.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/\s+/g,"_");
+          comboAdd=d.comboPrices[ck2]||0;
+        }
+        // fallback2: primer key disponible si solo hay uno
+        if(!comboAdd){
+          var ckeys=Object.keys(d.comboPrices);
+          if(ckeys.length===1)comboAdd=d.comboPrices[ckeys[0]]||0;
+        }
       }
       deuda+=base+comboAdd;
     });
