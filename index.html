@@ -1040,6 +1040,8 @@
     var meta=await getClientMeta();
     var obj={player:me,drinkIdx:d.drinkIdx,drink:d.drink,icon:d.icon,extra:d.extra||null,ts:Date.now(),device:meta.device,ip:meta.ip};
     await push(rO,obj);
+    localStorage.setItem("last_order_"+me,JSON.stringify({drink:obj.drink,icon:obj.icon,drinkIdx:obj.drinkIdx}));
+    renderConfirmBtn();renderMiSaldo();
     showToast("🔁 "+d.drink+" repetido!");
     speak("Repetido! "+d.drink);
   };
@@ -1317,6 +1319,11 @@
 
   function renderDrinks(){
     var grid=document.getElementById("drinks-grid");if(!grid)return;
+    var slabel=document.querySelector("#v-pedir .slabel");
+    if(me&&confirmado()){
+      grid.style.display="none";if(slabel)slabel.style.display="none";return;
+    }
+    grid.style.display="";if(slabel)slabel.style.display="";
     if(!drinks||!drinks.length){grid.innerHTML="<div class='es' style='padding:40px 0;opacity:0.5'>No hay bebidas cargadas ☕</div>";return;}
     var myOrders=Object.values(orders).filter(function(o){return o.player===me;});
     var myIdxs=myOrders.map(function(o){return o.drinkIdx;});
@@ -2236,8 +2243,8 @@
     if(!me||!confirmado())return;
     try{
       await remove(ref(db,"pedido/confirmed/"+me));
-      renderConfirmBtn();renderDrinks();
-      showToast("✏️ Modificá tu pedido");
+      renderConfirmBtn();renderDrinks();renderMiSaldo();
+      showToast("✏️ Pedido abierto — elegí de nuevo y enviá");
     }catch(e){showToast("Error, intentá de nuevo");}
   });
   document.addEventListener("keydown",function(e){
