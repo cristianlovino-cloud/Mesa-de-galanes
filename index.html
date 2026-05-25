@@ -245,7 +245,7 @@
     b.innerHTML=(isAdmin()?"⚙️ ":"")+me+"<span class='lx' onclick='logout(event)'>✕</span>";
     b.style.display="flex";document.getElementById("prompt").style.display="none";
     // Mostrar tabs según rol
-    var adminBtn=document.querySelector("[data-tab='admin']");if(adminBtn)adminBtn.style.cssText=isAdmin()?"display:flex!important":"display:none!important";;
+    // admin accesible solo via menú del nombre (no tab)
     // Resumen y Cumples visibles con login
     ["resumen","cumples","stats","mundial"].forEach(function(t){var btn=document.querySelector("[data-tab='"+t+"']");if(btn)btn.style.cssText="display:flex!important";});
     renderConfirmBtn();renderCumpleBanner();
@@ -280,8 +280,9 @@
       var v=document.getElementById("v-"+t);if(v)v.style.display=t===tab?"block":"none";
       var b=document.querySelector("[data-tab='"+t+"']");if(b)b.classList.toggle("active",t===tab);
     });
+    if(tab==="pedir"){renderMiSaldo();}
     if(tab==="admin"){renderLista();renderMesa();renderPendientes();if(!window._cleaned){window._cleaned=true;limpiarHuerfanos();}}
-    if(tab==="resumen"){renderOrders();renderMiSaldo();}
+    if(tab==="resumen"){renderOrders();}  // mi-saldo-card está en pedir
     if(tab==="cumples")renderCumples();
     if(tab==="stats")renderStats();
     if(tab==="mundial"&&!window._mundialLoaded)renderMundial();
@@ -2825,11 +2826,12 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
   <button class="tab" data-tab="stats"   onclick="switchTab('stats')" style="display:none">📊 Stats</button>
   <button class="tab" data-tab="mundial" onclick="switchTab('mundial')">🌍 Mundial</button>
   <button class="tab" onclick="window.open('https://cristianlovino-cloud.github.io/asado-caleta/','_blank')" style="color:rgba(255,140,0,0.7)">🔥 Asado</button>
-  <button class="tab" data-tab="admin"   onclick="switchTab('admin')" style="display:none">⚙️ Admin</button>
+
 </div>
 <div class="main">
   <div id="v-pedir">
     <div id="pedido-status-banner" style="display:none"></div>
+    <div id="mi-saldo-card"></div>
     <div class="slabel"><span class="ld"></span> Que tomas?</div>
     <div class="dg" id="drinks-grid"><div class="es" style="padding:40px 0;opacity:0.5">Conectando... ☕</div></div>
   </div>
@@ -2844,7 +2846,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
     </div>
   </div>
   <div id="v-resumen" style="display:none">
-    <div id="mi-saldo-card"></div>
+    <div id="mi-saldo-card-placeholder"></div>
     <div class="slabel">Pedidos en vivo <button class="clr" onclick="clearAll()">limpiar</button></div>
     <div class="sp" id="sum-panel"><div class="es">Nadie pidio nada todavia 👀</div></div>
     <div id="totals-panel"></div>
