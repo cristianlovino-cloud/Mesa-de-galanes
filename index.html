@@ -245,7 +245,7 @@
     b.innerHTML=(isAdmin()?"⚙️ ":"")+me+"<span class='lx' onclick='logout(event)'>✕</span>";
     b.style.display="flex";document.getElementById("prompt").style.display="none";
     // Mostrar tabs según rol
-    // admin accesible solo via menú del nombre (no tab)
+    // admin solo via menú badge
     // Resumen y Cumples visibles con login
     ["resumen","cumples","stats","mundial"].forEach(function(t){var btn=document.querySelector("[data-tab='"+t+"']");if(btn)btn.style.cssText="display:flex!important";});
     renderConfirmBtn();renderCumpleBanner();
@@ -280,9 +280,9 @@
       var v=document.getElementById("v-"+t);if(v)v.style.display=t===tab?"block":"none";
       var b=document.querySelector("[data-tab='"+t+"']");if(b)b.classList.toggle("active",t===tab);
     });
-    if(tab==="pedir"){renderMiSaldo();}
     if(tab==="admin"){renderLista();renderMesa();renderPendientes();if(!window._cleaned){window._cleaned=true;limpiarHuerfanos();}}
-    if(tab==="resumen"){renderOrders();}  // mi-saldo-card está en pedir
+    if(tab==="resumen"){renderOrders();}
+    if(tab==="pedir"){renderMiSaldo();}
     if(tab==="cumples")renderCumples();
     if(tab==="stats")renderStats();
     if(tab==="mundial"&&!window._mundialLoaded)renderMundial();
@@ -325,8 +325,8 @@
   function renderConfirmBtn(){
     var w=document.getElementById("confirm-wrap");if(!w)return;
     var banner=document.getElementById("pedido-status-banner");
-    var misPed=me?Object.values(orders).filter(function(o){return o.player===me;}):[]; // fix: definir misPed local
-    var last=localStorage.getItem("last_order_"+me);
+    var misPed=me?Object.values(orders).filter(function(o){return o.player===me;}):[]; // fix
+    var last=me?localStorage.getItem("last_order_"+me):null;
     if(!me){
       w.style.display="none";
       if(banner)banner.style.display="none";
@@ -346,6 +346,7 @@
           +"<div style='font-size:0.82rem;font-weight:600;color:#fff;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis'>"+misPed[0].drink+"</div>"
           +(horaStr?"<div style='font-size:0.6rem;color:rgba(255,255,255,0.4);margin-top:3px;font-family:\"DM Mono\",monospace'>"+fechaStr+" · "+horaStr+"</div>":"")
           +"</div>"
+          +"<button onclick='window.modificarPedido()' style='background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.15);border-radius:8px;padding:6px 12px;color:rgba(255,255,255,0.6);font-size:0.65rem;cursor:pointer;white-space:nowrap;flex-shrink:0'>✏️ Modificar</button>"
           +"</div>";
       } else if(misPed.length>0){
         pills+="<div style='flex:1;min-width:140px;background:rgba(251,146,60,0.12);border:1.5px solid rgba(251,146,60,0.4);border-radius:14px;padding:12px 14px;display:flex;align-items:center;gap:10px;cursor:pointer' onclick='document.querySelector(\".cbtn\")&&document.querySelector(\".cbtn\").click()'>"
@@ -363,14 +364,7 @@
             +"<div><div style='font-size:0.68rem;font-weight:700;color:#4ade80;letter-spacing:0.06em'>PAGASTE</div>"
             +"<div style='font-family:\"Bebas Neue\",sans-serif;font-size:1.3rem;color:#4ade80;line-height:1.1'>$"+Math.round(pagado)+"</div></div>"
             +"</div>";
-        } else if(misPed.length>0&&confirmado()){
-          // Confirmó pero no pagó aún
-          pills+="<div style='background:rgba(251,146,60,0.08);border:1.5px solid rgba(251,146,60,0.25);border-radius:14px;padding:12px 14px;display:flex;align-items:center;gap:10px'>"
-            +"<span style='font-size:1.4rem'>💸</span>"
-            +"<div><div style='font-size:0.68rem;font-weight:700;color:#fb923c;letter-spacing:0.06em'>PENDIENTE PAGO</div>"
-            +"<div style='font-size:0.62rem;color:rgba(255,255,255,0.5);margin-top:2px'>El admin lo carga</div></div>"
-            +"</div>";
-        }
+
       }
       // Pill 3: repetir
       if(last&&!confirmado()){
@@ -1322,6 +1316,11 @@
 
   function renderDrinks(){
     var grid=document.getElementById("drinks-grid");if(!grid)return;
+    var slabel=document.querySelector("#v-pedir .slabel");
+    if(me&&confirmado()&&!window._modoModificar){
+      grid.style.display="none";if(slabel)slabel.style.display="none";return;
+    }
+    grid.style.display="";if(slabel)slabel.style.display="";
     if(!drinks||!drinks.length){grid.innerHTML="<div class='es' style='padding:40px 0;opacity:0.5'>No hay bebidas cargadas ☕</div>";return;}
     var myOrders=Object.values(orders).filter(function(o){return o.player===me;});
     var myIdxs=myOrders.map(function(o){return o.drinkIdx;});
@@ -1929,9 +1928,7 @@
                 points:e.pts,all:{played:e.pj,win:e.pg,draw:e.pe,lose:e.pp,goals:{for:e.gf,against:e.gc}}};
             });
           })}}]};
-        } else if(j1.source==="live"){
-          d1={response:[{league:{standings:j1.data}}]};
-        }
+        } else if(j1.source==="live"){d1={response:[{league:{standings:j1.data}}]};}
       }
       var d2={response:[]};
       renderMundialGroups(d1,d2,panel,getCountdownHtml());
@@ -2014,9 +2011,9 @@
       html+='</div>';
       equipos.slice(0,4).forEach(function(e){
         var nm=e.team?e.team.name:"?";
-        var flagUrl=e.team&&e.team.flag?e.team.flag:"";
-        var flagHtml=flagUrl?"<img src='"+flagUrl+"' style='width:14px;height:10px;object-fit:cover;border-radius:1px;margin-right:4px;vertical-align:middle'>":"";
-        html+='<div style="font-size:0.58rem;color:var(--ink);margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+flagHtml+nm+'</div>';
+        var fUrl=e.team&&e.team.flag?e.team.flag:"";
+        var fHtml=fUrl?"<img src='"+fUrl+"' style='width:14px;height:10px;object-fit:cover;border-radius:1px;margin-right:4px;vertical-align:middle'>": "";
+        html+='<div style="font-size:0.58rem;color:var(--ink);margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+fHtml+nm+'</div>';
       });
       html+='</div>';
     });
@@ -2076,9 +2073,9 @@
         var gd=(e.goalsFor||0)-(e.goalsAgainst||0);
         h+="<tr style='"+(esArg?"background:rgba(116,166,214,0.08)":"")+"'>";
         h+="<td style='padding:4px 3px;color:"+(i<2?"#4ade80":"var(--mut)")+"'>"+(i+1)+"</td>";
-        var tFlag=e.team&&e.team.flag?e.team.flag:"";
-        var tFlagHtml=tFlag?"<img src='"+tFlag+"' style='width:16px;height:11px;object-fit:cover;border-radius:1px;margin-right:5px;vertical-align:middle'>":"";
-        h+="<td style='font-weight:600;color:var(--ink)'>"+tFlagHtml+nm+"</td>";
+        var tF=e.team&&e.team.flag?e.team.flag:"";
+        var tFH=tF?"<img src='"+tF+"' style='width:16px;height:11px;object-fit:cover;border-radius:1px;margin-right:5px;vertical-align:middle'>":"";
+        h+="<td style='font-weight:600;color:var(--ink)'>"+tFH+nm+"</td>";
         h+="<td style='text-align:center;color:var(--mut)'>"+(e.playedGames||0)+"</td>";
         h+="<td style='text-align:center;color:var(--mut)'>"+(e.won||0)+"</td>";
         h+="<td style='text-align:center;color:var(--mut)'>"+(e.draw||0)+"</td>";
@@ -2239,6 +2236,32 @@
       if(lbl)lbl.textContent="¿QUÉ TOMÁS?";
     }var el=document.getElementById(id);if(el)el.classList.add("open");var inp=document.querySelector("#"+id+" input");if(inp)setTimeout(function(){inp.focus();},120);};
   window.closeModal=function(id){var el=document.getElementById(id);if(el)el.classList.remove("open");if(id==="mextra"){pDrink=null;pFor=null;}};
+  // ── MODIFICAR PEDIDO ─────────────────────────────────────
+  window.modificarPedido=async function(){
+    if(!me||!confirmado())return;
+    window._modoModificar=true;
+    try{await remove(ref(db,"pedido/confirmed/"+me));}catch(e){}
+    window._modoModificar=false;
+    renderDrinks();renderConfirmBtn();
+    showToast("✏️ Modificá tu pedido y volvé a enviarlo");
+  };
+
+  // ── MENÚ BADGE ─────────────────────────────────────────────
+  window.toggleBadgeMenu=function(){
+    var m=document.getElementById("badge-menu");if(!m)return;
+    if(m.style.display==="none"){
+      m.style.display="block";
+      var ao=document.getElementById("badge-menu-admin");
+      if(ao)ao.style.display=isAdmin()?"block":"none";
+      setTimeout(function(){document.addEventListener("click",_closeMenuOut,{once:true});},10);
+    }else{m.style.display="none";}
+  };
+  window.closeMenu=function(){var m=document.getElementById("badge-menu");if(m)m.style.display="none";};
+  function _closeMenuOut(e){
+    var m=document.getElementById("badge-menu"),b=document.getElementById("badge");
+    if(m&&b&&!m.contains(e.target)&&!b.contains(e.target))m.style.display="none";
+  }
+
   document.addEventListener("keydown",function(e){
     if(e.key==="Enter"){
       if(document.getElementById("mnombre").classList.contains("open"))window.setName(document.getElementById("inp-name").value);
@@ -2252,22 +2275,6 @@
     }
     if(e.key==="Escape")document.querySelectorAll(".modal-overlay.open").forEach(function(m){m.classList.remove("open");});
   });
-
-  // ── MENÚ BADGE ────────────────────────────────────────────
-  window.toggleBadgeMenu=function(){
-    var m=document.getElementById("badge-menu");if(!m)return;
-    if(m.style.display==="none"){
-      m.style.display="block";
-      var adminOpts=document.getElementById("badge-menu-admin");
-      if(adminOpts)adminOpts.style.display=isAdmin()?"block":"none";
-      setTimeout(function(){document.addEventListener("click",closeMenuOutside,{once:true});},10);
-    }else{m.style.display="none";}
-  };
-  window.closeMenu=function(){var m=document.getElementById("badge-menu");if(m)m.style.display="none";};
-  function closeMenuOutside(e){
-    var m=document.getElementById("badge-menu"),b=document.getElementById("badge");
-    if(m&&b&&!m.contains(e.target)&&!b.contains(e.target))m.style.display="none";
-  }
 </script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:ital,wght@0,300;0,400;0,500;1,400&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap');
@@ -2766,7 +2773,6 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </head>
 <body>
 <script>
-  // Precalentar el backend Render (evita cold start en Mundial)
   setTimeout(function(){fetch("https://asado-sports-api.onrender.com/").catch(function(){});},800);
 </script>
 <div id="login-screen">
@@ -2846,7 +2852,6 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
     </div>
   </div>
   <div id="v-resumen" style="display:none">
-    <div id="mi-saldo-card-placeholder"></div>
     <div class="slabel">Pedidos en vivo <button class="clr" onclick="clearAll()">limpiar</button></div>
     <div class="sp" id="sum-panel"><div class="es">Nadie pidio nada todavia 👀</div></div>
     <div id="totals-panel"></div>
