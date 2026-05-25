@@ -1042,7 +1042,7 @@
     var meta=await getClientMeta();
     var obj={player:me,drinkIdx:d.drinkIdx,drink:d.drink,icon:d.icon,extra:d.extra||null,ts:Date.now(),device:meta.device,ip:meta.ip};
     await push(rO,obj);
-    localStorage.setItem("last_order_"+me,JSON.stringify({drink:obj.drink,icon:obj.icon,drinkIdx:obj.drinkIdx}));
+    localStorage.setItem("last_order_"+me,JSON.stringify({drink:obj.drink,icon:obj.icon,drinkIdx:obj.drinkIdx,extra:obj.extra||null}));
     renderConfirmBtn();renderMiSaldo();
     showToast("🔁 "+d.drink+" repetido!");
     speak("Repetido! "+d.drink);
@@ -1323,7 +1323,9 @@
     var grid=document.getElementById("drinks-grid");if(!grid)return;
     var slabel=document.querySelector("#v-pedir .slabel");
     if(me&&confirmado()){
-      grid.style.display="none";if(slabel)slabel.style.display="none";return;
+      grid.style.display="none";if(slabel)slabel.style.display="none";
+      var rw=document.getElementById("repeat-last-wrap");if(rw)rw.style.display="none";
+      return;
     }
     grid.style.display="";if(slabel)slabel.style.display="";
     if(!drinks||!drinks.length){grid.innerHTML="<div class='es' style='padding:40px 0;opacity:0.5'>No hay bebidas cargadas ☕</div>";return;}
@@ -1390,7 +1392,7 @@
       grid.parentNode.insertBefore(repWrap,grid);
     }
     var last=me?localStorage.getItem("last_order_"+me):null;
-    if(last&&!confirmado()){
+    if(last&&!confirmado()&&!misPed.length){
       var ld=JSON.parse(last);
       repWrap.innerHTML="<button onclick='repetirUltimo()' style='"
         +"width:100%;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);"
