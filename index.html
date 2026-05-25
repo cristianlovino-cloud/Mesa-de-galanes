@@ -2257,7 +2257,14 @@
     if(!me||!confirmado())return;
     try{
       await remove(ref(db,"pedido/confirmed/"+me));
-      renderConfirmBtn();renderDrinks();renderMiSaldo();
+      // Resetear estado del botón enviar
+      _confirmando=false;
+      var btn=document.querySelector(".cbtn");
+      if(btn){btn.disabled=false;btn.textContent="☕ Enviar mi pedido";btn.style.opacity="1";}
+      // Limpiar TU CUENTA hasta que reconfirme
+      var card=document.getElementById("mi-saldo-card");
+      if(card)card.innerHTML="";
+      renderConfirmBtn();renderDrinks();
       showToast("✏️ Pedido abierto — elegí de nuevo y enviá");
     }catch(e){showToast("Error, intentá de nuevo");}
   });
