@@ -324,6 +324,8 @@
   function renderConfirmBtn(){
     var w=document.getElementById("confirm-wrap");if(!w)return;
     var banner=document.getElementById("pedido-status-banner");
+    var misPed=me?Object.values(orders).filter(function(o){return o.player===me;}):[]; // fix: definir misPed local
+    var last=localStorage.getItem("last_order_"+me);
     if(!me){
       w.style.display="none";
       if(banner)banner.style.display="none";
