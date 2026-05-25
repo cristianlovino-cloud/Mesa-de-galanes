@@ -346,7 +346,7 @@
           +"<div style='font-size:0.82rem;font-weight:600;color:#fff;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis'>"+misPed[0].drink+"</div>"
           +(horaStr?"<div style='font-size:0.6rem;color:rgba(255,255,255,0.4);margin-top:3px;font-family:\"DM Mono\",monospace'>"+fechaStr+" · "+horaStr+"</div>":"")
           +"</div>"
-          +"<button onclick='window.modificarPedido()' style='background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.15);border-radius:8px;padding:6px 12px;color:rgba(255,255,255,0.6);font-size:0.65rem;cursor:pointer;white-space:nowrap;flex-shrink:0'>✏️ Modificar</button>"
+          +"<button onclick='window.modificarPedido&&window.modificarPedido()' style='background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.15);border-radius:8px;padding:6px 12px;color:rgba(255,255,255,0.6);font-size:0.65rem;cursor:pointer;white-space:nowrap;flex-shrink:0'>✏️ Modificar</button>"
           +"</div>";
       } else if(misPed.length>0){
         pills+="<div style='flex:1;min-width:140px;background:rgba(251,146,60,0.12);border:1.5px solid rgba(251,146,60,0.4);border-radius:14px;padding:12px 14px;display:flex;align-items:center;gap:10px;cursor:pointer' onclick='document.querySelector(\".cbtn\")&&document.querySelector(\".cbtn\").click()'>"
@@ -2012,7 +2012,7 @@
       equipos.slice(0,4).forEach(function(e){
         var nm=e.team?e.team.name:"?";
         var fUrl=e.team&&e.team.flag?e.team.flag:"";
-        var fHtml=fUrl?"<img src='"+fUrl+"' style='width:14px;height:10px;object-fit:cover;border-radius:1px;margin-right:4px;vertical-align:middle'>": "";
+        var fHtml=fUrl?"<img src='"+fUrl+"' style='width:14px;height:10px;object-fit:cover;border-radius:1px;margin-right:4px;vertical-align:middle'>":"";
         html+='<div style="font-size:0.58rem;color:var(--ink);margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+fHtml+nm+'</div>';
       });
       html+='</div>';
@@ -2236,32 +2236,6 @@
       if(lbl)lbl.textContent="¿QUÉ TOMÁS?";
     }var el=document.getElementById(id);if(el)el.classList.add("open");var inp=document.querySelector("#"+id+" input");if(inp)setTimeout(function(){inp.focus();},120);};
   window.closeModal=function(id){var el=document.getElementById(id);if(el)el.classList.remove("open");if(id==="mextra"){pDrink=null;pFor=null;}};
-  // ── MODIFICAR PEDIDO ─────────────────────────────────────
-  window.modificarPedido=async function(){
-    if(!me||!confirmado())return;
-    window._modoModificar=true;
-    try{await remove(ref(db,"pedido/confirmed/"+me));}catch(e){}
-    window._modoModificar=false;
-    renderDrinks();renderConfirmBtn();
-    showToast("✏️ Modificá tu pedido y volvé a enviarlo");
-  };
-
-  // ── MENÚ BADGE ─────────────────────────────────────────────
-  window.toggleBadgeMenu=function(){
-    var m=document.getElementById("badge-menu");if(!m)return;
-    if(m.style.display==="none"){
-      m.style.display="block";
-      var ao=document.getElementById("badge-menu-admin");
-      if(ao)ao.style.display=isAdmin()?"block":"none";
-      setTimeout(function(){document.addEventListener("click",_closeMenuOut,{once:true});},10);
-    }else{m.style.display="none";}
-  };
-  window.closeMenu=function(){var m=document.getElementById("badge-menu");if(m)m.style.display="none";};
-  function _closeMenuOut(e){
-    var m=document.getElementById("badge-menu"),b=document.getElementById("badge");
-    if(m&&b&&!m.contains(e.target)&&!b.contains(e.target))m.style.display="none";
-  }
-
   document.addEventListener("keydown",function(e){
     if(e.key==="Enter"){
       if(document.getElementById("mnombre").classList.contains("open"))window.setName(document.getElementById("inp-name").value);
@@ -3159,6 +3133,34 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
     var ab=document.getElementById("mesa-admin-bar"),tb=document.getElementById("tcx-btn");
     if(ab&&tb)new MutationObserver(function(){tb.style.display=ab.style.display!=="none"?"block":"none";}).observe(ab,{attributes:true,attributeFilter:["style"]});
   });
+</script>
+<script>
+  // Badge menu
+  window.toggleBadgeMenu=function(){
+    var m=document.getElementById("badge-menu");if(!m)return;
+    var isAdmin=window._isAdmin||false;
+    if(m.style.display==="none"){
+      m.style.display="block";
+      var ao=document.getElementById("badge-menu-admin");
+      if(ao)ao.style.display=isAdmin?"block":"none";
+      setTimeout(function(){document.addEventListener("click",function _cmo(e){
+        var mb=document.getElementById("badge-menu"),bb=document.getElementById("badge");
+        if(mb&&bb&&!mb.contains(e.target)&&!bb.contains(e.target))mb.style.display="none";
+        document.removeEventListener("click",_cmo);
+      });},10);
+    }else{m.style.display="none";}
+  };
+  window.closeMenu=function(){var m=document.getElementById("badge-menu");if(m)m.style.display="none";};
+  // Modificar pedido
+  window.modificarPedido=function(){
+    var btn=document.querySelector(".cbtn");
+    if(btn){
+      // Simular click en el botón de enviar para resetear el estado
+      window._modoModificar=true;
+      // Disparar evento custom para que el módulo lo escuche
+      document.dispatchEvent(new CustomEvent("modificarPedido"));
+    }
+  };
 </script>
 </body>
 </html>
