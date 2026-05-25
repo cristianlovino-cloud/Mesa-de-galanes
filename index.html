@@ -2747,7 +2747,30 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </head>
 <body>
 <script>
+  // Precalentar Render
   setTimeout(function(){fetch("https://asado-sports-api.onrender.com/").catch(function(){});},800);
+  
+  // Fallback: si en 8s no cargó, matar SW y recargar
+  setTimeout(function(){
+    var sp=document.getElementById('splash-screen');
+    if(sp && sp.parentNode){
+      // El módulo falló — desregistrar SW y recargar sin caché
+      if('serviceWorker' in navigator){
+        navigator.serviceWorker.getRegistrations().then(function(regs){
+          regs.forEach(function(r){r.unregister();});
+          if('caches' in window){
+            caches.keys().then(function(names){
+              names.forEach(function(n){caches.delete(n);});
+            }).then(function(){window.location.reload(true);});
+          } else {
+            window.location.reload(true);
+          }
+        });
+      } else {
+        window.location.reload(true);
+      }
+    }
+  }, 8000);
 </script>
 <div id="login-screen">
   <img id="login-logo-img" src="icon-transparent.png" class="login-logo" onerror="this.style.display='none';document.getElementById('login-logo-fallback').style.display='block'">
