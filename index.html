@@ -340,7 +340,7 @@
         var tsOrder=misPed[0].ts?new Date(misPed[0].ts):null;
         var horaStr=tsOrder?tsOrder.toLocaleTimeString("es-AR",{hour:"2-digit",minute:"2-digit"}):"";
         var fechaStr=tsOrder?tsOrder.toLocaleDateString("es-AR",{weekday:"short",day:"numeric",month:"short"}):"";
-        pills+="<div style='width:100%;background:rgba(22,197,94,0.1);border:1.5px solid rgba(22,197,94,0.35);border-radius:16px;padding:14px 16px;display:flex;align-items:center;gap:12px'>"
+        pills+="<div style='width:100%;background:rgba(22,197,94,0.12);border:2px solid rgba(22,197,94,0.5);border-radius:16px;padding:14px 16px;display:flex;align-items:center;gap:12px'>"
           +"<span style='font-size:1.8rem'>✅</span>"
           +"<div style='flex:1;min-width:0'>"
           +"<div style='font-size:0.72rem;font-weight:700;color:#4ade80;letter-spacing:0.06em'>PEDIDO ENVIADO</div>"
@@ -1448,13 +1448,13 @@
       }
       deuda+=base+comboAdd;
     });
-    var html="<div style='margin:14px 12px 0;background:linear-gradient(135deg,rgba(17,17,17,0.9),rgba(26,26,26,0.8));border:1.5px solid rgba(255,255,255,0.08);border-radius:16px;padding:16px 18px'>";
-    html+="<div style='font-size:0.65rem;color:rgba(255,255,255,0.4);letter-spacing:0.1em;margin-bottom:12px;font-family:\"DM Mono\",monospace'>TU CUENTA</div>";
+    var html="<div style='margin:14px 12px 0;background:linear-gradient(135deg,rgba(20,20,20,0.95),rgba(30,30,30,0.9));border:1.5px solid rgba(255,255,255,0.18);border-radius:16px;padding:16px 18px'>";
+    html+="<div style='font-size:0.65rem;color:rgba(255,255,255,0.65);letter-spacing:0.1em;margin-bottom:12px;font-family:\"DM Mono\",monospace'>TU CUENTA</div>";
     html+="<div style='display:flex;align-items:stretch;gap:12px'>";
     // Pedido
     if(misPed.length){
       html+="<div style='flex:1'>"
-        +"<div style='font-size:0.6rem;color:rgba(255,255,255,0.35);letter-spacing:0.06em;margin-bottom:4px'>PEDISTE</div>"
+        +"<div style='font-size:0.6rem;color:rgba(255,255,255,0.55);letter-spacing:0.06em;margin-bottom:4px'>PEDISTE</div>"
         +"<div style='font-size:0.8rem;font-weight:600;color:#fff;line-height:1.3'>"+misPed[0].icon+" "+misPed[0].drink+"</div>"
         +(deuda>0?"<div style='font-family:\"Bebas Neue\",sans-serif;font-size:1rem;color:rgba(245,197,24,0.7);margin-top:4px;letter-spacing:0.04em'>Precio: $"+Math.round(deuda)+"</div>":"")
         +"</div>";
@@ -1472,7 +1472,7 @@
       }
       if(pg.cash>0&&pg.transfer>0)html+="<div style='font-size:0.58rem;color:rgba(255,255,255,0.3);margin-top:2px'>💵$"+Math.round(pg.cash)+" + 📲$"+Math.round(pg.transfer)+"</div>";
     } else {
-      html+="<div style='font-size:0.6rem;color:rgba(251,146,60,0.7);letter-spacing:0.06em;margin-bottom:4px'>PENDIENTE</div>";
+      html+="<div style='font-size:0.6rem;color:rgba(251,146,60,0.95);letter-spacing:0.06em;margin-bottom:4px'>PENDIENTE</div>";
       if(deuda>0){
         html+="<div style='font-family:\"Bebas Neue\",sans-serif;font-size:1.8rem;color:#fb923c;letter-spacing:0.04em;line-height:1'>$"+Math.round(deuda)+"</div>"
           +"<div style='font-size:0.6rem;color:rgba(255,255,255,0.3);margin-top:2px'>a pagar</div>";
