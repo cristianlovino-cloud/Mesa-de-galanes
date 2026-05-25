@@ -282,7 +282,8 @@
       var b=document.querySelector("[data-tab='"+t+"']");if(b)b.classList.toggle("active",t===tab);
     });
     if(tab==="admin"){renderLista();renderMesa();renderPendientes();if(!window._cleaned){window._cleaned=true;limpiarHuerfanos();}}
-    if(tab==="resumen"){renderOrders();renderMiSaldo();}
+    if(tab==="resumen"){renderOrders();}
+    if(tab==="pedir"){renderMiSaldo();}
     if(tab==="cumples")renderCumples();
     if(tab==="stats")renderStats();
     if(tab==="mundial"&&!window._mundialLoaded)renderMundial();
@@ -346,6 +347,7 @@
           +"<div style='font-size:0.82rem;font-weight:600;color:#fff;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis'>"+misPed[0].drink+"</div>"
           +(horaStr?"<div style='font-size:0.6rem;color:rgba(255,255,255,0.4);margin-top:3px;font-family:\"DM Mono\",monospace'>"+fechaStr+" · "+horaStr+"</div>":"")
           +"</div>"
+          +"<button onclick='window.modificarPedido&&window.modificarPedido()' style='margin-left:auto;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.15);border-radius:8px;padding:6px 14px;color:rgba(255,255,255,0.6);font-size:0.65rem;cursor:pointer'>✏️ Modificar</button>"
           +"</div>";
       } else if(misPed.length>0){
         pills+="<div style='flex:1;min-width:140px;background:rgba(251,146,60,0.12);border:1.5px solid rgba(251,146,60,0.4);border-radius:14px;padding:12px 14px;display:flex;align-items:center;gap:10px;cursor:pointer' onclick='document.querySelector(\".cbtn\")&&document.querySelector(\".cbtn\").click()'>"
@@ -2230,6 +2232,14 @@
       if(lbl)lbl.textContent="¿QUÉ TOMÁS?";
     }var el=document.getElementById(id);if(el)el.classList.add("open");var inp=document.querySelector("#"+id+" input");if(inp)setTimeout(function(){inp.focus();},120);};
   window.closeModal=function(id){var el=document.getElementById(id);if(el)el.classList.remove("open");if(id==="mextra"){pDrink=null;pFor=null;}};
+  document.addEventListener("solicitarModificarPedido",async function(){
+    if(!me||!confirmado())return;
+    try{
+      await remove(ref(db,"pedido/confirmed/"+me));
+      renderConfirmBtn();renderDrinks();
+      showToast("✏️ Modificá tu pedido");
+    }catch(e){showToast("Error, intentá de nuevo");}
+  });
   document.addEventListener("keydown",function(e){
     if(e.key==="Enter"){
       if(document.getElementById("mnombre").classList.contains("open"))window.setName(document.getElementById("inp-name").value);
@@ -2802,6 +2812,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 <div class="main">
   <div id="v-pedir">
     <div id="pedido-status-banner" style="display:none"></div>
+    <div id="mi-saldo-card"></div>
     <div class="slabel"><span class="ld"></span> Que tomas?</div>
     <div class="dg" id="drinks-grid"><div class="es" style="padding:40px 0;opacity:0.5">Conectando... ☕</div></div>
   </div>
@@ -2816,7 +2827,6 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
     </div>
   </div>
   <div id="v-resumen" style="display:none">
-    <div id="mi-saldo-card"></div>
     <div class="slabel">Pedidos en vivo <button class="clr" onclick="clearAll()">limpiar</button></div>
     <div class="sp" id="sum-panel"><div class="es">Nadie pidio nada todavia 👀</div></div>
     <div id="totals-panel"></div>
@@ -3141,6 +3151,12 @@ window.toggleBadgeMenu=function(){
       });
     },10);
   }
+};
+</script>
+<script>
+window.modificarPedido=function(){
+  // Disparar evento para que el módulo Firebase maneje la desconfirmación
+  document.dispatchEvent(new CustomEvent("solicitarModificarPedido"));
 };
 </script>
 </body>
