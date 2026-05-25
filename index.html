@@ -363,7 +363,14 @@
             +"<div><div style='font-size:0.68rem;font-weight:700;color:#4ade80;letter-spacing:0.06em'>PAGASTE</div>"
             +"<div style='font-family:\"Bebas Neue\",sans-serif;font-size:1.3rem;color:#4ade80;line-height:1.1'>$"+Math.round(pagado)+"</div></div>"
             +"</div>";
-
+        } else if(misPed.length>0&&confirmado()){
+          // Confirmó pero no pagó aún
+          pills+="<div style='background:rgba(251,146,60,0.08);border:1.5px solid rgba(251,146,60,0.25);border-radius:14px;padding:12px 14px;display:flex;align-items:center;gap:10px'>"
+            +"<span style='font-size:1.4rem'>💸</span>"
+            +"<div><div style='font-size:0.68rem;font-weight:700;color:#fb923c;letter-spacing:0.06em'>PENDIENTE PAGO</div>"
+            +"<div style='font-size:0.62rem;color:rgba(255,255,255,0.5);margin-top:2px'>El admin lo carga</div></div>"
+            +"</div>";
+        }
       }
       // Pill 3: repetir
       if(last&&!confirmado()){
