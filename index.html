@@ -1423,6 +1423,8 @@
     var card=document.getElementById("mi-saldo-card");if(!card||!me)return;
     var pg=pagos[me]||{},pagado=(pg.cash||0)+(pg.transfer||0);
     var misPed=Object.values(orders).filter(function(o){return o.player===me;});
+    // Mostrar solo si confirmó o ya pagó
+    if(!confirmado()&&!pagado){card.innerHTML="";return;}
     if(!misPed.length&&!pagado){card.innerHTML="";return;}
     // Calcular lo que debe según precio base + combo
     var deuda=0;
