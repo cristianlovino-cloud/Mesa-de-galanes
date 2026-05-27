@@ -340,14 +340,14 @@
         var tsOrder=misPed[0].ts?new Date(misPed[0].ts):null;
         var horaStr=tsOrder?tsOrder.toLocaleTimeString("es-AR",{hour:"2-digit",minute:"2-digit"}):"";
         var fechaStr=tsOrder?tsOrder.toLocaleDateString("es-AR",{weekday:"short",day:"numeric",month:"short"}):"";
-        pills+="<div style='width:100%;background:rgba(22,197,94,0.12);border:2px solid rgba(22,197,94,0.5);border-radius:16px;padding:14px 16px;display:flex;align-items:center;gap:12px'>"
+        pills+="<div style='width:100%;background:rgba(22,197,94,0.12);border:2px solid rgba(22,197,94,0.5);border-radius:16px;padding:14px 16px;display:block'>"
           +"<span style='font-size:1.8rem'>✅</span>"
           +"<div style='flex:1;min-width:0'>"
           +"<div style='font-size:0.72rem;font-weight:700;color:#4ade80;letter-spacing:0.06em'>PEDIDO ENVIADO</div>"
           +"<div style='font-size:0.82rem;font-weight:600;color:#fff;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis'>"+misPed[0].drink+"</div>"
           +(horaStr?"<div style='font-size:0.6rem;color:rgba(255,255,255,0.4);margin-top:3px;font-family:\"DM Mono\",monospace'>"+fechaStr+" · "+horaStr+"</div>":"")
           +"</div>"
-          +"<button onclick='window.modificarPedido&&window.modificarPedido()' style='margin-left:auto;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.15);border-radius:8px;padding:6px 14px;color:rgba(255,255,255,0.6);font-size:0.65rem;cursor:pointer'>✏️ Modificar</button>"
+          +"<button onclick='window.modificarPedido&&window.modificarPedido()' style='background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.2);border-radius:8px;padding:6px 16px;color:rgba(255,255,255,0.7);font-size:0.7rem;cursor:pointer'>✏️ Modificar</button>"
           +"</div>";
       } else if(misPed.length>0){
         pills+="<div style='flex:1;min-width:140px;background:rgba(251,146,60,0.12);border:1.5px solid rgba(251,146,60,0.4);border-radius:14px;padding:12px 14px;display:flex;align-items:center;gap:10px;cursor:pointer' onclick='document.querySelector(\".cbtn\")&&document.querySelector(\".cbtn\").click()'>"
@@ -2184,7 +2184,7 @@
     sug.innerHTML=matches.map(function(g,idx){
       var isLast=idx===matches.length-1;
       return "<button data-gn='"+g+"' onclick='loginSelectGalan(this.dataset.gn)' "
-        +"style='display:flex;align-items:center;gap:12px;width:100%;background:none;border:none;"
+        +"style='display:block;width:100%;background:none;border:none;"
         +(isLast?"":"border-bottom:1px solid rgba(255,255,255,0.06);")
         +"padding:12px 16px;cursor:pointer;transition:background 0.1s;' "
         +"onmouseenter=\"this.style.background='rgba(255,255,255,0.05)'\" "
@@ -2449,7 +2449,7 @@ header::after{
 .pres-falta{font-size:0.65rem;font-weight:700;color:#fb923c;}.pres-ok{font-size:0.65rem;font-weight:700;color:var(--grn);}
 .bar-total-btn{background:rgba(245,158,11,0.12);color:var(--g2);border:1px solid rgba(245,158,11,0.25);border-radius:8px;padding:4px 12px;font-family:var(--font-body);font-size:0.65rem;font-weight:700;cursor:pointer;}
 .mg{padding:0 12px;display:flex;flex-direction:column;gap:8px;}
-.att{background:var(--sur);border:1px solid var(--brd);border-radius:14px;padding:14px 16px;display:flex;align-items:center;gap:12px;}
+.att{background:var(--sur);border:1px solid var(--brd);border-radius:14px;padding:14px 16px;display:block;}
 .att-reserva{background:linear-gradient(90deg,rgba(245,158,11,0.04),transparent);border-style:dashed;opacity:0.8;}
 .attme{border-color:rgba(245,158,11,0.35);background:linear-gradient(90deg,rgba(245,158,11,0.06),transparent);}
 .attok{border-color:rgba(16,185,129,0.3);}
@@ -2464,7 +2464,7 @@ header::after{
 .lstat-warn{background:rgba(245,158,11,0.1);color:var(--g2);}
 .lstat-total{background:var(--brd);color:var(--mut);}
 .lista-grid{display:flex;flex-direction:column;gap:8px;}
-.lista-row{display:flex;align-items:center;gap:12px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:12px 14px;transition:border-color 0.15s,background 0.15s;}
+.lista-row{display:block;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:12px 14px;transition:border-color 0.15s,background 0.15s;}
 .lista-row:hover{background:rgba(255,255,255,0.07);border-color:rgba(255,255,255,0.14);}
 .lista-pidio{background:rgba(16,185,129,0.06);border-color:rgba(16,185,129,0.22);}
 .lista-pidio:hover{background:rgba(16,185,129,0.09);border-color:rgba(16,185,129,0.32);}
@@ -3126,7 +3126,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.14";
+  var APP_VERSION="10.0.15";
   var STORED_VERSION=localStorage.getItem("app_version");
 
   if("serviceWorker"in navigator){
