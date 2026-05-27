@@ -140,7 +140,7 @@
       var sp=document.getElementById('splash-screen');if(sp){sp.style.opacity='0';setTimeout(function(){if(sp.parentNode)sp.parentNode.removeChild(sp);},500);}
     });
     onValue(rO,function(s){try{orders=s.exists()?s.val():{};renderDrinks();renderOrders();renderMesa();renderLista();renderConfirmBtn();maybeRenderStats();}catch(e){console.error("rO",e);}});
-    onValue(rC,function(s){try{confirmed=s.exists()?s.val():{};renderConfirmBtn();renderOrders();renderMesa();renderLista();}catch(e){console.error("rC",e);}});
+    onValue(rC,function(s){try{confirmed=s.exists()?s.val():{};renderConfirmBtn();renderDrinks();renderMiSaldo();renderOrders();renderMesa();renderLista();}catch(e){console.error("rC",e);}});
     onValue(rP,function(s){try{pagos=s.exists()?s.val():{};renderOrders();renderMesa();renderLista();renderPagosDetail();renderMiSaldo();renderConfirmBtn();}catch(e){console.error("rP",e);}});
     onValue(rB,function(s){try{totalBar=s.exists()?s.val():0;renderMesa();}catch(e){console.error("rB",e);}});
     onValue(rT,function(s){timerD=s.exists()?s.val():null;renderTimer();});
@@ -1420,7 +1420,7 @@
   };
 
   function renderMiSaldo(){
-    var card=document.getElementById("mi-saldo-card");if(!card||isAdmin()||!me)return;
+    var card=document.getElementById("mi-saldo-card");if(!card||!me)return;
     var pg=pagos[me]||{},pagado=(pg.cash||0)+(pg.transfer||0);
     var misPed=Object.values(orders).filter(function(o){return o.player===me;});
     if(!misPed.length&&!pagado){card.innerHTML="";return;}
