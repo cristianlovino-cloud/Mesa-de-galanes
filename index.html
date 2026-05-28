@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Mesa de Galanes</title>
-<meta name='app-version' content='2.5'>
+<meta name='app-version' content='2.6'>
 <meta name="color-scheme" content="dark">
 <meta name="theme-color" content="#080808">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
@@ -1725,16 +1725,13 @@
       if(cumpl)row+="<div style='font-size:0.65rem;color:var(--mut);margin-top:1px'>🎂 "+cumpl.dia+"/"+cumpl.mes+"</div>";
       row+="</div>";
       if(isAdmin()){
-        row+="<div style='display:flex;flex-direction:column;gap:4px;align-items:flex-end;flex-shrink:0'>";
-        row+="<div style='display:flex;gap:4px'>";
+        row+="<div style='display:flex;gap:3px;align-items:center;flex-shrink:0'>";
         if(!esExtra)row+="<button class='asist-btn"+(presente?" asist-va":"")+"' data-name='"+pl+"' onclick='togglePresente(this)'>"+(presente?"🟢":"⚫")+" VA</button>";
         if(!peds.length)row+="<button class='asist-btn asist-load' data-name='"+pl+"' onclick='quickLoad(this)'>+ Pedir</button>";
-        row+="</div>";
-        row+="<div style='display:flex;gap:4px'>";
         if(!esExtra)row+="<button class='icon-btn' data-name='"+pl+"' onclick='abrirEditarNombre(this)' title='Editar'>✏️</button>";
         row+="<button class='icon-btn' data-name='"+pl+"' onclick='abrirMergeModal(this)' title='Fusionar'>⇄</button>";
         if(!esExtra)row+="<button class='icon-btn' style='color:var(--red)' data-name='"+pl+"' onclick='eliminarDeListaBase(this)' title='Eliminar'>🗑</button>";
-        row+="</div></div>";
+        row+="</div>";
       }
       row+="</div>";rows.push(row);
     });
@@ -2466,7 +2463,7 @@ header::after{
 .lstat-warn{background:rgba(245,158,11,0.1);color:var(--g2);}
 .lstat-total{background:var(--brd);color:var(--mut);}
 .lista-grid{display:flex;flex-direction:column;gap:8px;}
-.lista-row{display:block;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:12px 14px;transition:border-color 0.15s,background 0.15s;}
+.lista-row{display:flex;align-items:center;gap:10px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:9px 12px;transition:border-color 0.15s,background 0.15s;}
 .lista-row:hover{background:rgba(255,255,255,0.07);border-color:rgba(255,255,255,0.14);}
 .lista-pidio{background:rgba(16,185,129,0.06);border-color:rgba(16,185,129,0.22);}
 .lista-pidio:hover{background:rgba(16,185,129,0.09);border-color:rgba(16,185,129,0.32);}
@@ -2698,14 +2695,14 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 .asist-btn.asist-load:hover{background:rgba(245,158,11,0.3);border-color:var(--g2);}
 
 /* Estado visual en lista */
-.lista-row{gap:14px;padding:14px 16px;margin-bottom:2px;}
+.lista-row{gap:10px;padding:9px 12px;margin-bottom:2px;}
 .lista-row.lista-pidio{border-left:3px solid rgba(22,197,94,0.4);}
 .lista-row.lista-pendiente{border-left:3px solid rgba(255,255,255,0.08);}
 .lista-row.lista-pagado{border-left:3px solid rgba(245,158,11,0.5);background:rgba(245,158,11,0.04);}
 
 /* Botones de acción más separados y grandes */
-.icon-btn{padding:8px 10px;font-size:1rem;}
-.asist-btn{padding:7px 11px;font-size:0.62rem;}
+.icon-btn{padding:6px 8px;font-size:0.95rem;}
+.asist-btn{padding:6px 9px;font-size:0.6rem;}
 
 /* Saldo en pagos más visible */
 .pago-total-big{font-family:'Bebas Neue',sans-serif;font-size:2rem;color:var(--grn);letter-spacing:0.06em;}
@@ -3128,7 +3125,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.15";
+  var APP_VERSION="10.0.16";
   var STORED_VERSION=localStorage.getItem("app_version");
 
   if("serviceWorker"in navigator){
