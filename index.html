@@ -924,13 +924,19 @@
     return total;
   }
 
-  // Listener broadcast: cuando sortean, todos ven el modal
+  // Listener broadcast: todos ven el modal al sortear; el sorteado lo ve siempre al entrar
   onValue(ref(db,"pedido/propina"),function(s){
     if(!s.exists()||!me)return;
     var d=s.val();
     if(!d.nombre||!d.ts)return;
-    if(Date.now()-d.ts>15000)return;
-    showPropinaModal(d.nombre,d.restantes,d.total||0);
+    var esReciente=Date.now()-d.ts<15000;
+    var esSorteado=d.nombre&&me.toUpperCase()===d.nombre.toUpperCase();
+    var vistKey="propina_visto_"+d.ts;
+    var yaVio=localStorage.getItem(vistKey)==="1";
+    if((esReciente||esSorteado)&&!yaVio){
+      localStorage.setItem(vistKey,"1");
+      showPropinaModal(d.nombre,d.restantes,d.total||0);
+    }
   });
 
   function showPropinaModal(nombre,restantes,total){
@@ -960,7 +966,8 @@
     var p0={},p1={};
     if(hist[fechas[0]].pedidos)Object.values(hist[fechas[0]].pedidos).forEach(function(o){if(o.player)p0[o.player]=1;});
     if(hist[fechas[1]].pedidos)Object.values(hist[fechas[1]].pedidos).forEach(function(o){if(o.player)p1[o.player]=1;});
-    var elegibles=Object.keys(p0).filter(function(p){return p1[p];});
+    // Elegibles = estuvo en AL MENOS UNO de los últimos 2 cafés
+    var elegibles=Object.keys(Object.assign({},p0,p1));
     // Fallback: si no hay historial de 2, usar pedidos actuales
     if(!elegibles.length){
       elegibles=Object.keys(Object.values(orders).reduce(function(a,o){if(o.player)a[o.player]=1;return a;},{}));
@@ -976,7 +983,8 @@
     var ganador=ronda.shift();
     var total=calcularTotalMesa();
     var hh=(pData.historial||[]);
-    hh.push({nombre:ganador,ts:Date.now(),total:total});
+    var hoy=new Date().toISOString().slice(0,10);
+    hh.push({nombre:ganador,ts:Date.now(),total:total,fecha:hoy});
     await set(rPropina,{ronda:ronda,historial:hh.slice(-20)});
     await set(ref(db,"pedido/propina"),{nombre:ganador,restantes:ronda.length,total:total,ts:Date.now()});
     showToast("Propina: "+ganador+" (quedan "+ronda.length+")");
@@ -1741,7 +1749,7 @@
       var pd=ps.val(),hh=pd.historial||[];
       if(!hh.length){pind.style.display="none";return;}
       var ult=hh[hh.length-1];
-      var esHoy=nextSatStr()===new Date(ult.ts).toISOString().slice(0,10);
+      var esHoy=new Date().toISOString().slice(0,10)===new Date(ult.ts).toISOString().slice(0,10);
       var label=esHoy?"HOY":"SÁB "+new Date(ult.ts).getDate()+"/"+String(new Date(ult.ts).getMonth()+1);
       pind.innerHTML="<span style='font-size:0.6rem;color:var(--mut);letter-spacing:0.06em'>🎲 PROPINA "+label+":</span> "
         +"<b style='color:#c084fc;font-size:0.8rem'>"+ult.nombre.toUpperCase()+"</b>"
@@ -3225,7 +3233,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.26";
+  var APP_VERSION="10.0.27";
   var STORED_VERSION=localStorage.getItem("app_version");
 
   if("serviceWorker"in navigator){
