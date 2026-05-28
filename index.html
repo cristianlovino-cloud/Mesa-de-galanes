@@ -113,7 +113,7 @@
       if(inp&&ls&&ls.style.display!=="none"&&!me&&inp.value){
         loginFiltrar(inp.value);
       }
-      renderLoginGalanes();
+      renderLoginGalanes();renderLista();
     });
     onValue(rD,function(s){
       drinks=s.exists()?s.val():DRINKS_DEF.slice();
@@ -739,7 +739,7 @@
       renderPendientes();renderLista();return;
     }
     var lista=galanes.slice();
-    if(lista.indexOf(nombre)===-1){lista.push(nombre);lista.sort();await set(rG,lista);}
+    if(lista.indexOf(nombre)===-1){lista.push(nombre);lista.sort();galanes=lista;await set(rG,lista);}
     await set(ref(db,"config/pendientes/"+nombre),null);
     delete pendientes[nombre];
     showToast("✓ "+nombre+" aceptado!");renderPendientes();renderLista();
@@ -1276,7 +1276,7 @@
     var name=document.getElementById("ng-name").value.trim();if(!name)return;
     var lista=galanes.length>0?galanes.slice():KNOWN_DEF.slice();
     if(lista.indexOf(name)!==-1){showToast(name+" ya está en la lista");return;}
-    lista.push(name);lista.sort();await set(rG,lista);closeModal("mgalan");document.getElementById("ng-name").value="";showToast("✓ "+name+" agregado!");
+    lista.push(name);lista.sort();galanes=lista;await set(rG,lista);closeModal("mgalan");document.getElementById("ng-name").value="";showToast("✓ "+name+" agregado!");
   };
 
   // ── FAVORITO / RESERVA ────────────────────────────────────
@@ -3132,7 +3132,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.19";
+  var APP_VERSION="10.0.20";
   var STORED_VERSION=localStorage.getItem("app_version");
 
   if("serviceWorker"in navigator){
