@@ -2243,27 +2243,19 @@
     var ls=document.getElementById("login-screen");
     if(!ls)return;
     ls.style.display="flex";
-    // Resetear logo por si el fallback quedó visible
+    ls.style.opacity="1";
+    ls.style.transition="";
     var logo=document.getElementById("login-logo-img");
     var fallback=document.getElementById("login-logo-fallback");
-    if(logo){logo.style.display="block";}
-    if(fallback){fallback.style.display="none";}
+    if(logo)logo.style.display="block";
+    if(fallback)fallback.style.display="none";
     var sl=document.getElementById("login-sat-label");
-    if(sl){var sat=nextSat();sl.textContent="PRÓXIMO: SÁB "+sat.getDate()+" "+MESES_C[sat.getMonth()].toUpperCase();}
-    if(me){
-      document.getElementById("login-step1").style.display="none";
-      var s2=document.getElementById("login-step2");s2.style.display="flex";
-      var nl=document.getElementById("login-nombre-label");if(nl)nl.textContent=me.toUpperCase();
-      // Ocultar "PRÓXIMO:" en step2 — el nombre lo dice todo
-      var sl2=document.getElementById("login-sat-label");if(sl2)sl2.style.display="none";
-    } else {
-      document.getElementById("login-step1").style.display="flex";
-      document.getElementById("login-step2").style.display="none";
-      var sl3=document.getElementById("login-sat-label");if(sl3)sl3.style.display="block";
-      // Limpiar input y sugerencias
-      var inp=document.getElementById("login-input-nombre");if(inp)inp.value="";
-      var sug=document.getElementById("login-sugerencias");if(sug)sug.style.display="none";
-    }
+    if(sl){var sat=nextSat();sl.textContent="PRÓXIMO: SÁB "+sat.getDate()+" "+MESES_C[sat.getMonth()].toUpperCase();sl.style.display="block";}
+    // Solo existe login-step1 en el HTML — siempre mostrar ese
+    var step1=document.getElementById("login-step1");
+    if(step1)step1.style.display="flex";
+    var inp=document.getElementById("login-input-nombre");if(inp)inp.value="";
+    var sug=document.getElementById("login-sugerencias");if(sug)sug.style.display="none";
   }
   function hideLoginScreen(){
     var ls=document.getElementById("login-screen");
@@ -3233,7 +3225,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.24";
+  var APP_VERSION="10.0.25";
   var STORED_VERSION=localStorage.getItem("app_version");
 
   if("serviceWorker"in navigator){
