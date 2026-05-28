@@ -161,9 +161,19 @@
       if(banner){
         banner.innerHTML=keys.map(function(k){
           var enc=encodeURIComponent(k);
-          return "<div style='display:flex;align-items:center;justify-content:space-between;padding:8px 12px;border-bottom:1px solid rgba(255,255,255,0.05)'>"
-            +"<span style='font-size:0.75rem;color:#fff;font-weight:600'>👤 "+k+" entró a la app</span>"
+          var nd=nuevos[k];
+          var peds=nd&&nd.pedidos?nd.pedidos.join(", "):"sin pedido aún";
+          var tienePed=nd&&nd.pedidos&&nd.pedidos.length>0;
+          return "<div style='padding:10px 12px;border-bottom:1px solid rgba(255,255,255,0.05)'>"
+            +"<div style='display:flex;align-items:center;justify-content:space-between;margin-bottom:"+(tienePed?"6":"0")+"px'>"
+            +"<span style='font-size:0.75rem;color:#fff;font-weight:700'>👤 "+k.toUpperCase()+" quiere unirse</span>"
             +"<button data-nuevo='"+enc+"' onclick='window.descartarNuevo(decodeURIComponent(this.dataset.nuevo))' style='background:none;border:none;color:var(--mut);cursor:pointer;font-size:1rem;padding:4px 8px'>✕</button>"
+            +"</div>"
+            +(tienePed?"<div style='font-size:0.68rem;color:var(--mut);margin-bottom:8px'>☕ "+peds+"</div>":"")
+            +"<div style='display:flex;gap:6px'>"
+            +"<button data-nuevo='"+enc+"' onclick='aceptarNuevoEnBanner(decodeURIComponent(this.dataset.nuevo))' style='flex:1;background:rgba(34,197,94,0.15);border:1px solid rgba(34,197,94,0.3);border-radius:8px;color:#4ade80;font-size:0.68rem;padding:6px;cursor:pointer;font-weight:700'>✓ AGREGAR A LA LISTA</button>"
+            +"<button data-nuevo='"+enc+"' onclick='window.descartarNuevo(decodeURIComponent(this.dataset.nuevo))' style='background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.2);border-radius:8px;color:#f87171;font-size:0.68rem;padding:6px 10px;cursor:pointer'>✕</button>"
+            +"</div>"
             +"</div>";
         }).join("");
         banner.style.display=keys.length?"block":"none";
@@ -194,6 +204,7 @@
       renderMyName();
       var ls0=document.getElementById("login-screen");
       if(ls0){ls0.style.transition="none";ls0.style.display="none";}
+      window._esNuevo=!isAdmin()&&!galanes.some(function(g){return g.toUpperCase()===me.toUpperCase();});
       setTimeout(function(){
         renderDrinks();switchTab("pedir",true);
       },300);
@@ -250,9 +261,18 @@
     b.innerHTML=(isAdmin()?"⚙️ ":"")+me+"<span class='lx' onclick='logout(event)'>✕</span>";
     b.style.cssText="display:flex!important;align-items:center";document.getElementById("prompt").style.display="none";
     // Mostrar tabs según rol
-    var adminBtn=document.querySelector("[data-tab='admin']");if(adminBtn)adminBtn.style.cssText=isAdmin()?"display:flex!important":"display:none!important";;
-    // Resumen y Cumples visibles con login
-    ["resumen","cumples","stats","mundial"].forEach(function(t){var btn=document.querySelector("[data-tab='"+t+"']");if(btn)btn.style.cssText="display:flex!important";});
+    var adminBtn=document.querySelector("[data-tab='admin']");if(adminBtn)adminBtn.style.cssText=isAdmin()?"display:flex!important":"display:none!important";
+    var esRegistrado=galanes.some(function(g){return g.toUpperCase()===me.toUpperCase();});
+    // Nuevo no registrado: solo ve PEDIR y ASADO
+    if(isAdmin()){
+      ["resumen","cumples","stats","mundial","asado"].forEach(function(t){var btn=document.querySelector("[data-tab='"+t+"']");if(btn)btn.style.cssText="display:flex!important";});
+    } else if(esRegistrado){
+      ["resumen","cumples","stats","mundial","asado"].forEach(function(t){var btn=document.querySelector("[data-tab='"+t+"']");if(btn)btn.style.cssText="display:flex!important";});
+      var aBtn=document.querySelector("[data-tab='admin']");if(aBtn)aBtn.style.cssText="display:none!important";
+    } else {
+      // No registrado: solo PEDIR y ASADO visibles
+      ["resumen","cumples","stats","mundial","admin"].forEach(function(t){var btn=document.querySelector("[data-tab='"+t+"']");if(btn)btn.style.cssText="display:none!important";});
+    }
     renderConfirmBtn();renderCumpleBanner();
   }
 
@@ -397,9 +417,14 @@
     try{
       await set(ref(db,"pedido/confirmed/"+me),true);
       await set(ref(db,"config/accesos/"+me),{va:true,ts:Date.now()});
-      confirmed[me]=true; // actualizar local para render inmediato
+      confirmed[me]=true;
+      // Si es usuario nuevo: también registrar en nuevos con sus pedidos para que el admin vea
+      if(window._esNuevo){
+        var misPeds=Object.values(orders).filter(function(o){return o.player===me;}).map(function(o){return o.drink;});
+        set(ref(db,"config/nuevos/"+me),{ts:Date.now(),nombre:me,pedidos:misPeds});
+      }
       renderConfirmBtn();renderDrinks();renderMiSaldo();
-      showToast("✅ Pedido confirmado!");
+      showToast("✅ Pedido enviado!");
       speak("Tu pedido fue enviado. Gracias "+me+"!");
     }catch(e){
       showToast("❌ Error al enviar, intentá de nuevo");
@@ -1285,6 +1310,13 @@
     renderDrinks();
   };
 
+  window.aceptarNuevoEnBanner=async function(nombre){
+    if(!isAdmin())return;
+    var lista=galanes.slice();
+    if(lista.indexOf(nombre)===-1){lista.push(nombre);lista.sort();galanes=lista;await set(rG,lista);}
+    await set(ref(db,"config/nuevos/"+nombre),null);
+    showToast("✓ "+nombre+" agregado a la lista!");
+  };
   window.descartarNuevo=async function(nombre){
     await set(ref(db,"config/nuevos/"+nombre),null);
   };
@@ -2330,10 +2362,17 @@
       var cur=accesos[me]||{count:0};
       set(ref(db,"config/accesos/"+me),{count:(cur.count||0)+1,lastAccess:Date.now()});
       var enLista=galanes.some(function(g){return g.toUpperCase()===me.toUpperCase();});
-      if(!enLista){set(ref(db,"config/nuevos/"+me),{ts:Date.now(),nombre:me});}
+      window._esNuevo=!enLista&&!isAdmin();
+      if(!enLista&&!isAdmin()){
+        set(ref(db,"config/nuevos/"+me),{ts:Date.now(),nombre:me});
+      }
       renderMyName();
       renderDrinks();
       switchTab("pedir",true);
+      // Mostrar aviso al nuevo usuario
+      if(window._esNuevo){
+        showToast("👋 Hola "+me+"! Pedí tu café, el admin te agrega a la lista");
+      }
     }catch(e){console.error("loginEntrar error:",e);}
   };
   window.loginCambiarNombre=function(){
@@ -3233,7 +3272,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.27";
+  var APP_VERSION="10.0.28";
   var STORED_VERSION=localStorage.getItem("app_version");
 
   if("serviceWorker"in navigator){
