@@ -364,14 +364,16 @@
         var tsOrder=misPed[0].ts?new Date(misPed[0].ts):null;
         var horaStr=tsOrder?tsOrder.toLocaleTimeString("es-AR",{hour:"2-digit",minute:"2-digit"}):"";
         var fechaStr=tsOrder?tsOrder.toLocaleDateString("es-AR",{weekday:"short",day:"numeric",month:"short"}):"";
-        pills+="<div style='width:100%;background:rgba(22,197,94,0.12);border:2px solid rgba(22,197,94,0.5);border-radius:16px;padding:14px 16px;display:block'>"
-          +"<span style='font-size:1.8rem'>✅</span>"
+        pills+="<div style='width:100%;background:linear-gradient(135deg,rgba(22,197,94,0.1),rgba(22,197,94,0.05));border:1.5px solid rgba(22,197,94,0.4);border-radius:16px;padding:14px 16px'>"
+          +"<div style='display:flex;align-items:center;gap:12px'>"
+          +"<div style='width:44px;height:44px;background:rgba(22,197,94,0.18);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0'>✔️</div>"
           +"<div style='flex:1;min-width:0'>"
-          +"<div style='font-size:0.72rem;font-weight:700;color:#4ade80;letter-spacing:0.06em'>PEDIDO ENVIADO</div>"
-          +"<div style='font-size:0.82rem;font-weight:600;color:#fff;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis'>"+misPed[0].drink+"</div>"
-          +(horaStr?"<div style='font-size:0.6rem;color:rgba(255,255,255,0.4);margin-top:3px;font-family:\"DM Mono\",monospace'>"+fechaStr+" · "+horaStr+"</div>":"")
+          +"<div style='font-size:0.58rem;font-weight:700;color:#4ade80;letter-spacing:0.12em;text-transform:uppercase'>✓ Pedido enviado</div>"
+          +"<div style='font-size:0.9rem;font-weight:700;color:#fff;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis'>"+misPed[0].drink+"</div>"
+          +(horaStr?"<div style='font-size:0.58rem;color:rgba(255,255,255,0.35);margin-top:2px;font-family:\"DM Mono\",monospace'>"+fechaStr+" · "+horaStr+"</div>":"")
           +"</div>"
-          +"<button onclick='window.modificarPedido&&window.modificarPedido()' style='background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.2);border-radius:8px;padding:6px 16px;color:rgba(255,255,255,0.7);font-size:0.7rem;cursor:pointer'>✏️ Modificar</button>"
+          +"<button onclick='window.modificarPedido&&window.modificarPedido()' style='flex-shrink:0;background:rgba(255,255,255,0.1);border:1.5px solid rgba(255,255,255,0.3);border-radius:10px;padding:9px 14px;color:#fff;font-size:0.7rem;font-weight:700;cursor:pointer;letter-spacing:0.04em'>✏️ Cambiar</button>"
+          +"</div>"
           +"</div>";
       } else if(misPed.length>0){
         pills+="<div style='flex:1;min-width:140px;background:rgba(251,146,60,0.12);border:1.5px solid rgba(251,146,60,0.4);border-radius:14px;padding:12px 14px;display:flex;align-items:center;gap:10px;cursor:pointer' onclick='document.querySelector(\".cbtn\")&&document.querySelector(\".cbtn\").click()'>"
@@ -2309,6 +2311,7 @@
     var q=val.trim().toUpperCase();
     if(!q){sug.style.display="none";return;}
     var matches=galanes.filter(function(g){
+      if(g===ADMIN)return false; // ocultar admin de sugerencias
       var gu=g.toUpperCase();
       return gu.startsWith(q)||gu.split(" ").some(function(p){return p.startsWith(q);});
     }).slice(0,5);
@@ -2341,11 +2344,12 @@
     var inp=document.getElementById("login-input-nombre");
     var raw=inp?inp.value.trim().toUpperCase():"";
     if(!raw){showToast("Escribí tu nombre");return;}
-    // Buscar match exacto en la lista (ya todo en mayúsculas)
     if(!galanes||!galanes.length){showToast("⏳ Cargando lista, esperá un segundo...");return;}
+    // Normalizar: usar nombre canónico si está en lista, sino usar el ingresado (nuevo)
     var exact=galanes.find(function(g){return g.toUpperCase()===raw;});
-    if(!exact){showToast("❌ "+raw+" no está en la lista de galanes");return;}
-    me=exact;
+    // Bloquear si intenta entrar como admin escribiendo el nombre
+    if(raw===ADMIN.toUpperCase()&&!exact){showToast("❌ Nombre no disponible");return;}
+    me=exact||raw.charAt(0)+raw.slice(1).toLowerCase(); // capitalize si es nuevo
     localStorage.setItem("galan_name",me);
     loginEntrar();
   };
@@ -3272,7 +3276,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.28";
+  var APP_VERSION="10.0.29";
   var STORED_VERSION=localStorage.getItem("app_version");
 
   if("serviceWorker"in navigator){
