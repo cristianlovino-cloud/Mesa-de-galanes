@@ -192,11 +192,11 @@
     // Login: si ya tiene nombre guardado, entrar directo. Si no, mostrar login.
     if(me){
       renderMyName();
+      var ls0=document.getElementById("login-screen");
+      if(ls0){ls0.style.transition="none";ls0.style.display="none";}
       setTimeout(function(){
-        var ls=document.getElementById("login-screen");
-        if(ls)ls.style.display="none";
         renderDrinks();switchTab("pedir",true);
-      },500);
+      },300);
     } else {
       setTimeout(function(){showLoginScreen();},400);
     }
@@ -890,12 +890,12 @@
     if(!confirm("Cerrar y archivar la mesa de hoy?"))return;
     var now=new Date(),fecha=now.toISOString().slice(0,10),hora=now.toLocaleTimeString("es-AR",{hour:"2-digit",minute:"2-digit"});
     var sumC=0,sumT=0;Object.values(pagos).forEach(function(pg){sumC+=(pg.cash||0);sumT+=(pg.transfer||0);});
-    // Guardar precios actuales junto con la mesa
     var precios={};drinks.forEach(function(d){if(d.precio)precios[d.id||d.name]=d.precio;});
     await set(ref(db,"historial/"+fecha),{fecha:fecha,hora:hora,pedidos:orders,pagos:pagos,totalBar:totalBar,recaudado:sumC+sumT,precios:precios});
-    // Limpiar pedidos, pagos, timer, presentes Y reservas del sábado anterior
     await Promise.all([set(rO,null),set(rC,null),set(rP,null),set(rT,null),set(rB,0),set(rPres,null),set(rR,null)]);
     showToast("✓ Mesa archivada!");speak("Mesa cerrada. Hasta el próximo sábado!");switchTab("admin");
+    // (propina se sortea manualmente con el botón 🎲)
+
   };
   window.verHistorial=async function(){
     var snap=await get(rH);if(!snap.exists()){showToast("No hay historial todavía");return;}
@@ -905,6 +905,84 @@
     h+="</div><div class='ma' style='margin-top:12px'><button class='bs' onclick='closeModal(\"mhistorial\")'>Cerrar</button></div>";
     document.getElementById("hist-content").innerHTML=h;openModal("mhistorial");
   };
+
+  // ── PROPINA ALEATORIA ─────────────────────────────────────────────────────
+  const rPropina=ref(db,"config/propina");
+
+  function calcularTotalMesa(){
+    var total=0;
+    Object.values(orders).forEach(function(o){
+      var d=drinks.find(function(dr){return o.drink&&o.drink.startsWith(dr.name);});
+      if(!d||!d.precio)return;
+      var extra=0;
+      if(o.extra&&d.comboPrices){
+        var ck=o.extra.toLowerCase().replace(/\s+/g,"_");
+        extra=d.comboPrices[ck]||0;
+      }
+      total+=d.precio+extra;
+    });
+    return total;
+  }
+
+  // Listener broadcast: cuando sortean, todos ven el modal
+  onValue(ref(db,"pedido/propina"),function(s){
+    if(!s.exists()||!me)return;
+    var d=s.val();
+    if(!d.nombre||!d.ts)return;
+    if(Date.now()-d.ts>15000)return;
+    showPropinaModal(d.nombre,d.restantes,d.total||0);
+  });
+
+  function showPropinaModal(nombre,restantes,total){
+    var mc=document.getElementById("hist-content");if(!mc)return;
+    var esYo=me&&nombre.toUpperCase()===me.toUpperCase();
+    var totalStr=total>0?"$"+Math.round(total):"";
+    mc.innerHTML="<div class='mh2'></div>"
+      +"<div style='text-align:center;padding:12px 0'>"
+      +"<div style='font-size:3rem;margin-bottom:6px'>"+(esYo?"😬":"🎲")+"</div>"
+      +"<div style='font-size:0.6rem;color:var(--mut);letter-spacing:0.1em;margin-bottom:8px'>PROPINA DE HOY</div>"
+      +"<div style='font-family:\"Bebas Neue\",sans-serif;font-size:2.6rem;color:"+(esYo?"#f87171":"var(--g2)")+";letter-spacing:0.06em;line-height:1'>"+nombre.toUpperCase()+"</div>"
+      +(esYo?"<div style='margin-top:8px;font-size:0.78rem;color:#f87171;font-weight:600'>Te toco! Hoy pones la propina 😅</div>":"")
+      +(totalStr?"<div style='margin-top:10px;font-size:0.62rem;color:var(--mut)'>Total mesa: <b style='color:var(--ink);font-size:0.85rem'>"+totalStr+"</b></div>":"")
+      +"<div style='font-size:0.6rem;color:var(--mut);margin-top:6px'>Quedan <b style='color:var(--ink)'>"+restantes+"</b> en la ronda</div>"
+      +"</div>"
+      +"<div class='ma' style='margin-top:14px'><button class='bp' onclick='closeModal(\"mhistorial\")'>OK!</button></div>";
+    openModal("mhistorial");
+  }
+
+  window.sortearPropina=async function(){
+    if(!isAdmin()){showToast("Solo el admin puede sortear");return;}
+    var hSnap=await get(rH);
+    if(!hSnap.exists()){showToast("Sin historial todavia");return;}
+    var hist=hSnap.val();
+    var fechas=Object.keys(hist).sort().reverse().slice(0,2);
+    if(fechas.length<2){showToast("Se necesitan al menos 2 cafes en historial");return;}
+    var p0={},p1={};
+    if(hist[fechas[0]].pedidos)Object.values(hist[fechas[0]].pedidos).forEach(function(o){if(o.player)p0[o.player]=1;});
+    if(hist[fechas[1]].pedidos)Object.values(hist[fechas[1]].pedidos).forEach(function(o){if(o.player)p1[o.player]=1;});
+    var elegibles=Object.keys(p0).filter(function(p){return p1[p];});
+    // Fallback: si no hay historial de 2, usar pedidos actuales
+    if(!elegibles.length){
+      elegibles=Object.keys(Object.values(orders).reduce(function(a,o){if(o.player)a[o.player]=1;return a;},{}));
+    }
+    if(!elegibles.length){showToast("No hay pedidos todavia");return;}
+    var pSnap=await get(rPropina);
+    var pData=pSnap.exists()?pSnap.val():{ronda:[],historial:[]};
+    var ronda=(pData.ronda||[]).filter(function(n){return elegibles.indexOf(n)!==-1;});
+    if(!ronda.length){
+      ronda=elegibles.slice();
+      for(var i=ronda.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1));var t=ronda[i];ronda[i]=ronda[j];ronda[j]=t;}
+    }
+    var ganador=ronda.shift();
+    var total=calcularTotalMesa();
+    var hh=(pData.historial||[]);
+    hh.push({nombre:ganador,ts:Date.now(),total:total});
+    await set(rPropina,{ronda:ronda,historial:hh.slice(-20)});
+    await set(ref(db,"pedido/propina"),{nombre:ganador,restantes:ronda.length,total:total,ts:Date.now()});
+    showToast("Propina: "+ganador+" (quedan "+ronda.length+")");
+  };
+
+
   window.verDia=async function(fecha){
     var snap=await get(ref(db,"historial/"+fecha));if(!snap.exists())return;
     var d=snap.val(),by={};Object.values(d.pedidos||{}).forEach(function(o){if(!by[o.player])by[o.player]=[];by[o.player].push(o.drink);});
@@ -1655,6 +1733,22 @@
 
   function renderPagosDetail(){
     var panel=document.getElementById("pagos-detail-panel");if(!panel)return;
+    // Mostrar último sorteo de propina si existe
+    get(rPropina).then(function(ps){
+      var pind=document.getElementById("propina-indicator");
+      if(!pind)return;
+      if(!ps.exists()){pind.style.display="none";return;}
+      var pd=ps.val(),hh=pd.historial||[];
+      if(!hh.length){pind.style.display="none";return;}
+      var ult=hh[hh.length-1];
+      var esHoy=nextSatStr()===new Date(ult.ts).toISOString().slice(0,10);
+      var label=esHoy?"HOY":"SÁB "+new Date(ult.ts).getDate()+"/"+String(new Date(ult.ts).getMonth()+1);
+      pind.innerHTML="<span style='font-size:0.6rem;color:var(--mut);letter-spacing:0.06em'>🎲 PROPINA "+label+":</span> "
+        +"<b style='color:#c084fc;font-size:0.8rem'>"+ult.nombre.toUpperCase()+"</b>"
+        +(ult.total>0?" <span style='font-size:0.6rem;color:var(--mut)'>· Mesa: $"+Math.round(ult.total)+"</span>":"")
+        +"<span style='font-size:0.6rem;color:var(--mut);margin-left:6px'>(quedan "+(pd.ronda||[]).length+" en ronda)</span>";
+      pind.style.display="block";
+    }).catch(function(){});
     var players=Object.keys(pagos).sort();
     if(!players.length){panel.innerHTML="<div class='es' style='padding:20px 0'>Sin pagos registrados</div>";return;}
     var rows=["<div class='lista-grid'>"];
@@ -2225,21 +2319,22 @@
   };
   window.loginEntrar=function(){
     if(!me)return;
-    _confirmando=false; // resetear estado al entrar
+    _confirmando=false;
     var btn=document.querySelector(".cbtn");
     if(btn){btn.disabled=false;btn.textContent="☕ Enviar mi pedido";btn.style.opacity="1";}
     localStorage.setItem("last_login_ts",Date.now().toString());
-    var cur=accesos[me]||{count:0};
-    set(ref(db,"config/accesos/"+me),{count:(cur.count||0)+1,lastAccess:Date.now()});
-    // Si no está en la lista de galanes, notificar en Firebase para que el admin lo vea
-    var enLista=galanes.some(function(g){return g.toUpperCase()===me.toUpperCase();});
-    if(!enLista){
-      set(ref(db,"config/nuevos/"+me),{ts:Date.now(),nombre:me});
-    }
-    hideLoginScreen();
-    renderMyName();
-    renderDrinks();
-    switchTab("pedir",true);
+    // Forzar ocultar login-screen PRIMERO, sin depender del fade
+    var ls=document.getElementById("login-screen");
+    if(ls){ls.style.transition="none";ls.style.opacity="0";ls.style.display="none";}
+    try{
+      var cur=accesos[me]||{count:0};
+      set(ref(db,"config/accesos/"+me),{count:(cur.count||0)+1,lastAccess:Date.now()});
+      var enLista=galanes.some(function(g){return g.toUpperCase()===me.toUpperCase();});
+      if(!enLista){set(ref(db,"config/nuevos/"+me),{ts:Date.now(),nombre:me});}
+      renderMyName();
+      renderDrinks();
+      switchTab("pedir",true);
+    }catch(e){console.error("loginEntrar error:",e);}
   };
   window.loginCambiarNombre=function(){
     me=null;localStorage.removeItem("galan_name");
@@ -2917,11 +3012,13 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
     <!-- Pagos -->
     <div id="vadmin-pagos" style="display:none">
       <div style="padding:12px 14px 80px">
+        <div id="propina-indicator" style="display:none;margin:0 0 10px;background:rgba(168,85,247,0.08);border:1px solid rgba(168,85,247,0.2);border-radius:12px;padding:10px 14px"></div>
         <div id="pago-resumen" style="margin:0 0 12px;background:linear-gradient(135deg,#0d0b07,#1a1510);border-radius:14px;padding:14px 16px;border:1px solid var(--brd)"></div>
         <div id="pagos-detail-panel"></div>
         <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">
           <button class="admin-action-btn" onclick="openTotalBar()" style="background:rgba(245,158,11,0.12);color:var(--g2);border-color:rgba(245,158,11,0.25)">🧾 Total bar</button>
           <button class="admin-action-btn" onclick="verHistorial()">📅 Historial</button>
+          <button class="admin-action-btn" onclick="sortearPropina()" style="background:rgba(168,85,247,0.12);color:#c084fc;border-color:rgba(168,85,247,0.3)">🎲 Propina</button>
           <button class="admin-action-btn" onclick="grabarFav()">💾 Fav</button>
           <button class="admin-action-btn" onclick="cargarFav()">⭐ Habitual</button>
         </div>
@@ -3136,7 +3233,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.21";
+  var APP_VERSION="10.0.24";
   var STORED_VERSION=localStorage.getItem("app_version");
 
   if("serviceWorker"in navigator){
