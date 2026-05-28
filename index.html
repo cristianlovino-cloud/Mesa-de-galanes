@@ -205,14 +205,17 @@
 
   // ── NOMBRE ────────────────────────────────────────────────
   window.setName=function(name){
-    me=name.trim();if(!me)return;
+    var raw=name.trim();if(!raw)return;
+    // Normalizar: buscar en la lista ignorando mayúsculas, usar el nombre canónico
+    var canonical=galanes.find(function(g){return g.toUpperCase()===raw.toUpperCase();});
+    me=canonical||raw;
     localStorage.setItem("galan_name",me);
     closeModal("mnombre");
     var ahora=Date.now(),cur=accesos[me]||{count:0};
     set(ref(db,"config/accesos/"+me),{count:(cur.count||0)+1,lastAccess:ahora});
     renderMyName();renderDrinks();renderOrders();renderMesa();renderLista();renderConfirmBtn();renderCumpleBanner();
     switchTab("pedir",true);
-    if(galanes.indexOf(me)===-1&&me!==ADMIN){
+    if(!canonical&&me!==ADMIN){
       set(ref(db,"config/pendientes/"+me),{ts:Date.now(),nombre:me});
     }
   };
@@ -2229,7 +2232,8 @@
     var cur=accesos[me]||{count:0};
     set(ref(db,"config/accesos/"+me),{count:(cur.count||0)+1,lastAccess:Date.now()});
     // Si no está en la lista de galanes, notificar en Firebase para que el admin lo vea
-    if(galanes.indexOf(me)===-1){
+    var enLista=galanes.some(function(g){return g.toUpperCase()===me.toUpperCase();});
+    if(!enLista){
       set(ref(db,"config/nuevos/"+me),{ts:Date.now(),nombre:me});
     }
     hideLoginScreen();
@@ -3132,7 +3136,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.20";
+  var APP_VERSION="10.0.21";
   var STORED_VERSION=localStorage.getItem("app_version");
 
   if("serviceWorker"in navigator){
