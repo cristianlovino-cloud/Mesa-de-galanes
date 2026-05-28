@@ -1711,21 +1711,26 @@
       var esExtra=lista.indexOf(pl)===-1;
       var estado=pago?"pagado":(peds.length>0?"pidio":"pendiente");
       var row="<div class='lista-row lista-"+estado+"'>";
-      row+="<div class='lista-av' style='background:"+col(pl)+";width:42px;height:42px;font-size:1rem;flex-shrink:0'>"+ini(pl)+"</div>";
-      row+="<div class='lista-info' style='flex:1;min-width:0'>";
-      // FIX 1: nombre más grande (0.8rem ya está) y drinks más grande (0.78rem)
-      row+="<div class='lista-name' style='font-size:0.8rem'>"+pl;
+      // Avatar
+      row+="<div class='lista-av' style='background:"+col(pl)+";width:40px;height:40px;font-size:0.95rem;flex-shrink:0'>"+ini(pl)+"</div>";
+      // Columna derecha: info arriba + botones abajo (admin)
+      row+="<div style='flex:1;min-width:0;display:flex;flex-direction:column;gap:3px'>";
+      // Fila info
+      row+="<div style='display:flex;align-items:center;gap:5px;flex-wrap:wrap'>";
+      row+="<span class='lista-name' style='font-size:0.82rem'>"+pl;
       if(esExtra)row+=" <span style='font-size:0.55rem;color:var(--mut);opacity:0.6'>*</span>";
       if(conf&&peds.length>0)row+=" <span class='ctg'>✓</span>";
       if(pago)row+=" <span class='pago-ok' style='font-size:0.58rem'>💰</span>";
       if(res&&!peds.length)row+=" <span class='res-tag'>📋</span>";
+      row+="</span>";
+      if(cumpl)row+="<span style='font-size:0.6rem;color:var(--mut)'>🎂 "+cumpl.dia+"/"+cumpl.mes+"</span>";
       row+="</div>";
-      if(peds.length){row+="<div class='lista-drinks' style='font-size:0.78rem'>"+peds.map(function(p){return p.icon+" "+p.drink;}).join(" · ")+"</div>";}
-      else{row+="<div class='lista-drinks lista-nd' style='font-size:0.78rem'>"+(res?"📋 Tiene reserva":"Sin pedido")+"</div>";}
-      if(cumpl)row+="<div style='font-size:0.65rem;color:var(--mut);margin-top:1px'>🎂 "+cumpl.dia+"/"+cumpl.mes+"</div>";
-      row+="</div>";
+      // Drinks
+      if(peds.length){row+="<div class='lista-drinks' style='font-size:0.72rem'>"+peds.map(function(p){return p.icon+" "+p.drink;}).join(" · ")+"</div>";}
+      else{row+="<div class='lista-drinks lista-nd' style='font-size:0.72rem'>"+(res?"📋 Reserva":"Sin pedido")+"</div>";}
+      // Botones admin — fila separada abajo del texto
       if(isAdmin()){
-        row+="<div style='display:flex;gap:3px;align-items:center;flex-shrink:0'>";
+        row+="<div style='display:flex;gap:4px;align-items:center;margin-top:2px;flex-wrap:wrap'>";
         if(!esExtra)row+="<button class='asist-btn"+(presente?" asist-va":"")+"' data-name='"+pl+"' onclick='togglePresente(this)'>"+(presente?"🟢":"⚫")+" VA</button>";
         if(!peds.length)row+="<button class='asist-btn asist-load' data-name='"+pl+"' onclick='quickLoad(this)'>+ Pedir</button>";
         if(!esExtra)row+="<button class='icon-btn' data-name='"+pl+"' onclick='abrirEditarNombre(this)' title='Editar'>✏️</button>";
@@ -1733,6 +1738,7 @@
         if(!esExtra)row+="<button class='icon-btn' style='color:var(--red)' data-name='"+pl+"' onclick='eliminarDeListaBase(this)' title='Eliminar'>🗑</button>";
         row+="</div>";
       }
+      row+="</div>";
       row+="</div>";rows.push(row);
     });
     rows.push("</div>");panel.innerHTML=rows.join("");
@@ -2181,16 +2187,16 @@
     sug.innerHTML=matches.map(function(g,idx){
       var isLast=idx===matches.length-1;
       return "<button data-gn='"+g+"' onclick='loginSelectGalan(this.dataset.gn)' "
-        +"style='display:block;width:100%;background:none;border:none;"
+        +"style='display:flex;align-items:center;gap:12px;width:100%;background:none;border:none;"
         +(isLast?"":"border-bottom:1px solid rgba(255,255,255,0.06);")
-        +"padding:12px 16px;cursor:pointer;transition:background 0.1s;' "
+        +"padding:10px 16px;cursor:pointer;transition:background 0.1s;box-sizing:border-box;' "
         +"onmouseenter=\"this.style.background='rgba(255,255,255,0.05)'\" "
         +"onmouseleave=\"this.style.background='none'\">"
-        +"<div style='width:40px;height:40px;border-radius:50%;background:"+col(g)+";"
+        +"<div style='width:38px;height:38px;border-radius:50%;background:"+col(g)+";"
         +"display:flex;align-items:center;justify-content:center;flex-shrink:0;"
-        +"font-family:\"Bebas Neue\",sans-serif;font-size:1rem;color:white;letter-spacing:0.04em'>"
+        +"font-family:\"Bebas Neue\",sans-serif;font-size:0.95rem;color:white;letter-spacing:0.04em'>"
         +ini(g)+"</div>"
-        +"<span style='font-size:0.88rem;font-weight:600;color:#fff;letter-spacing:0.06em'>"+g.toUpperCase()+"</span>"
+        +"<span style='font-size:0.88rem;font-weight:700;color:#fff;letter-spacing:0.06em'>"+g.toUpperCase()+"</span>"
         +"</button>";
     }).join("");
   };
@@ -2463,7 +2469,7 @@ header::after{
 .lstat-warn{background:rgba(245,158,11,0.1);color:var(--g2);}
 .lstat-total{background:var(--brd);color:var(--mut);}
 .lista-grid{display:flex;flex-direction:column;gap:8px;}
-.lista-row{display:flex;align-items:center;gap:10px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:9px 12px;transition:border-color 0.15s,background 0.15s;}
+.lista-row{display:flex;align-items:flex-start;gap:10px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:10px 12px;transition:border-color 0.15s,background 0.15s;}
 .lista-row:hover{background:rgba(255,255,255,0.07);border-color:rgba(255,255,255,0.14);}
 .lista-pidio{background:rgba(16,185,129,0.06);border-color:rgba(16,185,129,0.22);}
 .lista-pidio:hover{background:rgba(16,185,129,0.09);border-color:rgba(16,185,129,0.32);}
@@ -2695,7 +2701,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 .asist-btn.asist-load:hover{background:rgba(245,158,11,0.3);border-color:var(--g2);}
 
 /* Estado visual en lista */
-.lista-row{gap:10px;padding:9px 12px;margin-bottom:2px;}
+.lista-row{gap:10px;padding:10px 12px;margin-bottom:2px;}
 .lista-row.lista-pidio{border-left:3px solid rgba(22,197,94,0.4);}
 .lista-row.lista-pendiente{border-left:3px solid rgba(255,255,255,0.08);}
 .lista-row.lista-pagado{border-left:3px solid rgba(245,158,11,0.5);background:rgba(245,158,11,0.04);}
@@ -3125,7 +3131,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.16";
+  var APP_VERSION="10.0.18";
   var STORED_VERSION=localStorage.getItem("app_version");
 
   if("serviceWorker"in navigator){
