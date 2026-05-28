@@ -160,9 +160,10 @@
       var banner=document.getElementById("nuevos-alert");
       if(banner){
         banner.innerHTML=keys.map(function(k){
+          var enc=encodeURIComponent(k);
           return "<div style='display:flex;align-items:center;justify-content:space-between;padding:8px 12px;border-bottom:1px solid rgba(255,255,255,0.05)'>"
             +"<span style='font-size:0.75rem;color:#fff;font-weight:600'>👤 "+k+" entró a la app</span>"
-            +"<button onclick='descartarNuevo(\""+k+"\")' style='background:none;border:none;color:var(--mut);cursor:pointer;font-size:0.7rem'>✕</button>"
+            +"<button data-nuevo='"+enc+"' onclick='window.descartarNuevo(decodeURIComponent(this.dataset.nuevo))' style='background:none;border:none;color:var(--mut);cursor:pointer;font-size:1rem;padding:4px 8px'>✕</button>"
             +"</div>";
         }).join("");
         banner.style.display=keys.length?"block":"none";
@@ -3131,7 +3132,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.18";
+  var APP_VERSION="10.0.19";
   var STORED_VERSION=localStorage.getItem("app_version");
 
   if("serviceWorker"in navigator){
