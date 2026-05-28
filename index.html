@@ -326,7 +326,7 @@
 
   // ── CONFIRMAR ─────────────────────────────────────────────
   function tengo(){return me&&Object.values(orders).some(function(o){return o.player===me;});}
-  function confirmado(){return me&&confirmed[me];}
+  function confirmado(){return me&&confirmed[me]&&Object.values(orders).some(function(o){return o.player===me;});}
   function renderConfirmBtn(){
     var w=document.getElementById("confirm-wrap");if(!w)return;
     var banner=document.getElementById("pedido-status-banner");
@@ -3225,7 +3225,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.25";
+  var APP_VERSION="10.0.26";
   var STORED_VERSION=localStorage.getItem("app_version");
 
   if("serviceWorker"in navigator){
