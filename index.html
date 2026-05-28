@@ -244,7 +244,7 @@
     window._me=me;window._isAdmin=isAdmin();
     var b=document.getElementById("badge");
     b.innerHTML=(isAdmin()?"⚙️ ":"")+me+"<span class='lx' onclick='logout(event)'>✕</span>";
-    b.style.display="flex";document.getElementById("prompt").style.display="none";
+    b.style.cssText="display:flex!important;align-items:center";document.getElementById("prompt").style.display="none";
     // Mostrar tabs según rol
     var adminBtn=document.querySelector("[data-tab='admin']");if(adminBtn)adminBtn.style.cssText=isAdmin()?"display:flex!important":"display:none!important";;
     // Resumen y Cumples visibles con login
@@ -2209,8 +2209,10 @@
     var raw=inp?inp.value.trim().toUpperCase():"";
     if(!raw){showToast("Escribí tu nombre");return;}
     // Buscar match exacto en la lista (ya todo en mayúsculas)
+    if(!galanes||!galanes.length){showToast("⏳ Cargando lista, esperá un segundo...");return;}
     var exact=galanes.find(function(g){return g.toUpperCase()===raw;});
-    me=exact||raw;
+    if(!exact){showToast("❌ "+raw+" no está en la lista de galanes");return;}
+    me=exact;
     localStorage.setItem("galan_name",me);
     loginEntrar();
   };
