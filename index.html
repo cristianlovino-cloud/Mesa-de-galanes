@@ -1357,8 +1357,15 @@
     checkNuevosAlert();
   };
   window.descartarNuevo=async function(nombre){
+    if(!confirm("Rechazar a "+nombre+"? Se borrará su pedido."))return;
+    // Borrar pedidos del usuario
+    var keysToDelete=Object.keys(orders).filter(function(k){return orders[k].player===nombre;});
+    await Promise.all(keysToDelete.map(function(k){return set(ref(db,"pedido/orders/"+k),null);}));
+    // Borrar confirmed
+    await set(ref(db,"pedido/confirmed/"+nombre),null);
+    // Borrar de nuevos
     await set(ref(db,"config/nuevos/"+nombre),null);
-    // Ocultar inmediatamente sin esperar al listener
+    showToast("✕ "+nombre+" rechazado");
     checkNuevosAlert();
   };
 
@@ -3323,7 +3330,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.32";
+  var APP_VERSION="10.0.33";
   var STORED_VERSION=localStorage.getItem("app_version");
 
   if("serviceWorker"in navigator){
