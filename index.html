@@ -150,7 +150,12 @@
     onValue(rPend,function(s){pendientes=s.exists()?s.val():{};renderPendientes();});
     onValue(rPres,function(s){presentes=s.exists()?s.val():{};renderLista();});
     onValue(rNuevos,function(s){
-      if(!s.exists()||!isAdmin())return;
+      if(!isAdmin())return;
+      if(!s.exists()){
+        var b=document.getElementById("nuevos-alert");if(b)b.style.display="none";
+        var at=document.querySelector(".tab[data-tab='admin']");if(at)at.innerHTML="⚙️ Admin";
+        return;
+      }
       var nuevos=s.val(),keys=Object.keys(nuevos||{});
       if(!keys.length)return;
       // Badge en tab admin
@@ -1349,9 +1354,12 @@
     if(lista.indexOf(nombre)===-1){lista.push(nombre);lista.sort();galanes=lista;await set(rG,lista);}
     await set(ref(db,"config/nuevos/"+nombre),null);
     showToast("✓ "+nombre+" agregado a la lista!");
+    checkNuevosAlert();
   };
   window.descartarNuevo=async function(nombre){
     await set(ref(db,"config/nuevos/"+nombre),null);
+    // Ocultar inmediatamente sin esperar al listener
+    checkNuevosAlert();
   };
 
   window.resetDrinks=async function(){if(!confirm("Restaurar 4 categorias originales?"))return;await set(rD,DRINKS_DEF);};
@@ -3315,7 +3323,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.31";
+  var APP_VERSION="10.0.32";
   var STORED_VERSION=localStorage.getItem("app_version");
 
   if("serviceWorker"in navigator){
