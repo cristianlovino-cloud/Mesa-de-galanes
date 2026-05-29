@@ -364,12 +364,12 @@
         var tsOrder=misPed[0].ts?new Date(misPed[0].ts):null;
         var horaStr=tsOrder?tsOrder.toLocaleTimeString("es-AR",{hour:"2-digit",minute:"2-digit"}):"";
         var fechaStr=tsOrder?tsOrder.toLocaleDateString("es-AR",{weekday:"short",day:"numeric",month:"short"}):"";
-        pills+="<div style='width:100%;background:linear-gradient(135deg,rgba(22,197,94,0.1),rgba(22,197,94,0.05));border:1.5px solid rgba(22,197,94,0.4);border-radius:16px;padding:14px 16px'>"
+        pills+="<div style='width:100%;background:linear-gradient(135deg,rgba(22,197,94,0.1),rgba(22,197,94,0.05));border:1.5px solid rgba(22,197,94,0.4);border-radius:16px;padding:16px'>"
           +"<div style='display:flex;align-items:center;gap:12px'>"
           +"<div style='width:44px;height:44px;background:rgba(22,197,94,0.18);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0'>✔️</div>"
           +"<div style='flex:1;min-width:0'>"
           +"<div style='font-size:0.58rem;font-weight:700;color:#4ade80;letter-spacing:0.12em;text-transform:uppercase'>✓ Pedido enviado</div>"
-          +"<div style='font-size:0.9rem;font-weight:700;color:#fff;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis'>"+misPed[0].drink+"</div>"
+          +"<div style='font-size:0.88rem;font-weight:700;color:#fff;margin-top:3px;white-space:normal;word-break:break-word;line-height:1.3'>"+misPed[0].drink+"</div>"
           +(horaStr?"<div style='font-size:0.58rem;color:rgba(255,255,255,0.35);margin-top:2px;font-family:\"DM Mono\",monospace'>"+fechaStr+" · "+horaStr+"</div>":"")
           +"</div>"
           +"<button onclick='window.modificarPedido&&window.modificarPedido()' style='flex-shrink:0;background:rgba(255,255,255,0.1);border:1.5px solid rgba(255,255,255,0.3);border-radius:10px;padding:9px 14px;color:#fff;font-size:0.7rem;font-weight:700;cursor:pointer;letter-spacing:0.04em'>✏️ Cambiar</button>"
@@ -1869,53 +1869,58 @@
     var panel=document.getElementById("lista-panel");if(!panel)return;
     var lista=galanes.length>0?galanes.slice().sort():[];
     var byPlayer={};Object.values(orders).forEach(function(o){if(!byPlayer[o.player])byPlayer[o.player]=[];byPlayer[o.player].push(o);});
-    // FIX 3: incluir "extras" (no registrados) en la lista principal, al final
+    // Extras = tienen pedido pero NO están en galanes[]
     var extras=Object.keys(byPlayer).filter(function(p){return lista.indexOf(p)===-1;});
-    var listaCompleta=lista.concat(extras);
-    var pidieron=Object.keys(byPlayer).filter(function(p){return lista.indexOf(p)!==-1;}).length+extras.length;
+    var pidieron=Object.keys(byPlayer).filter(function(p){return lista.indexOf(p)!==-1;}).length;
     var statsEl=document.getElementById("galanes-stats");
-    if(statsEl){statsEl.innerHTML="<span class='lstat lstat-ok'>"+pidieron+" pidieron</span><span class='lstat lstat-warn'>"+(lista.length-pidieron+extras.length<=0?0:lista.length-Object.keys(byPlayer).filter(function(p){return lista.indexOf(p)!==-1;}).length)+" pendientes</span><span class='lstat lstat-total'>"+lista.length+" total</span>";}
-    var rows=["<div class='lista-grid'>"];
-    listaCompleta.forEach(function(pl){
+    if(statsEl){statsEl.innerHTML="<span class='lstat lstat-ok'>"+(pidieron+extras.length)+" pidieron</span><span class='lstat lstat-warn'>"+(lista.length-pidieron<=0?0:lista.length-pidieron)+" pendientes</span><span class='lstat lstat-total'>"+lista.length+" total</span>";}
+
+    function makeRow(pl,esExtra){
       var peds=byPlayer[pl]||[],conf=confirmed[pl],pg=pagos[pl]||{},pago=(pg.cash||0)+(pg.transfer||0)>0;
       var res=reservas[pl],cumpl=cumples[pl];
-      // FIX 4: marcar VA automático si confirmó su pedido
       var presente=presentes[pl]||(conf&&peds.length>0)||false;
-      var adminPidio=peds.some(function(p){return p.loadedBy==="admin";});
-      var esExtra=lista.indexOf(pl)===-1;
       var estado=pago?"pagado":(peds.length>0?"pidio":"pendiente");
       var row="<div class='lista-row lista-"+estado+"'>";
-      // Avatar
       row+="<div class='lista-av' style='background:"+col(pl)+";width:40px;height:40px;font-size:0.95rem;flex-shrink:0'>"+ini(pl)+"</div>";
-      // Columna derecha: info arriba + botones abajo (admin)
       row+="<div style='flex:1;min-width:0;display:flex;flex-direction:column;gap:3px'>";
-      // Fila info
       row+="<div style='display:flex;align-items:center;gap:5px;flex-wrap:wrap'>";
       row+="<span class='lista-name' style='font-size:0.82rem'>"+pl;
-      if(esExtra)row+=" <span style='font-size:0.55rem;color:var(--mut);opacity:0.6'>*</span>";
       if(conf&&peds.length>0)row+=" <span class='ctg'>✓</span>";
       if(pago)row+=" <span class='pago-ok' style='font-size:0.58rem'>💰</span>";
-      if(res&&!peds.length)row+=" <span class='res-tag'>📋</span>";
       row+="</span>";
       if(cumpl)row+="<span style='font-size:0.6rem;color:var(--mut)'>🎂 "+cumpl.dia+"/"+cumpl.mes+"</span>";
       row+="</div>";
-      // Drinks
       if(peds.length){row+="<div class='lista-drinks' style='font-size:0.72rem'>"+peds.map(function(p){return p.icon+" "+p.drink;}).join(" · ")+"</div>";}
       else{row+="<div class='lista-drinks lista-nd' style='font-size:0.72rem'>"+(res?"📋 Reserva":"Sin pedido")+"</div>";}
-      // Botones admin — fila separada abajo del texto
       if(isAdmin()){
         row+="<div style='display:flex;gap:4px;align-items:center;margin-top:2px;flex-wrap:wrap'>";
         if(!esExtra)row+="<button class='asist-btn"+(presente?" asist-va":"")+"' data-name='"+pl+"' onclick='togglePresente(this)'>"+(presente?"🟢":"⚫")+" VA</button>";
         if(!peds.length)row+="<button class='asist-btn asist-load' data-name='"+pl+"' onclick='quickLoad(this)'>+ Pedir</button>";
-        if(!esExtra)row+="<button class='icon-btn' data-name='"+pl+"' onclick='abrirEditarNombre(this)' title='Editar'>✏️</button>";
-        row+="<button class='icon-btn' data-name='"+pl+"' onclick='abrirMergeModal(this)' title='Fusionar'>⇄</button>";
-        if(!esExtra)row+="<button class='icon-btn' style='color:var(--red)' data-name='"+pl+"' onclick='eliminarDeListaBase(this)' title='Eliminar'>🗑</button>";
+        if(esExtra){
+          var enc=encodeURIComponent(pl);
+          row+="<button data-nuevo='"+enc+"' onclick='aceptarNuevoEnBanner(decodeURIComponent(this.dataset.nuevo))' style='background:rgba(34,197,94,0.15);border:1px solid rgba(34,197,94,0.3);border-radius:8px;color:#4ade80;font-size:0.65rem;padding:5px 10px;cursor:pointer;font-weight:700'>✓ Aprobar</button>";
+          row+="<button class='icon-btn' data-name='"+pl+"' onclick='abrirMergeModal(this)' title='Fusionar'>⇄</button>";
+        } else {
+          row+="<button class='icon-btn' data-name='"+pl+"' onclick='abrirEditarNombre(this)' title='Editar'>✏️</button>";
+          row+="<button class='icon-btn' data-name='"+pl+"' onclick='abrirMergeModal(this)' title='Fusionar'>⇄</button>";
+          row+="<button class='icon-btn' style='color:var(--red)' data-name='"+pl+"' onclick='eliminarDeListaBase(this)' title='Eliminar'>🗑</button>";
+        }
         row+="</div>";
       }
-      row+="</div>";
-      row+="</div>";rows.push(row);
-    });
-    rows.push("</div>");panel.innerHTML=rows.join("");
+      row+="</div></div>";
+      return row;
+    }
+
+    var rows=["<div class='lista-grid'>"];
+    lista.forEach(function(pl){rows.push(makeRow(pl,false));});
+    rows.push("</div>");
+    // Sección separada para invitados/extras
+    if(extras.length&&isAdmin()){
+      rows.push("<div style='margin-top:12px;padding:0 0 4px'><div style='font-size:0.6rem;color:var(--mut);letter-spacing:0.1em;font-weight:700;padding:0 2px 6px'>👤 INVITADOS SIN APROBAR</div><div class='lista-grid'>");
+      extras.forEach(function(pl){rows.push(makeRow(pl,true));});
+      rows.push("</div></div>");
+    }
+    panel.innerHTML=rows.join("");
   }
 
 
@@ -3310,7 +3315,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.30";
+  var APP_VERSION="10.0.31";
   var STORED_VERSION=localStorage.getItem("app_version");
 
   if("serviceWorker"in navigator){
