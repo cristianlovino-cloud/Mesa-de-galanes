@@ -1001,6 +1001,13 @@
     openModal("mhistorial");
   }
 
+  window.limpiarPropina=async function(){
+    if(!isAdmin())return;
+    if(!confirm("Borrar la propina activa?"))return;
+    await set(ref(db,"pedido/propina"),null);
+    var pind=document.getElementById("propina-indicator");if(pind)pind.style.display="none";
+    showToast("✓ Propina limpiada");
+  };
   window.sortearPropina=async function(){
     if(!isAdmin()){showToast("Solo el admin puede sortear");return;}
     var hSnap=await get(rH);
@@ -3145,6 +3152,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
           <button class="admin-action-btn" onclick="openTotalBar()" style="background:rgba(245,158,11,0.12);color:var(--g2);border-color:rgba(245,158,11,0.25)">🧾 Total bar</button>
           <button class="admin-action-btn" onclick="verHistorial()">📅 Historial</button>
           <button class="admin-action-btn" onclick="sortearPropina()" style="background:rgba(168,85,247,0.12);color:#c084fc;border-color:rgba(168,85,247,0.3)">🎲 Propina</button>
+          <button class="admin-action-btn" onclick="limpiarPropina()" style="background:rgba(239,68,68,0.08);color:#f87171;border-color:rgba(239,68,68,0.2);font-size:0.55rem">✕ Reset propina</button>
           <button class="admin-action-btn" onclick="grabarFav()">💾 Fav</button>
           <button class="admin-action-btn" onclick="cargarFav()">⭐ Habitual</button>
         </div>
@@ -3359,7 +3367,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.36";
+  var APP_VERSION="10.0.37";
   var STORED_VERSION=localStorage.getItem("app_version");
 
   if("serviceWorker"in navigator){
