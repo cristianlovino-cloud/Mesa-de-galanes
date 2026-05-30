@@ -1038,6 +1038,17 @@
     await set(ref(db,"config/propina/ronda"),null);
     showToast("↺ Ronda reseteada — el próximo sorteo arranca fresh");
   };
+  window.borrarHistorialPropina=async function(nombre){
+    if(!isAdmin())return;
+    if(!confirm("Borrar todas las entradas de "+nombre+" del historial de propinas?"))return;
+    var pSnap=await get(rPropina);
+    if(!pSnap.exists())return;
+    var pd=pSnap.val();
+    var hh=(pd.historial||[]).filter(function(h){return h.nombre.toUpperCase()!==nombre.toUpperCase();});
+    await set(rPropina,Object.assign({},pd,{historial:hh}));
+    showToast("✓ "+nombre+" removido del historial");
+    renderStats(); // refrescar
+  };
   window.limpiarPropina=async function(){
     if(!isAdmin())return;
     if(!confirm("Borrar la propina activa?"))return;
@@ -1946,7 +1957,10 @@
         +"<span style='font-size:0.6rem;color:var(--mut);margin-left:6px'>(quedan "+(pd.restantes||0)+" en ronda)</span>";
       pind.style.display="block";
     }).catch(function(){});
-    var players=Object.keys(pagos).sort();
+    // Todos los que tienen pedido activo (pagaron o no)
+    var conPedido=Object.keys(Object.values(orders).reduce(function(a,o){if(o.player)a[o.player]=1;return a;},{})).sort();
+    var conPago=Object.keys(pagos).filter(function(p){return conPedido.indexOf(p)===-1;}).sort();
+    var players=conPedido.concat(conPago); // pedidos primero, luego pagos sin pedido
     if(!players.length){panel.innerHTML="<div class='es' style='padding:20px 0'>Sin pagos registrados</div>";return;}
     var rows=["<div class='lista-grid'>"];
     players.forEach(function(pl){
@@ -2184,11 +2198,13 @@
       ranking.forEach(function(n,i){
         var veces=conteo[n];
         var esYo=me&&n.toUpperCase()===me.toUpperCase();
+        var enc=encodeURIComponent(n);
         html+="<div style='display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.05)'>"
           +"<span style='font-size:0.7rem;color:var(--mut);width:16px;text-align:center'>"+(i+1)+"</span>"
           +"<div style='width:28px;height:28px;border-radius:50%;background:"+col(n)+";display:flex;align-items:center;justify-content:center;font-family:\"Bebas Neue\",sans-serif;font-size:0.7rem;color:#fff;flex-shrink:0'>"+ini(n)+"</div>"
           +"<span style='flex:1;font-size:0.72rem;font-weight:600;color:"+(esYo?"#f87171":"var(--ink)")+"'>"+n+(esYo?" 😬":"")+"</span>"
           +"<span style='font-size:0.65rem;color:#c084fc;font-weight:700'>"+veces+"x</span>"
+          +(isAdmin()?"<button data-n='"+enc+"' onclick='borrarHistorialPropina(decodeURIComponent(this.dataset.n))' style='background:none;border:none;color:rgba(255,255,255,0.2);font-size:0.7rem;cursor:pointer;padding:2px 4px' title='Borrar del historial'>✕</button>":"")
           +"</div>";
       });
       html+="</div>";
@@ -3475,7 +3491,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.46";
+  var APP_VERSION="10.0.47";
   var STORED_VERSION=localStorage.getItem("app_version");
 
   if("serviceWorker"in navigator){
