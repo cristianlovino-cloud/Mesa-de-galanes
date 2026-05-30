@@ -323,8 +323,8 @@
       var v=document.getElementById("v-"+t);if(v)v.style.display=t===tab?"block":"none";
       var b=document.querySelector("[data-tab='"+t+"']");if(b)b.classList.toggle("active",t===tab);
     });
-    if(tab==="admin"){renderLista();renderMesa();renderPendientes();checkNuevosAlert();if(!window._cleaned){window._cleaned=true;limpiarHuerfanos();}}
-    if(tab==="resumen"){renderOrders();}
+    if(tab==="admin"){window._ordenesEnAdmin=true;window._adminStab="galanes";renderLista();renderMesa();renderPendientes();checkNuevosAlert();if(!window._cleaned){window._cleaned=true;limpiarHuerfanos();}}
+    if(tab==="resumen"){window._ordenesEnAdmin=false;renderOrders();}
     if(tab==="pedir"){renderMiSaldo();setTimeout(renderEstuvoCerca,500);}
     if(tab==="cumples")renderCumples();
     if(tab==="stats")renderStats();
@@ -335,6 +335,8 @@
       var v=document.getElementById("vadmin-"+s);if(v)v.style.display=s===stab?"block":"none";
       var b=document.querySelector("[data-stab='"+s+"']");if(b)b.classList.toggle("active",s===stab);
     });
+    window._ordenesEnAdmin=(stab==="pedidos"||stab==="pagos");
+    window._adminStab=stab;
     if(stab==="galanes"){renderLista();renderPendientes();}
     if(stab==="pedidos")renderMesa();
     if(stab==="pagos")renderPagosDetail();
@@ -1037,22 +1039,21 @@
   // Versión silenciosa para auto-sorteo en primer pedido
   async function sortearPropinaSilencioso(){
     try{
-      var hSnap=await get(rH);
-      if(!hSnap.exists())return; // sin historial, no sortear
-      var hist=hSnap.val();
-      var fechas=Object.keys(hist).sort().reverse().slice(0,3);
-      if(!fechas.length)return;
-      var presPool={};
-      fechas.forEach(function(f){
-        if(hist[f]&&hist[f].pedidos)Object.values(hist[f].pedidos).forEach(function(o){if(o.player)presPool[o.player]=1;});
-      });
-      var elegibles=Object.keys(presPool);
-      if(!elegibles.length)return;
+      // Elegibles = solo quienes YA tienen pedido activo HOY (confirmados o no)
+      // Así solo puede tocarle a alguien que realmente está en la mesa
+      var jugadoresHoy=Object.keys(
+        Object.values(orders).reduce(function(acc,o){if(o.player)acc[o.player]=1;return acc;},{})
+      );
+      if(!jugadoresHoy.length)return; // nadie pidió todavía
       var pSnap=await get(rPropina);
       var pData=pSnap.exists()?pSnap.val():{ronda:[],historial:[]};
-      var ronda=(pData.ronda||[]).filter(function(n){return elegibles.indexOf(n)!==-1;});
+      // La ronda filtra solo quienes están hoy
+      var ronda=(pData.ronda||[]).filter(function(n){
+        return jugadoresHoy.some(function(j){return j.toUpperCase()===n.toUpperCase();});
+      });
       if(!ronda.length){
-        ronda=elegibles.slice();
+        // Nueva ronda: shuffle de los de hoy
+        ronda=jugadoresHoy.slice();
         for(var i=ronda.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1));var t=ronda[i];ronda[i]=ronda[j];ronda[j]=t;}
       }
       var ganador=ronda.shift();
@@ -1071,17 +1072,11 @@
     var hist=hSnap.val();
     var fechas=Object.keys(hist).sort().reverse().slice(0,3);
     if(!fechas.length){showToast("Sin historial todavia");return;}
-    // Elegibles = estuvo en AL MENOS UNO de los últimos 3 cafés
-    var presPool={};
-    fechas.slice(0,3).forEach(function(f){
-      if(hist[f]&&hist[f].pedidos)Object.values(hist[f].pedidos).forEach(function(o){if(o.player)presPool[o.player]=1;});
-    });
-    var elegibles=Object.keys(presPool);
-    // Fallback: si no hay historial, usar pedidos actuales
-    if(!elegibles.length){
-      elegibles=Object.keys(Object.values(orders).reduce(function(a,o){if(o.player)a[o.player]=1;return a;},{}));
-    }
-    if(!elegibles.length){showToast("No hay pedidos todavia");return;}
+    // Elegibles = solo quienes tienen pedido activo HOY
+    var elegibles=Object.keys(
+      Object.values(orders).reduce(function(a,o){if(o.player)a[o.player]=1;return a;},{})
+    );
+    if(!elegibles.length){showToast("No hay pedidos todavía");return;}
     var pSnap=await get(rPropina);
     var pData=pSnap.exists()?pSnap.val():{ronda:[],historial:[]};
     var ronda=(pData.ronda||[]).filter(function(n){return elegibles.indexOf(n)!==-1;});
@@ -1771,7 +1766,8 @@
       row+="<div class='pasm' style='background:"+col(pl)+"'>"+ ini(pl)+"</div>";
       row+="<span class='on"+(mine?" onm":"")+"'style='flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap'>"+pl+(mine?" <span class='ytg'>vos</span>":"")+(conf?" <span class='ctg'>✓</span>":"")+"</span>";
       row+="<div style='display:flex;align-items:center;gap:4px;flex-shrink:0'>";
-      if(isAdmin()){row+="<button class='pbtn pb-cash"+(cash>0?" pb-on":"")+"'onclick='openPago(\""+pl+"\",\"cash\")'>"+( cash>0?"💵 $"+Math.round(cash):"💵")+"</button>";row+="<button class='pbtn pb-tr"+(transfer>0?" pb-on":"")+"'onclick='openPago(\""+pl+"\",\"transfer\")'>"+( transfer>0?"📲 $"+Math.round(transfer):"📲")+"</button>";}
+      // Botones de pago solo en admin/pagos, no en resumen
+      if(isAdmin()&&window._adminStab==="pagos"){row+="<button class='pbtn pb-cash"+(cash>0?" pb-on":"")+"'onclick='openPago(\""+pl+"\",\"cash\")'>"+( cash>0?"💵 $"+Math.round(cash):"💵")+"</button>";row+="<button class='pbtn pb-tr"+(transfer>0?" pb-on":"")+"'onclick='openPago(\""+pl+"\",\"transfer\")'>"+( transfer>0?"📲 $"+Math.round(transfer):"📲")+"</button>";}
       else if((cash+transfer)>0)row+="<span class='pago-ok'>✓ $"+Math.round(cash+transfer)+"</span>";
       row+="<span class='oq'>"+items.length+"</span>";
       row+="</div></div><div class='pd'>";
@@ -3198,6 +3194,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
   </div>
   <div id="v-resumen" style="display:none">
     <div class="slabel">Pedidos en vivo <button class="clr" onclick="clearAll()">limpiar</button></div>
+    <div id="resumen-pagos-hint" style="display:none;font-size:0.6rem;color:var(--mut);padding:4px 14px 0;text-align:right">💡 Cargar pagos en Admin → Pedidos</div>
     <div class="sp" id="sum-panel"><div class="es">Nadie pidio nada todavia 👀</div></div>
     <div id="totals-panel"></div>
   </div>
@@ -3462,7 +3459,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.42";
+  var APP_VERSION="10.0.44";
   var STORED_VERSION=localStorage.getItem("app_version");
 
   if("serviceWorker"in navigator){
