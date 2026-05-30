@@ -443,7 +443,13 @@
         var misPeds=Object.values(orders).filter(function(o){return o.player===me;}).map(function(o){return o.drink;});
         set(ref(db,"config/nuevos/"+me),{ts:Date.now(),nombre:me,pedidos:misPeds});
       }
-      renderConfirmBtn();renderDrinks();renderMiSaldo();renderEstuvoCerca();
+      // Auto-sorteo: si es el primer pedido del día y no hay propina activa, sortear
+      var propSnap=await get(ref(db,"pedido/propina"));
+      if(!propSnap.exists()||!propSnap.val().nombre){
+        await sortearPropinaSilencioso();
+      }
+      renderConfirmBtn();renderDrinks();renderMiSaldo();
+      setTimeout(renderEstuvoCerca,800); // esperar a que Firebase escriba la propina
       showToast("✅ Pedido enviado!");
       speak("Tu pedido fue enviado. Gracias "+me+"!");
     }catch(e){
@@ -937,6 +943,20 @@
     var sumC=0,sumT=0;Object.values(pagos).forEach(function(pg){sumC+=(pg.cash||0);sumT+=(pg.transfer||0);});
     var precios={};drinks.forEach(function(d){if(d.precio)precios[d.id||d.name]=d.precio;});
     await set(ref(db,"historial/"+fecha),{fecha:fecha,hora:hora,pedidos:orders,pagos:pagos,totalBar:totalBar,recaudado:sumC+sumT,precios:precios});
+    // Actualizar total real en historial de propinas antes de limpiar
+    var propFinalSnap=await get(ref(db,"pedido/propina"));
+    if(propFinalSnap.exists()&&propFinalSnap.val().nombre){
+      var pf=propFinalSnap.val();
+      var totalFinal=calcularTotalMesa();
+      var pfData=await get(rPropina);
+      if(pfData.exists()){
+        var pfVal=pfData.val();
+        var pfHh=pfVal.historial||[];
+        // Actualizar el último registro con el total real
+        if(pfHh.length>0)pfHh[pfHh.length-1].total=totalFinal;
+        await set(rPropina,Object.assign({},pfVal,{historial:pfHh}));
+      }
+    }
     await Promise.all([set(rO,null),set(rC,null),set(rP,null),set(rT,null),set(rB,0),set(rPres,null),set(rR,null),
       set(ref(db,"pedido/propina"),null),set(ref(db,"config/nuevos"),null)]);
     showToast("✓ Mesa archivada!");speak("Mesa cerrada. Hasta el próximo sábado!");switchTab("admin");
@@ -1014,6 +1034,36 @@
     var pind=document.getElementById("propina-indicator");if(pind)pind.style.display="none";
     showToast("✓ Propina limpiada");
   };
+  // Versión silenciosa para auto-sorteo en primer pedido
+  async function sortearPropinaSilencioso(){
+    try{
+      var hSnap=await get(rH);
+      if(!hSnap.exists())return; // sin historial, no sortear
+      var hist=hSnap.val();
+      var fechas=Object.keys(hist).sort().reverse().slice(0,3);
+      if(!fechas.length)return;
+      var presPool={};
+      fechas.forEach(function(f){
+        if(hist[f]&&hist[f].pedidos)Object.values(hist[f].pedidos).forEach(function(o){if(o.player)presPool[o.player]=1;});
+      });
+      var elegibles=Object.keys(presPool);
+      if(!elegibles.length)return;
+      var pSnap=await get(rPropina);
+      var pData=pSnap.exists()?pSnap.val():{ronda:[],historial:[]};
+      var ronda=(pData.ronda||[]).filter(function(n){return elegibles.indexOf(n)!==-1;});
+      if(!ronda.length){
+        ronda=elegibles.slice();
+        for(var i=ronda.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1));var t=ronda[i];ronda[i]=ronda[j];ronda[j]=t;}
+      }
+      var ganador=ronda.shift();
+      var hoy=new Date().toISOString().slice(0,10);
+      var hh=(pData.historial||[]);
+      hh.push({nombre:ganador,ts:Date.now(),fecha:hoy,total:0});
+      await set(rPropina,{ronda:ronda,historial:hh.slice(-20)});
+      await set(ref(db,"pedido/propina"),{nombre:ganador,restantes:ronda.length,ts:Date.now()});
+      console.log("Auto-propina sorteada:",ganador);
+    }catch(e){console.error("sortearPropinaSilencioso error:",e);}
+  }
   window.sortearPropina=async function(){
     if(!isAdmin()){showToast("Solo el admin puede sortear");return;}
     var hSnap=await get(rH);
@@ -1040,13 +1090,13 @@
       for(var i=ronda.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1));var t=ronda[i];ronda[i]=ronda[j];ronda[j]=t;}
     }
     var ganador=ronda.shift();
-    var total=calcularTotalMesa();
-    var hh=(pData.historial||[]);
     var hoy=new Date().toISOString().slice(0,10);
-    hh.push({nombre:ganador,ts:Date.now(),total:total,fecha:hoy});
+    var hh=(pData.historial||[]);
+    hh.push({nombre:ganador,ts:Date.now(),fecha:hoy,total:0}); // total se actualiza al cerrar mesa
     await set(rPropina,{ronda:ronda,historial:hh.slice(-20)});
-    await set(ref(db,"pedido/propina"),{nombre:ganador,restantes:ronda.length,total:total,ts:Date.now()});
-    showToast("Propina: "+ganador+" (quedan "+ronda.length+")");
+    // Guardar solo nombre, sin total (se calcula al cerrar)
+    await set(ref(db,"pedido/propina"),{nombre:ganador,restantes:ronda.length,ts:Date.now()});
+    showToast("🎲 Propina sorteada: "+ganador);
   };
 
 
@@ -1881,11 +1931,11 @@
       if(!ps.exists()){pind.style.display="none";return;}
       var pd=ps.val();
       if(!pd.nombre){pind.style.display="none";return;}
-      var totalActual=calcularTotalMesa();
+      var dS=new Date(pd.ts||0),label=dS.getDate()+"/"+(dS.getMonth()+1);
       var dS=new Date(pd.ts||0),label=dS.getDate()+"/"+(dS.getMonth()+1);
       pind.innerHTML="<span style='font-size:0.6rem;color:var(--mut);letter-spacing:0.06em'>🎲 PROPINA "+label+":</span> "
         +"<b style='color:#c084fc;font-size:0.8rem'>"+pd.nombre.toUpperCase()+"</b>"
-        +(totalActual>0?" <span style='font-size:0.6rem;color:var(--mut)'>· Mesa: $"+Math.round(totalActual)+"</span>":"")
+        +"<span style='font-size:0.6rem;color:var(--mut);margin-left:6px'>(quedan "+(pd.restantes||0)+" en ronda)</span>";
         +"<span style='font-size:0.6rem;color:var(--mut);margin-left:6px'>(quedan "+(pd.restantes||0)+" en ronda)</span>";
       pind.style.display="block";
     }).catch(function(){});
@@ -3412,7 +3462,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.41";
+  var APP_VERSION="10.0.42";
   var STORED_VERSION=localStorage.getItem("app_version");
 
   if("serviceWorker"in navigator){
