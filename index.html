@@ -219,6 +219,19 @@
   });
 
 
+  // ── AUTO-LOGOUT 24HS ─────────────────────────────────────
+  (function(){
+    if(!me||isAdmin())return;
+    var last=parseInt(localStorage.getItem("last_activity")||"0");
+    if(last&&Date.now()-last>86400000){ // 24hs
+      me="";localStorage.removeItem("galan_name");localStorage.removeItem("last_activity");
+      console.log("Auto-logout: 24hs de inactividad");
+    }
+  })();
+  // Actualizar timestamp de actividad en cada interacción
+  document.addEventListener("click",function(){localStorage.setItem("last_activity",Date.now().toString());},{passive:true});
+  document.addEventListener("touchstart",function(){localStorage.setItem("last_activity",Date.now().toString());},{passive:true});
+
   // ── NOMBRE ────────────────────────────────────────────────
   window.setName=function(name){
     var raw=name.trim();if(!raw)return;
@@ -312,7 +325,7 @@
     });
     if(tab==="admin"){renderLista();renderMesa();renderPendientes();checkNuevosAlert();if(!window._cleaned){window._cleaned=true;limpiarHuerfanos();}}
     if(tab==="resumen"){renderOrders();}
-    if(tab==="pedir"){renderMiSaldo();}
+    if(tab==="pedir"){renderMiSaldo();renderEstuvoCerca();}
     if(tab==="cumples")renderCumples();
     if(tab==="stats")renderStats();
     if(tab==="mundial"&&!window._mundialLoaded)renderMundial();
@@ -430,7 +443,7 @@
         var misPeds=Object.values(orders).filter(function(o){return o.player===me;}).map(function(o){return o.drink;});
         set(ref(db,"config/nuevos/"+me),{ts:Date.now(),nombre:me,pedidos:misPeds});
       }
-      renderConfirmBtn();renderDrinks();renderMiSaldo();
+      renderConfirmBtn();renderDrinks();renderMiSaldo();renderEstuvoCerca();
       showToast("✅ Pedido enviado!");
       speak("Tu pedido fue enviado. Gracias "+me+"!");
     }catch(e){
@@ -993,14 +1006,15 @@
     var hSnap=await get(rH);
     if(!hSnap.exists()){showToast("Sin historial todavia");return;}
     var hist=hSnap.val();
-    var fechas=Object.keys(hist).sort().reverse().slice(0,2);
-    if(fechas.length<2){showToast("Se necesitan al menos 2 cafes en historial");return;}
-    var p0={},p1={};
-    if(hist[fechas[0]].pedidos)Object.values(hist[fechas[0]].pedidos).forEach(function(o){if(o.player)p0[o.player]=1;});
-    if(hist[fechas[1]].pedidos)Object.values(hist[fechas[1]].pedidos).forEach(function(o){if(o.player)p1[o.player]=1;});
-    // Elegibles = estuvo en AL MENOS UNO de los últimos 2 cafés
-    var elegibles=Object.keys(Object.assign({},p0,p1));
-    // Fallback: si no hay historial de 2, usar pedidos actuales
+    var fechas=Object.keys(hist).sort().reverse().slice(0,3);
+    if(!fechas.length){showToast("Sin historial todavia");return;}
+    // Elegibles = estuvo en AL MENOS UNO de los últimos 3 cafés
+    var presPool={};
+    fechas.slice(0,3).forEach(function(f){
+      if(hist[f]&&hist[f].pedidos)Object.values(hist[f].pedidos).forEach(function(o){if(o.player)presPool[o.player]=1;});
+    });
+    var elegibles=Object.keys(presPool);
+    // Fallback: si no hay historial, usar pedidos actuales
     if(!elegibles.length){
       elegibles=Object.keys(Object.values(orders).reduce(function(a,o){if(o.player)a[o.player]=1;return a;},{}));
     }
@@ -1589,6 +1603,23 @@
     showToast("✓ Bebida aprobada");
   };
 
+  // Mostrar banner "estuvo cerca" debajo de TU CUENTA para no sorteados
+  function renderEstuvoCerca(){
+    var div=document.getElementById("estuvo-cerca-banner");
+    if(!div||!me)return;
+    get(ref(db,"pedido/propina")).then(function(ps){
+      if(!ps.exists()||!ps.val().nombre){div.style.display="none";return;}
+      var pd=ps.val();
+      var esSorteado=me.toUpperCase()===pd.nombre.toUpperCase();
+      if(esSorteado){div.style.display="none";return;}
+      // Solo mostrar si el usuario ya confirmó su pedido
+      if(!confirmed[me]){div.style.display="none";return;}
+      div.innerHTML="<div style='font-size:0.65rem;color:var(--mut);text-align:center;padding:8px 4px;line-height:1.5'>"
+        +"😅 Hoy zafaste — la propina la pone <b style='color:#c084fc'>"+pd.nombre.toUpperCase()+"</b>"
+        +" <span style='font-size:0.8rem'>🎲</span></div>";
+      div.style.display="block";
+    }).catch(function(){});
+  }
   function renderMiSaldo(){
     var card=document.getElementById("mi-saldo-card");if(!card||!me)return;
     var pg=pagos[me]||{},pagado=(pg.cash||0)+(pg.transfer||0);
@@ -2412,6 +2443,7 @@
     var btn=document.querySelector(".cbtn");
     if(btn){btn.disabled=false;btn.textContent="☕ Enviar mi pedido";btn.style.opacity="1";}
     localStorage.setItem("last_login_ts",Date.now().toString());
+    localStorage.setItem("last_activity",Date.now().toString());
     // Forzar ocultar login-screen PRIMERO, sin depender del fade
     var ls=document.getElementById("login-screen");
     if(ls){ls.style.transition="none";ls.style.opacity="0";ls.style.display="none";}
@@ -3044,6 +3076,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
   <div id="v-pedir">
     <div id="pedido-status-banner" style="display:none"></div>
     <div id="mi-saldo-card"></div>
+    <div id="estuvo-cerca-banner" style="display:none;margin:8px 0 0"></div>
     <div class="slabel"><span class="ld"></span> Que tomas?</div>
     <div class="dg" id="drinks-grid"><div class="es" style="padding:40px 0;opacity:0.5">Conectando... ☕</div></div>
   </div>
@@ -3326,7 +3359,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.33";
+  var APP_VERSION="10.0.36";
   var STORED_VERSION=localStorage.getItem("app_version");
 
   if("serviceWorker"in navigator){
