@@ -35,20 +35,38 @@
   function ini(n){var p=n.trim().split(" ");return p.length>=2?(p[0][0]+p[1][0]).toUpperCase():n.slice(0,2).toUpperCase();}
   function autoEmoji(name){
     var n=name.toLowerCase();
-    if(/caf[eé]|cortado|expresso/.test(n))return"☕";
-    if(/\bt[eé]\b|verde|negro/.test(n))return"🍵";
+    // Combos con acompañamiento — detectar primero
+    if(/desayuno|combo/.test(n))return"🍽️";
+    // Café con variantes específicas
+    if(/doble/.test(n))return"☕☕";
+    if(/jarr/.test(n))return"🫗";
+    if(/cortado/.test(n))return"🥛";
+    if(/latte|con leche/.test(n))return"🤍";
+    if(/capuccino|cappuccino/.test(n))return"☁️";
+    if(/expresso|espresso/.test(n))return"⚡";
+    if(/americano/.test(n))return"🖤";
+    if(/frio|fría|cold/.test(n))return"🧊";
+    if(/caf[eé]/.test(n))return"☕";
+    // Infusiones
+    if(/mate\s*cocido/.test(n))return"🧉";
     if(/mate/.test(n))return"🧉";
+    if(/\bt[eé]\b|verde|negro|chai/.test(n))return"🍵";
+    if(/manzanilla|tilo/.test(n))return"🌼";
+    // Bebidas
     if(/submarino|chocolate/.test(n))return"🍫";
-    if(/leche/.test(n))return"🥛";
     if(/jugo|zumo/.test(n))return"🧃";
     if(/agua/.test(n))return"💧";
-    if(/huevo/.test(n))return"🍳";
-    if(/tostada|pan/.test(n))return"🍞";
+    if(/leche/.test(n))return"🥛";
+    // Comida
+    if(/huevo|revuelto/.test(n))return"🍳";
+    if(/tostada/.test(n))return"🍞";
     if(/medialuna|croissant/.test(n))return"🥐";
     if(/palta|avocado/.test(n))return"🥑";
     if(/sandwich/.test(n))return"🥪";
-    if(/desayuno/.test(n))return"🍽";
     if(/fruta/.test(n))return"🍎";
+    if(/yogur/.test(n))return"🫙";
+    if(/waffl/.test(n))return"🧇";
+    if(/pan/.test(n))return"🍞";
     return"☕";
   }
   function nextSat(){
@@ -1098,6 +1116,14 @@
     await set(rPropina,Object.assign({},pd,{historial:hh}));
     showToast("✓ "+nombre+" removido del historial");
     renderStats(); // refrescar
+  };
+  // Actualizar iconos de bebidas según autoEmoji
+  window.refreshDrinkIcons=async function(){
+    if(!isAdmin())return;
+    if(!drinks.length){showToast("Sin bebidas cargadas");return;}
+    var updated=drinks.map(function(d){return Object.assign({},d,{icon:autoEmoji(d.name)});});
+    await set(rD,updated);
+    showToast("✓ Iconos actualizados!");
   };
   window.limpiarPropina=async function(){
     if(!isAdmin())return;
@@ -3310,6 +3336,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
           <button class="admin-action-btn" id="ws-btn" onclick="enviarWS()" style="display:none;background:rgba(34,197,94,0.15);color:#4ade80;border-color:rgba(34,197,94,0.3)">💬 WS</button>
           <button class="admin-action-btn" id="propina-ws-btn" onclick="sortearPropina()" style="display:none;background:rgba(168,85,247,0.15);color:#c084fc;border-color:rgba(168,85,247,0.3)">🎲 Propina</button>
           <button class="admin-action-btn" onclick="abrirPrecios()" style="background:rgba(245,197,24,0.12);color:var(--g2);border-color:rgba(245,197,24,0.3)">💲 Precios</button>
+          <button class="admin-action-btn" onclick="refreshDrinkIcons()" style="font-size:0.6rem">🔄 Emojis</button>
           <button class="admin-action-btn" style="background:rgba(239,68,68,0.12);color:#f87171;border-color:rgba(239,68,68,0.25)" onclick="cerrarMesa()">🔒 Cerrar</button>
         </div>
       </div>
@@ -3543,7 +3570,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.49";
+  var APP_VERSION="10.0.50";
   var STORED_VERSION=localStorage.getItem("app_version");
 
   if("serviceWorker"in navigator){
