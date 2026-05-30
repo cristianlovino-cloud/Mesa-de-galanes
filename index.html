@@ -325,7 +325,7 @@
     });
     if(tab==="admin"){renderLista();renderMesa();renderPendientes();checkNuevosAlert();if(!window._cleaned){window._cleaned=true;limpiarHuerfanos();}}
     if(tab==="resumen"){renderOrders();}
-    if(tab==="pedir"){renderMiSaldo();renderEstuvoCerca();}
+    if(tab==="pedir"){renderMiSaldo();setTimeout(renderEstuvoCerca,500);}
     if(tab==="cumples")renderCumples();
     if(tab==="stats")renderStats();
     if(tab==="mundial"&&!window._mundialLoaded)renderMundial();
@@ -1624,12 +1624,18 @@
       if(!ps.exists()||!ps.val().nombre){div.style.display="none";return;}
       var pd=ps.val();
       var esSorteado=me.toUpperCase()===pd.nombre.toUpperCase();
-      if(esSorteado){div.style.display="none";return;}
-      // Solo mostrar si el usuario ya confirmó su pedido
-      if(!confirmed[me]){div.style.display="none";return;}
-      div.innerHTML="<div style='font-size:0.65rem;color:var(--mut);text-align:center;padding:8px 4px;line-height:1.5'>"
-        +"😅 Hoy zafaste — la propina la pone <b style='color:#c084fc'>"+pd.nombre.toUpperCase()+"</b>"
-        +" <span style='font-size:0.8rem'>🎲</span></div>";
+      // Mostrar si: (a) tiene pedido confirmado, o (b) es admin, o (c) es el sorteado
+      var tienePedido=confirmed[me]||isAdmin();
+      if(!tienePedido){div.style.display="none";return;}
+      if(esSorteado){
+        div.innerHTML="<div style='font-size:0.68rem;color:#f87171;text-align:center;padding:10px 4px;line-height:1.6;font-weight:600'>"
+          +"😬 <b>¡Hoy te toca a vos!</b> Sos el afortunado de la propina"
+          +" <span style='font-size:0.9rem'>🎲</span></div>";
+      } else {
+        div.innerHTML="<div style='font-size:0.65rem;color:var(--mut);text-align:center;padding:8px 4px;line-height:1.5'>"
+          +"😅 Hoy zafaste — la propina la pone <b style='color:#c084fc'>"+pd.nombre.toUpperCase()+"</b>"
+          +" <span style='font-size:0.8rem'>🎲</span></div>";
+      }
       div.style.display="block";
     }).catch(function(){});
   }
@@ -3406,7 +3412,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.40";
+  var APP_VERSION="10.0.41";
   var STORED_VERSION=localStorage.getItem("app_version");
 
   if("serviceWorker"in navigator){
