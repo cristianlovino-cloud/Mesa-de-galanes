@@ -107,6 +107,13 @@
     onValue(rG,function(s){
       galanes=s.exists()?s.val():KNOWN_DEF.slice();
       if(!s.exists())set(rG,galanes);
+      // Recalcular _esNuevo con la lista real (fix timing de sesión vieja)
+      if(me&&!isAdmin()){
+        var enLista=galanes.some(function(g){return g.toUpperCase()===me.toUpperCase();});
+        window._esNuevo=!enLista;
+        // Si estaba marcado como nuevo pero ahora está en la lista → ya fue aprobado
+        if(enLista&&window._esNuevo===false)renderMyName();
+      }
       // Actualizar sugerencias si está escribiendo
       var inp=document.getElementById("login-input-nombre");
       var ls=document.getElementById("login-screen");
@@ -114,6 +121,8 @@
         loginFiltrar(inp.value);
       }
       renderLoginGalanes();renderLista();
+      // También re-renderizar tabs si ya hay sesión (fix: tabs ocultos por sesión vieja)
+      if(me)renderMyName();
     });
     onValue(rD,function(s){
       drinks=s.exists()?s.val():DRINKS_DEF.slice();
@@ -209,9 +218,14 @@
       renderMyName();
       var ls0=document.getElementById("login-screen");
       if(ls0){ls0.style.transition="none";ls0.style.display="none";}
-      window._esNuevo=!isAdmin()&&!galanes.some(function(g){return g.toUpperCase()===me.toUpperCase();});
+      var enListaActual=isAdmin()||galanes.some(function(g){return g.toUpperCase()===me.toUpperCase();});
+      window._esNuevo=!enListaActual;
+      // Si tiene sesión vieja y NO está en la lista actual → se actualizó la app sin cerrar sesión
+      // Igual lo dejamos entrar pero marcamos como nuevo
       setTimeout(function(){
         renderDrinks();switchTab("pedir",true);
+        // Mostrar tabs correctamente según estado
+        renderMyName();
       },300);
     } else {
       setTimeout(function(){showLoginScreen();},400);
@@ -961,13 +975,17 @@
     if(!s.exists()||!me)return;
     var d=s.val();
     if(!d.nombre||!d.ts)return;
-    var esReciente=Date.now()-d.ts<15000;
     var esSorteado=d.nombre&&me.toUpperCase()===d.nombre.toUpperCase();
     var vistKey="propina_visto_"+d.ts;
     var yaVio=localStorage.getItem(vistKey)==="1";
-    if((esReciente||esSorteado)&&!yaVio){
+    if(yaVio)return;
+    // Mostrar a todos si es reciente (60s), siempre al sorteado
+    var esReciente=Date.now()-d.ts<60000;
+    if(esReciente||esSorteado){
       localStorage.setItem(vistKey,"1");
-      showPropinaModal(d.nombre,d.restantes,d.total||0);
+      // Calcular total actualizado en el momento de mostrar
+      var totalActual=calcularTotalMesa();
+      showPropinaModal(d.nombre,d.restantes,totalActual||d.total||0);
     }
   });
 
@@ -1832,8 +1850,9 @@
       var pd=ps.val(),hh=pd.historial||[];
       if(!hh.length){pind.style.display="none";return;}
       var ult=hh[hh.length-1];
-      var esHoy=new Date().toISOString().slice(0,10)===new Date(ult.ts).toISOString().slice(0,10);
-      var label=esHoy?"HOY":"SÁB "+new Date(ult.ts).getDate()+"/"+String(new Date(ult.ts).getMonth()+1);
+      var dUlt=new Date(ult.ts),hoy=new Date();
+      var esHoy=hoy.toISOString().slice(0,10)===dUlt.toISOString().slice(0,10);
+      var label=esHoy?"HOY":dUlt.getDate()+"/"+(dUlt.getMonth()+1);
       pind.innerHTML="<span style='font-size:0.6rem;color:var(--mut);letter-spacing:0.06em'>🎲 PROPINA "+label+":</span> "
         +"<b style='color:#c084fc;font-size:0.8rem'>"+ult.nombre.toUpperCase()+"</b>"
         +(ult.total>0?" <span style='font-size:0.6rem;color:var(--mut)'>· Mesa: $"+Math.round(ult.total)+"</span>":"")
@@ -3043,6 +3062,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
   <button class="tab" data-tab="mundial" onclick="switchTab('mundial')">🌍 Mundial</button>
   <button class="tab" onclick="window.open('https://cristianlovino-cloud.github.io/asado-caleta/','_blank')" style="color:rgba(255,140,0,0.7)">🔥 Asado</button>
   <button class="tab" data-tab="admin"   onclick="switchTab('admin')" style="display:none">⚙️ Admin</button>
+  <button class="tab" id="tab-version-refresh" onclick="location.reload(true)" style="display:none;color:var(--g2);font-size:0.6rem;animation:pulse 1.5s infinite">🔄 Nueva versión</button>
 </div>
 <div class="main">
   <div id="v-pedir">
@@ -3330,7 +3350,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.33";
+  var APP_VERSION="10.0.34";
   var STORED_VERSION=localStorage.getItem("app_version");
 
   if("serviceWorker"in navigator){
