@@ -35,29 +35,8 @@
   function ini(n){var p=n.trim().split(" ");return p.length>=2?(p[0][0]+p[1][0]).toUpperCase():n.slice(0,2).toUpperCase();}
   function autoEmoji(name){
     var n=name.toLowerCase();
-    // Combos con acompañamiento — detectar primero
+    // Comida primero
     if(/desayuno|combo/.test(n))return"🍽️";
-    // Café con variantes específicas
-    if(/doble/.test(n))return"☕☕";
-    if(/jarr/.test(n))return"🫗";
-    if(/cortado/.test(n))return"🥛";
-    if(/latte|con leche/.test(n))return"🤍";
-    if(/capuccino|cappuccino/.test(n))return"☁️";
-    if(/expresso|espresso/.test(n))return"⚡";
-    if(/americano/.test(n))return"🖤";
-    if(/frio|fría|cold/.test(n))return"🧊";
-    if(/caf[eé]/.test(n))return"☕";
-    // Infusiones
-    if(/mate\s*cocido/.test(n))return"🧉";
-    if(/mate/.test(n))return"🧉";
-    if(/\bt[eé]\b|verde|negro|chai/.test(n))return"🍵";
-    if(/manzanilla|tilo/.test(n))return"🌼";
-    // Bebidas
-    if(/submarino|chocolate/.test(n))return"🍫";
-    if(/jugo|zumo/.test(n))return"🧃";
-    if(/agua/.test(n))return"💧";
-    if(/leche/.test(n))return"🥛";
-    // Comida
     if(/huevo|revuelto/.test(n))return"🍳";
     if(/tostada/.test(n))return"🍞";
     if(/medialuna|croissant/.test(n))return"🥐";
@@ -67,6 +46,27 @@
     if(/yogur/.test(n))return"🫙";
     if(/waffl/.test(n))return"🧇";
     if(/pan/.test(n))return"🍞";
+    // Infusiones
+    if(/mate\s*cocido/.test(n))return"🧉";
+    if(/mate/.test(n))return"🧉";
+    if(/te|té|verde|negro|chai/.test(n))return"🍵";
+    if(/manzanilla|tilo/.test(n))return"🌼";
+    // Bebidas frías
+    if(/submarino|chocolate/.test(n))return"🍫";
+    if(/jugo|zumo/.test(n))return"🧃";
+    if(/agua/.test(n))return"💧";
+    if(/frio|fría|cold/.test(n))return"🧊";
+    // Cafés — todos ☕ pero con badge de texto
+    // La diferencia la hacemos por TAMAÑO/TIPO en el label, no en el emoji
+    if(/capuccino|cappuccino/.test(n))return"☕";
+    if(/expresso|espresso/.test(n))return"☕";
+    if(/americano/.test(n))return"☕";
+    if(/doble/.test(n))return"☕";
+    if(/cortado/.test(n))return"☕";
+    if(/con leche|latte/.test(n))return"☕";
+    if(/jarr/.test(n))return"☕";
+    if(/caf[eé]/.test(n))return"☕";
+    if(/leche/.test(n))return"🥛";
     return"☕";
   }
   function nextSat(){
@@ -3570,7 +3570,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.50";
+  var APP_VERSION="10.0.51";
   var STORED_VERSION=localStorage.getItem("app_version");
 
   if("serviceWorker"in navigator){
