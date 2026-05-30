@@ -2147,7 +2147,7 @@
 
           // Filas de historial
           var filasHtml=filas.length?filas.map(function(f){
-            var dt=new Date(f.fecha);
+            var dt=new Date(f.fecha+"T12:00:00");
             var dstr=(dt.getDate())+"/"+(dt.getMonth()+1);
             if(f.faltó){
               return "<div style='display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #161616'>"
@@ -3491,7 +3491,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.47";
+  var APP_VERSION="10.0.48";
   var STORED_VERSION=localStorage.getItem("app_version");
 
   if("serviceWorker"in navigator){
