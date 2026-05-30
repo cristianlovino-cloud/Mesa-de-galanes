@@ -107,13 +107,6 @@
     onValue(rG,function(s){
       galanes=s.exists()?s.val():KNOWN_DEF.slice();
       if(!s.exists())set(rG,galanes);
-      // Recalcular _esNuevo con la lista real (fix timing de sesión vieja)
-      if(me&&!isAdmin()){
-        var enLista=galanes.some(function(g){return g.toUpperCase()===me.toUpperCase();});
-        window._esNuevo=!enLista;
-        // Si estaba marcado como nuevo pero ahora está en la lista → ya fue aprobado
-        if(enLista&&window._esNuevo===false)renderMyName();
-      }
       // Actualizar sugerencias si está escribiendo
       var inp=document.getElementById("login-input-nombre");
       var ls=document.getElementById("login-screen");
@@ -121,8 +114,6 @@
         loginFiltrar(inp.value);
       }
       renderLoginGalanes();renderLista();
-      // También re-renderizar tabs si ya hay sesión (fix: tabs ocultos por sesión vieja)
-      if(me)renderMyName();
     });
     onValue(rD,function(s){
       drinks=s.exists()?s.val():DRINKS_DEF.slice();
@@ -218,14 +209,9 @@
       renderMyName();
       var ls0=document.getElementById("login-screen");
       if(ls0){ls0.style.transition="none";ls0.style.display="none";}
-      var enListaActual=isAdmin()||galanes.some(function(g){return g.toUpperCase()===me.toUpperCase();});
-      window._esNuevo=!enListaActual;
-      // Si tiene sesión vieja y NO está en la lista actual → se actualizó la app sin cerrar sesión
-      // Igual lo dejamos entrar pero marcamos como nuevo
+      window._esNuevo=!isAdmin()&&!galanes.some(function(g){return g.toUpperCase()===me.toUpperCase();});
       setTimeout(function(){
         renderDrinks();switchTab("pedir",true);
-        // Mostrar tabs correctamente según estado
-        renderMyName();
       },300);
     } else {
       setTimeout(function(){showLoginScreen();},400);
@@ -938,9 +924,9 @@
     var sumC=0,sumT=0;Object.values(pagos).forEach(function(pg){sumC+=(pg.cash||0);sumT+=(pg.transfer||0);});
     var precios={};drinks.forEach(function(d){if(d.precio)precios[d.id||d.name]=d.precio;});
     await set(ref(db,"historial/"+fecha),{fecha:fecha,hora:hora,pedidos:orders,pagos:pagos,totalBar:totalBar,recaudado:sumC+sumT,precios:precios});
-    await Promise.all([set(rO,null),set(rC,null),set(rP,null),set(rT,null),set(rB,0),set(rPres,null),set(rR,null)]);
+    await Promise.all([set(rO,null),set(rC,null),set(rP,null),set(rT,null),set(rB,0),set(rPres,null),set(rR,null),
+      set(ref(db,"pedido/propina"),null),set(ref(db,"config/nuevos"),null)]);
     showToast("✓ Mesa archivada!");speak("Mesa cerrada. Hasta el próximo sábado!");switchTab("admin");
-    // (propina se sortea manualmente con el botón 🎲)
 
   };
   window.verHistorial=async function(){
@@ -975,17 +961,13 @@
     if(!s.exists()||!me)return;
     var d=s.val();
     if(!d.nombre||!d.ts)return;
+    var esReciente=Date.now()-d.ts<15000;
     var esSorteado=d.nombre&&me.toUpperCase()===d.nombre.toUpperCase();
     var vistKey="propina_visto_"+d.ts;
     var yaVio=localStorage.getItem(vistKey)==="1";
-    if(yaVio)return;
-    // Mostrar a todos si es reciente (60s), siempre al sorteado
-    var esReciente=Date.now()-d.ts<60000;
-    if(esReciente||esSorteado){
+    if((esReciente||esSorteado)&&!yaVio){
       localStorage.setItem(vistKey,"1");
-      // Calcular total actualizado en el momento de mostrar
-      var totalActual=calcularTotalMesa();
-      showPropinaModal(d.nombre,d.restantes,totalActual||d.total||0);
+      showPropinaModal(d.nombre,d.restantes,d.total||0);
     }
   });
 
@@ -1842,21 +1824,19 @@
 
   function renderPagosDetail(){
     var panel=document.getElementById("pagos-detail-panel");if(!panel)return;
-    // Mostrar último sorteo de propina si existe
-    get(rPropina).then(function(ps){
+    // Propina: usar pedido/propina (se borra al cerrar mesa, así no persiste)
+    get(ref(db,"pedido/propina")).then(function(ps){
       var pind=document.getElementById("propina-indicator");
       if(!pind)return;
       if(!ps.exists()){pind.style.display="none";return;}
-      var pd=ps.val(),hh=pd.historial||[];
-      if(!hh.length){pind.style.display="none";return;}
-      var ult=hh[hh.length-1];
-      var dUlt=new Date(ult.ts),hoy=new Date();
-      var esHoy=hoy.toISOString().slice(0,10)===dUlt.toISOString().slice(0,10);
-      var label=esHoy?"HOY":dUlt.getDate()+"/"+(dUlt.getMonth()+1);
+      var pd=ps.val();
+      if(!pd.nombre){pind.style.display="none";return;}
+      var totalActual=calcularTotalMesa();
+      var dS=new Date(pd.ts||0),label=dS.getDate()+"/"+(dS.getMonth()+1);
       pind.innerHTML="<span style='font-size:0.6rem;color:var(--mut);letter-spacing:0.06em'>🎲 PROPINA "+label+":</span> "
-        +"<b style='color:#c084fc;font-size:0.8rem'>"+ult.nombre.toUpperCase()+"</b>"
-        +(ult.total>0?" <span style='font-size:0.6rem;color:var(--mut)'>· Mesa: $"+Math.round(ult.total)+"</span>":"")
-        +"<span style='font-size:0.6rem;color:var(--mut);margin-left:6px'>(quedan "+(pd.ronda||[]).length+" en ronda)</span>";
+        +"<b style='color:#c084fc;font-size:0.8rem'>"+pd.nombre.toUpperCase()+"</b>"
+        +(totalActual>0?" <span style='font-size:0.6rem;color:var(--mut)'>· Mesa: $"+Math.round(totalActual)+"</span>":"")
+        +"<span style='font-size:0.6rem;color:var(--mut);margin-left:6px'>(quedan "+(pd.restantes||0)+" en ronda)</span>";
       pind.style.display="block";
     }).catch(function(){});
     var players=Object.keys(pagos).sort();
@@ -3038,10 +3018,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
     <div id="badge-menu" style="display:none;position:fixed;top:62px;left:12px;background:#1a1a1a;border:1px solid #333;border-radius:14px;z-index:300;min-width:210px;overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,0.7)">
       <div onclick="toggleBadgeMenu();showLoginScreen()" style="padding:14px 18px;font-size:0.8rem;cursor:pointer;border-bottom:1px solid #252525;color:#eee">👤 Cambiar usuario</div>
       <div id="badge-menu-admin" style="display:none">
-        <div onclick="toggleBadgeMenu();switchTab('admin')" style="padding:14px 18px;font-size:0.8rem;cursor:pointer;border-bottom:1px solid #252525;color:#a5b4fc">⚙️ Administrar</div>
-        <div onclick="toggleBadgeMenu();abrirMergeMasivo&&abrirMergeMasivo()" style="padding:14px 18px;font-size:0.8rem;cursor:pointer;border-bottom:1px solid #252525;color:#a5b4fc">⇄ Fusionar</div>
-        <div onclick="toggleBadgeMenu();abrirPrecios&&abrirPrecios()" style="padding:14px 18px;font-size:0.8rem;cursor:pointer;border-bottom:1px solid #252525;color:#f5c518">💲 Precios</div>
-        <div onclick="toggleBadgeMenu();publicarVersion&&publicarVersion()" style="padding:14px 18px;font-size:0.8rem;cursor:pointer;border-bottom:1px solid #252525;color:#74aed6">📡 Publicar versión</div>
+        <div onclick="toggleBadgeMenu();switchTab('admin')" style="padding:14px 18px;font-size:0.8rem;cursor:pointer;border-bottom:1px solid #252525;color:#a5b4fc">⚙️ Panel admin</div>
       </div>
       <div onclick="toggleBadgeMenu();logout()" style="padding:14px 18px;font-size:0.8rem;cursor:pointer;color:#f87171">🚪 Salir</div>
     </div>
@@ -3062,7 +3039,6 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
   <button class="tab" data-tab="mundial" onclick="switchTab('mundial')">🌍 Mundial</button>
   <button class="tab" onclick="window.open('https://cristianlovino-cloud.github.io/asado-caleta/','_blank')" style="color:rgba(255,140,0,0.7)">🔥 Asado</button>
   <button class="tab" data-tab="admin"   onclick="switchTab('admin')" style="display:none">⚙️ Admin</button>
-  <button class="tab" id="tab-version-refresh" onclick="location.reload(true)" style="display:none;color:var(--g2);font-size:0.6rem;animation:pulse 1.5s infinite">🔄 Nueva versión</button>
 </div>
 <div class="main">
   <div id="v-pedir">
@@ -3350,7 +3326,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.34";
+  var APP_VERSION="10.0.33";
   var STORED_VERSION=localStorage.getItem("app_version");
 
   if("serviceWorker"in navigator){
