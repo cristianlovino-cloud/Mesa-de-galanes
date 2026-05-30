@@ -88,6 +88,55 @@
   var pDrink=null,pFor=null,selPlayers=[],dragIdx=null;
   var timerIv=null,timerD=null,editPP=null,editPT=null,fusionSel=[];
   var voiceOn=localStorage.getItem("voice")==="1",synth=window.speechSynthesis,esVoice=null;
+
+  // ── SONIDOS PROPINA ────────────────────────────────────────
+  function playPropinaSorteado(){
+    // Redoble dramático para el que le toca
+    try{
+      var ctx=new(window.AudioContext||window.webkitAudioContext)();
+      function drum(t,freq,dur){
+        var o=ctx.createOscillator(),g=ctx.createGain(),n=ctx.createOscillator(),ng=ctx.createGain();
+        o.frequency.setValueAtTime(freq,t);o.frequency.exponentialRampToValueAtTime(freq*0.3,t+dur);
+        g.gain.setValueAtTime(1,t);g.gain.exponentialRampToValueAtTime(0.001,t+dur);
+        n.type="sawtooth";n.frequency.setValueAtTime(80,t);
+        ng.gain.setValueAtTime(0.3,t);ng.gain.exponentialRampToValueAtTime(0.001,t+dur*0.5);
+        o.connect(g);g.connect(ctx.destination);
+        n.connect(ng);ng.connect(ctx.destination);
+        o.start(t);o.stop(t+dur);n.start(t);n.stop(t+dur*0.5);
+      }
+      // Redoble: 3 golpes rápidos + uno largo
+      var now=ctx.currentTime;
+      drum(now,     120,0.08); drum(now+0.09, 120,0.08); drum(now+0.18, 120,0.08);
+      drum(now+0.3, 120,0.08); drum(now+0.39, 120,0.08); drum(now+0.48, 120,0.08);
+      drum(now+0.65,100,0.35);
+      // Campanada final
+      setTimeout(function(){
+        var ctx2=new(window.AudioContext||window.webkitAudioContext)();
+        [523,659,784,1047].forEach(function(f,i){
+          var o=ctx2.createOscillator(),g=ctx2.createGain();
+          o.frequency.value=f;o.type="sine";
+          g.gain.setValueAtTime(0.4,ctx2.currentTime+i*0.12);
+          g.gain.exponentialRampToValueAtTime(0.001,ctx2.currentTime+i*0.12+0.6);
+          o.connect(g);g.connect(ctx2.destination);
+          o.start(ctx2.currentTime+i*0.12);o.stop(ctx2.currentTime+i*0.12+0.6);
+        });
+      },900);
+    }catch(e){console.log("audio error",e);}
+  }
+  function playPropinaZafe(){
+    // Ding suave para los que zafaron
+    try{
+      var ctx=new(window.AudioContext||window.webkitAudioContext)();
+      [880,1108].forEach(function(f,i){
+        var o=ctx.createOscillator(),g=ctx.createGain();
+        o.frequency.value=f;o.type="sine";
+        g.gain.setValueAtTime(0.15,ctx.currentTime+i*0.15);
+        g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+i*0.15+0.4);
+        o.connect(g);g.connect(ctx.destination);
+        o.start(ctx.currentTime+i*0.15);o.stop(ctx.currentTime+i*0.15+0.4);
+      });
+    }catch(e){}
+  }
   var editMode=false;
 
   function loadVoice(){var v=synth.getVoices();esVoice=v.find(function(x){return x.lang.startsWith("es");})||v[0]||null;}
@@ -1005,6 +1054,7 @@
     var mc=document.getElementById("hist-content");if(!mc)return;
     var esYo=me&&nombre.toUpperCase()===me.toUpperCase();
     var totalStr=total>0?"$"+Math.round(total):"";
+    if(esYo) playPropinaSorteado(); else playPropinaZafe();
     mc.innerHTML="<div class='mh2'></div>"
       +"<div style='text-align:center;padding:12px 0'>"
       +"<div style='font-size:3rem;margin-bottom:6px'>"+(esYo?"😬":"🎲")+"</div>"
@@ -1696,10 +1746,12 @@
         div.innerHTML="<div style='font-size:0.68rem;color:#f87171;text-align:center;padding:10px 4px;line-height:1.6;font-weight:600'>"
           +"😬 <b>¡Hoy te toca a vos!</b> Sos el afortunado de la propina"
           +" <span style='font-size:0.9rem'>🎲</span></div>";
+        playPropinaSorteado();
       } else {
         div.innerHTML="<div style='font-size:0.65rem;color:var(--mut);text-align:center;padding:8px 4px;line-height:1.5'>"
           +"😅 Hoy zafaste — la propina la pone <b style='color:#c084fc'>"+pd.nombre.toUpperCase()+"</b>"
           +" <span style='font-size:0.8rem'>🎲</span></div>";
+        playPropinaZafe();
       }
       div.style.display="block";
     }).catch(function(){});
@@ -3491,7 +3543,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.48";
+  var APP_VERSION="10.0.49";
   var STORED_VERSION=localStorage.getItem("app_version");
 
   if("serviceWorker"in navigator){
