@@ -286,18 +286,37 @@
   });
 
 
-  // ── AUTO-LOGOUT 24HS ─────────────────────────────────────
+  // ── AUTO-LOGOUT ───────────────────────────────────────────
   (function(){
     if(!me||isAdmin())return;
     var last=parseInt(localStorage.getItem("last_activity")||"0");
-    if(last&&Date.now()-last>86400000){ // 24hs
-      me="";localStorage.removeItem("galan_name");localStorage.removeItem("last_activity");
-      console.log("Auto-logout: 24hs de inactividad");
+    var now=Date.now();
+    var hoy=new Date(),diaSem=hoy.getDay(); // 0=dom,6=sab
+    var arHour=((hoy.getUTCHours()-3)+24)%24;
+    // Logout si:
+    // 1) Nunca hubo actividad registrada (abrió desde web sin instalar)
+    // 2) Pasaron más de 24hs desde última actividad
+    // 3) Es domingo o después (el café terminó) → limpiar para el próximo sábado
+    var sinActividad=!last;
+    var vencido=last&&(now-last>86400000);
+    var cafeTermino=diaSem===0||(diaSem===6&&arHour>=15); // dom, o sab después de las 15
+    if(sinActividad||vencido||cafeTermino){
+      me="";
+      localStorage.removeItem("galan_name");
+      localStorage.removeItem("last_activity");
+      console.log("Auto-logout:",sinActividad?"sin actividad":vencido?"vencido":"café terminó");
+    } else {
+      // Refrescar timestamp al abrir la app (fix para browsers que no disparan click)
+      localStorage.setItem("last_activity",now.toString());
     }
   })();
-  // Actualizar timestamp de actividad en cada interacción
+  // Actualizar timestamp en cada interacción
   document.addEventListener("click",function(){localStorage.setItem("last_activity",Date.now().toString());},{passive:true});
   document.addEventListener("touchstart",function(){localStorage.setItem("last_activity",Date.now().toString());},{passive:true});
+  // También al volver de background (visibilitychange)
+  document.addEventListener("visibilitychange",function(){
+    if(!document.hidden&&me&&!isAdmin())localStorage.setItem("last_activity",Date.now().toString());
+  });
 
   // ── NOMBRE ────────────────────────────────────────────────
   window.setName=function(name){
@@ -1461,6 +1480,76 @@
     openModal("mprecios");
   };
 
+  window.procesarTicket=async function(input){
+    if(!input.files||!input.files[0])return;
+    var file=input.files[0];
+    var status=document.getElementById("ticket-status");
+    status.style.display="block";
+    status.textContent="📷 Leyendo ticket con IA...";
+    try{
+      // Convertir imagen a base64
+      var base64=await new Promise(function(res,rej){
+        var r=new FileReader();
+        r.onload=function(){res(r.result.split(",")[1]);};
+        r.onerror=rej;
+        r.readAsDataURL(file);
+      });
+      // Llamar a Claude API con la imagen
+      var resp=await fetch("https://api.anthropic.com/v1/messages",{
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({
+          model:"claude-sonnet-4-20250514",
+          max_tokens:1000,
+          messages:[{role:"user",content:[
+            {type:"image",source:{type:"base64",media_type:file.type||"image/jpeg",data:base64}},
+            {type:"text",text:"Este es un ticket de un bar en Argentina. Extrae los items y precios unitarios. Responde SOLO con JSON valido, sin markdown, con este formato: {\"items\":[{\"nombre\":\"Cafe con Leche\",\"precio\":3200}]}. Solo bebidas y comidas, no totales."}
+          ]}]
+        })
+      });
+      var data=await resp.json();
+      var text=data.content[0].text.trim();
+      var parsed=JSON.parse(text);
+      var items=parsed.items||[];
+      if(!items.length){status.textContent="⚠️ No se encontraron precios en el ticket";return;}
+      // Mostrar preview para confirmar
+      window._ticketItems=items;
+      var preview="<div style='font-size:0.62rem;color:#4fb3ff;margin-bottom:8px;font-weight:700'>✓ "+items.length+" ítems encontrados — ¿Actualizar precios?</div>";
+      preview+=items.map(function(it){return"<div style='display:flex;justify-content:space-between;padding:3px 0;font-size:0.65rem'><span>"+it.nombre+"</span><span style='color:var(--g2);font-weight:600'>$"+it.precio.toLocaleString("es-AR")+"</span></div>";}).join("");
+      preview+="<div style='display:flex;gap:8px;margin-top:10px'>"
+        +"<button onclick='aplicarPreciosTicket()' style='flex:1;background:rgba(34,197,94,0.2);border:1px solid rgba(34,197,94,0.4);border-radius:8px;padding:7px;color:#4ade80;font-size:0.68rem;font-weight:700;cursor:pointer'>✓ Aplicar</button>"
+        +"<button onclick='cerrarTicketStatus()' style='flex:0.4;background:none;border:1px solid #333;border-radius:8px;padding:7px;color:var(--mut);font-size:0.68rem;cursor:pointer'>✕</button>"
+        +"</div>";
+      status.innerHTML=preview;
+    }catch(e){
+      console.error("ticket error",e);
+      status.textContent="❌ Error al procesar el ticket: "+e.message;
+    }
+    input.value=""; // reset para poder elegir de nuevo
+  };
+  window.cerrarTicketStatus=function(){var el=document.getElementById('ticket-status');if(el)el.style.display='none';};
+  window.aplicarPreciosTicket=function(){
+    var items=window._ticketItems||[];
+    // Matchear items del ticket con bebidas de la app (fuzzy)
+    var nd=drinks.map(function(d){return Object.assign({},d);});
+    var matched=0;
+    items.forEach(function(it){
+      var nombre=it.nombre.toLowerCase();
+      nd.forEach(function(d){
+        var dn=d.name.toLowerCase();
+        // Match si el nombre del ticket contiene la bebida o viceversa
+        if(nombre.includes(dn.split(" ")[0])||dn.includes(nombre.split(" ")[0])){
+          d.precio=it.precio;matched++;
+        }
+      });
+    });
+    drinks=nd;
+    set(rD,nd);
+    // Refrescar el modal de precios
+    abrirPrecios();
+    showToast("✓ "+matched+" precios actualizados desde el ticket!");
+    document.getElementById("ticket-status").style.display="none";
+  };
   window.guardarPrecios=async function(){
     var inputs=document.querySelectorAll("#precios-grid input");
     var nd=drinks.map(function(d){return Object.assign({},d);});
@@ -3515,10 +3604,17 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 <div class="modal-overlay mc" id="mprecios" onclick="if(event.target===this)closeModal('mprecios')">
   <div class="modal" style="max-height:88vh;overflow-y:auto;width:calc(100vw - 24px);max-width:480px">
     <div class="mh2"></div>
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
-      <span style="font-size:1.4rem">💲</span>
-      <h3 style="margin:0;font-size:1.3rem">Precios del sábado</h3>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+      <div style="display:flex;align-items:center;gap:10px">
+        <span style="font-size:1.4rem">💲</span>
+        <h3 style="margin:0;font-size:1.3rem">Precios del sábado</h3>
+      </div>
+      <button onclick="document.getElementById('ticket-input').click()" style="background:rgba(79,179,255,0.12);border:1px solid rgba(79,179,255,0.3);border-radius:10px;padding:8px 12px;color:#4fb3ff;font-size:0.7rem;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px">
+        📷 Ticket
+      </button>
     </div>
+    <input type="file" id="ticket-input" accept="image/*" capture="environment" style="display:none" onchange="procesarTicket(this)">
+    <div id="ticket-status" style="display:none;background:rgba(79,179,255,0.08);border:1px solid rgba(79,179,255,0.2);border-radius:10px;padding:10px 12px;margin-bottom:12px;font-size:0.68rem;color:#4fb3ff;text-align:center"></div>
     <!-- Tabla header -->
     <div style="display:grid;grid-template-columns:1fr 100px;gap:8px;padding:6px 10px;border-bottom:1px solid #252525;margin-bottom:4px">
       <div style="font-size:0.6rem;color:rgba(255,255,255,0.35);letter-spacing:0.1em;text-transform:uppercase">Bebida / Combo</div>
@@ -3575,7 +3671,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.52";
+  var APP_VERSION="10.0.56";
   var STORED_VERSION=localStorage.getItem("app_version");
 
   if("serviceWorker"in navigator){
