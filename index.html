@@ -640,7 +640,15 @@
         return msg?"<b>"+n+"</b> — "+msg:"<b>"+n+"</b>";
       });
       banner.style.display="block";
-      banner.innerHTML="<div class='cumple-banner cumple-hoy'>🎂 HOY CUMPLE"+( cumplHoy.length>1?"N":"")+"! "+msgs.join(" · ")+" 🎉<div style='font-size:0.58rem;color:rgba(245,197,24,0.7);margin-top:3px;letter-spacing:0.08em'>¡Felicitalo en el café! 🥳</div></div>";
+      banner.style.cssText="display:block;margin:0 0 10px";
+      banner.innerHTML="<div class='cumple-hoy' style='display:flex;align-items:center;gap:14px;padding:14px 16px;background:linear-gradient(135deg,rgba(245,197,24,0.18),rgba(234,88,12,0.14));border:1.5px solid rgba(245,197,24,0.5);border-radius:16px;animation:pulseBanner 1.5s ease-in-out infinite alternate'>"
+        +"<div style='font-size:2.2rem;flex-shrink:0;animation:fireAnim 1s ease-in-out infinite alternate'>🎂</div>"
+        +"<div>"
+        +"<div style='font-family:\"Bebas Neue\",sans-serif;font-size:1.2rem;letter-spacing:0.06em;color:var(--g2);line-height:1.1'>HOY CUMPLE"+(cumplHoy.length>1?"N":"")+"!</div>"
+        +"<div style='font-size:0.78rem;font-weight:700;color:#fff;margin-top:2px'>"+msgs.join(" · ")+" 🎉</div>"
+        +"<div style='font-size:0.58rem;color:rgba(245,197,24,0.6);margin-top:3px;letter-spacing:0.06em'>¡Felicitalo en el café! 🥳</div>"
+        +"</div>"
+        +"</div>";
     } else if(cumplSat.length){
       var msgs2=cumplSat.map(function(n){
         var msg=cumples[n].msg;
@@ -1566,14 +1574,31 @@
   }
 
   // Admin: configurar próximo asado
-  window.abrirConfigAsado=async function(){
+  window.abrirConfigAsado=function(){
     var cfg=window._asadoConfig||{};
-    var fecha=prompt("Fecha del asado (YYYY-MM-DD):",cfg.fecha||"");
-    if(!fecha)return;
-    var titulo=prompt("Título:",cfg.titulo||"Asado en la Caleta");
-    var lugar=prompt("Lugar:",cfg.lugar||"La Caleta");
+    // Pre-cargar valores en el modal
+    var fi=document.getElementById("asado-fecha-inp");
+    var ti=document.getElementById("asado-titulo-inp");
+    var li=document.getElementById("asado-lugar-inp");
+    if(fi)fi.value=cfg.fecha||"";
+    if(ti)ti.value=cfg.titulo||"Asado en la Caleta";
+    if(li)li.value=cfg.lugar||"La Caleta";
+    openModal("masado");
+  };
+  window.guardarConfigAsado=async function(){
+    var fecha=document.getElementById("asado-fecha-inp").value.trim();
+    var titulo=document.getElementById("asado-titulo-inp").value.trim();
+    var lugar=document.getElementById("asado-lugar-inp").value.trim();
+    if(!fecha){showToast("Ingresá la fecha");return;}
     await set(rAsadoConfig,{fecha:fecha,titulo:titulo||"Asado en la Caleta",lugar:lugar||"La Caleta"});
-    showToast("✓ Asado configurado para el "+fecha);
+    closeModal("masado");
+    showToast("🔥 Asado configurado!");
+  };
+  window.borrarConfigAsado=async function(){
+    if(!confirm("Borrar el asado configurado?"))return;
+    await set(rAsadoConfig,null);
+    closeModal("masado");
+    showToast("✓ Asado borrado");
   };
 
   window.cerrarTicketStatus=function(){var el=document.getElementById('ticket-status');if(el)el.style.display='none';};
@@ -3723,7 +3748,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.58";
+  var APP_VERSION="10.0.59";
   var STORED_VERSION=localStorage.getItem("app_version");
 
   if("serviceWorker"in navigator){
@@ -3789,5 +3814,37 @@ window.modificarPedido=function(){
   document.dispatchEvent(new CustomEvent("solicitarModificarPedido"));
 };
 </script>
+
+<div class="modal-overlay mc" id="masado" onclick="if(event.target===this)closeModal('masado')">
+  <div class="modal-box" style="max-width:340px">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+      <span style="font-size:1.6rem">🔥</span>
+      <h3 style="margin:0;font-size:1.3rem;font-family:'Bebas Neue',sans-serif;letter-spacing:0.06em">Configurar Asado</h3>
+    </div>
+    <p style="font-size:0.65rem;color:var(--mut);margin-bottom:16px;letter-spacing:0.04em">El banner aparece automáticamente cuando falta 7 días o menos</p>
+
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <div>
+        <div style="font-size:0.6rem;font-weight:700;color:var(--mut);letter-spacing:0.08em;margin-bottom:6px">FECHA</div>
+        <input id="asado-fecha-inp" type="date" class="inp" style="width:100%">
+      </div>
+      <div>
+        <div style="font-size:0.6rem;font-weight:700;color:var(--mut);letter-spacing:0.08em;margin-bottom:6px">TÍTULO</div>
+        <input id="asado-titulo-inp" type="text" class="inp" placeholder="Asado en la Caleta" style="width:100%" maxlength="40">
+      </div>
+      <div>
+        <div style="font-size:0.6rem;font-weight:700;color:var(--mut);letter-spacing:0.08em;margin-bottom:6px">LUGAR</div>
+        <input id="asado-lugar-inp" type="text" class="inp" placeholder="La Caleta" style="width:100%" maxlength="30">
+      </div>
+    </div>
+
+    <div class="ma" style="margin-top:18px;gap:8px">
+      <button class="bs" onclick="borrarConfigAsado()" style="flex:0.6;background:rgba(239,68,68,0.1);border-color:rgba(239,68,68,0.3);color:#f87171">🗑 Borrar</button>
+      <button class="bs" onclick="closeModal('masado')" style="flex:0.6">Cancelar</button>
+      <button class="bp" onclick="guardarConfigAsado()" style="flex:1;background:linear-gradient(135deg,rgba(255,140,0,0.8),rgba(255,60,0,0.7));border-color:rgba(255,140,0,0.5)">🔥 Guardar</button>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
