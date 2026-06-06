@@ -1527,6 +1527,55 @@
     }
     input.value=""; // reset para poder elegir de nuevo
   };
+  // ── ASADO CALETA ──────────────────────────────────────────────────────────
+  window.irAlAsado=function(){
+    var url="https://cristianlovino-cloud.github.io/asado-caleta/";
+    if(me)url+="?user="+encodeURIComponent(me);
+    window.open(url,"_blank");
+  };
+
+  // Config asado: admin puede setear fecha del próximo asado
+  const rAsadoConfig=ref(db,"config/asado");
+  onValue(rAsadoConfig,function(s){
+    window._asadoConfig=s.exists()?s.val():null;
+    renderAsadoBanner();
+  });
+
+  function renderAsadoBanner(){
+    var banner=document.getElementById("asado-banner");
+    if(!banner)return;
+    var cfg=window._asadoConfig;
+    if(!cfg||!cfg.fecha){banner.style.display="none";return;}
+    // Verificar si el asado es próximo (dentro de los próximos 7 días)
+    var fechaAsado=new Date(cfg.fecha+"T12:00:00");
+    var hoy=new Date();
+    var diff=fechaAsado-hoy;
+    var dias=Math.ceil(diff/(1000*60*60*24));
+    if(dias<0||dias>7){banner.style.display="none";return;}
+    var label=dias===0?"HOY":dias===1?"MAÑANA":"en "+dias+" días";
+    var titulo=cfg.titulo||"ASADO EN LA CALETA";
+    banner.style.display="block";
+    banner.innerHTML="<div onclick='irAlAsado()' style='cursor:pointer;display:flex;align-items:center;gap:12px;padding:14px 16px'>"
+      +"<div style='font-size:2rem;flex-shrink:0;animation:fireAnim 1s ease-in-out infinite alternate'>🔥</div>"
+      +"<div style='flex:1'>"
+      +"<div style='font-family:\"Bebas Neue\",sans-serif;font-size:1.1rem;letter-spacing:0.06em;color:#ff8c00;line-height:1'>"+titulo.toUpperCase()+"</div>"
+      +"<div style='font-size:0.62rem;color:rgba(255,140,0,0.7);margin-top:2px;letter-spacing:0.06em'>"+label.toUpperCase()+(cfg.lugar?" · "+cfg.lugar.toUpperCase():"")+"</div>"
+      +"</div>"
+      +"<div style='background:rgba(255,140,0,0.15);border:1px solid rgba(255,140,0,0.4);border-radius:10px;padding:8px 14px;font-size:0.7rem;font-weight:700;color:#ff8c00;white-space:nowrap'>Ver →</div>"
+      +"</div>";
+  }
+
+  // Admin: configurar próximo asado
+  window.abrirConfigAsado=async function(){
+    var cfg=window._asadoConfig||{};
+    var fecha=prompt("Fecha del asado (YYYY-MM-DD):",cfg.fecha||"");
+    if(!fecha)return;
+    var titulo=prompt("Título:",cfg.titulo||"Asado en la Caleta");
+    var lugar=prompt("Lugar:",cfg.lugar||"La Caleta");
+    await set(rAsadoConfig,{fecha:fecha,titulo:titulo||"Asado en la Caleta",lugar:lugar||"La Caleta"});
+    showToast("✓ Asado configurado para el "+fecha);
+  };
+
   window.cerrarTicketStatus=function(){var el=document.getElementById('ticket-status');if(el)el.style.display='none';};
   window.aplicarPreciosTicket=function(){
     var items=window._ticketItems||[];
@@ -2878,7 +2927,8 @@ header::after{
 /* CUMPLE BANNER */
 .cumple-banner{background:linear-gradient(90deg,rgba(245,158,11,0.15),rgba(234,88,12,0.1));border-bottom:1px solid rgba(245,158,11,0.2);padding:10px 16px;font-size:0.65rem;color:var(--g2);font-weight:600;text-align:center;letter-spacing:0.05em;}
 .cumple-hoy{background:linear-gradient(135deg,rgba(245,197,24,0.22),rgba(234,88,12,0.18))!important;border-bottom:2px solid rgba(245,197,24,0.5)!important;padding:14px 16px!important;font-size:0.82rem!important;animation:pulseBanner 1.5s ease-in-out infinite alternate;}
-@keyframes pulseBanner{from{box-shadow:0 0 8px rgba(245,197,24,0.15);}to{box-shadow:0 0 24px rgba(245,197,24,0.4);}}
+@keyframes fireAnim{from{transform:scale(1) rotate(-3deg);}to{transform:scale(1.15) rotate(3deg);}}
+  @keyframes pulseBanner{from{box-shadow:0 0 8px rgba(245,197,24,0.15);}to{box-shadow:0 0 24px rgba(245,197,24,0.4);}}
 
 /* TIMER */
 .tbar{display:none;background:rgba(13,11,7,0.95);border-bottom:1px solid rgba(245,158,11,0.15);padding:10px 16px;align-items:center;gap:10px;position:relative;}
@@ -3353,6 +3403,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
   </div>
 </header>
 <div id="cumple-banner" style="display:none"></div>
+  <div id="asado-banner" style="display:none;background:linear-gradient(135deg,rgba(255,140,0,0.12),rgba(255,60,0,0.08));border:1.5px solid rgba(255,140,0,0.3);border-radius:16px;margin:0 0 12px;overflow:hidden"></div>
 <div id="timer-bar" class="tbar">
   <span id="t-text">Cierra en</span><span id="t-count">—</span>
   <button class="tcx" id="tcx-btn" onclick="cancelTimer()" style="display:none">✕</button>
@@ -3364,7 +3415,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
   <button class="tab" data-tab="cumples" onclick="switchTab('cumples')">🎂 Cumples</button>
   <button class="tab" data-tab="stats"   onclick="switchTab('stats')" style="display:none">📊 Stats</button>
   <button class="tab" data-tab="mundial" onclick="switchTab('mundial')">🌍 Mundial</button>
-  <button class="tab" onclick="window.open('https://cristianlovino-cloud.github.io/asado-caleta/','_blank')" style="color:rgba(255,140,0,0.7)">🔥 Asado</button>
+  <button class="tab" onclick="irAlAsado()" style="color:rgba(255,140,0,0.7)">🔥 Asado</button>
   <button class="tab" data-tab="admin"   onclick="switchTab('admin')" style="display:none">⚙️ Admin</button>
 </div>
 <div class="main">
@@ -3432,6 +3483,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
           <button class="admin-action-btn" onclick="abrirPrecios()" style="background:rgba(245,197,24,0.12);color:var(--g2);border-color:rgba(245,197,24,0.3)">💲 Precios</button>
           <button class="admin-action-btn" onclick="refreshDrinkIcons()" style="font-size:0.6rem">🔄 Emojis</button>
           <button class="admin-action-btn" style="background:rgba(239,68,68,0.12);color:#f87171;border-color:rgba(239,68,68,0.25)" onclick="cerrarMesa()">🔒 Cerrar</button>
+          <button class="admin-action-btn" onclick="abrirConfigAsado()" style="background:rgba(255,140,0,0.12);color:#ff8c00;border-color:rgba(255,140,0,0.3)">🔥 Asado</button>
         </div>
       </div>
       <div id="mesa-reserva-info" style="display:none"></div>
@@ -3671,7 +3723,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.56";
+  var APP_VERSION="10.0.58";
   var STORED_VERSION=localStorage.getItem("app_version");
 
   if("serviceWorker"in navigator){
