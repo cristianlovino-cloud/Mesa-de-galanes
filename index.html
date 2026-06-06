@@ -72,8 +72,8 @@
   function nextSat(){
     var now=new Date(),d=now.getDay();
     var arHour=((now.getUTCHours()-3)+24)%24;
-    var arMin=now.getUTCMinutes();
-    // Si hoy es sábado y antes de las 14:00 AR → el café es HOY (usar próximo para reserva)
+    // Si hoy es sábado y antes de las 15hs AR → el café es HOY
+    if(d===6&&arHour<15){var r=new Date(now);return r;}
     var diff=d===6?7:6-d;
     var r=new Date(now);r.setDate(now.getDate()+diff);return r;
   }
@@ -621,7 +621,7 @@
         return msg?"<b>"+n+"</b> — "+msg:"<b>"+n+"</b>";
       });
       banner.style.display="block";
-      banner.innerHTML="<div class='cumple-banner'>🎂 HOY CUMPLE"+( cumplHoy.length>1?"N":"")+"! "+msgs.join(" · ")+" 🎉</div>";
+      banner.innerHTML="<div class='cumple-banner cumple-hoy'>🎂 HOY CUMPLE"+( cumplHoy.length>1?"N":"")+"! "+msgs.join(" · ")+" 🎉<div style='font-size:0.58rem;color:rgba(245,197,24,0.7);margin-top:3px;letter-spacing:0.08em'>¡Felicitalo en el café! 🥳</div></div>";
     } else if(cumplSat.length){
       var msgs2=cumplSat.map(function(n){
         var msg=cumples[n].msg;
@@ -1872,6 +1872,9 @@
       for(var d=0;d<items.length;d++){
         var it=items[d];
         var hora="";
+        // Mostrar hora del pedido
+        var pedHora="";
+        if(it.ts){var dh=new Date(it.ts);pedHora=" · "+dh.getHours()+":"+("0"+dh.getMinutes()).slice(-2);}
         if(it.ts){var dt=new Date(it.ts);hora=dt.getHours().toString().padStart(2,"0")+":"+dt.getMinutes().toString().padStart(2,"0");}
         var meta="";
         if(isAdmin()&&it.ip)meta=" · "+it.device+" "+it.ip;
@@ -2785,6 +2788,8 @@ header::after{
 
 /* CUMPLE BANNER */
 .cumple-banner{background:linear-gradient(90deg,rgba(245,158,11,0.15),rgba(234,88,12,0.1));border-bottom:1px solid rgba(245,158,11,0.2);padding:10px 16px;font-size:0.65rem;color:var(--g2);font-weight:600;text-align:center;letter-spacing:0.05em;}
+.cumple-hoy{background:linear-gradient(135deg,rgba(245,197,24,0.22),rgba(234,88,12,0.18))!important;border-bottom:2px solid rgba(245,197,24,0.5)!important;padding:14px 16px!important;font-size:0.82rem!important;animation:pulseBanner 1.5s ease-in-out infinite alternate;}
+@keyframes pulseBanner{from{box-shadow:0 0 8px rgba(245,197,24,0.15);}to{box-shadow:0 0 24px rgba(245,197,24,0.4);}}
 
 /* TIMER */
 .tbar{display:none;background:rgba(13,11,7,0.95);border-bottom:1px solid rgba(245,158,11,0.15);padding:10px 16px;align-items:center;gap:10px;position:relative;}
@@ -3570,7 +3575,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.51";
+  var APP_VERSION="10.0.52";
   var STORED_VERSION=localStorage.getItem("app_version");
 
   if("serviceWorker"in navigator){
