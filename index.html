@@ -71,17 +71,23 @@
   }
   function nextSat(){
     var now=new Date();
-    // Calcular dia y hora en Argentina (UTC-3) para evitar bugs de timezone
-    var arMs=now.getTime()-3*60*60*1000; // restar 3hs para tener hora AR
+    // Hora Argentina = UTC-3
+    var arMs=now.getTime()-3*3600000;
     var arNow=new Date(arMs);
-    var d=arNow.getUTCDay();   // dia de semana en AR
-    var arHour=arNow.getUTCHours(); // hora en AR
-    // Si hoy es sabado AR y antes de las 15hs → el cafe es HOY
-    if(d===6&&arHour<15){return new Date(now);}
-    var diff=d===6?7:6-d;
-    var r=new Date(now);r.setDate(now.getDate()+diff);return r;
+    var d=arNow.getUTCDay();   // 0=dom ... 6=sab en hora AR
+    var arHour=arNow.getUTCHours();
+    // Cuantos dias faltan para el proximo sabado AR
+    var diff;
+    if(d===6&&arHour<15)diff=0;   // hoy es sabado AR y antes de las 15 → es HOY
+    else if(d===6)diff=7;          // sabado AR pero despues de las 15 → el siguiente
+    else diff=6-d;                  // dias hasta el proximo sabado
+    // Construir la fecha del sabado objetivo en AR y convertir a Date local
+    var targetArMs=arMs+diff*86400000;
+    var targetAr=new Date(targetArMs);
+    // Usar año/mes/dia del sabado en AR, fijar hora 9:15 AR = 12:15 UTC
+    var y=targetAr.getUTCFullYear(),mo=targetAr.getUTCMonth(),day=targetAr.getUTCDate();
+    return new Date(Date.UTC(y,mo,day,12,15,0));
   }
-  function nextSatStr(){return nextSat().toISOString().slice(0,10);}
   // Sábado de esta semana (o el pasado si hoy no es sábado) — para identificar reservas viejas
   function thisSatStr(){
     var now=new Date(),d=now.getDay();
@@ -2262,7 +2268,7 @@
   window.renderStats=async function(){
     var panel=document.getElementById("stats-content");if(!panel)return;
     // Countdown
-    var sat=nextSat();sat.setUTCHours(12,15,0,0);
+    var sat=nextSat(); // ya incluye 9:15 AR (12:15 UTC)
     var diff=sat-new Date();
     var cdHtml="";
     if(diff<=0){
@@ -2419,7 +2425,7 @@
     if(window._sTimer)clearInterval(window._sTimer);
     window._sTimer=setInterval(function(){
       var el=document.getElementById("scd-s");
-      if(el){var s2=nextSat();s2.setUTCHours(12,15,0,0);var sv2=Math.floor((s2-new Date())%60000/1000);if(sv2>=0)el.textContent=String(sv2).padStart(2,"0");}
+      if(el){var s2=nextSat();var sv2=Math.floor((s2-new Date())%60000/1000);if(sv2>=0)el.textContent=String(sv2).padStart(2,"0");}
     },1000);
   };
   function maybeRenderStats(){var v=document.getElementById("v-stats");if(v&&v.style.display!=="none")renderStats();}
@@ -3704,7 +3710,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.62";
+  var APP_VERSION="10.0.63";
   var STORED_VERSION=localStorage.getItem("app_version");
 
   if("serviceWorker"in navigator){
