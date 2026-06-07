@@ -2451,19 +2451,20 @@
   var SPORTS_BACKEND="https://mundial-2026.cristianlovino.workers.dev";
 
   // Grupos del Mundial 2026 — datos estáticos de respaldo
+  // Grupos REALES del Mundial 2026 (sorteo 5 dic 2025, Kennedy Center)
   var GRUPOS_MUNDIAL=[
-    {g:"A", equipos:[{n:"México",f:"mx"},{n:"Ecuador",f:"ec"},{n:"Nueva Zelanda",f:"nz"},{n:"Uzbekistán",f:"uz"}]},
-    {g:"B", equipos:[{n:"Argentina",f:"ar"},{n:"Marruecos",f:"ma"},{n:"Irak",f:"iq"},{n:"Ucrania",f:"ua"}]},
-    {g:"C", equipos:[{n:"EE.UU.",f:"us"},{n:"Panamá",f:"pa"},{n:"Albania",f:"al"},{n:"India",f:"in"}]},
-    {g:"D", equipos:[{n:"Francia",f:"fr"},{n:"Paraguay",f:"py"},{n:"Guinea Ecuatorial",f:"gq"},{n:"Arabia Saudita",f:"sa"}]},
-    {g:"E", equipos:[{n:"Brasil",f:"br"},{n:"Australia",f:"au"},{n:"Egipto",f:"eg"},{n:"Dinamarca",f:"dk"}]},
-    {g:"F", equipos:[{n:"España",f:"es"},{n:"Chile",f:"cl"},{n:"Corea del Sur",f:"kr"},{n:"Serbia",f:"rs"}]},
-    {g:"G", equipos:[{n:"Alemania",f:"de"},{n:"Colombia",f:"co"},{n:"Bélgica",f:"be"},{n:"Turquía",f:"tr"}]},
-    {g:"H", equipos:[{n:"Portugal",f:"pt"},{n:"Uruguay",f:"uy"},{n:"Indonesia",f:"id"},{n:"Túnez",f:"tn"}]},
-    {g:"I", equipos:[{n:"Países Bajos",f:"nl"},{n:"Venezuela",f:"ve"},{n:"Yemen",f:"ye"},{n:"Hungría",f:"hu"}]},
-    {g:"J", equipos:[{n:"Inglaterra",f:"gb-eng"},{n:"Senegal",f:"sn"},{n:"Honduras",f:"hn"},{n:"Eslovaquia",f:"sk"}]},
-    {g:"K", equipos:[{n:"Japón",f:"jp"},{n:"Costa Rica",f:"cr"},{n:"Nigeria",f:"ng"},{n:"Croacia",f:"hr"}]},
-    {g:"L", equipos:[{n:"Italia",f:"it"},{n:"Costa de Marfil",f:"ci"},{n:"Perú",f:"pe"},{n:"Rep. Checa",f:"cz"}]}
+    {g:"A", equipos:[{n:"México",f:"mx"},{n:"Sudáfrica",f:"za"},{n:"Corea del Sur",f:"kr"},{n:"Chequia",f:"cz"}]},
+    {g:"B", equipos:[{n:"Canadá",f:"ca"},{n:"Suiza",f:"ch"},{n:"Qatar",f:"qa"},{n:"Bosnia",f:"ba"}]},
+    {g:"C", equipos:[{n:"Brasil",f:"br"},{n:"Marruecos",f:"ma"},{n:"Haití",f:"ht"},{n:"Escocia",f:"gb-sct"}]},
+    {g:"D", equipos:[{n:"EE.UU.",f:"us"},{n:"Paraguay",f:"py"},{n:"Australia",f:"au"},{n:"Turquía",f:"tr"}]},
+    {g:"E", equipos:[{n:"Alemania",f:"de"},{n:"Curazao",f:"cw"},{n:"Costa de Marfil",f:"ci"},{n:"Ecuador",f:"ec"}]},
+    {g:"F", equipos:[{n:"Países Bajos",f:"nl"},{n:"Japón",f:"jp"},{n:"Túnez",f:"tn"},{n:"Suecia",f:"se"}]},
+    {g:"G", equipos:[{n:"Bélgica",f:"be"},{n:"Egipto",f:"eg"},{n:"Irán",f:"ir"},{n:"Nueva Zelanda",f:"nz"}]},
+    {g:"H", equipos:[{n:"España",f:"es"},{n:"Cabo Verde",f:"cv"},{n:"Arabia Saudí",f:"sa"},{n:"Uruguay",f:"uy"}]},
+    {g:"I", equipos:[{n:"Francia",f:"fr"},{n:"Senegal",f:"sn"},{n:"Noruega",f:"no"},{n:"Irak",f:"iq"}]},
+    {g:"J", equipos:[{n:"Argentina",f:"ar"},{n:"Argelia",f:"dz"},{n:"Austria",f:"at"},{n:"Jordania",f:"jo"}]},
+    {g:"K", equipos:[{n:"Portugal",f:"pt"},{n:"Uzbekistán",f:"uz"},{n:"Colombia",f:"co"},{n:"RD del Congo",f:"cd"}]},
+    {g:"L", equipos:[{n:"Inglaterra",f:"gb-eng"},{n:"Croacia",f:"hr"},{n:"Ghana",f:"gh"},{n:"Panamá",f:"pa"}]}
   ];
   var APISPORTS_KEY="";
   var APISPORTS_BASE="";
@@ -3807,7 +3808,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.66";
+  var APP_VERSION="10.0.67";
   var STORED_VERSION=localStorage.getItem("app_version");
 
   if("serviceWorker"in navigator){
