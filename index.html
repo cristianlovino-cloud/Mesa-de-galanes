@@ -70,10 +70,14 @@
     return"☕";
   }
   function nextSat(){
-    var now=new Date(),d=now.getDay();
-    var arHour=((now.getUTCHours()-3)+24)%24;
-    // Si hoy es sábado y antes de las 15hs AR → el café es HOY
-    if(d===6&&arHour<15){var r=new Date(now);return r;}
+    var now=new Date();
+    // Calcular dia y hora en Argentina (UTC-3) para evitar bugs de timezone
+    var arMs=now.getTime()-3*60*60*1000; // restar 3hs para tener hora AR
+    var arNow=new Date(arMs);
+    var d=arNow.getUTCDay();   // dia de semana en AR
+    var arHour=arNow.getUTCHours(); // hora en AR
+    // Si hoy es sabado AR y antes de las 15hs → el cafe es HOY
+    if(d===6&&arHour<15){return new Date(now);}
     var diff=d===6?7:6-d;
     var r=new Date(now);r.setDate(now.getDate()+diff);return r;
   }
@@ -3700,7 +3704,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.61";
+  var APP_VERSION="10.0.62";
   var STORED_VERSION=localStorage.getItem("app_version");
 
   if("serviceWorker"in navigator){
