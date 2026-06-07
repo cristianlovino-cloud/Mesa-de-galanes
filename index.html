@@ -1517,11 +1517,11 @@
     var cfg=window._asadoConfig;
     if(!cfg||!cfg.fecha){banner.style.display="none";return;}
     // Verificar si el asado es próximo (dentro de los próximos 7 días)
-    var fechaAsado=new Date(cfg.fecha+"T12:00:00");
-    var hoy=new Date();
-    var diff=fechaAsado-hoy;
-    var dias=Math.ceil(diff/(1000*60*60*24));
-    if(dias<0||dias>7){banner.style.display="none";return;}
+    // Calcular dias restantes en hora Argentina (UTC-3)
+    var fechaAsado=new Date(cfg.fecha+"T12:00:00Z"); // mediodia UTC = 9am AR
+    var arNow=new Date(new Date().getTime()-3*3600000); // hora AR
+    var arHoy=new Date(arNow.getUTCFullYear(),arNow.getUTCMonth(),arNow.getUTCDate());
+    var dias=Math.round((fechaAsado-arHoy)/(1000*60*60*24));
     var label=dias===0?"HOY":dias===1?"MAÑANA":"en "+dias+" días";
     var titulo=cfg.titulo||"ASADO EN LA CALETA";
     banner.style.display="block";
@@ -2448,7 +2448,7 @@
 
 
   // API-Football (api-sports.io)
-  var SPORTS_BACKEND="https://rough-mode-11ab.cristianlovino.workers.dev";
+  var SPORTS_BACKEND="https://mundial-2026.cristianlovino.workers.dev";
 
   // Grupos del Mundial 2026 — datos estáticos de respaldo
   var GRUPOS_MUNDIAL=[
@@ -3807,7 +3807,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.64";
+  var APP_VERSION="10.0.66";
   var STORED_VERSION=localStorage.getItem("app_version");
 
   if("serviceWorker"in navigator){
