@@ -8,180 +8,122 @@
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
 :root{
-  --bg:#000;
-  --panel:#0a0a0a;
+  --bg:#080808;
+  --panel:#111;
   --gold:#f5c518;
-  --green:#00e676;
-  --red:#ff1744;
-  --blue:#00b0ff;
-  --mut:rgba(255,255,255,0.25);
-  --brd:rgba(255,255,255,0.07);
+  --green:#2ecc71;
+  --red:#e74c3c;
+  --blue:#3498db;
+  --ink:#e8e8e8;
+  --mut:#666;
+  --brd:rgba(255,255,255,0.08);
 }
-html,body{height:100%;background:var(--bg);color:#fff;font-family:'Oswald',sans-serif;overflow-x:hidden;}
+html,body{background:var(--bg);color:var(--ink);font-family:'Oswald',sans-serif;overflow-x:hidden;}
 
-/* ── SCANLINES overlay ── */
 body::after{
   content:'';position:fixed;inset:0;
-  background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.08) 2px,rgba(0,0,0,0.08) 4px);
+  background:repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(0,0,0,0.06) 3px,rgba(0,0,0,0.06) 4px);
   pointer-events:none;z-index:999;
 }
 
 /* ── TOP BAR ── */
 .topbar{
   display:flex;align-items:center;justify-content:space-between;
-  padding:12px 16px;
-  border-bottom:1px solid var(--brd);
-  background:rgba(0,0,0,0.8);
-  position:sticky;top:0;z-index:10;
+  padding:10px 14px;border-bottom:2px solid var(--gold);
+  background:#000;position:sticky;top:0;z-index:10;
 }
-.topbar-logo{
-  font-family:'Bebas Neue',sans-serif;
-  font-size:1.4rem;letter-spacing:0.06em;line-height:1;
-}
+.topbar-logo{font-family:'Bebas Neue',sans-serif;font-size:1.4rem;letter-spacing:0.06em;line-height:1;color:#fff;}
 .topbar-logo span{color:var(--gold);}
 .live-pill{
-  display:flex;align-items:center;gap:6px;
-  background:var(--red);border-radius:4px;
-  padding:4px 10px;font-size:0.6rem;font-weight:600;
-  letter-spacing:0.12em;animation:flashLive 2s ease-in-out infinite;
+  display:flex;align-items:center;gap:5px;
+  background:var(--red);border-radius:3px;
+  padding:4px 10px;font-size:0.58rem;font-weight:600;letter-spacing:0.12em;color:#fff;
+  animation:flashLive 2s ease-in-out infinite;
 }
-.live-dot{width:6px;height:6px;border-radius:50%;background:#fff;animation:blinkFast 0.8s ease-in-out infinite;}
-@keyframes flashLive{0%,100%{opacity:1}50%{opacity:0.75}}
+.live-dot{width:5px;height:5px;border-radius:50%;background:#fff;animation:blinkFast 0.8s infinite;}
+@keyframes flashLive{0%,100%{opacity:1}50%{opacity:0.8}}
 @keyframes blinkFast{0%,100%{opacity:1}50%{opacity:0}}
-.topbar-clock{
-  font-family:'DM Mono',monospace;font-size:0.75rem;
-  color:var(--mut);letter-spacing:0.06em;
-}
+.topbar-clock{font-family:'DM Mono',monospace;font-size:0.75rem;color:var(--mut);}
 
-/* ── TIMER HERO ── */
-.timer-hero{
-  padding:16px;
-  border-bottom:1px solid var(--brd);
-  display:none;
-}
+/* ── TIMER ── */
+.timer-hero{padding:14px 16px;border-bottom:1px solid var(--brd);display:none;}
 .timer-hero.visible{display:block;}
-.timer-label{
-  font-size:0.5rem;font-weight:400;letter-spacing:0.2em;
-  color:var(--mut);margin-bottom:6px;
-}
-.timer-digits{
-  font-family:'Bebas Neue',sans-serif;
-  font-size:4rem;letter-spacing:0.06em;line-height:1;
-  color:var(--gold);
-  transition:color 0.3s;
-}
-.timer-digits.urgent{color:var(--red);animation:timerPulse 0.5s ease-in-out infinite;}
-@keyframes timerPulse{0%,100%{opacity:1}50%{opacity:0.6}}
-.timer-bar-bg{height:3px;background:rgba(255,255,255,0.08);margin-top:10px;border-radius:2px;overflow:hidden;}
-.timer-bar-fill{height:100%;background:var(--gold);border-radius:2px;transition:width 1s linear,background 0.3s;}
+.timer-lbl{font-size:0.48rem;letter-spacing:0.2em;color:var(--mut);margin-bottom:4px;}
+.timer-digs{font-family:'Bebas Neue',sans-serif;font-size:3.5rem;letter-spacing:0.06em;line-height:1;color:var(--gold);}
+.timer-digs.urgent{color:var(--red);animation:pulse 0.5s infinite;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.5}}
+.timer-bar-bg{height:3px;background:rgba(255,255,255,0.07);margin-top:8px;overflow:hidden;}
+.timer-bar-fill{height:100%;background:var(--gold);transition:width 1s linear;}
 .timer-bar-fill.urgent{background:var(--red);}
 
-/* ── STATS BAR ── */
-.stats-bar{
-  display:grid;grid-template-columns:1fr 1fr 1fr;
-  border-bottom:1px solid var(--brd);
-}
-.stat-cell{
-  padding:14px 12px;text-align:center;
-  border-right:1px solid var(--brd);
-}
+/* ── STATS ── */
+.stats-bar{display:grid;grid-template-columns:1fr 1fr 1fr;border-bottom:1px solid var(--brd);}
+.stat-cell{padding:12px 10px;text-align:center;border-right:1px solid var(--brd);}
 .stat-cell:last-child{border-right:none;}
-.stat-n{
-  font-family:'Bebas Neue',sans-serif;
-  font-size:2.6rem;line-height:1;letter-spacing:0.02em;
-}
+.stat-n{font-family:'Bebas Neue',sans-serif;font-size:2.4rem;line-height:1;color:#fff;}
 .stat-n.g{color:var(--green);}
 .stat-n.r{color:var(--red);}
 .stat-n.b{color:var(--blue);}
-.stat-lbl{font-size:0.45rem;letter-spacing:0.2em;color:var(--mut);margin-top:3px;font-weight:400;}
+.stat-lbl{font-size:0.44rem;letter-spacing:0.18em;color:var(--mut);margin-top:3px;}
+
+/* ── RESUMEN BEBIDAS ── */
+.resumen-section{padding:12px 14px;border-bottom:1px solid var(--brd);}
+.section-title{font-size:0.44rem;letter-spacing:0.2em;color:var(--mut);margin-bottom:10px;}
+.beb-group{margin-bottom:8px;}
+.beb-row{
+  display:flex;align-items:center;gap:10px;
+  padding:8px 12px;background:var(--panel);border-radius:4px;
+  margin-bottom:4px;
+}
+.beb-icon{font-size:1.2rem;flex-shrink:0;}
+.beb-name{flex:1;font-size:0.78rem;font-weight:600;color:var(--ink);letter-spacing:0.03em;}
+.beb-count{
+  font-family:'Bebas Neue',sans-serif;font-size:1.3rem;
+  color:var(--gold);line-height:1;margin-right:4px;
+}
+.beb-bar-bg{height:3px;background:rgba(255,255,255,0.07);margin-top:4px;border-radius:1px;overflow:hidden;}
+.beb-bar-fill{height:100%;background:var(--gold);border-radius:1px;}
+.beb-names{font-size:0.52rem;color:var(--mut);margin-top:3px;line-height:1.4;}
 
 /* ── SCOREBOARD ── */
-.board{width:100%;}
+.board-section{padding:0;}
 .board-head{
-  display:grid;grid-template-columns:36px 1fr auto 60px;
-  padding:6px 12px;
-  background:rgba(255,255,255,0.04);
-  font-size:0.45rem;letter-spacing:0.18em;color:var(--mut);font-weight:400;
+  display:grid;grid-template-columns:28px 1fr auto 52px;
+  padding:6px 14px;
+  background:rgba(255,255,255,0.03);
+  font-size:0.42rem;letter-spacing:0.18em;color:var(--mut);
   border-bottom:1px solid var(--brd);
 }
 .board-row{
-  display:grid;grid-template-columns:36px 1fr auto 60px;
-  padding:10px 12px;
-  border-bottom:1px solid rgba(255,255,255,0.04);
+  display:grid;grid-template-columns:28px 1fr auto 52px;
+  padding:9px 14px;border-bottom:1px solid rgba(255,255,255,0.04);
   align-items:center;
-  transition:background 0.3s;
-  animation:rowIn 0.3s ease forwards;
 }
-@keyframes rowIn{from{opacity:0;transform:translateX(-8px)}to{opacity:1;transform:none}}
-.board-row.ok{background:rgba(0,230,118,0.05);}
-.board-row.pending{opacity:0.55;}
-
-.row-num{
-  font-family:'DM Mono',monospace;
-  font-size:0.6rem;color:var(--mut);text-align:center;
-}
-.row-av{
-  width:28px;height:28px;border-radius:4px;
-  display:flex;align-items:center;justify-content:center;
-  font-family:'Bebas Neue',sans-serif;font-size:0.65rem;
-  color:#000;font-weight:700;flex-shrink:0;
-}
-.row-name-wrap{display:flex;align-items:center;gap:8px;}
-.row-name{font-size:0.78rem;font-weight:600;letter-spacing:0.04em;}
-.row-drink{
-  font-size:0.58rem;color:var(--mut);
-  text-align:right;
-  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
-  max-width:130px;
-}
-.row-drink.adm{color:rgba(245,197,24,0.6);}
-.row-status{
-  width:28px;height:28px;
-  display:flex;align-items:center;justify-content:center;
-  font-size:0.7rem;justify-self:end;
-}
-.row-hora{
-  font-family:'DM Mono',monospace;
-  font-size:0.5rem;color:rgba(255,255,255,0.2);
-  margin-top:2px;
-}
-
-/* ── BEBIDAS FOOTER ── */
-.bebidas-bar{
-  padding:12px 14px;
-  border-top:1px solid var(--brd);
-  display:flex;flex-wrap:wrap;gap:6px;
-  background:rgba(255,255,255,0.02);
-}
-.beb-chip{
-  display:flex;align-items:center;gap:5px;
-  background:rgba(255,255,255,0.06);
-  border:1px solid var(--brd);
-  border-radius:3px;padding:4px 10px;
-  font-size:0.6rem;letter-spacing:0.04em;
-}
-.beb-count{
-  font-family:'Bebas Neue',sans-serif;
-  font-size:0.9rem;color:var(--gold);line-height:1;
-}
+.board-row.ok{background:rgba(46,204,113,0.05);}
+.board-row.pending{opacity:0.5;}
+.row-num{font-family:'DM Mono',monospace;font-size:0.55rem;color:var(--mut);text-align:center;}
+.row-av{width:26px;height:26px;border-radius:3px;display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue',sans-serif;font-size:0.6rem;color:#000;font-weight:700;flex-shrink:0;}
+.row-name-wrap{display:flex;align-items:center;gap:7px;}
+.row-name{font-size:0.75rem;font-weight:600;color:var(--ink);letter-spacing:0.03em;}
+.row-adm{font-size:0.4rem;color:rgba(245,197,24,0.7);letter-spacing:0.1em;margin-top:1px;}
+.row-drink{font-size:0.55rem;color:var(--mut);text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:120px;}
+.row-right{text-align:right;}
+.row-status{font-size:0.75rem;}
+.row-hora{font-family:'DM Mono',monospace;font-size:0.48rem;color:var(--mut);}
 
 /* ── TOTAL ── */
 .total-bar{
-  padding:12px 16px;
-  display:flex;align-items:center;justify-content:space-between;
-  border-top:1px solid var(--brd);
-  background:rgba(245,197,24,0.04);
+  padding:12px 16px;display:flex;align-items:center;justify-content:space-between;
+  border-top:1px solid var(--brd);background:rgba(245,197,24,0.04);
+  display:none;
 }
-.total-lbl{font-size:0.5rem;letter-spacing:0.2em;color:var(--mut);}
-.total-num{
-  font-family:'Bebas Neue',sans-serif;
-  font-size:1.6rem;color:var(--gold);letter-spacing:0.04em;
-}
+.total-lbl{font-size:0.48rem;letter-spacing:0.2em;color:var(--mut);}
+.total-num{font-family:'Bebas Neue',sans-serif;font-size:1.6rem;color:var(--gold);}
 
 /* ── EMPTY ── */
-.empty{padding:48px 20px;text-align:center;color:var(--mut);}
-.empty-big{font-family:'Bebas Neue',sans-serif;font-size:2rem;letter-spacing:0.06em;margin-bottom:8px;}
-.empty-sub{font-size:0.6rem;letter-spacing:0.1em;}
+.empty{padding:40px 20px;text-align:center;color:var(--mut);}
+.empty-big{font-family:'Bebas Neue',sans-serif;font-size:1.8rem;letter-spacing:0.06em;margin-bottom:6px;color:#333;}
+.empty-sub{font-size:0.58rem;letter-spacing:0.1em;}
 </style>
 </head>
 <body>
@@ -193,44 +135,35 @@ body::after{
 </div>
 
 <div class="timer-hero" id="timer-hero">
-  <div class="timer-label">⏱ CIERRA EN</div>
-  <div class="timer-digits" id="timer-digits">00:00</div>
+  <div class="timer-lbl" id="timer-lbl">⏱ CIERRA EN</div>
+  <div class="timer-digs" id="timer-digs">—</div>
   <div class="timer-bar-bg"><div class="timer-bar-fill" id="timer-fill" style="width:100%"></div></div>
 </div>
 
 <div class="stats-bar">
-  <div class="stat-cell"><div class="stat-n g" id="s-ped">0</div><div class="stat-lbl">PEDIDOS</div></div>
-  <div class="stat-cell"><div class="stat-n r" id="s-esp">0</div><div class="stat-lbl">ESPERANDO</div></div>
-  <div class="stat-cell"><div class="stat-n b" id="s-tot">0</div><div class="stat-lbl">GALANES</div></div>
+  <div class="stat-cell"><div class="stat-n g" id="s-ped">—</div><div class="stat-lbl">PEDIDOS</div></div>
+  <div class="stat-cell"><div class="stat-n r" id="s-esp">—</div><div class="stat-lbl">ESPERANDO</div></div>
+  <div class="stat-cell"><div class="stat-n b" id="s-tot">—</div><div class="stat-lbl">GALANES</div></div>
 </div>
 
-<div class="board">
-  <div class="board-head">
-    <span>#</span><span>GALAN</span><span>PEDIDO</span><span style="text-align:right">HORA</span>
-  </div>
-  <div id="board-body"></div>
-</div>
-
-<div id="bebidas-bar" class="bebidas-bar" style="display:none"></div>
-<div id="total-bar" class="total-bar" style="display:none"></div>
+<div id="resumen-section"></div>
+<div id="board-section"></div>
+<div class="total-bar" id="total-bar"><div class="total-lbl">RECAUDADO</div><div class="total-num" id="total-num"></div></div>
 
 <script type="module">
 import{initializeApp}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import{getDatabase,ref,onValue}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
-
 const FC={apiKey:"AIzaSyCmFMOjuGfCAtMaexe_c-wwGaV5RJBHJgk",authDomain:"mesa-galanes.firebaseapp.com",databaseURL:"https://mesa-galanes-default-rtdb.firebaseio.com",projectId:"mesa-galanes",storageBucket:"mesa-galanes.firebasestorage.app",messagingSenderId:"501258939600",appId:"1:501258939600:web:148124c66cfd41741e82d5"};
 const db=getDatabase(initializeApp(FC));
-
 let orders={},confirmed={},galanes=[],timerD=null,pagos={},timerIv=null;
 
-// Colores
-function col(n){const c=["#f5c518","#00e676","#00b0ff","#ff6d00","#e040fb","#ff4081","#69f0ae","#40c4ff","#ffab40","#ea80fc"];let h=0;for(let x of(n||""))h=(h*31+x.charCodeAt(0))%c.length;return c[h];}
+function col(n){const c=["#f5c518","#2ecc71","#3498db","#e67e22","#9b59b6","#e91e63","#1abc9c","#2980b9","#f39c12","#8e44ad"];let h=0;for(let x of(n||""))h=(h*31+x.charCodeAt(0))%c.length;return c[h];}
 function ini(n){const p=(n||"").trim().split(/\s+/);return p.length>=2?(p[0][0]+p[1][0]).toUpperCase():(n||"??").slice(0,2).toUpperCase();}
+function hora(ts){if(!ts)return"";const d=new Date(ts);return d.getHours()+":"+String(d.getMinutes()).padStart(2,"0");}
 
 // Reloj
 setInterval(()=>{const n=new Date();document.getElementById("clock").textContent=n.getHours()+":"+String(n.getMinutes()).padStart(2,"0")+":"+String(n.getSeconds()).padStart(2,"0");},1000);
 
-// Firebase
 onValue(ref(db,"pedido/orders"),s=>{orders=s.exists()?s.val():{};render();});
 onValue(ref(db,"pedido/confirmed"),s=>{confirmed=s.exists()?s.val():{};render();});
 onValue(ref(db,"config/galanes"),s=>{galanes=s.exists()?s.val():[];render();});
@@ -239,7 +172,7 @@ onValue(ref(db,"pedido/timer"),s=>{
   timerD=s.exists()?s.val():null;
   if(timerIv){clearInterval(timerIv);timerIv=null;}
   if(timerD){tickTimer();timerIv=setInterval(tickTimer,1000);}
-  else{document.getElementById("timer-hero").classList.remove("visible");}
+  else document.getElementById("timer-hero").classList.remove("visible");
 });
 
 function tickTimer(){
@@ -247,84 +180,105 @@ function tickTimer(){
   if(!timerD){hero.classList.remove("visible");return;}
   hero.classList.add("visible");
   const rem=timerD.endsAt-Date.now();
-  const digs=document.getElementById("timer-digits");
+  const digs=document.getElementById("timer-digs");
   const fill=document.getElementById("timer-fill");
-  const label=hero.querySelector(".timer-label");
-  if(rem<=0){digs.textContent="00:00";digs.className="timer-digits urgent";label.textContent="⏰ PEDIDO CERRADO";if(fill)fill.style.width="0%";return;}
-  const urg=rem<60000;
-  const m=Math.floor(rem/60000),s=Math.floor((rem%60000)/1000);
+  const lbl=document.getElementById("timer-lbl");
+  if(rem<=0){digs.textContent="00:00";digs.className="timer-digs urgent";lbl.textContent="⏰ PEDIDO CERRADO";if(fill)fill.style.width="0%";return;}
+  const urg=rem<60000,m=Math.floor(rem/60000),s=Math.floor((rem%60000)/1000);
   digs.textContent=(m>0?m+":":"")+String(s).padStart(2,"0");
-  digs.className="timer-digits"+(urg?" urgent":"");
-  label.textContent=urg?"⚠️ ÚLTIMO MINUTO":"⏱ CIERRA EN";
+  digs.className="timer-digs"+(urg?" urgent":"");
+  lbl.textContent=urg?"⚠️ ÚLTIMO MINUTO":"⏱ CIERRA EN";
   if(fill){fill.style.width=Math.max(0,(rem/(timerD.minutes*60000))*100)+"%";fill.className="timer-bar-fill"+(urg?" urgent":"");}
 }
 
 function render(){
+  // Mapa pedidos por galan
   const pedMap={};
   Object.values(orders).forEach(o=>{if(!o.player)return;if(!pedMap[o.player])pedMap[o.player]=[];pedMap[o.player].push(o);});
   const conPed=Object.keys(pedMap);
   const lista=galanes.length?galanes:[...conPed];
   const sinPed=lista.filter(g=>!conPed.includes(g));
+  const totalPed=conPed.length;
 
   // Stats
-  document.getElementById("s-ped").textContent=conPed.length;
+  document.getElementById("s-ped").textContent=totalPed;
   document.getElementById("s-esp").textContent=sinPed.length;
   document.getElementById("s-tot").textContent=lista.length;
 
-  // Board
-  const body=document.getElementById("board-body");
-  let html="";
-  if(!lista.length){
-    html=`<div class="empty"><div class="empty-big">NADIE SE ANOTÓ TODAVÍA</div><div class="empty-sub">ESPERANDO PEDIDOS DEL SÁBADO...</div></div>`;
+  // ── RESUMEN BEBIDAS ─────────────────────────────────────
+  const bebMap={};
+  Object.values(orders).forEach(o=>{
+    const key=(o.drink||"?")+(o.extra?(" + "+o.extra):"");
+    if(!bebMap[key])bebMap[key]={icon:o.icon||"☕",count:0,players:[],drink:o.drink,extra:o.extra};
+    bebMap[key].count++;
+    bebMap[key].players.push(o.player||"?");
+  });
+  const bebs=Object.entries(bebMap).sort((a,b)=>b[1].n-a[1].n);
+  const maxBeb=bebs.length?Math.max(...bebs.map(b=>b[1].count)):1;
+
+  let resHtml="";
+  if(bebs.length){
+    resHtml=`<div class="resumen-section">
+      <div class="section-title">RESUMEN DE PEDIDOS</div>`;
+    bebs.forEach(([key,v])=>{
+      const pct=Math.round((v.count/maxBeb)*100);
+      resHtml+=`<div class="beb-row">
+        <div class="beb-icon">${v.icon}</div>
+        <div style="flex:1">
+          <div style="display:flex;align-items:center;gap:8px">
+            <div class="beb-name">${key}</div>
+            <div class="beb-count">${v.count}x</div>
+          </div>
+          <div class="beb-bar-bg"><div class="beb-bar-fill" style="width:${pct}%"></div></div>
+          <div class="beb-names">${v.players.join(" · ")}</div>
+        </div>
+      </div>`;
+    });
+    resHtml+="</div>";
+  }
+  document.getElementById("resumen-section").innerHTML=resHtml;
+
+  // ── SCOREBOARD ──────────────────────────────────────────
+  const ordenados=[...lista.filter(g=>conPed.includes(g)),...lista.filter(g=>!conPed.includes(g))];
+  let bHtml=`<div class="board-section">
+    <div class="board-head"><span>#</span><span>GALAN</span><span>PEDIDO</span><span style="text-align:right">HORA</span></div>`;
+
+  if(!ordenados.length){
+    bHtml+=`<div class="empty"><div class="empty-big">NADIE SE ANOTÓ TODAVÍA</div><div class="empty-sub">ESPERANDO PEDIDOS...</div></div>`;
   } else {
-    const ordenados=[...lista.filter(g=>conPed.includes(g)),...lista.filter(g=>!conPed.includes(g))];
     ordenados.forEach((name,i)=>{
       const peds=pedMap[name]||[];
       const ok=peds.length>0;
       const conf=confirmed[name]&&(confirmed[name]===true||confirmed[name].ok);
       const byAdmin=peds.some(p=>p.loadedBy==="admin");
-      let drinkTxt=ok?peds.map(p=>(p.icon||"☕")+" "+(p.drink||"?")).join(" · "):"—";
-      let hora="";
-      if(ok&&peds[0].ts){const d=new Date(peds[0].ts);hora=d.getHours()+":"+String(d.getMinutes()).padStart(2,"0");}
-      const av=col(name);
-      html+=`<div class="board-row ${ok?"ok":"pending"}">
+      const drinkTxt=ok?peds.map(p=>(p.icon||"☕")+" "+(p.drink||"?")+(p.extra?" + "+p.extra:"")).join(" / "):"—";
+      const h=ok&&peds[0].ts?hora(peds[0].ts):"";
+      bHtml+=`<div class="board-row ${ok?"ok":"pending"}">
         <div class="row-num">${i+1}</div>
         <div class="row-name-wrap">
-          <div class="row-av" style="background:${av}">${ini(name)}</div>
-          <div><div class="row-name">${name.toUpperCase()}</div>${byAdmin?`<div style="font-size:0.42rem;color:rgba(245,197,24,0.6);letter-spacing:0.1em">ADM</div>`:""}</div>
+          <div class="row-av" style="background:${col(name)}">${ini(name)}</div>
+          <div>
+            <div class="row-name">${name.toUpperCase()}</div>
+            ${byAdmin?`<div class="row-adm">ADM</div>`:""}
+          </div>
         </div>
-        <div class="row-drink${byAdmin?" adm":""}">${drinkTxt}</div>
-        <div style="text-align:right">
-          <div class="row-status">${conf?"<span style='color:#00e676;font-size:0.9rem'>✓</span>":ok?"<span style='color:rgba(255,255,255,0.2)'>○</span>":"<span style='color:rgba(255,255,255,0.1)'>·</span>"}</div>
-          ${hora?`<div class="row-hora">${hora}</div>`:""}
+        <div class="row-drink">${drinkTxt}</div>
+        <div class="row-right">
+          <div class="row-status">${conf?`<span style="color:#2ecc71">✓</span>`:ok?`<span style="color:#555">○</span>`:`<span style="color:#333">·</span>`}</div>
+          ${h?`<div class="row-hora">${h}</div>`:""}
         </div>
       </div>`;
     });
   }
-  body.innerHTML=html;
-
-  // Bebidas
-  const bebMap={};
-  Object.values(orders).forEach(o=>{const k=o.drink||"?";if(!bebMap[k])bebMap[k]={icon:o.icon||"☕",n:0};bebMap[k].n++;});
-  const bebs=Object.entries(bebMap).sort((a,b)=>b[1].n-a[1].n);
-  const bebBar=document.getElementById("bebidas-bar");
-  if(bebs.length){
-    bebBar.style.display="flex";
-    bebBar.innerHTML=bebs.map(([k,v])=>`<div class="beb-chip"><span>${v.icon}</span><span class="beb-count">${v.n}x</span><span>${k}</span></div>`).join("");
-  } else bebBar.style.display="none";
+  bHtml+="</div>";
+  document.getElementById("board-section").innerHTML=bHtml;
 
   // Total
   let tot=0;Object.values(pagos).forEach(p=>{tot+=(p.cash||0)+(p.transfer||0);});
   const totBar=document.getElementById("total-bar");
-  if(tot>0){totBar.style.display="flex";totBar.querySelector(".total-num").textContent="$"+Math.round(tot).toLocaleString("es-AR");}
+  if(tot>0){totBar.style.display="flex";document.getElementById("total-num").textContent="$"+Math.round(tot).toLocaleString("es-AR");}
   else totBar.style.display="none";
 }
 </script>
-
-<div class="total-bar" id="total-bar" style="display:none">
-  <div class="total-lbl">RECAUDADO</div>
-  <div class="total-num"></div>
-</div>
-
 </body>
 </html>
