@@ -3665,6 +3665,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
           <button class="admin-action-btn" onclick="refreshDrinkIcons()" style="font-size:0.6rem">🔄 Emojis</button>
           <button class="admin-action-btn" style="background:rgba(239,68,68,0.12);color:#f87171;border-color:rgba(239,68,68,0.25)" onclick="cerrarMesa()">🔒 Cerrar</button>
           <button class="admin-action-btn" onclick="abrirConfigAsado()" style="background:rgba(255,140,0,0.12);color:#ff8c00;border-color:rgba(255,140,0,0.3)">🔥 Asado</button>
+          <button class="admin-action-btn" onclick="window.open('https://cristianlovino-cloud.github.io/Mesa-de-galanes/live.html','_blank')" style="background:rgba(239,68,68,0.12);color:#f87171;border-color:rgba(239,68,68,0.25)">📺 Live</button>
         </div>
       </div>
       <div id="mesa-reserva-info" style="display:none"></div>
@@ -3904,7 +3905,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.69";
+  var APP_VERSION="10.0.70";
   var STORED_VERSION=localStorage.getItem("app_version");
 
   if("serviceWorker"in navigator){
