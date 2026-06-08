@@ -2064,7 +2064,10 @@
         if(isAdmin()&&it.ip)meta=" · "+it.device+" "+it.ip;
         if(isAdmin()&&it.loadedBy==="admin")meta=" · 👑admin";
         row+="<div class='pdi'>";
-        row+="<span class='pdt'>"+it.icon+" "+it.drink+"</span>";
+        var pedHora="";
+        if(it.ts){var dh=new Date(it.ts);pedHora=" <span style='font-size:0.52rem;color:var(--mut);font-family:&quot;DM Mono&quot;,monospace'>"+dh.getHours()+":"+("0"+dh.getMinutes()).slice(-2)+"</span>";}
+        var adminTag=it.loadedBy==="admin"?" <span style='font-size:0.48rem;background:rgba(245,197,24,0.15);color:var(--g2);padding:1px 5px;border-radius:4px;font-weight:700'>ADM</span>":"";
+        row+="<span class='pdt'>"+it.icon+" "+it.drink+pedHora+adminTag+"</span>";
         if(hora||meta)row+="<span style='font-size:0.58rem;color:rgba(255,255,255,0.55);margin-left:6px;white-space:nowrap;font-family:var(--font-display)'>"+hora+meta+"</span>";
         if(canDel)row+="<span class='cdel' onclick='removeOrder(\""+it.key+"\")'>✕</span>";
         row+="</div>";
@@ -3905,7 +3908,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.70";
+  var APP_VERSION="10.0.71";
   var STORED_VERSION=localStorage.getItem("app_version");
 
   if("serviceWorker"in navigator){
