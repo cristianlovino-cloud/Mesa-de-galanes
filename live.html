@@ -2,460 +2,329 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Mesa de Galanes · Live</title>
-<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Oswald:wght@300;400;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
-  :root {
-    --bg: #050503;
-    --bg2: #0e0e0b;
-    --ink: #f5f0e8;
-    --mut: rgba(245,240,232,0.35);
-    --gold: #f5c518;
-    --green: #22c55e;
-    --red: #ef4444;
-    --blue: #4fb3ff;
-    --brd: rgba(245,240,232,0.08);
-  }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
+*{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#000;
+  --panel:#0a0a0a;
+  --gold:#f5c518;
+  --green:#00e676;
+  --red:#ff1744;
+  --blue:#00b0ff;
+  --mut:rgba(255,255,255,0.25);
+  --brd:rgba(255,255,255,0.07);
+}
+html,body{height:100%;background:var(--bg);color:#fff;font-family:'Oswald',sans-serif;overflow-x:hidden;}
 
-  body {
-    background: var(--bg);
-    color: var(--ink);
-    font-family: 'DM Sans', sans-serif;
-    min-height: 100vh;
-    overflow-x: hidden;
-  }
+/* ── SCANLINES overlay ── */
+body::after{
+  content:'';position:fixed;inset:0;
+  background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.08) 2px,rgba(0,0,0,0.08) 4px);
+  pointer-events:none;z-index:999;
+}
 
-  /* Fondo con número gigante */
-  body::before {
-    content: '7:45';
-    position: fixed; top: 50%; left: 50%;
-    transform: translate(-50%, -50%);
-    font-family: 'Bebas Neue', sans-serif;
-    font-size: 55vw; line-height: 1;
-    color: rgba(245,197,24,0.03);
-    pointer-events: none; z-index: 0;
-    white-space: nowrap;
-  }
+/* ── TOP BAR ── */
+.topbar{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:12px 16px;
+  border-bottom:1px solid var(--brd);
+  background:rgba(0,0,0,0.8);
+  position:sticky;top:0;z-index:10;
+}
+.topbar-logo{
+  font-family:'Bebas Neue',sans-serif;
+  font-size:1.4rem;letter-spacing:0.06em;line-height:1;
+}
+.topbar-logo span{color:var(--gold);}
+.live-pill{
+  display:flex;align-items:center;gap:6px;
+  background:var(--red);border-radius:4px;
+  padding:4px 10px;font-size:0.6rem;font-weight:600;
+  letter-spacing:0.12em;animation:flashLive 2s ease-in-out infinite;
+}
+.live-dot{width:6px;height:6px;border-radius:50%;background:#fff;animation:blinkFast 0.8s ease-in-out infinite;}
+@keyframes flashLive{0%,100%{opacity:1}50%{opacity:0.75}}
+@keyframes blinkFast{0%,100%{opacity:1}50%{opacity:0}}
+.topbar-clock{
+  font-family:'DM Mono',monospace;font-size:0.75rem;
+  color:var(--mut);letter-spacing:0.06em;
+}
 
-  .app {
-    position: relative; z-index: 1;
-    max-width: 480px; margin: 0 auto;
-    padding: 20px 16px 32px;
-    min-height: 100vh;
-  }
+/* ── TIMER HERO ── */
+.timer-hero{
+  padding:16px;
+  border-bottom:1px solid var(--brd);
+  display:none;
+}
+.timer-hero.visible{display:block;}
+.timer-label{
+  font-size:0.5rem;font-weight:400;letter-spacing:0.2em;
+  color:var(--mut);margin-bottom:6px;
+}
+.timer-digits{
+  font-family:'Bebas Neue',sans-serif;
+  font-size:4rem;letter-spacing:0.06em;line-height:1;
+  color:var(--gold);
+  transition:color 0.3s;
+}
+.timer-digits.urgent{color:var(--red);animation:timerPulse 0.5s ease-in-out infinite;}
+@keyframes timerPulse{0%,100%{opacity:1}50%{opacity:0.6}}
+.timer-bar-bg{height:3px;background:rgba(255,255,255,0.08);margin-top:10px;border-radius:2px;overflow:hidden;}
+.timer-bar-fill{height:100%;background:var(--gold);border-radius:2px;transition:width 1s linear,background 0.3s;}
+.timer-bar-fill.urgent{background:var(--red);}
 
-  /* ── HEADER ── */
-  .header {
-    display: flex; align-items: flex-start;
-    justify-content: space-between; margin-bottom: 20px;
-  }
-  .title {
-    font-family: 'Bebas Neue', sans-serif;
-    font-size: 2.2rem; letter-spacing: 0.04em; line-height: 1;
-  }
-  .title span { color: var(--gold); }
-  .live-badge {
-    display: flex; align-items: center; gap: 6px;
-    background: rgba(239,68,68,0.15);
-    border: 1px solid rgba(239,68,68,0.35);
-    border-radius: 100px; padding: 5px 12px;
-    font-size: 0.6rem; font-weight: 700;
-    letter-spacing: 0.12em; color: #f87171;
-    animation: pulseLive 2s ease-in-out infinite;
-  }
-  .live-dot {
-    width: 6px; height: 6px; border-radius: 50%;
-    background: #ef4444;
-    animation: blinkDot 1s ease-in-out infinite;
-  }
-  @keyframes pulseLive { 0%,100%{opacity:1} 50%{opacity:0.7} }
-  @keyframes blinkDot { 0%,100%{opacity:1} 50%{opacity:0.2} }
+/* ── STATS BAR ── */
+.stats-bar{
+  display:grid;grid-template-columns:1fr 1fr 1fr;
+  border-bottom:1px solid var(--brd);
+}
+.stat-cell{
+  padding:14px 12px;text-align:center;
+  border-right:1px solid var(--brd);
+}
+.stat-cell:last-child{border-right:none;}
+.stat-n{
+  font-family:'Bebas Neue',sans-serif;
+  font-size:2.6rem;line-height:1;letter-spacing:0.02em;
+}
+.stat-n.g{color:var(--green);}
+.stat-n.r{color:var(--red);}
+.stat-n.b{color:var(--blue);}
+.stat-lbl{font-size:0.45rem;letter-spacing:0.2em;color:var(--mut);margin-top:3px;font-weight:400;}
 
-  /* ── TIMER BAR ── */
-  .timer-card {
-    background: var(--bg2);
-    border: 1px solid var(--brd);
-    border-radius: 16px; padding: 16px 20px;
-    margin-bottom: 14px;
-    display: flex; align-items: center;
-    justify-content: space-between;
-    transition: border-color 0.3s;
-  }
-  .timer-card.urgent { border-color: rgba(239,68,68,0.5); background: rgba(239,68,68,0.05); }
-  .timer-card.closed { border-color: rgba(239,68,68,0.3); background: rgba(239,68,68,0.04); }
-  .timer-label {
-    font-size: 0.55rem; font-weight: 700; color: var(--mut);
-    letter-spacing: 0.12em; margin-bottom: 4px;
-  }
-  .timer-count {
-    font-family: 'Bebas Neue', sans-serif;
-    font-size: 2.4rem; letter-spacing: 0.04em; line-height: 1;
-    color: var(--gold);
-    transition: color 0.3s;
-  }
-  .timer-count.urgent { color: #f87171; }
-  .timer-count.closed { color: var(--mut); }
-  .timer-prog-wrap {
-    flex: 1; margin: 0 16px;
-  }
-  .timer-prog-bg {
-    height: 6px; background: rgba(255,255,255,0.06);
-    border-radius: 100px; overflow: hidden;
-  }
-  .timer-prog-fill {
-    height: 100%; border-radius: 100px;
-    background: linear-gradient(90deg, var(--gold), #ff8c00);
-    transition: width 1s linear, background 0.3s;
-  }
-  .timer-prog-fill.urgent { background: linear-gradient(90deg, #f87171, #ef4444); }
+/* ── SCOREBOARD ── */
+.board{width:100%;}
+.board-head{
+  display:grid;grid-template-columns:36px 1fr auto 60px;
+  padding:6px 12px;
+  background:rgba(255,255,255,0.04);
+  font-size:0.45rem;letter-spacing:0.18em;color:var(--mut);font-weight:400;
+  border-bottom:1px solid var(--brd);
+}
+.board-row{
+  display:grid;grid-template-columns:36px 1fr auto 60px;
+  padding:10px 12px;
+  border-bottom:1px solid rgba(255,255,255,0.04);
+  align-items:center;
+  transition:background 0.3s;
+  animation:rowIn 0.3s ease forwards;
+}
+@keyframes rowIn{from{opacity:0;transform:translateX(-8px)}to{opacity:1;transform:none}}
+.board-row.ok{background:rgba(0,230,118,0.05);}
+.board-row.pending{opacity:0.55;}
 
-  /* ── STATS ROW ── */
-  .stats-row {
-    display: grid; grid-template-columns: 1fr 1fr 1fr;
-    gap: 8px; margin-bottom: 14px;
-  }
-  .stat-box {
-    background: var(--bg2); border: 1px solid var(--brd);
-    border-radius: 14px; padding: 12px 14px;
-    text-align: center;
-  }
-  .stat-num {
-    font-family: 'Bebas Neue', sans-serif;
-    font-size: 1.8rem; letter-spacing: 0.02em; line-height: 1;
-  }
-  .stat-num.green { color: var(--green); }
-  .stat-num.gold { color: var(--gold); }
-  .stat-num.blue { color: var(--blue); }
-  .stat-lbl {
-    font-size: 0.48rem; font-weight: 700; color: var(--mut);
-    letter-spacing: 0.1em; margin-top: 3px;
-  }
+.row-num{
+  font-family:'DM Mono',monospace;
+  font-size:0.6rem;color:var(--mut);text-align:center;
+}
+.row-av{
+  width:28px;height:28px;border-radius:4px;
+  display:flex;align-items:center;justify-content:center;
+  font-family:'Bebas Neue',sans-serif;font-size:0.65rem;
+  color:#000;font-weight:700;flex-shrink:0;
+}
+.row-name-wrap{display:flex;align-items:center;gap:8px;}
+.row-name{font-size:0.78rem;font-weight:600;letter-spacing:0.04em;}
+.row-drink{
+  font-size:0.58rem;color:var(--mut);
+  text-align:right;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  max-width:130px;
+}
+.row-drink.adm{color:rgba(245,197,24,0.6);}
+.row-status{
+  width:28px;height:28px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:0.7rem;justify-self:end;
+}
+.row-hora{
+  font-family:'DM Mono',monospace;
+  font-size:0.5rem;color:rgba(255,255,255,0.2);
+  margin-top:2px;
+}
 
-  /* ── GALANES LIST ── */
-  .section-label {
-    font-size: 0.55rem; font-weight: 700; color: var(--mut);
-    letter-spacing: 0.12em; margin-bottom: 8px;
-    display: flex; align-items: center; gap: 8px;
-  }
-  .section-label::after { content:''; flex:1; height:1px; background:var(--brd); }
+/* ── BEBIDAS FOOTER ── */
+.bebidas-bar{
+  padding:12px 14px;
+  border-top:1px solid var(--brd);
+  display:flex;flex-wrap:wrap;gap:6px;
+  background:rgba(255,255,255,0.02);
+}
+.beb-chip{
+  display:flex;align-items:center;gap:5px;
+  background:rgba(255,255,255,0.06);
+  border:1px solid var(--brd);
+  border-radius:3px;padding:4px 10px;
+  font-size:0.6rem;letter-spacing:0.04em;
+}
+.beb-count{
+  font-family:'Bebas Neue',sans-serif;
+  font-size:0.9rem;color:var(--gold);line-height:1;
+}
 
-  .galanes-list { margin-bottom: 14px; }
+/* ── TOTAL ── */
+.total-bar{
+  padding:12px 16px;
+  display:flex;align-items:center;justify-content:space-between;
+  border-top:1px solid var(--brd);
+  background:rgba(245,197,24,0.04);
+}
+.total-lbl{font-size:0.5rem;letter-spacing:0.2em;color:var(--mut);}
+.total-num{
+  font-family:'Bebas Neue',sans-serif;
+  font-size:1.6rem;color:var(--gold);letter-spacing:0.04em;
+}
 
-  .galan-row {
-    display: flex; align-items: center; gap: 10px;
-    padding: 8px 12px; border-radius: 12px;
-    margin-bottom: 4px;
-    transition: background 0.2s;
-  }
-  .galan-row.ok { background: rgba(34,197,94,0.07); }
-  .galan-row.pending { background: rgba(255,255,255,0.02); }
-
-  .galan-av {
-    width: 34px; height: 34px; border-radius: 50%;
-    display: flex; align-items: center; justify-content: center;
-    font-family: 'Bebas Neue', sans-serif; font-size: 0.8rem;
-    color: #fff; flex-shrink: 0;
-  }
-  .galan-name {
-    flex: 1; font-size: 0.78rem; font-weight: 600;
-    letter-spacing: 0.03em;
-  }
-  .galan-drink {
-    font-size: 0.62rem; color: var(--mut);
-    text-align: right; max-width: 140px;
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  }
-  .galan-status {
-    width: 20px; height: 20px; border-radius: 50%;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 0.6rem; flex-shrink: 0;
-  }
-  .galan-status.ok { background: rgba(34,197,94,0.2); color: #4ade80; }
-  .galan-status.pending { background: rgba(255,255,255,0.06); color: var(--mut); }
-
-  /* ── BEBIDAS RESUMEN ── */
-  .bebidas-grid {
-    display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px;
-  }
-  .bebida-chip {
-    background: var(--bg2); border: 1px solid var(--brd);
-    border-radius: 100px; padding: 5px 12px;
-    font-size: 0.65rem; font-weight: 600;
-    display: flex; align-items: center; gap: 5px;
-  }
-  .bebida-chip .count {
-    font-family: 'Bebas Neue', sans-serif;
-    font-size: 0.85rem; color: var(--gold); line-height: 1;
-  }
-
-  /* ── TOTAL ── */
-  .total-card {
-    background: var(--bg2); border: 1px solid rgba(245,197,24,0.2);
-    border-radius: 16px; padding: 16px 20px;
-    display: flex; align-items: center; justify-content: space-between;
-    margin-bottom: 14px;
-  }
-  .total-label { font-size: 0.55rem; font-weight:700; color:var(--mut); letter-spacing:0.12em; }
-  .total-amount {
-    font-family: 'Bebas Neue', sans-serif;
-    font-size: 2rem; letter-spacing: 0.02em;
-    color: var(--gold);
-  }
-  .total-detail { font-size: 0.58rem; color: var(--mut); margin-top: 2px; }
-
-  /* ── FOOTER ── */
-  .footer {
-    text-align: center;
-    font-size: 0.5rem; color: rgba(255,255,255,0.15);
-    letter-spacing: 0.08em; margin-top: 8px;
-    font-family: 'DM Mono', monospace;
-  }
-
-  /* ── ESTADO VACÍO ── */
-  .empty {
-    text-align: center; padding: 40px 20px;
-    color: var(--mut);
-  }
-  .empty-icon { font-size: 2.5rem; margin-bottom: 12px; }
-  .empty-title { font-family: 'Bebas Neue', sans-serif; font-size: 1.3rem; letter-spacing: 0.06em; margin-bottom: 6px; }
-  .empty-sub { font-size: 0.65rem; opacity: 0.6; }
-
-  /* Animación entrada */
-  @keyframes fadeUp { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
-  .fade-up { animation: fadeUp 0.35s ease forwards; }
+/* ── EMPTY ── */
+.empty{padding:48px 20px;text-align:center;color:var(--mut);}
+.empty-big{font-family:'Bebas Neue',sans-serif;font-size:2rem;letter-spacing:0.06em;margin-bottom:8px;}
+.empty-sub{font-size:0.6rem;letter-spacing:0.1em;}
 </style>
 </head>
 <body>
-<div class="app">
 
-  <div class="header fade-up">
-    <div>
-      <div class="title">MESA DE <span>GALANES</span></div>
-      <div style="font-size:0.55rem;color:var(--mut);letter-spacing:0.1em;margin-top:3px;font-family:'DM Mono',monospace">☕ SÁBADOS 7:45 · CRR TENIS</div>
-    </div>
-    <div class="live-badge"><div class="live-dot"></div>EN VIVO</div>
-  </div>
-
-  <div id="root">
-    <div class="empty fade-up">
-      <div class="empty-icon">☕</div>
-      <div class="empty-title">CONECTANDO...</div>
-      <div class="empty-sub">Cargando datos de la mesa</div>
-    </div>
-  </div>
-
-  <div class="footer" id="footer">MESA DE GALANES · LIVE</div>
+<div class="topbar">
+  <div class="topbar-logo">MESA DE <span>GALANES</span></div>
+  <div class="live-pill"><div class="live-dot"></div>EN VIVO</div>
+  <div class="topbar-clock" id="clock">--:--</div>
 </div>
 
+<div class="timer-hero" id="timer-hero">
+  <div class="timer-label">⏱ CIERRA EN</div>
+  <div class="timer-digits" id="timer-digits">00:00</div>
+  <div class="timer-bar-bg"><div class="timer-bar-fill" id="timer-fill" style="width:100%"></div></div>
+</div>
+
+<div class="stats-bar">
+  <div class="stat-cell"><div class="stat-n g" id="s-ped">0</div><div class="stat-lbl">PEDIDOS</div></div>
+  <div class="stat-cell"><div class="stat-n r" id="s-esp">0</div><div class="stat-lbl">ESPERANDO</div></div>
+  <div class="stat-cell"><div class="stat-n b" id="s-tot">0</div><div class="stat-lbl">GALANES</div></div>
+</div>
+
+<div class="board">
+  <div class="board-head">
+    <span>#</span><span>GALAN</span><span>PEDIDO</span><span style="text-align:right">HORA</span>
+  </div>
+  <div id="board-body"></div>
+</div>
+
+<div id="bebidas-bar" class="bebidas-bar" style="display:none"></div>
+<div id="total-bar" class="total-bar" style="display:none"></div>
+
 <script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+import{initializeApp}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import{getDatabase,ref,onValue}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
-const FC = {
-  apiKey: "AIzaSyCmFMOjuGfCAtMaexe_c-wwGaV5RJBHJgk",
-  authDomain: "mesa-galanes.firebaseapp.com",
-  databaseURL: "https://mesa-galanes-default-rtdb.firebaseio.com",
-  projectId: "mesa-galanes",
-  storageBucket: "mesa-galanes.firebasestorage.app",
-  messagingSenderId: "501258939600",
-  appId: "1:501258939600:web:148124c66cfd41741e82d5"
-};
+const FC={apiKey:"AIzaSyCmFMOjuGfCAtMaexe_c-wwGaV5RJBHJgk",authDomain:"mesa-galanes.firebaseapp.com",databaseURL:"https://mesa-galanes-default-rtdb.firebaseio.com",projectId:"mesa-galanes",storageBucket:"mesa-galanes.firebasestorage.app",messagingSenderId:"501258939600",appId:"1:501258939600:web:148124c66cfd41741e82d5"};
+const db=getDatabase(initializeApp(FC));
 
-const app = initializeApp(FC);
-const db = getDatabase(app);
+let orders={},confirmed={},galanes=[],timerD=null,pagos={},timerIv=null;
 
-// ── Estado ────────────────────────────────────────────────
-let orders = {}, confirmed = {}, galanes = [], timerD = null, pagos = {};
-let timerIv = null;
+// Colores
+function col(n){const c=["#f5c518","#00e676","#00b0ff","#ff6d00","#e040fb","#ff4081","#69f0ae","#40c4ff","#ffab40","#ea80fc"];let h=0;for(let x of(n||""))h=(h*31+x.charCodeAt(0))%c.length;return c[h];}
+function ini(n){const p=(n||"").trim().split(/\s+/);return p.length>=2?(p[0][0]+p[1][0]).toUpperCase():(n||"??").slice(0,2).toUpperCase();}
 
-// Colores por inicial
-function col(name) {
-  const colors = ['#e55','#e88','#5b8','#8b5','#55e','#58e','#e85','#85e','#5e8','#e58'];
-  let h = 0; for (let c of (name||'')) h = (h*31+c.charCodeAt(0))%colors.length;
-  return colors[h];
-}
-function ini(name) {
-  const p = (name||'').trim().split(/\s+/);
-  return p.length>=2 ? (p[0][0]+p[1][0]).toUpperCase() : (name||'??').slice(0,2).toUpperCase();
-}
+// Reloj
+setInterval(()=>{const n=new Date();document.getElementById("clock").textContent=n.getHours()+":"+String(n.getMinutes()).padStart(2,"0")+":"+String(n.getSeconds()).padStart(2,"0");},1000);
 
-// ── Firebase listeners ────────────────────────────────────
-onValue(ref(db,'pedido/orders'), s => { orders = s.exists() ? s.val() : {}; render(); });
-onValue(ref(db,'pedido/confirmed'), s => { confirmed = s.exists() ? s.val() : {}; render(); });
-onValue(ref(db,'config/galanes'), s => { galanes = s.exists() ? s.val() : []; render(); });
-onValue(ref(db,'pedido/timer'), s => {
-  timerD = s.exists() ? s.val() : null;
-  if (timerIv) { clearInterval(timerIv); timerIv = null; }
-  if (timerD) { renderTimer(); timerIv = setInterval(renderTimer, 1000); }
-  else { renderTimer(); }
+// Firebase
+onValue(ref(db,"pedido/orders"),s=>{orders=s.exists()?s.val():{};render();});
+onValue(ref(db,"pedido/confirmed"),s=>{confirmed=s.exists()?s.val():{};render();});
+onValue(ref(db,"config/galanes"),s=>{galanes=s.exists()?s.val():[];render();});
+onValue(ref(db,"pedido/pagos"),s=>{pagos=s.exists()?s.val():{};render();});
+onValue(ref(db,"pedido/timer"),s=>{
+  timerD=s.exists()?s.val():null;
+  if(timerIv){clearInterval(timerIv);timerIv=null;}
+  if(timerD){tickTimer();timerIv=setInterval(tickTimer,1000);}
+  else{document.getElementById("timer-hero").classList.remove("visible");}
 });
-onValue(ref(db,'pedido/pagos'), s => { pagos = s.exists() ? s.val() : {}; render(); });
 
-// ── Timer ─────────────────────────────────────────────────
-function renderTimer() {
-  const el = document.getElementById('timer-wrap');
-  if (!el) return;
-  if (!timerD) { el.style.display = 'none'; return; }
-  el.style.display = 'block';
-  const rem = timerD.endsAt - Date.now();
-  const card = document.getElementById('timer-card');
-  const count = document.getElementById('timer-count');
-  const fill = document.getElementById('timer-fill');
-  const label = document.getElementById('timer-label');
-  if (rem <= 0) {
-    card.className = 'timer-card closed';
-    count.className = 'timer-count closed';
-    count.textContent = '00:00';
-    label.textContent = '⏰ PEDIDO CERRADO';
-    if (fill) fill.style.width = '0%';
-    return;
-  }
-  const urg = rem < 60000;
-  const mins = Math.floor(rem/60000), secs = Math.floor((rem%60000)/1000);
-  card.className = 'timer-card' + (urg ? ' urgent' : '');
-  count.className = 'timer-count' + (urg ? ' urgent' : '');
-  count.textContent = (mins > 0 ? mins + ':' : '') + String(secs).padStart(2,'0');
-  label.textContent = urg ? '⚠️ ÚLTIMO MINUTO' : '⏱ CIERRA EN';
-  if (fill) {
-    const pct = Math.max(0, (rem / (timerD.minutes * 60000)) * 100);
-    fill.style.width = pct + '%';
-    fill.className = 'timer-prog-fill' + (urg ? ' urgent' : '');
-  }
+function tickTimer(){
+  const hero=document.getElementById("timer-hero");
+  if(!timerD){hero.classList.remove("visible");return;}
+  hero.classList.add("visible");
+  const rem=timerD.endsAt-Date.now();
+  const digs=document.getElementById("timer-digits");
+  const fill=document.getElementById("timer-fill");
+  const label=hero.querySelector(".timer-label");
+  if(rem<=0){digs.textContent="00:00";digs.className="timer-digits urgent";label.textContent="⏰ PEDIDO CERRADO";if(fill)fill.style.width="0%";return;}
+  const urg=rem<60000;
+  const m=Math.floor(rem/60000),s=Math.floor((rem%60000)/1000);
+  digs.textContent=(m>0?m+":":"")+String(s).padStart(2,"0");
+  digs.className="timer-digits"+(urg?" urgent":"");
+  label.textContent=urg?"⚠️ ÚLTIMO MINUTO":"⏱ CIERRA EN";
+  if(fill){fill.style.width=Math.max(0,(rem/(timerD.minutes*60000))*100)+"%";fill.className="timer-bar-fill"+(urg?" urgent":"");}
 }
 
-// ── Render principal ──────────────────────────────────────
-function render() {
-  const root = document.getElementById('root');
-
-  // Calcular pedidos por galan
-  const pedidosPorGalan = {};
-  Object.values(orders).forEach(o => {
-    if (!o.player) return;
-    if (!pedidosPorGalan[o.player]) pedidosPorGalan[o.player] = [];
-    pedidosPorGalan[o.player].push(o);
-  });
-
-  const conPedido = Object.keys(pedidosPorGalan);
-  const sinPedido = galanes.filter(g => !conPedido.includes(g));
-  const totalPedidos = conPedido.length;
-  const total = galanes.length || conPedido.length;
-
-  // Total $
-  let totalPesos = 0;
-  Object.values(pagos).forEach(p => { totalPesos += (p.cash||0) + (p.transfer||0); });
-
-  // Bebidas agrupadas
-  const bebidasMap = {};
-  Object.values(orders).forEach(o => {
-    const k = o.drink || '?';
-    if (!bebidasMap[k]) bebidasMap[k] = { icon: o.icon || '☕', count: 0 };
-    bebidasMap[k].count++;
-  });
-  const bebidas = Object.entries(bebidasMap).sort((a,b) => b[1].count - a[1].count);
-
-  // Todos los galanes: primero los que pidieron
-  const todosOrdenados = [
-    ...galanes.filter(g => conPedido.includes(g)),
-    ...sinPedido
-  ];
-  // Si no hay galanes en Firebase, usar solo los que pidieron
-  const listaFinal = todosOrdenados.length ? todosOrdenados : conPedido;
-
-  let html = '';
-
-  // Timer
-  html += `<div id="timer-wrap" style="display:none">
-    <div class="timer-card fade-up" id="timer-card">
-      <div>
-        <div class="timer-label" id="timer-label">⏱ CIERRA EN</div>
-        <div class="timer-count" id="timer-count">—</div>
-      </div>
-      <div class="timer-prog-wrap">
-        <div class="timer-prog-bg"><div class="timer-prog-fill" id="timer-fill" style="width:100%"></div></div>
-      </div>
-    </div>
-  </div>`;
+function render(){
+  const pedMap={};
+  Object.values(orders).forEach(o=>{if(!o.player)return;if(!pedMap[o.player])pedMap[o.player]=[];pedMap[o.player].push(o);});
+  const conPed=Object.keys(pedMap);
+  const lista=galanes.length?galanes:[...conPed];
+  const sinPed=lista.filter(g=>!conPed.includes(g));
 
   // Stats
-  html += `<div class="stats-row fade-up">
-    <div class="stat-box">
-      <div class="stat-num green">${totalPedidos}</div>
-      <div class="stat-lbl">PEDIDOS</div>
-    </div>
-    <div class="stat-box">
-      <div class="stat-num" style="color:${sinPedido.length > 0 ? '#f97316' : '#4ade80'}">${sinPedido.length}</div>
-      <div class="stat-lbl">ESPERANDO</div>
-    </div>
-    <div class="stat-box">
-      <div class="stat-num gold">${total}</div>
-      <div class="stat-lbl">GALANES</div>
-    </div>
-  </div>`;
+  document.getElementById("s-ped").textContent=conPed.length;
+  document.getElementById("s-esp").textContent=sinPed.length;
+  document.getElementById("s-tot").textContent=lista.length;
 
-  if (!listaFinal.length) {
-    html += `<div class="empty fade-up">
-      <div class="empty-icon">☕</div>
-      <div class="empty-title">NADIE SE ANOTÓ TODAVÍA</div>
-      <div class="empty-sub">Esperando pedidos del sábado...</div>
-    </div>`;
+  // Board
+  const body=document.getElementById("board-body");
+  let html="";
+  if(!lista.length){
+    html=`<div class="empty"><div class="empty-big">NADIE SE ANOTÓ TODAVÍA</div><div class="empty-sub">ESPERANDO PEDIDOS DEL SÁBADO...</div></div>`;
   } else {
-
-    // Lista de galanes
-    html += `<div class="section-label">GALANES</div>
-    <div class="galanes-list fade-up">`;
-
-    listaFinal.forEach(name => {
-      const peds = pedidosPorGalan[name] || [];
-      const ok = peds.length > 0;
-      const conf = confirmed[name] && (confirmed[name] === true || confirmed[name].ok);
-      const drinkLabel = peds.map(p => (p.icon||'☕') + ' ' + (p.drink||'?')).join(' · ');
-      html += `<div class="galan-row ${ok ? 'ok' : 'pending'}">
-        <div class="galan-av" style="background:${col(name)}">${ini(name)}</div>
-        <div class="galan-name">${name.toUpperCase()}</div>
-        ${ok ? `<div class="galan-drink">${drinkLabel}</div>` : '<div class="galan-drink" style="color:rgba(255,255,255,0.2);font-style:italic">sin pedido</div>'}
-        <div class="galan-status ${conf ? 'ok' : 'pending'}">${conf ? '✓' : '·'}</div>
+    const ordenados=[...lista.filter(g=>conPed.includes(g)),...lista.filter(g=>!conPed.includes(g))];
+    ordenados.forEach((name,i)=>{
+      const peds=pedMap[name]||[];
+      const ok=peds.length>0;
+      const conf=confirmed[name]&&(confirmed[name]===true||confirmed[name].ok);
+      const byAdmin=peds.some(p=>p.loadedBy==="admin");
+      let drinkTxt=ok?peds.map(p=>(p.icon||"☕")+" "+(p.drink||"?")).join(" · "):"—";
+      let hora="";
+      if(ok&&peds[0].ts){const d=new Date(peds[0].ts);hora=d.getHours()+":"+String(d.getMinutes()).padStart(2,"0");}
+      const av=col(name);
+      html+=`<div class="board-row ${ok?"ok":"pending"}">
+        <div class="row-num">${i+1}</div>
+        <div class="row-name-wrap">
+          <div class="row-av" style="background:${av}">${ini(name)}</div>
+          <div><div class="row-name">${name.toUpperCase()}</div>${byAdmin?`<div style="font-size:0.42rem;color:rgba(245,197,24,0.6);letter-spacing:0.1em">ADM</div>`:""}</div>
+        </div>
+        <div class="row-drink${byAdmin?" adm":""}">${drinkTxt}</div>
+        <div style="text-align:right">
+          <div class="row-status">${conf?"<span style='color:#00e676;font-size:0.9rem'>✓</span>":ok?"<span style='color:rgba(255,255,255,0.2)'>○</span>":"<span style='color:rgba(255,255,255,0.1)'>·</span>"}</div>
+          ${hora?`<div class="row-hora">${hora}</div>`:""}
+        </div>
       </div>`;
     });
-    html += '</div>';
-
-    // Bebidas
-    if (bebidas.length) {
-      html += `<div class="section-label">PEDIDOS</div>
-      <div class="bebidas-grid fade-up">`;
-      bebidas.forEach(([name, {icon, count}]) => {
-        html += `<div class="bebida-chip">
-          <span>${icon}</span>
-          <span class="count">${count}x</span>
-          <span style="font-size:0.58rem;color:var(--mut)">${name}</span>
-        </div>`;
-      });
-      html += '</div>';
-    }
-
-    // Total
-    if (totalPesos > 0) {
-      html += `<div class="total-card fade-up">
-        <div>
-          <div class="total-label">RECAUDADO</div>
-          <div class="total-detail">${totalPedidos} pedidos confirmados</div>
-        </div>
-        <div class="total-amount">$${Math.round(totalPesos).toLocaleString('es-AR')}</div>
-      </div>`;
-    }
   }
+  body.innerHTML=html;
 
-  root.innerHTML = html;
+  // Bebidas
+  const bebMap={};
+  Object.values(orders).forEach(o=>{const k=o.drink||"?";if(!bebMap[k])bebMap[k]={icon:o.icon||"☕",n:0};bebMap[k].n++;});
+  const bebs=Object.entries(bebMap).sort((a,b)=>b[1].n-a[1].n);
+  const bebBar=document.getElementById("bebidas-bar");
+  if(bebs.length){
+    bebBar.style.display="flex";
+    bebBar.innerHTML=bebs.map(([k,v])=>`<div class="beb-chip"><span>${v.icon}</span><span class="beb-count">${v.n}x</span><span>${k}</span></div>`).join("");
+  } else bebBar.style.display="none";
 
-  // Volver a inicializar timer si existe
-  if (timerD) renderTimer();
-
-  // Timestamp
-  const now = new Date();
-  const h = now.getHours(), m = String(now.getMinutes()).padStart(2,'0');
-  document.getElementById('footer').textContent = `MESA DE GALANES · LIVE · ${h}:${m}`;
+  // Total
+  let tot=0;Object.values(pagos).forEach(p=>{tot+=(p.cash||0)+(p.transfer||0);});
+  const totBar=document.getElementById("total-bar");
+  if(tot>0){totBar.style.display="flex";totBar.querySelector(".total-num").textContent="$"+Math.round(tot).toLocaleString("es-AR");}
+  else totBar.style.display="none";
 }
 </script>
+
+<div class="total-bar" id="total-bar" style="display:none">
+  <div class="total-lbl">RECAUDADO</div>
+  <div class="total-num"></div>
+</div>
+
 </body>
 </html>
