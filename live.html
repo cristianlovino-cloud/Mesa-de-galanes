@@ -263,9 +263,10 @@ function render(){
   Object.values(orders).forEach(o=>{
     const drink=o.drink||"?";
     const extra=o.extra||"";
-    // Key solo por bebida principal — acompañamiento como extra
-    const key=drink+"||"+extra;
-    if(!bebMap[key])bebMap[key]={icon:o.icon||"☕",drink,extra,count:0,players:[]};
+    // Evitar duplicar si extra ya está incluido en drink
+    const extraClean=extra&&!drink.toLowerCase().includes(extra.toLowerCase())?extra:"";
+    const key=drink+"||"+extraClean;
+    if(!bebMap[key])bebMap[key]={icon:o.icon||"☕",drink,extra:extraClean,count:0,players:[]};
     bebMap[key].count++;
     if(o.player)bebMap[key].players.push(o.player);
   });
@@ -293,18 +294,22 @@ function render(){
   } else bebSec.style.display="none";
 
   // ── SCOREBOARD ──
-  const ord=[...lista.filter(g=>conPed.includes(g)),...lista.filter(g=>!conPed.includes(g))];
+  // Solo mostrar los que pidieron — la lista crece en vivo
+  const ord=lista.filter(g=>conPed.includes(g));
   const body=document.getElementById("board-body");
   if(!ord.length){
-    body.innerHTML=`<div class="empty"><div class="empty-icon">☕</div><div class="empty-t">NADIE SE ANOTÓ TODAVÍA</div><div class="empty-s">Esperando pedidos del sábado...</div></div>`;
-    return;
+    body.innerHTML=`<div class="empty"><div class="empty-icon" style="font-size:2.5rem;opacity:0.15">☕</div><div class="empty-t" style="font-size:1.1rem;color:#252530;margin-bottom:4px">ESPERANDO PEDIDOS</div><div class="empty-s" style="color:#333">Los pedidos van apareciendo acá en tiempo real</div></div>`;
   }
   body.innerHTML=ord.map((name,i)=>{
     const peds=pedMap[name]||[];
     const ok=peds.length>0;
     const conf=confirmed[name]&&(confirmed[name]===true||confirmed[name].ok);
     const byAdm=peds.some(p=>p.loadedBy==="admin");
-    const drinkTxt=ok?peds.map(p=>(p.icon||"☕")+" "+(p.drink||"?")+(p.extra?" + "+p.extra:"")).join(" / "):"";
+    const drinkTxt=ok?peds.map(p=>{
+      const d=p.drink||"?",e=p.extra||"";
+      const ec=e&&!d.toLowerCase().includes(e.toLowerCase())?e:"";
+      return(p.icon||"☕")+" "+d+(ec?" + "+ec:"");
+    }).join(" / "):"";
     const ts=ok&&peds[0].ts?fmtTs(peds[0].ts):"";
     return`<div class="board-row ${ok?"ok":"pending"}">
       <div class="row-idx">${i+1}</div>
