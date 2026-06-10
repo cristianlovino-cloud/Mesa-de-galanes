@@ -33,6 +33,13 @@
 
   function col(n){var h=0;for(var i=0;i<n.length;i++)h=(h*31+n.charCodeAt(i))&0xffffffff;return COLS[Math.abs(h)%COLS.length];}
   function ini(n){var p=n.trim().split(" ");return p.length>=2?(p[0][0]+p[1][0]).toUpperCase():n.slice(0,2).toUpperCase();}
+  // Normalizar nombre: sin acentos, sin espacios extra, uppercase
+  function normName(n){
+    return (n||"").trim().toUpperCase()
+      .normalize("NFD").replace(/[̀-ͯ]/g,"")
+      .replace(/\s+/g," ");
+  }
+
   function autoEmoji(name){
     var n=name.toLowerCase();
     // Comida primero
@@ -286,7 +293,7 @@
       renderMyName();
       var ls0=document.getElementById("login-screen");
       if(ls0){ls0.style.transition="none";ls0.style.display="none";}
-      window._esNuevo=!isAdmin()&&!galanes.some(function(g){return g.toUpperCase()===me.toUpperCase();});
+      window._esNuevo=!isAdmin()&&!galanes.some(function(g){return normName(g)===normName(me);});
       setTimeout(function(){
         renderDrinks();switchTab("pedir",true);
       },300);
@@ -332,7 +339,7 @@
   window.setName=function(name){
     var raw=name.trim();if(!raw)return;
     // Normalizar: buscar en la lista ignorando mayúsculas, usar el nombre canónico
-    var canonical=galanes.find(function(g){return g.toUpperCase()===raw.toUpperCase();});
+    var canonical=galanes.find(function(g){return normName(g)===normName(raw);});
     me=canonical||raw;
     localStorage.setItem("galan_name",me);
     closeModal("mnombre");
@@ -376,7 +383,7 @@
     b.style.cssText="display:flex!important;align-items:center";document.getElementById("prompt").style.display="none";
     // Mostrar tabs según rol
     var adminBtn=document.querySelector("[data-tab='admin']");if(adminBtn)adminBtn.style.cssText=isAdmin()?"display:flex!important":"display:none!important";
-    var esRegistrado=galanes.some(function(g){return g.toUpperCase()===me.toUpperCase();});
+    var esRegistrado=galanes.some(function(g){return normName(g)===normName(me);});
     // Nuevo no registrado: solo ve PEDIR y ASADO
     if(isAdmin()){
       ["resumen","cumples","stats","mundial","asado"].forEach(function(t){var btn=document.querySelector("[data-tab='"+t+"']");if(btn)btn.style.cssText="display:flex!important";});
@@ -2949,7 +2956,7 @@
     if(!raw){showToast("Escribí tu nombre");return;}
     if(!galanes||!galanes.length){showToast("⏳ Cargando lista, esperá un segundo...");return;}
     // Normalizar: usar nombre canónico si está en lista, sino usar el ingresado (nuevo)
-    var exact=galanes.find(function(g){return g.toUpperCase()===raw;});
+    var exact=galanes.find(function(g){return normName(g)===normName(raw);});
     // Bloquear si intenta entrar como admin escribiendo el nombre
     if(raw===ADMIN.toUpperCase()&&!exact){showToast("❌ Nombre no disponible");return;}
     me=exact||raw.charAt(0)+raw.slice(1).toLowerCase(); // capitalize si es nuevo
@@ -2969,7 +2976,7 @@
     try{
       var cur=accesos[me]||{count:0};
       set(ref(db,"config/accesos/"+me),{count:(cur.count||0)+1,lastAccess:Date.now()});
-      var enLista=galanes.some(function(g){return g.toUpperCase()===me.toUpperCase();});
+      var enLista=galanes.some(function(g){return normName(g)===normName(me);});
       window._esNuevo=!enLista&&!isAdmin();
       if(!enLista&&!isAdmin()){
         set(ref(db,"config/nuevos/"+me),{ts:Date.now(),nombre:me});
@@ -3908,12 +3915,12 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.71";
+  var APP_VERSION="10.0.72";
   var STORED_VERSION=localStorage.getItem("app_version");
 
   if("serviceWorker"in navigator){
     window.addEventListener("load",function(){
-      navigator.serviceWorker.register("sw.js?v=15").then(function(reg){
+      navigator.serviceWorker.register("sw.js?v=16").then(function(reg){
         // Chequear actualizaciones cada vez que abre
         reg.update();
         // Si hay nueva versión esperando, activarla
