@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Mesa de Galanes</title>
-<meta name='app-version' content='2.8'>
+<meta name='app-version' content='2.9'>
 <meta name="color-scheme" content="dark">
 <meta name="theme-color" content="#080808">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
@@ -2618,9 +2618,10 @@
       };
     });
 
-    // Hora Argentina actual (UTC-3)
+    // Fecha hoy en formato "DD Mmm YYYY" (igual al Worker)
     var arNow=new Date(Date.now()-3*3600000);
-    var arHoy=arNow.toLocaleDateString("en-US",{month:"long",day:"numeric",year:"numeric"});
+    var MESES_C=["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
+    var arHoy=arNow.getUTCDate()+" "+MESES_C[arNow.getUTCMonth()]+" "+arNow.getUTCFullYear();
 
     // Separar partidos: en vivo, hoy, recientes (últimos 3 días), próximos
     var vivos=todosPartidos.filter(function(m){return m.en_vivo;});
@@ -4011,7 +4012,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 
   if("serviceWorker"in navigator){
     window.addEventListener("load",function(){
-      navigator.serviceWorker.register("sw.js?v=18").then(function(reg){
+      navigator.serviceWorker.register("sw.js?v=19").then(function(reg){
         // Chequear actualizaciones cada vez que abre
         reg.update();
         // Si hay nueva versión esperando, activarla
