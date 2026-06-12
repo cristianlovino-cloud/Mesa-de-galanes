@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Mesa de Galanes</title>
-<meta name='app-version' content='2.14'>
+<meta name='app-version' content='2.15'>
 <meta name="color-scheme" content="dark">
 <meta name="theme-color" content="#080808">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
@@ -2701,7 +2701,7 @@
       h+="</div>";
       h+=equipoHtml(m.visita,"left");
       h+="</div>";
-      if(meta) h+="<div style='text-align:center;font-size:0.5rem;color:rgba(255,255,255,0.45);margin-top:5px;letter-spacing:0.04em'>"+meta+"</div>";
+      if(meta) h+="<div style='text-align:center;font-size:0.52rem;color:rgba(255,255,255,0.6);margin-top:5px;letter-spacing:0.04em'>"+meta+"</div>";
       h+="</div>";
       return h;
     }
@@ -2725,7 +2725,7 @@
     terminadosDesc.forEach(function(m){
       if(m.fecha!==fechaActual){
         fechaActual=m.fecha;
-        htmlResultados+="<div style='font-size:0.55rem;color:rgba(255,255,255,0.4);letter-spacing:0.06em;margin:10px 0 6px;padding-top:"+(htmlResultados?"4px":"0")+"'>"+m.fecha+"</div>";
+        htmlResultados+="<div style='font-size:0.58rem;color:rgba(255,255,255,0.6);letter-spacing:0.06em;margin:10px 0 6px;padding-top:"+(htmlResultados?"4px":"0")+"'>"+m.fecha+"</div>";
       }
       htmlResultados+=tarjetaPartido(m,"resultado");
     });
@@ -2737,7 +2737,7 @@
     proximos.forEach(function(m){
       if(m.fecha!==fechaProx){
         fechaProx=m.fecha;
-        htmlProximos+="<div style='font-size:0.55rem;color:rgba(255,255,255,0.4);letter-spacing:0.06em;margin:10px 0 6px;padding-top:"+(htmlProximos?"4px":"0")+"'>"+m.fecha+"</div>";
+        htmlProximos+="<div style='font-size:0.58rem;color:rgba(255,255,255,0.6);letter-spacing:0.06em;margin:10px 0 6px;padding-top:"+(htmlProximos?"4px":"0")+"'>"+m.fecha+"</div>";
       }
       htmlProximos+=tarjetaPartido(m,"proximo");
     });
@@ -4094,7 +4094,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 
   if("serviceWorker"in navigator){
     window.addEventListener("load",function(){
-      navigator.serviceWorker.register("sw.js?v=24").then(function(reg){
+      navigator.serviceWorker.register("sw.js?v=25").then(function(reg){
         // Chequear actualizaciones cada vez que abre
         reg.update();
         // Si hay nueva versión esperando, activarla
