@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Mesa de Galanes</title>
-<meta name='app-version' content='2.10'>
+<meta name='app-version' content='2.11'>
 <meta name="color-scheme" content="dark">
 <meta name="theme-color" content="#080808">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
@@ -2679,35 +2679,73 @@
     proximos.sort(function(a,b){return parseFecha(a.fecha)-parseFecha(b.fecha);});
     var siguientes=proximos.slice(0,8);
 
+    // Mapa nombre español → código flagcdn
+    var FLAG_MAP={
+      "España":"es","Francia":"fr","Alemania":"de","Países Bajos":"nl","Bélgica":"be",
+      "Portugal":"pt","Inglaterra":"gb-eng","Croacia":"hr","Brasil":"br","Argentina":"ar",
+      "Uruguay":"uy","Colombia":"co","Ecuador":"ec","Paraguay":"py","México":"mx",
+      "EE.UU.":"us","Canadá":"ca","Marruecos":"ma","Senegal":"sn","Nigeria":"ng",
+      "Camerún":"cm","Ghana":"gh","Túnez":"tn","Egipto":"eg","Costa de Marfil":"ci",
+      "Sudáfrica":"za","Cabo Verde":"cv","Japón":"jp","Corea del Sur":"kr",
+      "Australia":"au","Irán":"ir","Arabia Saudí":"sa","Qatar":"qa","Jordania":"jo",
+      "Irak":"iq","Uzbekistán":"uz","Suiza":"ch","Dinamarca":"dk","Suecia":"se",
+      "Noruega":"no","Austria":"at","Escocia":"gb-sct","Chequia":"cz",
+      "Nueva Zelanda":"nz","Bosnia":"ba","Argelia":"dz","Curazao":"cw",
+      "Turquía":"tr","Haití":"ht","Panamá":"pa","RD Congo":"cd","Costa Rica":"cr",
+      "Peru":"pe","Chile":"cl","Bolivia":"bo","Venezuela":"ve","Honduras":"hn",
+      "El Salvador":"sv","Jamaica":"jm","Guatemala":"gt","Nigeria":"ng",
+    };
+    function flagUrl(nombre){
+      var iso=FLAG_MAP[nombre];
+      if(!iso)return null;
+      return "https://flagcdn.com/20x15/"+iso+".png";
+    }
+    function equipoHtml(nombre,align){
+      var flag=flagUrl(nombre);
+      var fl=flag?"<img src='"+flag+"' style='width:18px;height:13px;object-fit:cover;border-radius:2px;flex-shrink:0' onerror='this.style.display=\"none\"'>":"";
+      var isRight=align==="right";
+      return "<div style='flex:1;display:flex;align-items:center;gap:5px;justify-content:"+(isRight?"flex-end":"flex-start")+";overflow:hidden'>"
+        +(isRight?("<span style='font-size:0.75rem;font-weight:700;color:#f0f0f0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis'>"+nombre+"</span>"+fl)
+                 :(fl+"<span style='font-size:0.75rem;font-weight:700;color:#f0f0f0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis'>"+nombre+"</span>"))
+        +"</div>";
+    }
+
     function tarjetaPartido(m,modo){
-      // modo: "vivo" | "hoy" | "resultado" | "proximo"
       var vivo=modo==="vivo";
       var result=modo==="resultado";
-      var proximo=modo==="proximo";
       var tieneScore=m.goles_local!==null&&m.goles_visita!==null;
-      var scoreStr=tieneScore?(m.goles_local+" - "+m.goles_visita):"vs";
-      var scoreColor=vivo?"#4ade80":result?"var(--ink)":"var(--mut)";
-      var border=vivo?"rgba(74,222,128,0.4)":result?"rgba(255,255,255,0.12)":"var(--brd)";
-      var bg=vivo?"rgba(74,222,128,0.04)":"transparent";
-      var h="<div style='background:"+bg+";border:1px solid "+border+";border-radius:10px;padding:8px 10px;margin-bottom:6px'>";
-      // Fila principal: local - score - visita
-      h+="<div style='display:flex;align-items:center;gap:4px'>";
-      h+="<div style='flex:1;text-align:right;font-size:0.66rem;font-weight:600;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap'>"+m.local+"</div>";
-      h+="<div style='min-width:60px;text-align:center;flex-shrink:0'>";
-      h+="<div style='font-family:var(--font-display);font-size:"+(vivo?"1.1rem":"0.95rem")+";font-weight:800;color:"+scoreColor+"'>"+scoreStr+"</div>";
-      if(vivo) h+="<div style='font-size:0.4rem;color:#4ade80;letter-spacing:0.06em'>● EN VIVO</div>";
-      else if(result) h+="<div style='font-size:0.4rem;color:var(--mut);letter-spacing:0.04em'>FINAL</div>";
+      var gl=tieneScore?m.goles_local:"";
+      var gv=tieneScore?m.goles_visita:"";
+      var scoreColor=vivo?"#4ade80":result?"#ffffff":"rgba(255,255,255,0.35)";
+      var border=vivo?"rgba(74,222,128,0.45)":result?"rgba(255,255,255,0.15)":"rgba(255,255,255,0.08)";
+      var bg=vivo?"rgba(74,222,128,0.05)":"rgba(255,255,255,0.03)";
+      var fechaCorta=m.fecha||"";
+      var horaStr=m.hora?(m.hora+" hs"):"";
+      var meta=(m.grupo?"Gr. "+m.grupo:"")+(fechaCorta?" · "+fechaCorta:"")+(horaStr?" · "+horaStr:"");
+
+      var h="<div style='background:"+bg+";border:1px solid "+border+";border-radius:12px;padding:10px 12px;margin-bottom:8px'>";
+      // Fila equipos + score
+      h+="<div style='display:flex;align-items:center;gap:6px'>";
+      h+=equipoHtml(m.local,"right");
+      // Marcador centro
+      h+="<div style='min-width:70px;text-align:center;flex-shrink:0'>";
+      if(tieneScore){
+        h+="<div style='display:flex;align-items:center;justify-content:center;gap:4px'>";
+        h+="<span style='font-family:var(--font-display);font-size:1.4rem;font-weight:900;color:"+scoreColor+";line-height:1'>"+gl+"</span>";
+        h+="<span style='font-size:0.8rem;color:rgba(255,255,255,0.3);font-weight:300'>–</span>";
+        h+="<span style='font-family:var(--font-display);font-size:1.4rem;font-weight:900;color:"+scoreColor+";line-height:1'>"+gv+"</span>";
+        h+="</div>";
+      } else {
+        h+="<div style='font-size:0.65rem;color:rgba(255,255,255,0.25);font-weight:600;letter-spacing:0.04em'>VS</div>";
+      }
+      if(vivo) h+="<div style='font-size:0.42rem;color:#4ade80;letter-spacing:0.08em;margin-top:2px'>● EN VIVO</div>";
+      else if(result) h+="<div style='font-size:0.42rem;color:rgba(255,255,255,0.3);letter-spacing:0.06em;margin-top:2px'>FINAL</div>";
       h+="</div>";
-      h+="<div style='flex:1;text-align:left;font-size:0.66rem;font-weight:600;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap'>"+m.visita+"</div>";
+      h+=equipoHtml(m.visita,"left");
       h+="</div>";
-      // Fila meta: grupo · fecha · hora
-      if(proximo||modo==="hoy"){
-        var fechaCorta=m.fecha?m.fecha.replace(", 2026","").replace("June","Jun").replace("July","Jul"):"";
-        var horaAr=m.hora?(" · "+m.hora+" hs"):"";
-        h+="<div style='text-align:center;font-size:0.45rem;color:var(--mut);margin-top:3px;letter-spacing:0.04em'>"
-          +(m.grupo?"Gr. "+m.grupo+" · ":"")
-          +fechaCorta+horaAr
-          +"</div>";
+      // Meta siempre visible
+      if(meta){
+        h+="<div style='text-align:center;font-size:0.48rem;color:rgba(255,255,255,0.3);margin-top:5px;letter-spacing:0.05em'>"+meta+"</div>";
       }
       h+="</div>";
       return h;
@@ -4057,7 +4095,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 
   if("serviceWorker"in navigator){
     window.addEventListener("load",function(){
-      navigator.serviceWorker.register("sw.js?v=20").then(function(reg){
+      navigator.serviceWorker.register("sw.js?v=21").then(function(reg){
         // Chequear actualizaciones cada vez que abre
         reg.update();
         // Si hay nueva versión esperando, activarla
