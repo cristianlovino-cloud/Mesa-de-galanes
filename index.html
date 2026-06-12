@@ -2240,22 +2240,53 @@
     var rows=["<div class='lista-grid'>"];
     players.forEach(function(pl){
       var pg=pagos[pl]||{},cash=pg.cash||0,tr=pg.transfer||0,total=cash+tr;
+
+      // Calcular lo que debe según pedidos y precios
+      var misPed=Object.values(orders).filter(function(o){return o.player===pl;});
+      var deuda=0;
+      misPed.forEach(function(o){
+        var d=drinks.find(function(dr){return o.drink&&o.drink.startsWith(dr.name);});
+        if(!d)return;
+        var base=d.precio||0;
+        var comboAdd=0;
+        if(o.extra&&d.comboPrices){
+          var ck=o.extra.toLowerCase().replace(/\s+/g,"_");
+          comboAdd=d.comboPrices[ck]||0;
+          if(!comboAdd){var ck2=o.extra.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/\s+/g,"_");comboAdd=d.comboPrices[ck2]||0;}
+          if(!comboAdd){var ckeys=Object.keys(d.comboPrices);if(ckeys.length===1)comboAdd=d.comboPrices[ckeys[0]]||0;}
+        }
+        deuda+=base+comboAdd;
+      });
+      var saldo=deuda>0?total-deuda:null;
+
       var row="<div class='lista-row lista-pagado' style='cursor:default'>";
       row+="<div class='lista-av' style='background:"+col(pl)+";width:42px;height:42px;font-size:1rem;flex-shrink:0'>"+ini(pl)+"</div>";
       row+="<div class='lista-info' style='flex:1'>";
       row+="<div class='lista-name' style='font-size:0.8rem'>"+pl+"</div>";
-      // Saldo grande y visible
-      row+="<div style='display:flex;gap:12px;align-items:baseline;margin-top:4px'>";
+      row+="<div style='display:flex;gap:8px;align-items:baseline;margin-top:4px;flex-wrap:wrap'>";
       row+="<span style='font-family:\"Bebas Neue\",sans-serif;font-size:1.4rem;color:var(--grn);letter-spacing:0.04em'>$"+Math.round(total)+"</span>";
       if(cash>0&&tr>0){
         row+="<span style='font-size:0.62rem;color:rgba(255,255,255,0.45)'>💵$"+Math.round(cash)+" + 📲$"+Math.round(tr)+"</span>";
       } else if(cash>0){
         row+="<span style='font-size:0.62rem;color:rgba(255,255,255,0.45)'>💵 efectivo</span>";
-      } else {
+      } else if(tr>0){
         row+="<span style='font-size:0.62rem;color:rgba(255,255,255,0.45)'>📲 transfer</span>";
       }
-      row+="</div></div>";
+      row+="</div>";
+      if(deuda>0){
+        row+="<div style='display:flex;gap:8px;align-items:center;margin-top:3px;flex-wrap:wrap'>";
+        row+="<span style='font-size:0.6rem;color:rgba(255,255,255,0.35)'>Debe: <b style='color:rgba(245,197,24,0.85)'>$"+Math.round(deuda)+"</b></span>";
+        if(saldo!==null){
+          if(saldo===0) row+="<span style='font-size:0.6rem;color:#4ade80'>✓ Cuadra</span>";
+          else if(saldo>0) row+="<span style='font-size:0.6rem;color:#fbbf24'>↑ Sobran $"+Math.round(saldo)+"</span>";
+          else row+="<span style='font-size:0.6rem;color:#fb923c'>↓ Faltan $"+Math.round(Math.abs(saldo))+"</span>";
+        } else if(total===0){
+          row+="<span style='font-size:0.6rem;color:#fb923c'>⚠ Sin pagar</span>";
+        }
+        row+="</div>";
+      }
       if(isAdmin()){
+        row+="</div>"; // cierra lista-info
         row+="<div style='display:flex;flex-direction:column;gap:4px;align-items:flex-end;flex-shrink:0'>";
         row+="<div style='display:flex;gap:4px'>";
         row+="<button class='asist-btn"+(cash>0?" asist-va":"")+"' onclick='openPago(\""+pl+"\",\"cash\")' title='Efectivo'>💵"+(cash>0?" ✓":"")+"</button>";
@@ -2263,6 +2294,8 @@
         row+="</div>";
         if(total>0)row+="<button class='icon-btn' style='font-size:0.55rem;padding:3px 8px;color:var(--red)' onclick='resetPago(\""+pl+"\")'>✕ reset</button>";
         row+="</div>";
+      } else {
+        row+="</div>"; // cierra lista-info (no admin)
       }
       row+="</div>";rows.push(row);
     });
