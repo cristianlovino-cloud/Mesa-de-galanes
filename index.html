@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Mesa de Galanes</title>
-<meta name='app-version' content='2.7'>
+<meta name='app-version' content='2.10'>
 <meta name="color-scheme" content="dark">
 <meta name="theme-color" content="#080808">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
@@ -2240,55 +2240,22 @@
     var rows=["<div class='lista-grid'>"];
     players.forEach(function(pl){
       var pg=pagos[pl]||{},cash=pg.cash||0,tr=pg.transfer||0,total=cash+tr;
-
-      // Calcular lo que debe según pedidos y precios
-      var misPed=Object.values(orders).filter(function(o){return o.player===pl;});
-      var deuda=0;
-      misPed.forEach(function(o){
-        var d=drinks.find(function(dr){return o.drink&&o.drink.startsWith(dr.name);});
-        if(!d)return;
-        var base=d.precio||0;
-        var comboAdd=0;
-        if(o.extra&&d.comboPrices){
-          var ck=o.extra.toLowerCase().replace(/\s+/g,"_");
-          comboAdd=d.comboPrices[ck]||0;
-          if(!comboAdd){var ck2=o.extra.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/\s+/g,"_");comboAdd=d.comboPrices[ck2]||0;}
-          if(!comboAdd){var ckeys=Object.keys(d.comboPrices);if(ckeys.length===1)comboAdd=d.comboPrices[ckeys[0]]||0;}
-        }
-        deuda+=base+comboAdd;
-      });
-      var saldo=deuda>0?total-deuda:null;
-
       var row="<div class='lista-row lista-pagado' style='cursor:default'>";
       row+="<div class='lista-av' style='background:"+col(pl)+";width:42px;height:42px;font-size:1rem;flex-shrink:0'>"+ini(pl)+"</div>";
       row+="<div class='lista-info' style='flex:1'>";
       row+="<div class='lista-name' style='font-size:0.8rem'>"+pl+"</div>";
-      row+="<div style='display:flex;gap:8px;align-items:baseline;margin-top:4px;flex-wrap:wrap'>";
-      // Pagó
+      // Saldo grande y visible
+      row+="<div style='display:flex;gap:12px;align-items:baseline;margin-top:4px'>";
       row+="<span style='font-family:\"Bebas Neue\",sans-serif;font-size:1.4rem;color:var(--grn);letter-spacing:0.04em'>$"+Math.round(total)+"</span>";
       if(cash>0&&tr>0){
         row+="<span style='font-size:0.62rem;color:rgba(255,255,255,0.45)'>💵$"+Math.round(cash)+" + 📲$"+Math.round(tr)+"</span>";
       } else if(cash>0){
         row+="<span style='font-size:0.62rem;color:rgba(255,255,255,0.45)'>💵 efectivo</span>";
-      } else if(tr>0){
+      } else {
         row+="<span style='font-size:0.62rem;color:rgba(255,255,255,0.45)'>📲 transfer</span>";
       }
-      row+="</div>";
-      // Debe y diferencia
-      if(deuda>0){
-        row+="<div style='display:flex;gap:8px;align-items:center;margin-top:3px;flex-wrap:wrap'>";
-        row+="<span style='font-size:0.6rem;color:rgba(255,255,255,0.35)'>Debe: <b style='color:rgba(245,197,24,0.85)'>$"+Math.round(deuda)+"</b></span>";
-        if(saldo!==null){
-          if(saldo===0) row+="<span style='font-size:0.6rem;color:#4ade80'>✓ Cuadra</span>";
-          else if(saldo>0) row+="<span style='font-size:0.6rem;color:#fbbf24'>↑ Sobran $"+Math.round(saldo)+"</span>";
-          else row+="<span style='font-size:0.6rem;color:#fb923c'>↓ Faltan $"+Math.round(Math.abs(saldo))+"</span>";
-        } else if(total===0){
-          row+="<span style='font-size:0.6rem;color:#fb923c'>⚠ Sin pagar</span>";
-        }
-        row+="</div>";
-      }
+      row+="</div></div>";
       if(isAdmin()){
-        row+="</div>"; // cierra lista-info
         row+="<div style='display:flex;flex-direction:column;gap:4px;align-items:flex-end;flex-shrink:0'>";
         row+="<div style='display:flex;gap:4px'>";
         row+="<button class='asist-btn"+(cash>0?" asist-va":"")+"' onclick='openPago(\""+pl+"\",\"cash\")' title='Efectivo'>💵"+(cash>0?" ✓":"")+"</button>";
@@ -2296,8 +2263,6 @@
         row+="</div>";
         if(total>0)row+="<button class='icon-btn' style='font-size:0.55rem;padding:3px 8px;color:var(--red)' onclick='resetPago(\""+pl+"\")'>✕ reset</button>";
         row+="</div>";
-      } else {
-        row+="</div>"; // cierra lista-info (no admin)
       }
       row+="</div>";rows.push(row);
     });
@@ -2611,62 +2576,166 @@
     window._mundialLoaded=true;
     var panel=document.getElementById("mundial-content");
     if(!panel)return;
+    if(window._mundialRefreshTimer)clearInterval(window._mundialRefreshTimer);
 
-    // Countdown siempre visible
-    function getCountdownHtml(){
-      var inicio=new Date("2026-06-11T18:00:00-05:00");
-      var now=new Date(),diff=inicio-now;
-      if(diff<=0)return "<div style='text-align:center;padding:16px'><div style='font-size:2rem'>⚽</div><div style='font-family:var(--font-display);font-size:1.4rem;color:var(--g2);margin-top:6px'>MUNDIAL EN CURSO</div></div>";
-      var dias=Math.floor(diff/86400000),hrs=Math.floor((diff%86400000)/3600000),mins=Math.floor((diff%3600000)/60000),secs=Math.floor((diff%60000)/1000);
-      return "<div style='text-align:center;background:linear-gradient(135deg,rgba(0,120,50,0.15),rgba(0,80,180,0.1));border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:18px 16px;margin-bottom:14px'>"
-        +"<div style='font-size:0.58rem;color:var(--mut);letter-spacing:0.1em;margin-bottom:10px'>⚽ MUNDIAL 2026 · USA · CANADA · MEXICO</div>"
-        +"<div id='mcd' style='display:flex;justify-content:center;gap:12px;align-items:flex-end;margin-bottom:10px'>"
-        +"<div><div style='font-family:var(--font-display);font-size:2.8rem;font-weight:700;color:var(--ink);line-height:1'>"+dias+"</div><div style='font-size:0.52rem;color:var(--mut);letter-spacing:0.06em;margin-top:3px'>DÍAS</div></div>"
-        +"<div style='font-size:1.8rem;color:var(--brd);padding-bottom:10px'>:</div>"
-        +"<div><div style='font-family:var(--font-display);font-size:2.8rem;font-weight:700;color:var(--ink);line-height:1'>"+String(hrs).padStart(2,"0")+"</div><div style='font-size:0.52rem;color:var(--mut);letter-spacing:0.06em;margin-top:3px'>HS</div></div>"
-        +"<div style='font-size:1.8rem;color:var(--brd);padding-bottom:10px'>:</div>"
-        +"<div><div style='font-family:var(--font-display);font-size:2.8rem;font-weight:700;color:var(--ink);line-height:1'>"+String(mins).padStart(2,"0")+"</div><div style='font-size:0.52rem;color:var(--mut);letter-spacing:0.06em;margin-top:3px'>MIN</div></div>"
-        +"<div style='font-size:1.8rem;color:var(--brd);padding-bottom:10px'>:</div>"
-        +"<div><div id='mcd-sec' style='font-family:var(--font-display);font-size:2.8rem;font-weight:700;color:var(--g2);line-height:1'>"+String(secs).padStart(2,"0")+"</div><div style='font-size:0.52rem;color:var(--mut);letter-spacing:0.06em;margin-top:3px'>SEG</div></div>"
-        +"</div>"
-        +"<div style='font-size:0.58rem;color:var(--mut)'>PRIMER PARTIDO: 11 JUN 2026 · CIUDAD DE MÉXICO</div>"
-        +"</div>";
+    panel.innerHTML="<div style='text-align:center;padding:24px 16px'>"
+      +"<div style='font-size:2.2rem'>⚽</div>"
+      +"<div style='font-family:var(--font-display);font-size:1.4rem;color:var(--g2);margin-top:6px'>MUNDIAL EN CURSO</div>"
+      +"<div style='font-size:0.6rem;color:var(--mut);margin-top:6px'>Cargando datos... ⏳</div>"
+      +"</div>";
+
+    async function cargarPartidos(){
+      try{
+        var r=await fetch(SPORTS_BACKEND+"/mundial/partidos",{signal:AbortSignal.timeout(8000)});
+        var j=await r.json();
+        if(j.ok&&j.data&&j.data.length) return j.data;
+      }catch(e){ console.log("partidos falló",e); }
+      return [];
     }
-
-    panel.innerHTML=getCountdownHtml()+"<div style='text-align:center;padding:20px;color:var(--mut);font-size:0.7rem'>Cargando grupos... ⏳</div>";
-
-    // Timer segundos
-    if(window._mundialTimer)clearInterval(window._mundialTimer);
-    window._mundialTimer=setInterval(function(){
-      var sec=document.getElementById("mcd-sec");
-      if(sec){var s=Math.floor((new Date("2026-06-11T18:00:00-05:00")-new Date())%60000/1000);if(s>=0)sec.textContent=String(s).padStart(2,"0");}
-    },1000);
-
-    // Intentar API en vivo, sino usar datos estáticos
     async function cargarGrupos(){
       try{
-        var r1=await fetch(SPORTS_BACKEND+"/mundial/grupos",{signal:AbortSignal.timeout(5000)});
-        var j1=await r1.json();
-        if(j1.ok&&j1.data&&j1.data.length) return {source:"api", data:j1.data};
-      }catch(e){ console.log("Mundial API no disponible, usando estáticos"); }
-      return {source:"static", data:GRUPOS_MUNDIAL};
+        var r=await fetch(SPORTS_BACKEND+"/mundial/grupos",{signal:AbortSignal.timeout(8000)});
+        var j=await r.json();
+        if(j.ok&&j.data&&j.data.length) return {source:"api",data:j.data};
+      }catch(e){ console.log("grupos falló"); }
+      return {source:"static",data:GRUPOS_MUNDIAL};
     }
 
-    var result=await cargarGrupos();
-    var grupos=result.data.map(function(g){
+    var results=await Promise.all([cargarPartidos(),cargarGrupos()]);
+    var todosPartidos=results[0];
+    var gruposResult=results[1];
+
+    var grupos=gruposResult.data.map(function(g){
       return{
         group:"Grupo "+g.g,
         table:(g.equipos||[]).map(function(e){
           return{
-            team:{name:e.n||e.nombre||"?", flag:"https://flagcdn.com/28x21/"+(e.f||e.flag||"").toLowerCase()+".png"},
-            points:e.pts||0,
-            playedGames:e.pj||0, won:e.pg||0, draw:e.pe||0, lost:e.pp||0,
-            goalsFor:e.gf||0, goalsAgainst:e.gc||0
+            team:{name:e.n||e.nombre||"?",flag:"https://flagcdn.com/28x21/"+(e.f||e.flag||"xx").toLowerCase()+".png"},
+            points:e.pts||0,playedGames:e.pj||0,won:e.pg||0,draw:e.pe||0,lost:e.pp||0,
+            goalsFor:e.gf||0,goalsAgainst:e.gc||0
           };
         })
       };
     });
-    renderMundialGroups2(grupos, panel, getCountdownHtml());
+
+    // Fecha hoy en formato "DD Mmm YYYY" (igual al Worker)
+    var arNow=new Date(Date.now()-3*3600000);
+    var MESES_C=["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
+    var arHoy=arNow.getUTCDate()+" "+MESES_C[arNow.getUTCMonth()]+" "+arNow.getUTCFullYear();
+
+    // Separar partidos: en vivo, hoy, recientes, próximos
+    var vivos=todosPartidos.filter(function(m){return m.en_vivo;});
+    var hoyPartidos=todosPartidos.filter(function(m){return !m.en_vivo&&m.fecha===arHoy;});
+    var terminados=todosPartidos.filter(function(m){return m.terminado&&!m.en_vivo;});
+    var proximos=todosPartidos.filter(function(m){return !m.terminado&&!m.en_vivo&&m.fecha!==arHoy;});
+
+    // Función para parsear fecha "DD Mmm YYYY" o "11 Jun 2026" a timestamp
+    function parseFecha(f){
+      if(!f)return 0;
+      // formato DD Mmm YYYY
+      var m=f.match(/(\d{1,2})\s+(\w+)\s+(\d{4})/);
+      if(m){var ms={Ene:0,Feb:1,Mar:2,Abr:3,May:4,Jun:5,Jul:6,Ago:7,Sep:8,Oct:9,Nov:10,Dic:11};return new Date(parseInt(m[3]),ms[m[2]]||0,parseInt(m[1])).getTime();}
+      return new Date(f).getTime()||0;
+    }
+
+    // Ordenar terminados por fecha asc, tomar últimos 5 más recientes
+    terminados.sort(function(a,b){return parseFecha(a.fecha)-parseFecha(b.fecha);});
+    var recientes=terminados.slice(-5).reverse();
+
+    // Ordenar próximos por fecha asc, tomar los 8 más cercanos
+    proximos.sort(function(a,b){return parseFecha(a.fecha)-parseFecha(b.fecha);});
+    var siguientes=proximos.slice(0,8);
+
+    function tarjetaPartido(m,modo){
+      // modo: "vivo" | "hoy" | "resultado" | "proximo"
+      var vivo=modo==="vivo";
+      var result=modo==="resultado";
+      var proximo=modo==="proximo";
+      var tieneScore=m.goles_local!==null&&m.goles_visita!==null;
+      var scoreStr=tieneScore?(m.goles_local+" - "+m.goles_visita):"vs";
+      var scoreColor=vivo?"#4ade80":result?"var(--ink)":"var(--mut)";
+      var border=vivo?"rgba(74,222,128,0.4)":result?"rgba(255,255,255,0.12)":"var(--brd)";
+      var bg=vivo?"rgba(74,222,128,0.04)":"transparent";
+      var h="<div style='background:"+bg+";border:1px solid "+border+";border-radius:10px;padding:8px 10px;margin-bottom:6px'>";
+      // Fila principal: local - score - visita
+      h+="<div style='display:flex;align-items:center;gap:4px'>";
+      h+="<div style='flex:1;text-align:right;font-size:0.66rem;font-weight:600;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap'>"+m.local+"</div>";
+      h+="<div style='min-width:60px;text-align:center;flex-shrink:0'>";
+      h+="<div style='font-family:var(--font-display);font-size:"+(vivo?"1.1rem":"0.95rem")+";font-weight:800;color:"+scoreColor+"'>"+scoreStr+"</div>";
+      if(vivo) h+="<div style='font-size:0.4rem;color:#4ade80;letter-spacing:0.06em'>● EN VIVO</div>";
+      else if(result) h+="<div style='font-size:0.4rem;color:var(--mut);letter-spacing:0.04em'>FINAL</div>";
+      h+="</div>";
+      h+="<div style='flex:1;text-align:left;font-size:0.66rem;font-weight:600;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap'>"+m.visita+"</div>";
+      h+="</div>";
+      // Fila meta: grupo · fecha · hora
+      if(proximo||modo==="hoy"){
+        var fechaCorta=m.fecha?m.fecha.replace(", 2026","").replace("June","Jun").replace("July","Jul"):"";
+        var horaAr=m.hora?(" · "+m.hora+" hs"):"";
+        h+="<div style='text-align:center;font-size:0.45rem;color:var(--mut);margin-top:3px;letter-spacing:0.04em'>"
+          +(m.grupo?"Gr. "+m.grupo+" · ":"")
+          +fechaCorta+horaAr
+          +"</div>";
+      }
+      h+="</div>";
+      return h;
+    }
+
+    // Header
+    var headerHtml="<div style='text-align:center;padding:10px 0 14px'>"
+      +"<div style='font-size:2rem'>⚽</div>"
+      +"<div style='font-family:var(--font-display);font-size:1.4rem;color:var(--g2);margin-top:4px;letter-spacing:0.04em'>MUNDIAL EN CURSO</div>"
+      +"<div style='font-size:0.5rem;color:var(--mut);margin-top:3px;letter-spacing:0.08em'>USA · CANADA · MEXICO · 11 JUN – 19 JUL 2026</div>"
+      +"</div>";
+
+    var partidosHtml="";
+
+    // EN VIVO
+    if(vivos.length){
+      partidosHtml+="<div style='margin-bottom:14px'>";
+      partidosHtml+="<div style='font-size:0.6rem;color:#4ade80;font-weight:700;letter-spacing:0.08em;margin-bottom:7px'>🔴 EN VIVO</div>";
+      vivos.forEach(function(m){partidosHtml+=tarjetaPartido(m,"vivo");});
+      partidosHtml+="</div>";
+    }
+
+    // HOY
+    if(hoyPartidos.length){
+      partidosHtml+="<div style='margin-bottom:14px'>";
+      partidosHtml+="<div style='font-size:0.6rem;color:var(--g2);font-weight:700;letter-spacing:0.08em;margin-bottom:7px'>📅 HOY</div>";
+      hoyPartidos.forEach(function(m){partidosHtml+=tarjetaPartido(m,"hoy");});
+      partidosHtml+="</div>";
+    }
+
+    // ÚLTIMOS RESULTADOS
+    if(recientes.length){
+      partidosHtml+="<div style='margin-bottom:14px'>";
+      partidosHtml+="<div style='font-size:0.6rem;color:var(--g2);font-weight:700;letter-spacing:0.08em;margin-bottom:7px'>✅ ÚLTIMOS RESULTADOS</div>";
+      recientes.forEach(function(m){partidosHtml+=tarjetaPartido(m,"resultado");});
+      partidosHtml+="</div>";
+    }
+
+    // PRÓXIMOS PARTIDOS
+    if(siguientes.length){
+      partidosHtml+="<div style='margin-bottom:14px'>";
+      partidosHtml+="<div style='font-size:0.6rem;color:var(--g2);font-weight:700;letter-spacing:0.08em;margin-bottom:7px'>🗓 PRÓXIMOS PARTIDOS</div>";
+      siguientes.forEach(function(m){partidosHtml+=tarjetaPartido(m,"proximo");});
+      partidosHtml+="</div>";
+    }
+
+    if(!vivos.length&&!hoyPartidos.length&&!recientes.length&&!siguientes.length){
+      partidosHtml="<div style='text-align:center;padding:10px 0;font-size:0.6rem;color:var(--mut)'>Sin datos de partidos disponibles</div>";
+    }
+
+    // Botón actualizar siempre
+    partidosHtml+="<button onclick='window._mundialLoaded=false;renderMundial()' style='width:100%;padding:6px;background:transparent;border:1px solid var(--brd);border-radius:8px;color:var(--mut);font-size:0.55rem;letter-spacing:0.06em;cursor:pointer;margin-bottom:14px'>🔄 ACTUALIZAR</button>";
+
+    renderMundialGroups2(grupos, panel, headerHtml+partidosHtml);
+
+    // Auto-refresh cada 90 seg si hay partido en vivo
+    if(vivos.length){
+      window._mundialRefreshTimer=setInterval(function(){
+        window._mundialLoaded=false;renderMundial();
+      },90000);
+    }
   };
 
 
@@ -3955,7 +4024,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 
   if("serviceWorker"in navigator){
     window.addEventListener("load",function(){
-      navigator.serviceWorker.register("sw.js?v=17").then(function(reg){
+      navigator.serviceWorker.register("sw.js?v=20").then(function(reg){
         // Chequear actualizaciones cada vez que abre
         reg.update();
         // Si hay nueva versión esperando, activarla
