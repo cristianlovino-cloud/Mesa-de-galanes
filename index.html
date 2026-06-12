@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Mesa de Galanes</title>
-<meta name='app-version' content='2.11'>
+<meta name='app-version' content='2.12'>
 <meta name="color-scheme" content="dark">
 <meta name="theme-color" content="#080808">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
@@ -2745,7 +2745,7 @@
       h+="</div>";
       // Meta siempre visible
       if(meta){
-        h+="<div style='text-align:center;font-size:0.48rem;color:rgba(255,255,255,0.3);margin-top:5px;letter-spacing:0.05em'>"+meta+"</div>";
+        h+="<div style='text-align:center;font-size:0.5rem;color:rgba(255,255,255,0.5);margin-top:5px;letter-spacing:0.05em'>"+meta+"</div>";
       }
       h+="</div>";
       return h;
@@ -4095,7 +4095,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 
   if("serviceWorker"in navigator){
     window.addEventListener("load",function(){
-      navigator.serviceWorker.register("sw.js?v=21").then(function(reg){
+      navigator.serviceWorker.register("sw.js?v=22").then(function(reg){
         // Chequear actualizaciones cada vez que abre
         reg.update();
         // Si hay nueva versión esperando, activarla
