@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Mesa de Galanes</title>
-<meta name='app-version' content='2.6'>
+<meta name='app-version' content='2.7'>
 <meta name="color-scheme" content="dark">
 <meta name="theme-color" content="#080808">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
@@ -2577,61 +2577,105 @@
     var panel=document.getElementById("mundial-content");
     if(!panel)return;
 
-    // Countdown siempre visible
-    function getCountdownHtml(){
-      var inicio=new Date("2026-06-11T18:00:00-05:00");
-      var now=new Date(),diff=inicio-now;
-      if(diff<=0)return "<div style='text-align:center;padding:16px'><div style='font-size:2rem'>⚽</div><div style='font-family:var(--font-display);font-size:1.4rem;color:var(--g2);margin-top:6px'>MUNDIAL EN CURSO</div></div>";
-      var dias=Math.floor(diff/86400000),hrs=Math.floor((diff%86400000)/3600000),mins=Math.floor((diff%3600000)/60000),secs=Math.floor((diff%60000)/1000);
-      return "<div style='text-align:center;background:linear-gradient(135deg,rgba(0,120,50,0.15),rgba(0,80,180,0.1));border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:18px 16px;margin-bottom:14px'>"
-        +"<div style='font-size:0.58rem;color:var(--mut);letter-spacing:0.1em;margin-bottom:10px'>⚽ MUNDIAL 2026 · USA · CANADA · MEXICO</div>"
-        +"<div id='mcd' style='display:flex;justify-content:center;gap:12px;align-items:flex-end;margin-bottom:10px'>"
-        +"<div><div style='font-family:var(--font-display);font-size:2.8rem;font-weight:700;color:var(--ink);line-height:1'>"+dias+"</div><div style='font-size:0.52rem;color:var(--mut);letter-spacing:0.06em;margin-top:3px'>DÍAS</div></div>"
-        +"<div style='font-size:1.8rem;color:var(--brd);padding-bottom:10px'>:</div>"
-        +"<div><div style='font-family:var(--font-display);font-size:2.8rem;font-weight:700;color:var(--ink);line-height:1'>"+String(hrs).padStart(2,"0")+"</div><div style='font-size:0.52rem;color:var(--mut);letter-spacing:0.06em;margin-top:3px'>HS</div></div>"
-        +"<div style='font-size:1.8rem;color:var(--brd);padding-bottom:10px'>:</div>"
-        +"<div><div style='font-family:var(--font-display);font-size:2.8rem;font-weight:700;color:var(--ink);line-height:1'>"+String(mins).padStart(2,"0")+"</div><div style='font-size:0.52rem;color:var(--mut);letter-spacing:0.06em;margin-top:3px'>MIN</div></div>"
-        +"<div style='font-size:1.8rem;color:var(--brd);padding-bottom:10px'>:</div>"
-        +"<div><div id='mcd-sec' style='font-family:var(--font-display);font-size:2.8rem;font-weight:700;color:var(--g2);line-height:1'>"+String(secs).padStart(2,"0")+"</div><div style='font-size:0.52rem;color:var(--mut);letter-spacing:0.06em;margin-top:3px'>SEG</div></div>"
-        +"</div>"
-        +"<div style='font-size:0.58rem;color:var(--mut)'>PRIMER PARTIDO: 11 JUN 2026 · CIUDAD DE MÉXICO</div>"
-        +"</div>";
+    // Limpiar timers viejos
+    if(window._mundialTimer)clearInterval(window._mundialTimer);
+    if(window._mundialRefreshTimer)clearInterval(window._mundialRefreshTimer);
+
+    panel.innerHTML="<div style='text-align:center;padding:24px 16px'>"
+      +"<div style='font-size:2.2rem'>⚽</div>"
+      +"<div style='font-family:var(--font-display);font-size:1.4rem;color:var(--g2);margin-top:6px'>MUNDIAL EN CURSO</div>"
+      +"<div style='font-size:0.6rem;color:var(--mut);margin-top:6px'>Cargando datos... ⏳</div>"
+      +"</div>";
+
+    // Cargar partidos de hoy desde el Worker
+    async function cargarHoy(){
+      try{
+        var r=await fetch(SPORTS_BACKEND+"/mundial/hoy",{signal:AbortSignal.timeout(7000)});
+        var j=await r.json();
+        if(j.ok&&j.data) return j.data;
+      }catch(e){ console.log("hoy falló",e); }
+      return [];
     }
 
-    panel.innerHTML=getCountdownHtml()+"<div style='text-align:center;padding:20px;color:var(--mut);font-size:0.7rem'>Cargando grupos... ⏳</div>";
-
-    // Timer segundos
-    if(window._mundialTimer)clearInterval(window._mundialTimer);
-    window._mundialTimer=setInterval(function(){
-      var sec=document.getElementById("mcd-sec");
-      if(sec){var s=Math.floor((new Date("2026-06-11T18:00:00-05:00")-new Date())%60000/1000);if(s>=0)sec.textContent=String(s).padStart(2,"0");}
-    },1000);
-
-    // Intentar API en vivo, sino usar datos estáticos
+    // Cargar grupos desde el Worker, fallback a estáticos
     async function cargarGrupos(){
       try{
-        var r1=await fetch(SPORTS_BACKEND+"/mundial/grupos",{signal:AbortSignal.timeout(5000)});
-        var j1=await r1.json();
-        if(j1.ok&&j1.data&&j1.data.length) return {source:"api", data:j1.data};
-      }catch(e){ console.log("Mundial API no disponible, usando estáticos"); }
-      return {source:"static", data:GRUPOS_MUNDIAL};
+        var r=await fetch(SPORTS_BACKEND+"/mundial/grupos",{signal:AbortSignal.timeout(7000)});
+        var j=await r.json();
+        if(j.ok&&j.data&&j.data.length) return {source:"api",data:j.data};
+      }catch(e){ console.log("grupos API falló, usando estáticos"); }
+      return {source:"static",data:GRUPOS_MUNDIAL};
     }
 
-    var result=await cargarGrupos();
-    var grupos=result.data.map(function(g){
+    var results=await Promise.all([cargarHoy(),cargarGrupos()]);
+    var hoyData=results[0];
+    var gruposResult=results[1];
+
+    var grupos=gruposResult.data.map(function(g){
       return{
         group:"Grupo "+g.g,
         table:(g.equipos||[]).map(function(e){
           return{
-            team:{name:e.n||e.nombre||"?", flag:"https://flagcdn.com/28x21/"+(e.f||e.flag||"").toLowerCase()+".png"},
-            points:e.pts||0,
-            playedGames:e.pj||0, won:e.pg||0, draw:e.pe||0, lost:e.pp||0,
-            goalsFor:e.gf||0, goalsAgainst:e.gc||0
+            team:{name:e.n||e.nombre||"?",flag:"https://flagcdn.com/28x21/"+(e.f||e.flag||"xx").toLowerCase()+".png"},
+            points:e.pts||0,playedGames:e.pj||0,won:e.pg||0,draw:e.pe||0,lost:e.pp||0,
+            goalsFor:e.gf||0,goalsAgainst:e.gc||0
           };
         })
       };
     });
-    renderMundialGroups2(grupos, panel, getCountdownHtml());
+
+    // Header fijo "mundial en curso"
+    var headerHtml="<div style='text-align:center;padding:12px 0 16px'>"
+      +"<div style='font-size:2rem'>⚽</div>"
+      +"<div style='font-family:var(--font-display);font-size:1.4rem;color:var(--g2);margin-top:4px;letter-spacing:0.04em'>MUNDIAL EN CURSO</div>"
+      +"<div style='font-size:0.52rem;color:var(--mut);margin-top:3px;letter-spacing:0.08em'>USA · CANADA · MEXICO · 11 JUN – 19 JUL 2026</div>"
+      +"</div>";
+
+    // Sección partidos de hoy
+    var hoyHtml="";
+    if(hoyData.length){
+      var hayVivo=hoyData.some(function(m){return m.en_vivo;});
+      hoyHtml+="<div style='margin-bottom:16px'>";
+      hoyHtml+="<div style='font-size:0.62rem;color:var(--g2);font-weight:700;letter-spacing:0.08em;margin-bottom:8px'>"
+        +(hayVivo?"🔴 EN VIVO":"📅 PARTIDOS DE HOY")+"</div>";
+      hoyData.forEach(function(m){
+        var vivo=m.en_vivo;
+        var term=m.terminado;
+        var tieneScore=m.goles_local!==null&&m.goles_visita!==null;
+        var scoreStr=tieneScore?(m.goles_local+" - "+m.goles_visita):"vs";
+        var scoreColor=vivo?"#4ade80":term?"var(--ink)":"var(--mut)";
+        var borderColor=vivo?"rgba(74,222,128,0.35)":"var(--brd)";
+        var bgExtra=vivo?"background:rgba(74,222,128,0.04);":"";
+        hoyHtml+="<div style='display:flex;align-items:center;"+bgExtra+"border:1px solid "+borderColor+";border-radius:10px;padding:8px 10px;margin-bottom:6px'>";
+        hoyHtml+="<div style='flex:1;text-align:right;font-size:0.68rem;font-weight:600;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap'>"+m.local+"</div>";
+        hoyHtml+="<div style='min-width:64px;text-align:center;flex-shrink:0;padding:0 4px'>";
+        hoyHtml+="<div style='font-family:var(--font-display);font-size:1rem;font-weight:800;color:"+scoreColor+"'>"+scoreStr+"</div>";
+        if(vivo) hoyHtml+="<div style='font-size:0.42rem;color:#4ade80;letter-spacing:0.06em;margin-top:1px'>● EN VIVO</div>";
+        else if(term) hoyHtml+="<div style='font-size:0.42rem;color:var(--mut);letter-spacing:0.05em;margin-top:1px'>FINAL</div>";
+        else hoyHtml+="<div style='font-size:0.42rem;color:var(--mut);letter-spacing:0.05em;margin-top:1px'>"+(m.hora||"")+"</div>";
+        hoyHtml+="</div>";
+        hoyHtml+="<div style='flex:1;text-align:left;font-size:0.68rem;font-weight:600;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap'>"+m.visita+"</div>";
+        hoyHtml+="</div>";
+      });
+      hoyHtml+="<button onclick='window._mundialLoaded=false;renderMundial()' style='width:100%;padding:6px;background:transparent;border:1px solid var(--brd);border-radius:8px;color:var(--mut);font-size:0.55rem;letter-spacing:0.06em;cursor:pointer;margin-top:2px'>🔄 ACTUALIZAR</button>";
+      hoyHtml+="</div>";
+    } else {
+      // Sin partidos hoy — mostrar botón igual
+      hoyHtml="<div style='text-align:center;margin-bottom:14px'>"
+        +"<div style='font-size:0.6rem;color:var(--mut);margin-bottom:8px'>Sin partidos ahora mismo</div>"
+        +"<button onclick='window._mundialLoaded=false;renderMundial()' style='padding:6px 16px;background:transparent;border:1px solid var(--brd);border-radius:8px;color:var(--mut);font-size:0.55rem;letter-spacing:0.06em;cursor:pointer'>🔄 ACTUALIZAR</button>"
+        +"</div>";
+    }
+
+    renderMundialGroups2(grupos, panel, headerHtml+hoyHtml);
+
+    // Auto-refresh cada 90 seg si hay partido en vivo
+    if(hoyData.some(function(m){return m.en_vivo;})){
+      window._mundialRefreshTimer=setInterval(function(){
+        window._mundialLoaded=false;
+        renderMundial();
+      },90000);
+    }
   };
 
 
@@ -3920,7 +3964,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 
   if("serviceWorker"in navigator){
     window.addEventListener("load",function(){
-      navigator.serviceWorker.register("sw.js?v=16").then(function(reg){
+      navigator.serviceWorker.register("sw.js?v=17").then(function(reg){
         // Chequear actualizaciones cada vez que abre
         reg.update();
         // Si hay nueva versión esperando, activarla
