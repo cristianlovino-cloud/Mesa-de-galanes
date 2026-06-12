@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Mesa de Galanes</title>
-<meta name='app-version' content='2.12'>
+<meta name='app-version' content='2.13'>
 <meta name="color-scheme" content="dark">
 <meta name="theme-color" content="#080808">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
@@ -2614,33 +2614,27 @@
     panel.innerHTML="<div style='text-align:center;padding:24px 16px'>"
       +"<div style='font-size:2.2rem'>⚽</div>"
       +"<div style='font-family:var(--font-display);font-size:1.4rem;color:var(--g2);margin-top:6px'>MUNDIAL EN CURSO</div>"
-      +"<div style='font-size:0.6rem;color:var(--mut);margin-top:6px'>Cargando datos... ⏳</div>"
+      +"<div style='font-size:0.6rem;color:var(--mut);margin-top:6px'>Cargando... ⏳</div>"
       +"</div>";
 
     async function cargarPartidos(){
-      try{
-        var r=await fetch(SPORTS_BACKEND+"/mundial/partidos",{signal:AbortSignal.timeout(8000)});
-        var j=await r.json();
-        if(j.ok&&j.data&&j.data.length) return j.data;
-      }catch(e){ console.log("partidos falló",e); }
+      try{var r=await fetch(SPORTS_BACKEND+"/mundial/partidos",{signal:AbortSignal.timeout(8000)});var j=await r.json();if(j.ok&&j.data&&j.data.length)return j.data;}catch(e){}
       return [];
     }
     async function cargarGrupos(){
-      try{
-        var r=await fetch(SPORTS_BACKEND+"/mundial/grupos",{signal:AbortSignal.timeout(8000)});
-        var j=await r.json();
-        if(j.ok&&j.data&&j.data.length) return {source:"api",data:j.data};
-      }catch(e){ console.log("grupos falló"); }
-      return {source:"static",data:GRUPOS_MUNDIAL};
+      try{var r=await fetch(SPORTS_BACKEND+"/mundial/grupos",{signal:AbortSignal.timeout(8000)});var j=await r.json();if(j.ok&&j.data&&j.data.length)return{source:"api",data:j.data};}catch(e){}
+      return{source:"static",data:GRUPOS_MUNDIAL};
     }
 
     var results=await Promise.all([cargarPartidos(),cargarGrupos()]);
     var todosPartidos=results[0];
     var gruposResult=results[1];
 
+    // Ordenar grupos alfabéticamente A→L
     var grupos=gruposResult.data.map(function(g){
       return{
-        group:"Grupo "+g.g,
+        group:"Grupo "+(g.g||"?"),
+        letraSort:g.g||"Z",
         table:(g.equipos||[]).map(function(e){
           return{
             team:{name:e.n||e.nombre||"?",flag:"https://flagcdn.com/28x21/"+(e.f||e.flag||"xx").toLowerCase()+".png"},
@@ -2650,56 +2644,29 @@
         })
       };
     });
+    grupos.sort(function(a,b){return a.letraSort.localeCompare(b.letraSort);});
 
-    // Fecha hoy en formato "DD Mmm YYYY" (igual al Worker)
+    // Fecha hoy AR
     var arNow=new Date(Date.now()-3*3600000);
     var MESES_C=["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
     var arHoy=arNow.getUTCDate()+" "+MESES_C[arNow.getUTCMonth()]+" "+arNow.getUTCFullYear();
 
-    // Separar partidos: en vivo, hoy, recientes, próximos
     var vivos=todosPartidos.filter(function(m){return m.en_vivo;});
-    var hoyPartidos=todosPartidos.filter(function(m){return !m.en_vivo&&m.fecha===arHoy;});
+    var hoyP=todosPartidos.filter(function(m){return !m.en_vivo&&m.fecha===arHoy;});
     var terminados=todosPartidos.filter(function(m){return m.terminado&&!m.en_vivo;});
     var proximos=todosPartidos.filter(function(m){return !m.terminado&&!m.en_vivo&&m.fecha!==arHoy;});
 
-    // Función para parsear fecha "DD Mmm YYYY" o "11 Jun 2026" a timestamp
     function parseFecha(f){
       if(!f)return 0;
-      // formato DD Mmm YYYY
       var m=f.match(/(\d{1,2})\s+(\w+)\s+(\d{4})/);
       if(m){var ms={Ene:0,Feb:1,Mar:2,Abr:3,May:4,Jun:5,Jul:6,Ago:7,Sep:8,Oct:9,Nov:10,Dic:11};return new Date(parseInt(m[3]),ms[m[2]]||0,parseInt(m[1])).getTime();}
       return new Date(f).getTime()||0;
     }
-
-    // Ordenar terminados por fecha asc, tomar últimos 5 más recientes
     terminados.sort(function(a,b){return parseFecha(a.fecha)-parseFecha(b.fecha);});
-    var recientes=terminados.slice(-5).reverse();
-
-    // Ordenar próximos por fecha asc, tomar los 8 más cercanos
     proximos.sort(function(a,b){return parseFecha(a.fecha)-parseFecha(b.fecha);});
-    var siguientes=proximos.slice(0,8);
 
-    // Mapa nombre español → código flagcdn
-    var FLAG_MAP={
-      "España":"es","Francia":"fr","Alemania":"de","Países Bajos":"nl","Bélgica":"be",
-      "Portugal":"pt","Inglaterra":"gb-eng","Croacia":"hr","Brasil":"br","Argentina":"ar",
-      "Uruguay":"uy","Colombia":"co","Ecuador":"ec","Paraguay":"py","México":"mx",
-      "EE.UU.":"us","Canadá":"ca","Marruecos":"ma","Senegal":"sn","Nigeria":"ng",
-      "Camerún":"cm","Ghana":"gh","Túnez":"tn","Egipto":"eg","Costa de Marfil":"ci",
-      "Sudáfrica":"za","Cabo Verde":"cv","Japón":"jp","Corea del Sur":"kr",
-      "Australia":"au","Irán":"ir","Arabia Saudí":"sa","Qatar":"qa","Jordania":"jo",
-      "Irak":"iq","Uzbekistán":"uz","Suiza":"ch","Dinamarca":"dk","Suecia":"se",
-      "Noruega":"no","Austria":"at","Escocia":"gb-sct","Chequia":"cz",
-      "Nueva Zelanda":"nz","Bosnia":"ba","Argelia":"dz","Curazao":"cw",
-      "Turquía":"tr","Haití":"ht","Panamá":"pa","RD Congo":"cd","Costa Rica":"cr",
-      "Peru":"pe","Chile":"cl","Bolivia":"bo","Venezuela":"ve","Honduras":"hn",
-      "El Salvador":"sv","Jamaica":"jm","Guatemala":"gt","Nigeria":"ng",
-    };
-    function flagUrl(nombre){
-      var iso=FLAG_MAP[nombre];
-      if(!iso)return null;
-      return "https://flagcdn.com/20x15/"+iso+".png";
-    }
+    var FLAG_MAP={"España":"es","Francia":"fr","Alemania":"de","Países Bajos":"nl","Bélgica":"be","Portugal":"pt","Inglaterra":"gb-eng","Croacia":"hr","Brasil":"br","Argentina":"ar","Uruguay":"uy","Colombia":"co","Ecuador":"ec","Paraguay":"py","México":"mx","EE.UU.":"us","Canadá":"ca","Marruecos":"ma","Senegal":"sn","Nigeria":"ng","Camerún":"cm","Ghana":"gh","Túnez":"tn","Egipto":"eg","Costa de Marfil":"ci","Sudáfrica":"za","Cabo Verde":"cv","Japón":"jp","Corea del Sur":"kr","Australia":"au","Irán":"ir","Arabia Saudí":"sa","Qatar":"qa","Jordania":"jo","Irak":"iq","Uzbekistán":"uz","Suiza":"ch","Dinamarca":"dk","Suecia":"se","Noruega":"no","Austria":"at","Escocia":"gb-sct","Chequia":"cz","Nueva Zelanda":"nz","Bosnia":"ba","Argelia":"dz","Curazao":"cw","Turquía":"tr","Haití":"ht","Panamá":"pa","RD Congo":"cd","Costa Rica":"cr"};
+    function flagUrl(n){var iso=FLAG_MAP[n];return iso?"https://flagcdn.com/20x15/"+iso+".png":null;}
     function equipoHtml(nombre,align){
       var flag=flagUrl(nombre);
       var fl=flag?"<img src='"+flag+"' style='width:18px;height:13px;object-fit:cover;border-radius:2px;flex-shrink:0' onerror='this.style.display=\"none\"'>":"";
@@ -2709,99 +2676,130 @@
                  :(fl+"<span style='font-size:0.75rem;font-weight:700;color:#f0f0f0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis'>"+nombre+"</span>"))
         +"</div>";
     }
-
     function tarjetaPartido(m,modo){
-      var vivo=modo==="vivo";
-      var result=modo==="resultado";
+      var vivo=modo==="vivo",result=modo==="resultado";
       var tieneScore=m.goles_local!==null&&m.goles_visita!==null;
-      var gl=tieneScore?m.goles_local:"";
-      var gv=tieneScore?m.goles_visita:"";
-      var scoreColor=vivo?"#4ade80":result?"#ffffff":"rgba(255,255,255,0.35)";
+      var scoreColor=vivo?"#4ade80":result?"#ffffff":"rgba(255,255,255,0.4)";
       var border=vivo?"rgba(74,222,128,0.45)":result?"rgba(255,255,255,0.15)":"rgba(255,255,255,0.08)";
       var bg=vivo?"rgba(74,222,128,0.05)":"rgba(255,255,255,0.03)";
-      var fechaCorta=m.fecha||"";
-      var horaStr=m.hora?(m.hora+" hs"):"";
-      var meta=(m.grupo?"Gr. "+m.grupo:"")+(fechaCorta?" · "+fechaCorta:"")+(horaStr?" · "+horaStr:"");
-
+      var meta=(m.grupo?"Gr. "+m.grupo:"")+(m.fecha?" · "+m.fecha:"")+(m.hora?" · "+m.hora+" hs":"");
       var h="<div style='background:"+bg+";border:1px solid "+border+";border-radius:12px;padding:10px 12px;margin-bottom:8px'>";
-      // Fila equipos + score
       h+="<div style='display:flex;align-items:center;gap:6px'>";
       h+=equipoHtml(m.local,"right");
-      // Marcador centro
       h+="<div style='min-width:70px;text-align:center;flex-shrink:0'>";
       if(tieneScore){
         h+="<div style='display:flex;align-items:center;justify-content:center;gap:4px'>";
-        h+="<span style='font-family:var(--font-display);font-size:1.4rem;font-weight:900;color:"+scoreColor+";line-height:1'>"+gl+"</span>";
-        h+="<span style='font-size:0.8rem;color:rgba(255,255,255,0.3);font-weight:300'>–</span>";
-        h+="<span style='font-family:var(--font-display);font-size:1.4rem;font-weight:900;color:"+scoreColor+";line-height:1'>"+gv+"</span>";
+        h+="<span style='font-family:var(--font-display);font-size:1.4rem;font-weight:900;color:"+scoreColor+";line-height:1'>"+m.goles_local+"</span>";
+        h+="<span style='font-size:0.8rem;color:rgba(255,255,255,0.25)'>–</span>";
+        h+="<span style='font-family:var(--font-display);font-size:1.4rem;font-weight:900;color:"+scoreColor+";line-height:1'>"+m.goles_visita+"</span>";
         h+="</div>";
       } else {
-        h+="<div style='font-size:0.65rem;color:rgba(255,255,255,0.25);font-weight:600;letter-spacing:0.04em'>VS</div>";
+        h+="<div style='font-size:0.65rem;color:rgba(255,255,255,0.2);font-weight:600;letter-spacing:0.04em'>VS</div>";
       }
       if(vivo) h+="<div style='font-size:0.42rem;color:#4ade80;letter-spacing:0.08em;margin-top:2px'>● EN VIVO</div>";
-      else if(result) h+="<div style='font-size:0.42rem;color:rgba(255,255,255,0.3);letter-spacing:0.06em;margin-top:2px'>FINAL</div>";
+      else if(result) h+="<div style='font-size:0.42rem;color:rgba(255,255,255,0.35);letter-spacing:0.06em;margin-top:2px'>FINAL</div>";
       h+="</div>";
       h+=equipoHtml(m.visita,"left");
       h+="</div>";
-      // Meta siempre visible
-      if(meta){
-        h+="<div style='text-align:center;font-size:0.5rem;color:rgba(255,255,255,0.5);margin-top:5px;letter-spacing:0.05em'>"+meta+"</div>";
-      }
+      if(meta) h+="<div style='text-align:center;font-size:0.5rem;color:rgba(255,255,255,0.45);margin-top:5px;letter-spacing:0.04em'>"+meta+"</div>";
       h+="</div>";
       return h;
     }
 
-    // Header
-    var headerHtml="<div style='text-align:center;padding:10px 0 14px'>"
-      +"<div style='font-size:2rem'>⚽</div>"
-      +"<div style='font-family:var(--font-display);font-size:1.4rem;color:var(--g2);margin-top:4px;letter-spacing:0.04em'>MUNDIAL EN CURSO</div>"
-      +"<div style='font-size:0.5rem;color:var(--mut);margin-top:3px;letter-spacing:0.08em'>USA · CANADA · MEXICO · 11 JUN – 19 JUL 2026</div>"
-      +"</div>";
-
-    var partidosHtml="";
-
-    // EN VIVO
+    // ── Armar contenido de cada sub-tab ──────────────────────────────────────
+    // 1. EN VIVO
+    var htmlVivo="";
     if(vivos.length){
-      partidosHtml+="<div style='margin-bottom:14px'>";
-      partidosHtml+="<div style='font-size:0.6rem;color:#4ade80;font-weight:700;letter-spacing:0.08em;margin-bottom:7px'>🔴 EN VIVO</div>";
-      vivos.forEach(function(m){partidosHtml+=tarjetaPartido(m,"vivo");});
-      partidosHtml+="</div>";
+      vivos.forEach(function(m){htmlVivo+=tarjetaPartido(m,"vivo");});
+    }
+    if(hoyP.length){
+      if(htmlVivo) htmlVivo+="<div style='font-size:0.58rem;color:rgba(255,255,255,0.4);letter-spacing:0.06em;margin:10px 0 6px'>📅 HOY</div>";
+      hoyP.forEach(function(m){htmlVivo+=tarjetaPartido(m,"hoy");});
+    }
+    if(!htmlVivo) htmlVivo="<div style='text-align:center;padding:30px 0;font-size:0.65rem;color:var(--mut)'>No hay partidos en este momento</div>";
+
+    // 2. RESULTADOS (todos terminados, más recientes primero, agrupados por fecha)
+    var htmlResultados="";
+    var terminadosDesc=terminados.slice().reverse();
+    var fechaActual="";
+    terminadosDesc.forEach(function(m){
+      if(m.fecha!==fechaActual){
+        fechaActual=m.fecha;
+        htmlResultados+="<div style='font-size:0.55rem;color:rgba(255,255,255,0.4);letter-spacing:0.06em;margin:10px 0 6px;padding-top:"+(htmlResultados?"4px":"0")+"'>"+m.fecha+"</div>";
+      }
+      htmlResultados+=tarjetaPartido(m,"resultado");
+    });
+    if(!htmlResultados) htmlResultados="<div style='text-align:center;padding:30px 0;font-size:0.65rem;color:var(--mut)'>Sin resultados aún</div>";
+
+    // 3. PRÓXIMOS
+    var htmlProximos="";
+    var fechaProx="";
+    proximos.forEach(function(m){
+      if(m.fecha!==fechaProx){
+        fechaProx=m.fecha;
+        htmlProximos+="<div style='font-size:0.55rem;color:rgba(255,255,255,0.4);letter-spacing:0.06em;margin:10px 0 6px;padding-top:"+(htmlProximos?"4px":"0")+"'>"+m.fecha+"</div>";
+      }
+      htmlProximos+=tarjetaPartido(m,"proximo");
+    });
+    if(!htmlProximos) htmlProximos="<div style='text-align:center;padding:30px 0;font-size:0.65rem;color:var(--mut)'>Sin próximos partidos</div>";
+
+    // 4. GRUPOS (renderMundialGroups2 lo maneja)
+    var htmlGrupos="__GRUPOS__"; // placeholder, lo inyecta renderMundialGroups2
+
+    // ── Sub-tabs ─────────────────────────────────────────────────────────────
+    var tabInicial=vivos.length?"vivo":hoyP.length?"vivo":"resultados";
+
+    var tabsData=[
+      {id:"vivo",   label: vivos.length?"🔴 EN VIVO":"🔴 EN VIVO", content:htmlVivo},
+      {id:"resultados", label:"✅ RESULTADOS", content:htmlResultados},
+      {id:"proximos",   label:"🗓 PRÓXIMOS",   content:htmlProximos},
+      {id:"grupos",     label:"🏆 GRUPOS",     content:htmlGrupos},
+    ];
+
+    function renderSubTab(activeId){
+      var html="<div style='text-align:center;padding:8px 0 14px'>"
+        +"<div style='font-family:var(--font-display);font-size:1.2rem;color:var(--g2);letter-spacing:0.04em'>⚽ MUNDIAL 2026</div>"
+        +"<div style='font-size:0.48rem;color:var(--mut);margin-top:2px;letter-spacing:0.08em'>USA · CANADA · MEXICO · 11 JUN – 19 JUL</div>"
+        +"</div>";
+
+      // Barra de sub-tabs
+      html+="<div style='display:flex;gap:2px;background:rgba(255,255,255,0.04);border-radius:10px;padding:3px;margin-bottom:14px;overflow-x:auto;scrollbar-width:none'>";
+      tabsData.forEach(function(t){
+        var active=t.id===activeId;
+        html+="<button onclick='window.switchMundialTab(\""+t.id+"\")' style='flex:1;min-width:64px;padding:6px 4px;border:none;border-radius:8px;font-size:0.5rem;font-weight:700;letter-spacing:0.04em;cursor:pointer;white-space:nowrap;transition:all 0.15s;"
+          +(active?"background:var(--g2);color:#000;":"background:transparent;color:rgba(255,255,255,0.45);")+"'>"+t.label+"</button>";
+      });
+      html+="</div>";
+
+      // Contenido activo
+      html+="<div id='mun-subtab-content'>";
+      if(activeId==="grupos"){
+        html+="<div id='mun-grupos-inner'></div>";
+      } else {
+        var tab=tabsData.find(function(t){return t.id===activeId;});
+        html+=(tab?tab.content:"");
+      }
+      html+="</div>";
+
+      // Botón actualizar
+      html+="<button onclick='window._mundialLoaded=false;renderMundial()' style='width:100%;padding:6px;background:transparent;border:1px solid var(--brd);border-radius:8px;color:var(--mut);font-size:0.52rem;letter-spacing:0.06em;cursor:pointer;margin-top:8px'>🔄 ACTUALIZAR</button>";
+
+      panel.innerHTML=html;
+
+      if(activeId==="grupos"){
+        var inner=document.getElementById("mun-grupos-inner");
+        if(inner) renderMundialGroups2(grupos, inner, "");
+      }
+
+      window._mundialActiveTab=activeId;
     }
 
-    // HOY
-    if(hoyPartidos.length){
-      partidosHtml+="<div style='margin-bottom:14px'>";
-      partidosHtml+="<div style='font-size:0.6rem;color:var(--g2);font-weight:700;letter-spacing:0.08em;margin-bottom:7px'>📅 HOY</div>";
-      hoyPartidos.forEach(function(m){partidosHtml+=tarjetaPartido(m,"hoy");});
-      partidosHtml+="</div>";
-    }
+    window.switchMundialTab=function(id){
+      renderSubTab(id);
+    };
 
-    // ÚLTIMOS RESULTADOS
-    if(recientes.length){
-      partidosHtml+="<div style='margin-bottom:14px'>";
-      partidosHtml+="<div style='font-size:0.6rem;color:var(--g2);font-weight:700;letter-spacing:0.08em;margin-bottom:7px'>✅ ÚLTIMOS RESULTADOS</div>";
-      recientes.forEach(function(m){partidosHtml+=tarjetaPartido(m,"resultado");});
-      partidosHtml+="</div>";
-    }
+    renderSubTab(tabInicial);
 
-    // PRÓXIMOS PARTIDOS
-    if(siguientes.length){
-      partidosHtml+="<div style='margin-bottom:14px'>";
-      partidosHtml+="<div style='font-size:0.6rem;color:var(--g2);font-weight:700;letter-spacing:0.08em;margin-bottom:7px'>🗓 PRÓXIMOS PARTIDOS</div>";
-      siguientes.forEach(function(m){partidosHtml+=tarjetaPartido(m,"proximo");});
-      partidosHtml+="</div>";
-    }
-
-    if(!vivos.length&&!hoyPartidos.length&&!recientes.length&&!siguientes.length){
-      partidosHtml="<div style='text-align:center;padding:10px 0;font-size:0.6rem;color:var(--mut)'>Sin datos de partidos disponibles</div>";
-    }
-
-    // Botón actualizar siempre
-    partidosHtml+="<button onclick='window._mundialLoaded=false;renderMundial()' style='width:100%;padding:6px;background:transparent;border:1px solid var(--brd);border-radius:8px;color:var(--mut);font-size:0.55rem;letter-spacing:0.06em;cursor:pointer;margin-bottom:14px'>🔄 ACTUALIZAR</button>";
-
-    renderMundialGroups2(grupos, panel, headerHtml+partidosHtml);
-
-    // Auto-refresh cada 90 seg si hay partido en vivo
     if(vivos.length){
       window._mundialRefreshTimer=setInterval(function(){
         window._mundialLoaded=false;renderMundial();
@@ -2810,9 +2808,10 @@
   };
 
 
+
   // Versión simplificada que recibe grupos ya procesados
   function renderMundialGroups2(grupos, panel, cdHtml){
-    var html=cdHtml;
+    var html=cdHtml||"";
     var tienePartidos=false;
 
     html+="<div style='font-size:0.62rem;color:var(--g2);font-weight:700;letter-spacing:0.08em;margin-bottom:10px'>⚽ FASE DE GRUPOS — MUNDIAL 2026</div>";
@@ -4095,7 +4094,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 
   if("serviceWorker"in navigator){
     window.addEventListener("load",function(){
-      navigator.serviceWorker.register("sw.js?v=22").then(function(reg){
+      navigator.serviceWorker.register("sw.js?v=23").then(function(reg){
         // Chequear actualizaciones cada vez que abre
         reg.update();
         // Si hay nueva versión esperando, activarla
