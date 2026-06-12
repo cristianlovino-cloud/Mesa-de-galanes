@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Mesa de Galanes</title>
-<meta name='app-version' content='2.13'>
+<meta name='app-version' content='2.14'>
 <meta name="color-scheme" content="dark">
 <meta name="theme-color" content="#080808">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
@@ -2651,9 +2651,9 @@
     var MESES_C=["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
     var arHoy=arNow.getUTCDate()+" "+MESES_C[arNow.getUTCMonth()]+" "+arNow.getUTCFullYear();
 
-    var vivos=todosPartidos.filter(function(m){return m.en_vivo;});
-    var hoyP=todosPartidos.filter(function(m){return !m.en_vivo&&m.fecha===arHoy;});
-    var terminados=todosPartidos.filter(function(m){return m.terminado&&!m.en_vivo;});
+    var vivos=todosPartidos.filter(function(m){return m.en_vivo&&!m.terminado;});
+    var hoyP=todosPartidos.filter(function(m){return !m.en_vivo&&!m.terminado&&m.fecha===arHoy;});
+    var terminados=todosPartidos.filter(function(m){return m.terminado;});
     var proximos=todosPartidos.filter(function(m){return !m.terminado&&!m.en_vivo&&m.fecha!==arHoy;});
 
     function parseFecha(f){
@@ -4094,7 +4094,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 
   if("serviceWorker"in navigator){
     window.addEventListener("load",function(){
-      navigator.serviceWorker.register("sw.js?v=23").then(function(reg){
+      navigator.serviceWorker.register("sw.js?v=24").then(function(reg){
         // Chequear actualizaciones cada vez que abre
         reg.update();
         // Si hay nueva versión esperando, activarla
