@@ -2649,7 +2649,7 @@
     // Fecha hoy AR
     var arNow=new Date(Date.now()-3*3600000);
     var MESES_C=["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
-    var arHoy=arNow.getUTCDate()+" "+MESES_C[arNow.getUTCMonth()]+" "+arNow.getUTCFullYear();
+    var arHoy=arNow.getUTCDate()+" "+MESES_C[arNow.getUTCMonth()];
 
     var vivos=todosPartidos.filter(function(m){return m.en_vivo&&!m.terminado;});
     var hoyP=todosPartidos.filter(function(m){return !m.en_vivo&&!m.terminado&&m.fecha===arHoy;});
@@ -2747,7 +2747,7 @@
     var htmlGrupos="__GRUPOS__"; // placeholder, lo inyecta renderMundialGroups2
 
     // ── Sub-tabs ─────────────────────────────────────────────────────────────
-    var tabInicial=vivos.length?"vivo":hoyP.length?"vivo":"resultados";
+    var tabInicial=vivos.length?"vivo":hoyP.length?"vivo":terminados.length?"resultados":"proximos";
 
     var tabsData=[
       {id:"vivo",   label: vivos.length?"🔴 EN VIVO":"🔴 EN VIVO", content:htmlVivo},
@@ -2801,7 +2801,7 @@
     renderSubTab(tabInicial);
 
     // Auto-refresh cada 60 seg si hay partido en vivo — independiente del sub-tab activo
-    if(vivos.length||hoyP.length){
+    if(vivos.length||hoyP.length||terminados.length){
       window._mundialRefreshTimer=setInterval(function(){
         // Solo refrescar si el usuario está en la tab MUND
         var mundialPanel=document.getElementById("mundial-content");
@@ -4098,7 +4098,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.72";
+  var APP_VERSION="10.0.73";
   var STORED_VERSION=localStorage.getItem("app_version");
 
   if("serviceWorker"in navigator){
