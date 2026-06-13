@@ -2618,18 +2618,7 @@
       +"</div>";
 
     async function cargarPartidos(){
-      try{
-        var r=await fetch(SPORTS_BACKEND+"/mundial/partidos",{signal:AbortSignal.timeout(12000)});
-        var txt=await r.text();
-        console.log("[Mundial raw]",txt.slice(0,300));
-        var j=JSON.parse(txt);
-        console.log("[Mundial] ok:"+j.ok+" items:"+(j.data?j.data.length:0));
-        if(j.ok&&j.data&&j.data.length)return j.data;
-        panel.dataset.dbg="ok:"+j.ok+" items:"+(j.data?j.data.length:0)+" err:"+(j.error||"-");
-      }catch(e){
-        console.log("[Mundial] error:",e.message);
-        panel.dataset.dbg="CATCH:"+e.message;
-      }
+      try{var r=await fetch(SPORTS_BACKEND+"/mundial/partidos",{signal:AbortSignal.timeout(20000)});var j=await r.json();if(j.ok&&j.data&&j.data.length)return j.data;}catch(e){console.log("[Mundial] partidos error:",e.message);}
       return [];
     }
     async function cargarGrupos(){
@@ -2740,7 +2729,7 @@
       }
       htmlResultados+=tarjetaPartido(m,"resultado");
     });
-    if(!htmlResultados) htmlResultados="<div style='text-align:center;padding:30px 0;font-size:0.65rem;color:var(--mut)'>Sin resultados aún<br><small style='font-size:0.5rem;opacity:0.5'>total:"+todosPartidos.length+" term:"+terminados.length+" dbg:"+(panel.dataset.dbg||'-')+"</small></div>";
+    if(!htmlResultados) htmlResultados="<div style='text-align:center;padding:30px 0;font-size:0.65rem;color:var(--mut)'>Sin resultados aún</div>";
 
     // 3. PRÓXIMOS
     var htmlProximos="";
@@ -2812,7 +2801,7 @@
     renderSubTab(tabInicial);
 
     // Auto-refresh cada 60 seg si hay partido en vivo — independiente del sub-tab activo
-    if(vivos.length||hoyP.length){
+    if(vivos.length||hoyP.length||terminados.length){
       window._mundialRefreshTimer=setInterval(function(){
         // Solo refrescar si el usuario está en la tab MUND
         var mundialPanel=document.getElementById("mundial-content");
