@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Mesa de Galanes</title>
-<meta name='app-version' content='2.15'>
+<meta name='app-version' content='2.16'>
 <meta name="color-scheme" content="dark">
 <meta name="theme-color" content="#080808">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
@@ -2800,10 +2800,19 @@
 
     renderSubTab(tabInicial);
 
-    if(vivos.length){
+    // Auto-refresh cada 60 seg si hay partido en vivo — independiente del sub-tab activo
+    if(vivos.length||hoyP.length){
       window._mundialRefreshTimer=setInterval(function(){
-        window._mundialLoaded=false;renderMundial();
-      },90000);
+        // Solo refrescar si el usuario está en la tab MUND
+        var mundialPanel=document.getElementById("mundial-content");
+        if(mundialPanel&&mundialPanel.offsetParent!==null){
+          window._mundialLoaded=false;
+          var tabActiva=window._mundialActiveTab||"vivo";
+          renderMundial().then(function(){
+            if(window.switchMundialTab) window.switchMundialTab(tabActiva);
+          });
+        }
+      },60000);
     }
   };
 
@@ -4094,7 +4103,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 
   if("serviceWorker"in navigator){
     window.addEventListener("load",function(){
-      navigator.serviceWorker.register("sw.js?v=25").then(function(reg){
+      navigator.serviceWorker.register("sw.js?v=26").then(function(reg){
         // Chequear actualizaciones cada vez que abre
         reg.update();
         // Si hay nueva versión esperando, activarla
