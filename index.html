@@ -280,8 +280,11 @@
         if(Date.now()-lastReload<10000)return;
         sessionStorage.setItem("lastVerReload",Date.now());
         console.log("Nueva versión: "+remoteV+". Recargando...");
-        if("caches"in window)caches.keys().then(function(ns){ns.forEach(function(n){caches.delete(n);});});
-        setTimeout(function(){window.location.reload(true);},1200);
+        // Limpiar SW + caches para forzar descarga fresca (fix PWA instalada)
+        Promise.all([
+          "caches"in window?caches.keys().then(function(ns){return Promise.all(ns.map(function(n){return caches.delete(n);}));}):Promise.resolve(),
+          navigator.serviceWorker?navigator.serviceWorker.getRegistrations().then(function(regs){return Promise.all(regs.map(function(r){return r.unregister();}));}):Promise.resolve()
+        ]).then(function(){setTimeout(function(){window.location.reload(true);},500);});
       }
     });
     var vb=document.getElementById("vbtn");if(vb)vb.textContent=voiceOn?"🔊":"🔇";
@@ -308,22 +311,21 @@
     if(!me||isAdmin())return;
     var last=parseInt(localStorage.getItem("last_activity")||"0");
     var now=Date.now();
-    var hoy=new Date(),diaSem=hoy.getDay(); // 0=dom,6=sab
+    var hoy=new Date(),diaSem=hoy.getDay();
     var arHour=((hoy.getUTCHours()-3)+24)%24;
     // Logout si:
-    // 1) Nunca hubo actividad registrada (abrió desde web sin instalar)
-    // 2) Pasaron más de 24hs desde última actividad
-    // 3) Es domingo o después (el café terminó) → limpiar para el próximo sábado
-    var sinActividad=!last;
+    // 1) Nueva versión instalada (versión cambió desde última sesión)
+    // 2) Pasaron más de 24hs sin actividad
+    // 3) Es domingo o sab después de las 15 (café terminó)
+    var versionCambio=STORED_VERSION&&STORED_VERSION!==APP_VERSION;
     var vencido=last&&(now-last>86400000);
-    var cafeTermino=diaSem===0||(diaSem===6&&arHour>=15); // dom, o sab después de las 15
-    if(sinActividad||vencido||cafeTermino){
+    var cafeTermino=diaSem===0||(diaSem===6&&arHour>=15);
+    if(versionCambio||vencido||cafeTermino){
       me="";
       localStorage.removeItem("galan_name");
       localStorage.removeItem("last_activity");
-      console.log("Auto-logout:",sinActividad?"sin actividad":vencido?"vencido":"café terminó");
+      console.log("Auto-logout:",versionCambio?"version nueva":vencido?"inactividad 24hs":"café terminó");
     } else {
-      // Refrescar timestamp al abrir la app (fix para browsers que no disparan click)
       localStorage.setItem("last_activity",now.toString());
     }
   })();
@@ -4102,7 +4104,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.75";
+  var APP_VERSION="10.0.76";
   var STORED_VERSION=localStorage.getItem("app_version");
 
   if("serviceWorker"in navigator){
@@ -4200,5 +4202,58 @@ window.modificarPedido=function(){
   </div>
 </div>
 
+
+<!-- Banner instalación PWA -->
+<div id="pwa-banner" style="display:none;position:fixed;bottom:0;left:0;right:0;z-index:9999;padding:12px 16px;background:linear-gradient(135deg,#1a1200,#0d0d0d);border-top:1.5px solid rgba(245,197,24,0.4);display:flex;align-items:center;gap:12px;box-shadow:0 -4px 24px rgba(0,0,0,0.5)">
+  <div style="font-size:1.6rem;flex-shrink:0">📲</div>
+  <div style="flex:1;min-width:0">
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:1rem;color:#f5c518;letter-spacing:0.05em">INSTALÁ LA APP</div>
+    <div style="font-size:0.65rem;color:rgba(255,255,255,0.5);margin-top:1px">Más rápida · Funciona offline · Siempre actualizada</div>
+  </div>
+  <button onclick="pwaBannerInstall()" style="background:#f5c518;color:#000;border:none;border-radius:10px;padding:9px 16px;font-family:'Bebas Neue',sans-serif;font-size:0.95rem;letter-spacing:0.05em;cursor:pointer;flex-shrink:0">INSTALAR</button>
+  <button onclick="pwaBannerDismiss()" style="background:none;border:none;color:rgba(255,255,255,0.35);font-size:1.2rem;cursor:pointer;padding:4px;flex-shrink:0">✕</button>
+</div>
+
+<script>
+  // ── PWA INSTALL BANNER ────────────────────────────────────────────────────
+  var _pwaDeferredPrompt=null;
+  window.addEventListener("beforeinstallprompt",function(e){
+    e.preventDefault();
+    _pwaDeferredPrompt=e;
+    // Solo mostrar si no lo descartó antes y tiene nombre (está logueado)
+    var dismissed=localStorage.getItem("pwa_banner_dismissed");
+    var me2=localStorage.getItem("galan_name");
+    if(!dismissed&&me2){
+      var b=document.getElementById("pwa-banner");
+      if(b)b.style.display="flex";
+    }
+  });
+  // Si ya está instalada como PWA, nunca mostrar
+  if(window.matchMedia("(display-mode: standalone)").matches||window.navigator.standalone){
+    localStorage.setItem("pwa_banner_dismissed","1");
+  }
+  window.pwaBannerInstall=function(){
+    var b=document.getElementById("pwa-banner");
+    if(b)b.style.display="none";
+    if(_pwaDeferredPrompt){
+      _pwaDeferredPrompt.prompt();
+      _pwaDeferredPrompt.userChoice.then(function(r){
+        if(r.outcome==="accepted")localStorage.setItem("pwa_banner_dismissed","1");
+        _pwaDeferredPrompt=null;
+      });
+    }
+  };
+  window.pwaBannerDismiss=function(){
+    var b=document.getElementById("pwa-banner");
+    if(b)b.style.display="none";
+    // Volver a mostrar en 3 días
+    localStorage.setItem("pwa_banner_dismissed",Date.now().toString());
+  };
+  // Mostrar de nuevo si pasaron 3 días desde que lo cerró
+  (function(){
+    var d=parseInt(localStorage.getItem("pwa_banner_dismissed")||"0");
+    if(d>1&&Date.now()-d>3*86400000)localStorage.removeItem("pwa_banner_dismissed");
+  })();
+</script>
 </body>
 </html>
