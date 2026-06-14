@@ -111,14 +111,14 @@
   const app=initializeApp(FC),db=getDatabase(app);
   const rO=ref(db,"pedido/orders"),rD=ref(db,"pedido/drinks"),rS=ref(db,"pedido/session");
   const rF=ref(db,"pedido/favorito"),rT=ref(db,"pedido/timer"),rC=ref(db,"pedido/confirmed");
-  const rP=ref(db,"pedido/pagos"),rB=ref(db,"pedido/totalBar");
+  const rP=ref(db,"pedido/pagos"),rB=ref(db,"pedido/totalBar"),rCob=ref(db,"pedido/cobrador");
   const rG=ref(db,"config/galanes"),rR=ref(db,"reserva"),rH=ref(db,"historial");
   const rA=ref(db,"config/accesos"),rCump=ref(db,"config/cumples"),rPend=ref(db,"config/pendientes"),rPres=ref(db,"pedido/presentes");
   const rNuevos=ref(db,"config/nuevos");
   const rVer=ref(db,"config/appVersion");
 
   var me=localStorage.getItem("galan_name")||null;
-  var orders={},drinks=[],confirmed={},pagos={},galanes=[],totalBar=0,pendientes={},presentes={};
+  var orders={},drinks=[],confirmed={},pagos={},galanes=[],totalBar=0,pendientes={},presentes={},cobrador=null;
   var reservas={},accesos={},cumples={};
   var pDrink=null,pFor=null,selPlayers=[],dragIdx=null;
   var timerIv=null,timerD=null,editPP=null,editPT=null,fusionSel=[];
@@ -227,6 +227,7 @@
     onValue(rC,function(s){try{confirmed=s.exists()?s.val():{};renderConfirmBtn();renderDrinks();renderMiSaldo();renderOrders();renderMesa();renderLista();}catch(e){console.error("rC",e);}});
     onValue(rP,function(s){try{pagos=s.exists()?s.val():{};renderOrders();renderMesa();renderLista();renderPagosDetail();renderMiSaldo();renderConfirmBtn();}catch(e){console.error("rP",e);}});
     onValue(rB,function(s){try{totalBar=s.exists()?s.val():0;renderMesa();}catch(e){console.error("rB",e);}});
+    onValue(rCob,function(s){try{cobrador=s.exists()?s.val():null;renderPagosHeader();}catch(e){console.error("rCob",e);}});
     onValue(rT,function(s){timerD=s.exists()?s.val():null;renderTimer();});
     onValue(rR,function(s){try{reservas=s.exists()?s.val():{};renderReserva();renderMesa();renderLista();if(document.getElementById("v-stats")&&document.getElementById("v-stats").style.display!=="none")renderStats();}catch(e){console.error("rR",e);}});
     onValue(rA,function(s){accesos=s.exists()?s.val():{};renderLista();});
@@ -280,11 +281,8 @@
         if(Date.now()-lastReload<10000)return;
         sessionStorage.setItem("lastVerReload",Date.now());
         console.log("Nueva versión: "+remoteV+". Recargando...");
-        // Limpiar SW + caches para forzar descarga fresca (fix PWA instalada)
-        Promise.all([
-          "caches"in window?caches.keys().then(function(ns){return Promise.all(ns.map(function(n){return caches.delete(n);}));}):Promise.resolve(),
-          navigator.serviceWorker?navigator.serviceWorker.getRegistrations().then(function(regs){return Promise.all(regs.map(function(r){return r.unregister();}));}):Promise.resolve()
-        ]).then(function(){setTimeout(function(){window.location.reload(true);},500);});
+        if("caches"in window)caches.keys().then(function(ns){ns.forEach(function(n){caches.delete(n);});});
+        setTimeout(function(){window.location.reload(true);},1200);
       }
     });
     var vb=document.getElementById("vbtn");if(vb)vb.textContent=voiceOn?"🔊":"🔇";
@@ -311,21 +309,22 @@
     if(!me||isAdmin())return;
     var last=parseInt(localStorage.getItem("last_activity")||"0");
     var now=Date.now();
-    var hoy=new Date(),diaSem=hoy.getDay();
+    var hoy=new Date(),diaSem=hoy.getDay(); // 0=dom,6=sab
     var arHour=((hoy.getUTCHours()-3)+24)%24;
     // Logout si:
-    // 1) Nueva versión instalada (versión cambió desde última sesión)
-    // 2) Pasaron más de 24hs sin actividad
-    // 3) Es domingo o sab después de las 15 (café terminó)
-    var versionCambio=STORED_VERSION&&STORED_VERSION!==APP_VERSION;
+    // 1) Nunca hubo actividad registrada (abrió desde web sin instalar)
+    // 2) Pasaron más de 24hs desde última actividad
+    // 3) Es domingo o después (el café terminó) → limpiar para el próximo sábado
+    var sinActividad=!last;
     var vencido=last&&(now-last>86400000);
-    var cafeTermino=diaSem===0||(diaSem===6&&arHour>=15);
-    if(versionCambio||vencido||cafeTermino){
+    var cafeTermino=diaSem===0||(diaSem===6&&arHour>=15); // dom, o sab después de las 15
+    if(sinActividad||vencido||cafeTermino){
       me="";
       localStorage.removeItem("galan_name");
       localStorage.removeItem("last_activity");
-      console.log("Auto-logout:",versionCambio?"version nueva":vencido?"inactividad 24hs":"café terminó");
+      console.log("Auto-logout:",sinActividad?"sin actividad":vencido?"vencido":"café terminó");
     } else {
+      // Refrescar timestamp al abrir la app (fix para browsers que no disparan click)
       localStorage.setItem("last_activity",now.toString());
     }
   })();
@@ -444,7 +443,7 @@
     window._adminStab=stab;
     if(stab==="galanes"){renderLista();renderPendientes();}
     if(stab==="pedidos")renderMesa();
-    if(stab==="pagos")renderPagosDetail();
+    if(stab==="pagos"){renderPagosHeader();renderPagosDetail();}
   };
 
   // ── TIMER ─────────────────────────────────────────────────
@@ -2136,7 +2135,7 @@
       h+="<span style='font-size:0.65rem;color:var(--mut)'>TOTAL RECAUDADO</span><span style='font-size:1rem;font-weight:800;color:var(--ink)'>$"+Math.round(rec)+"</span></div>";
       if(isAdmin())h+="<div class='pres-row' style='margin-top:6px'><span class='pres-item' style='flex:1'>🧾 Total del bar:</span><button onclick='openTotalBar()' class='bar-total-btn'>"+(totalBar>0?"$"+Math.round(totalBar):"Ingresar →")+"</button></div>";
       if(totalBar>0)h+="<div class='pres-dif' style='color:"+difColor+"'>"+difStr+"</div>";
-      h+=faltan>0?"<div class='pres-falta'>⚠️ "+faltan+" sin pagar</div>":"<div class='pres-ok'>✓ Todos pagaron</div>";
+      if(cobrador)h+="<div style='margin-bottom:4px;font-size:0.68rem;color:rgba(245,197,24,0.8)'>👑 Cobra: <b>"+cobrador.toUpperCase()+"</b></div>";h+=faltan>0?"<div class='pres-falta'>⚠️ "+faltan+" sin pagar</div>":"<div class='pres-ok'>✓ Todos pagaron</div>";
       pb.innerHTML=h;pb.style.display="block";
     }else pb.style.display="none";
     var ri=document.getElementById("mesa-reserva-info");
@@ -2279,11 +2278,11 @@
         row+="<div style='display:flex;gap:8px;align-items:center;margin-top:3px;flex-wrap:wrap'>";
         row+="<span style='font-size:0.6rem;color:rgba(255,255,255,0.35)'>Debe: <b style='color:rgba(245,197,24,0.85)'>$"+Math.round(deuda)+"</b></span>";
         if(saldo!==null){
-          if(saldo===0) row+="<span style='font-size:0.6rem;color:#4ade80'>✓ Cuadra</span>";
-          else if(saldo>0) row+="<span style='font-size:0.6rem;color:#fbbf24'>↑ Sobran $"+Math.round(saldo)+"</span>";
-          else row+="<span style='font-size:0.6rem;color:#fb923c'>↓ Faltan $"+Math.round(Math.abs(saldo))+"</span>";
+          if(saldo===0) row+="<span style='font-size:0.68rem;font-weight:700;color:#4ade80;background:rgba(74,222,128,0.1);padding:2px 7px;border-radius:6px;border:1px solid rgba(74,222,128,0.25)'>✓ CUADRA</span>";
+          else if(saldo>0) row+="<span style='font-size:0.68rem;font-weight:700;color:#fbbf24;background:rgba(251,191,36,0.1);padding:2px 7px;border-radius:6px;border:1px solid rgba(251,191,36,0.25)'>↑ $"+Math.round(saldo)+" DE MÁS</span>";
+          else row+="<span style='font-size:0.68rem;font-weight:700;color:#f97316;background:rgba(249,115,22,0.12);padding:2px 7px;border-radius:6px;border:1px solid rgba(249,115,22,0.3)'>↓ FALTAN $"+Math.round(Math.abs(saldo))+"</span>";
         } else if(total===0){
-          row+="<span style='font-size:0.6rem;color:#fb923c'>⚠ Sin pagar</span>";
+          row+="<span style='font-size:0.7rem;font-weight:700;color:#f97316;background:rgba(249,115,22,0.12);padding:2px 7px;border-radius:6px;border:1px solid rgba(249,115,22,0.3)'>⚠ SIN PAGAR</span>";
         }
         row+="</div>";
       }
@@ -2303,6 +2302,10 @@
     });
     rows.push("</div>");panel.innerHTML=rows.join("");
   }
+
+  window.setCobrador=async function(nombre){
+    await set(rCob,nombre===cobrador?null:nombre);
+  };
 
   window.resetPago=async function(pl){
     if(!confirm("¿Borrar pago de "+pl+"?"))return;
@@ -3875,7 +3878,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
       <div style="padding:12px 14px 80px">
         <div id="propina-indicator" style="display:none;margin:0 0 10px;background:rgba(168,85,247,0.08);border:1px solid rgba(168,85,247,0.2);border-radius:12px;padding:10px 14px"></div>
         <div id="pago-resumen" style="margin:0 0 12px;background:linear-gradient(135deg,#0d0b07,#1a1510);border-radius:14px;padding:14px 16px;border:1px solid var(--brd)"></div>
-        <div id="pagos-detail-panel"></div>
+        <div id="pagos-cobrador-header" style="display:none"></div><div id="pagos-detail-panel"></div>
         <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap;position:relative">
           <button class="admin-action-btn" onclick="verHistorial()">📅 Historial</button>
           <button class="admin-action-btn" onclick="sortearPropina()" style="background:rgba(168,85,247,0.12);color:#c084fc;border-color:rgba(168,85,247,0.3)">🎲 Propina</button>
@@ -4104,7 +4107,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.76";
+  var APP_VERSION="10.0.77";
   var STORED_VERSION=localStorage.getItem("app_version");
 
   if("serviceWorker"in navigator){
@@ -4202,58 +4205,5 @@ window.modificarPedido=function(){
   </div>
 </div>
 
-
-<!-- Banner instalación PWA -->
-<div id="pwa-banner" style="display:none;position:fixed;bottom:0;left:0;right:0;z-index:9999;padding:12px 16px;background:linear-gradient(135deg,#1a1200,#0d0d0d);border-top:1.5px solid rgba(245,197,24,0.4);display:flex;align-items:center;gap:12px;box-shadow:0 -4px 24px rgba(0,0,0,0.5)">
-  <div style="font-size:1.6rem;flex-shrink:0">📲</div>
-  <div style="flex:1;min-width:0">
-    <div style="font-family:'Bebas Neue',sans-serif;font-size:1rem;color:#f5c518;letter-spacing:0.05em">INSTALÁ LA APP</div>
-    <div style="font-size:0.65rem;color:rgba(255,255,255,0.5);margin-top:1px">Más rápida · Funciona offline · Siempre actualizada</div>
-  </div>
-  <button onclick="pwaBannerInstall()" style="background:#f5c518;color:#000;border:none;border-radius:10px;padding:9px 16px;font-family:'Bebas Neue',sans-serif;font-size:0.95rem;letter-spacing:0.05em;cursor:pointer;flex-shrink:0">INSTALAR</button>
-  <button onclick="pwaBannerDismiss()" style="background:none;border:none;color:rgba(255,255,255,0.35);font-size:1.2rem;cursor:pointer;padding:4px;flex-shrink:0">✕</button>
-</div>
-
-<script>
-  // ── PWA INSTALL BANNER ────────────────────────────────────────────────────
-  var _pwaDeferredPrompt=null;
-  window.addEventListener("beforeinstallprompt",function(e){
-    e.preventDefault();
-    _pwaDeferredPrompt=e;
-    // Solo mostrar si no lo descartó antes y tiene nombre (está logueado)
-    var dismissed=localStorage.getItem("pwa_banner_dismissed");
-    var me2=localStorage.getItem("galan_name");
-    if(!dismissed&&me2){
-      var b=document.getElementById("pwa-banner");
-      if(b)b.style.display="flex";
-    }
-  });
-  // Si ya está instalada como PWA, nunca mostrar
-  if(window.matchMedia("(display-mode: standalone)").matches||window.navigator.standalone){
-    localStorage.setItem("pwa_banner_dismissed","1");
-  }
-  window.pwaBannerInstall=function(){
-    var b=document.getElementById("pwa-banner");
-    if(b)b.style.display="none";
-    if(_pwaDeferredPrompt){
-      _pwaDeferredPrompt.prompt();
-      _pwaDeferredPrompt.userChoice.then(function(r){
-        if(r.outcome==="accepted")localStorage.setItem("pwa_banner_dismissed","1");
-        _pwaDeferredPrompt=null;
-      });
-    }
-  };
-  window.pwaBannerDismiss=function(){
-    var b=document.getElementById("pwa-banner");
-    if(b)b.style.display="none";
-    // Volver a mostrar en 3 días
-    localStorage.setItem("pwa_banner_dismissed",Date.now().toString());
-  };
-  // Mostrar de nuevo si pasaron 3 días desde que lo cerró
-  (function(){
-    var d=parseInt(localStorage.getItem("pwa_banner_dismissed")||"0");
-    if(d>1&&Date.now()-d>3*86400000)localStorage.removeItem("pwa_banner_dismissed");
-  })();
-</script>
 </body>
 </html>
