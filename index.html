@@ -223,7 +223,7 @@
       renderDrinks();
       var sp=document.getElementById('splash-screen');if(sp){sp.style.opacity='0';setTimeout(function(){if(sp.parentNode)sp.parentNode.removeChild(sp);},500);}
     });
-    onValue(rO,function(s){try{orders=s.exists()?s.val():{};renderDrinks();renderOrders();renderMesa();renderLista();renderConfirmBtn();maybeRenderStats();renderPagosDetail();renderPagosHeader();}catch(e){console.error("rO",e);}});
+    onValue(rO,function(s){try{orders=s.exists()?s.val():{};renderDrinks();renderOrders();renderMesa();renderLista();renderConfirmBtn();maybeRenderStats();}catch(e){console.error("rO",e);}});
     onValue(rC,function(s){try{confirmed=s.exists()?s.val():{};renderConfirmBtn();renderDrinks();renderMiSaldo();renderOrders();renderMesa();renderLista();}catch(e){console.error("rC",e);}});
     onValue(rP,function(s){try{pagos=s.exists()?s.val():{};renderOrders();renderMesa();renderLista();renderPagosDetail();renderMiSaldo();renderConfirmBtn();}catch(e){console.error("rP",e);}});
     onValue(rB,function(s){try{totalBar=s.exists()?s.val():0;renderMesa();}catch(e){console.error("rB",e);}});
@@ -375,7 +375,7 @@
     switchTab("pedir",true);
     setTimeout(function(){showLoginScreen();},150);
   };
-  function isAdmin(){return me===ADMIN;}
+  function isAdmin(){return me&&ADMIN&&me.trim().toLowerCase()===ADMIN.trim().toLowerCase();}
   function renderMyName(){
     window._me=me;window._isAdmin=isAdmin();
     var b=document.getElementById("badge");
@@ -4102,7 +4102,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.78";
+  var APP_VERSION="10.0.75";
   var STORED_VERSION=localStorage.getItem("app_version");
 
   if("serviceWorker"in navigator){
