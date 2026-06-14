@@ -2652,15 +2652,19 @@
     var arHoy=arNow.getUTCDate()+" "+MESES_C[arNow.getUTCMonth()];
 
     var vivos=todosPartidos.filter(function(m){return m.en_vivo&&!m.terminado;});
-    var hoyP=todosPartidos.filter(function(m){return !m.en_vivo&&!m.terminado&&m.fecha===arHoy;});
+    var hoyP=todosPartidos.filter(function(m){return !m.en_vivo&&!m.terminado&&normFecha(m.fecha)===arHoy;});
     var terminados=todosPartidos.filter(function(m){return m.terminado;});
-    var proximos=todosPartidos.filter(function(m){return !m.terminado&&!m.en_vivo&&m.fecha!==arHoy;});
+    var proximos=todosPartidos.filter(function(m){return !m.terminado&&!m.en_vivo&&normFecha(m.fecha)!==arHoy;});
 
+    var MS_={Ene:0,Feb:1,Mar:2,Abr:3,May:4,Jun:5,Jul:6,Ago:7,Sep:8,Oct:9,Nov:10,Dic:11};
+    function normFecha(f){if(!f)return"";var r=f.match(/^(\d{1,2} \w+)/);return r?r[1]:f;}
     function parseFecha(f){
       if(!f)return 0;
       var m=f.match(/(\d{1,2})\s+(\w+)\s+(\d{4})/);
-      if(m){var ms={Ene:0,Feb:1,Mar:2,Abr:3,May:4,Jun:5,Jul:6,Ago:7,Sep:8,Oct:9,Nov:10,Dic:11};return new Date(parseInt(m[3]),ms[m[2]]||0,parseInt(m[1])).getTime();}
-      return new Date(f).getTime()||0;
+      if(m)return new Date(parseInt(m[3]),MS_[m[2]]||0,parseInt(m[1])).getTime();
+      var m2=f.match(/(\d{1,2})\s+(\w+)/);
+      if(m2)return new Date(2026,MS_[m2[2]]||0,parseInt(m2[1])).getTime();
+      return 0;
     }
     terminados.sort(function(a,b){return parseFecha(a.fecha)-parseFecha(b.fecha);});
     proximos.sort(function(a,b){return parseFecha(a.fecha)-parseFecha(b.fecha);});
@@ -4098,7 +4102,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.74";
+  var APP_VERSION="10.0.75";
   var STORED_VERSION=localStorage.getItem("app_version");
 
   if("serviceWorker"in navigator){
