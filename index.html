@@ -117,6 +117,8 @@
   const rA=ref(db,"config/accesos"),rCump=ref(db,"config/cumples"),rPend=ref(db,"config/pendientes"),rPres=ref(db,"pedido/presentes");
   const rNuevos=ref(db,"config/nuevos");
   const rKick=ref(db,"config/kickAll");
+  window._rKick=rKick;
+  window._setKick=async function(ts){ await set(rKick,ts); };
   const rVer=ref(db,"config/appVersion");
 
   var me=localStorage.getItem("galan_name")||null;
@@ -4217,6 +4219,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
         <div onclick="toggleBadgeMenu();publicarVersion&&publicarVersion()" style="padding:14px 18px;font-size:0.8rem;cursor:pointer;border-bottom:1px solid #252525;color:#74aed6">📡 Publicar versión</div>
         <div onclick="toggleBadgeMenu();kickAllUsers()" style="padding:14px 18px;font-size:0.8rem;cursor:pointer;border-bottom:1px solid #252525;color:#fb923c">🚪 Cerrar sesiones</div>
       </div>
+      <div id="pwa-install-btn" onclick="toggleBadgeMenu();installPWA()" style="display:none;padding:14px 18px;font-size:0.8rem;cursor:pointer;border-bottom:1px solid #252525;color:#4ade80;align-items:center;gap:8px">📲 Instalar app</div>
       <div onclick="toggleBadgeMenu();logout()" style="padding:14px 18px;font-size:0.8rem;cursor:pointer;color:#f87171">🚪 Salir</div>
     </div>
     <button id="vbtn" onclick="toggleVoice()" style="margin-left:auto">🔇</button>
@@ -4556,6 +4559,31 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 
   var STORED_VERSION=localStorage.getItem("app_version");
 
+  // ── PWA Install prompt ──────────────────────────────────────────────────
+  var _installPrompt=null;
+  window.addEventListener("beforeinstallprompt",function(e){
+    e.preventDefault();
+    _installPrompt=e;
+    var btn=document.getElementById("pwa-install-btn");
+    if(btn)btn.style.display="flex";
+  });
+  window.installPWA=function(){
+    if(!_installPrompt)return;
+    _installPrompt.prompt();
+    _installPrompt.userChoice.then(function(r){
+      if(r.outcome==="accepted"){
+        var btn=document.getElementById("pwa-install-btn");
+        if(btn)btn.style.display="none";
+      }
+      _installPrompt=null;
+    });
+  };
+  window.addEventListener("appinstalled",function(){
+    var btn=document.getElementById("pwa-install-btn");
+    if(btn)btn.style.display="none";
+    _installPrompt=null;
+  });
+
   if("serviceWorker"in navigator){
     window.addEventListener("load",function(){
       navigator.serviceWorker.register("sw.js?v=26").then(function(reg){
@@ -4600,7 +4628,7 @@ window.kickAllUsers=async function(){
   if(!isAdmin())return;
   if(!confirm("¿Cerrar sesión de TODOS los usuarios? Tendrán que volver a identificarse."))return;
   var ts=Date.now();
-  await set(rKick,ts);
+  await window._setKick(ts);
   // Admin actualiza su propio kick_ts para no ser afectado en futuras recargas
   localStorage.setItem("kick_ts",ts);
   // Pequeño toast visual
