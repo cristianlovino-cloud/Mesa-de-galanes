@@ -1234,30 +1234,34 @@
   // Versión silenciosa para auto-sorteo en primer pedido
   async function sortearPropinaSilencioso(){
     try{
-      // Elegibles = solo quienes YA tienen pedido activo HOY (confirmados o no)
-      // Así solo puede tocarle a alguien que realmente está en la mesa
+      // Elegibles HOY = solo quienes ya tienen pedido activo
       var jugadoresHoy=Object.keys(
         Object.values(orders).reduce(function(acc,o){if(o.player)acc[o.player]=1;return acc;},{})
       );
       if(!jugadoresHoy.length)return; // nadie pidió todavía
       var pSnap=await get(rPropina);
       var pData=pSnap.exists()?pSnap.val():{ronda:[],historial:[]};
-      // La ronda filtra solo quienes están hoy
-      var ronda=(pData.ronda||[]).filter(function(n){
-        return jugadoresHoy.some(function(j){return j.toUpperCase()===n.toUpperCase();});
-      });
-      if(!ronda.length){
-        // Nueva ronda: shuffle de los de hoy
-        ronda=jugadoresHoy.slice();
+      // La ronda se arma sobre TODOS los galanes habituales (no solo los de hoy),
+      // así nadie se "olvida" por faltar un sábado.
+      var todosGalanes=galanes.length?galanes.slice():jugadoresHoy.slice();
+      var ronda=pData.ronda||[];
+      // Si la ronda está vacía o tiene nombres que ya no son galanes, regenerar shuffle completo
+      var rondaValida=ronda.length&&ronda.every(function(n){return todosGalanes.some(function(g){return g.toUpperCase()===n.toUpperCase();});});
+      if(!rondaValida){
+        ronda=todosGalanes.slice();
         for(var i=ronda.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1));var t=ronda[i];ronda[i]=ronda[j];ronda[j]=t;}
       }
-      var ganador=ronda.shift();
+      // Elegir al primero de la ronda que ESTÉ presente hoy (saltea a los que faltaron, sin sacarlos de la ronda)
+      var idx=ronda.findIndex(function(n){return jugadoresHoy.some(function(j){return j.toUpperCase()===n.toUpperCase();});});
+      if(idx===-1)return; // nadie de la ronda está presente hoy (no debería pasar)
+      var ganador=ronda[idx];
+      ronda.splice(idx,1); // sacarlo de la ronda actual — no vuelve a salir hasta que todos pasen
       var hoy=new Date().toISOString().slice(0,10);
       var hh=(pData.historial||[]);
       hh.push({nombre:ganador,ts:Date.now(),fecha:hoy,total:0});
       await set(rPropina,{ronda:ronda,historial:hh.slice(-20)});
       await set(ref(db,"pedido/propina"),{nombre:ganador,restantes:ronda.length,ts:Date.now()});
-      console.log("Auto-propina sorteada:",ganador);
+      console.log("Auto-propina sorteada:",ganador,"| quedan en ronda:",ronda.length);
     }catch(e){console.error("sortearPropinaSilencioso error:",e);}
   }
   window.sortearPropina=async function(){
@@ -1267,24 +1271,28 @@
     var hist=hSnap.val();
     var fechas=Object.keys(hist).sort().reverse().slice(0,3);
     if(!fechas.length){showToast("Sin historial todavia");return;}
-    // Elegibles = solo quienes tienen pedido activo HOY
+    // Elegibles HOY = solo quienes tienen pedido activo
     var elegibles=Object.keys(
       Object.values(orders).reduce(function(a,o){if(o.player)a[o.player]=1;return a;},{})
     );
     if(!elegibles.length){showToast("No hay pedidos todavía");return;}
     var pSnap=await get(rPropina);
     var pData=pSnap.exists()?pSnap.val():{ronda:[],historial:[]};
-    var ronda=(pData.ronda||[]).filter(function(n){return elegibles.indexOf(n)!==-1;});
-    if(!ronda.length){
-      ronda=elegibles.slice();
+    var todosGalanes=galanes.length?galanes.slice():elegibles.slice();
+    var ronda=pData.ronda||[];
+    var rondaValida=ronda.length&&ronda.every(function(n){return todosGalanes.some(function(g){return g.toUpperCase()===n.toUpperCase();});});
+    if(!rondaValida){
+      ronda=todosGalanes.slice();
       for(var i=ronda.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1));var t=ronda[i];ronda[i]=ronda[j];ronda[j]=t;}
     }
-    var ganador=ronda.shift();
+    var idx=ronda.findIndex(function(n){return elegibles.some(function(j){return j.toUpperCase()===n.toUpperCase();});});
+    if(idx===-1){showToast("Nadie de la ronda está presente hoy");return;}
+    var ganador=ronda[idx];
+    ronda.splice(idx,1);
     var hoy=new Date().toISOString().slice(0,10);
     var hh=(pData.historial||[]);
     hh.push({nombre:ganador,ts:Date.now(),fecha:hoy,total:0}); // total se actualiza al cerrar mesa
     await set(rPropina,{ronda:ronda,historial:hh.slice(-20)});
-    // Guardar solo nombre, sin total (se calcula al cerrar)
     await set(ref(db,"pedido/propina"),{nombre:ganador,restantes:ronda.length,ts:Date.now()});
     showToast("🎲 Propina sorteada: "+ganador);
   };
@@ -4556,7 +4564,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.84";
+  var APP_VERSION="10.0.85";
 
   var STORED_VERSION=localStorage.getItem("app_version");
 
