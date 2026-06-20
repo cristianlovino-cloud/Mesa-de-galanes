@@ -1593,7 +1593,7 @@
     el.style.display="block";
     function spCard(sp){
       var logo=sp.logo_url?"<img src='"+sp.logo_url+"' style='width:44px;height:44px;object-fit:contain;border-radius:50%;border:1.5px solid rgba(255,255,255,0.15);flex-shrink:0' onerror='this.style.display=\"none\"'>":"<div style='width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#1a3a6e,#0d2144);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0'>🌍</div>";
-      return "<div style='border-radius:14px;border:1px solid rgba(100,160,255,0.2);background:linear-gradient(135deg,rgba(10,30,70,0.9),rgba(5,15,40,0.95));padding:10px 14px;display:flex;align-items:center;gap:10px;position:relative;overflow:hidden"+(sp.url?";cursor:pointer":"")+"' "+(sp.url?"onclick=\"window.open('"+sp.url+"','_blank')\"":"")+"><div style='position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,rgba(100,160,255,0.5),transparent)'></div>"+logo+"<div style='flex:1;min-width:0'><div style='font-size:0.52rem;color:rgba(100,160,255,0.7);font-weight:700;letter-spacing:0.1em;margin-bottom:2px'>⭐ SPONSOR OFICIAL</div><div style='font-size:0.82rem;font-weight:800;color:#fff;text-transform:uppercase'>"+sp.nombre+"</div>"+(sp.tagline?"<div style='font-size:0.6rem;color:rgba(180,200,255,0.6);margin-top:1px'>"+sp.tagline+"</div>":"")+"</div>"+(sp.url?"<div style='font-size:0.6rem;color:rgba(100,160,255,0.8);font-weight:700;flex-shrink:0'>VER ↗</div>":"")+"</div>";
+      return "<div style='border-radius:20px;border:1px solid rgba(229,169,60,0.25);background:linear-gradient(135deg,rgba(20,18,12,0.92),rgba(10,9,6,0.96));backdrop-filter:blur(var(--blur));padding:12px 16px;display:flex;align-items:center;gap:10px;position:relative;overflow:hidden"+(sp.url?";cursor:pointer":"")+"' "+(sp.url?"onclick=\"window.open('"+sp.url+"','_blank')\"":"")+"><div style='position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,rgba(229,169,60,0.6),transparent)'></div>"+logo+"<div style='flex:1;min-width:0'><div style='font-size:0.52rem;color:rgba(229,169,60,0.85);font-weight:700;letter-spacing:0.1em;margin-bottom:2px'>⭐ SPONSOR OFICIAL</div><div style='font-size:0.82rem;font-weight:800;color:#fff;text-transform:uppercase'>"+sp.nombre+"</div>"+(sp.tagline?"<div style='font-size:0.6rem;color:rgba(255,255,255,0.5);margin-top:1px'>"+sp.tagline+"</div>":"")+"</div>"+(sp.url?"<div style='font-size:0.6rem;color:rgba(229,169,60,0.9);font-weight:700;flex-shrink:0'>VER ↗</div>":"")+"</div>";
     }
     if(window._sbSponsors.length===1){el.innerHTML=spCard(window._sbSponsors[0]);return;}
     _spCafeIdx=_spCafeIdx%window._sbSponsors.length;
@@ -3700,54 +3700,56 @@
   });
 </script>
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
-/* TEMA CANCHA — verde césped + blanco + amarillo tarjeta */
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+/* TEMA — dorado/carbón con glassmorphism */
 :root,[data-theme="dark"]{
-  --bg:#0d1f14;--sur:#142a1c;--sur2:#1a3424;--hbg:#0a1810;
-  --club-cel:#7ee787;--club-ama:#f5c518;
-  --gold:#f5c518;--g2:#f5c518;--gl:#fdd835;--gd:#b8860b;
-  --ink:#f4f7f2;--mut:#8aa893;--brd:#234430;--b2:#2e5a3c;
-  --grn:#4ade80;--red:#ef4444;--sh:rgba(74,222,128,0.08);
-  --acc:#4ade80;--acc2:#22c55e;--acc-ama:#f5c518;
-  --card:#142a1c;--font-hd:'Bebas Neue',sans-serif;
+  --bg:#0a0d14;--sur:rgba(20,24,35,0.65);--sur2:rgba(28,33,46,0.75);--hbg:rgba(13,17,26,0.85);
+  --club-cel:#38ef7d;--club-ama:#e5a93c;
+  --gold:#e5a93c;--g2:#e5a93c;--gl:#f0bc5a;--gd:#b8822a;
+  --ink:#f5f6f9;--mut:#7e8494;--brd:rgba(255,255,255,0.08);--b2:rgba(255,255,255,0.16);
+  --grn:#38ef7d;--red:#ff5a5a;--sh:rgba(229,169,60,0.08);
+  --acc:#e5a93c;--acc2:#c98f2e;--acc-ama:#e5a93c;
+  --card:rgba(20,24,35,0.65);--font-hd:'Bebas Neue',sans-serif;
   --font-display:'JetBrains Mono',monospace;
-  --font-body:'Outfit',sans-serif;
-  --grass-line:rgba(255,255,255,0.025);
-  --watermark-op:0.05;
+  --font-body:'Plus Jakarta Sans',sans-serif;
+  --grass-line:rgba(255,255,255,0);
+  --watermark-op:0.04;
+  --blur:18px;
   color-scheme:dark;
 }
-/* TEMA CLARO — césped de día, blanco cálido */
+/* TEMA CLARO — marfil cálido, mismo dorado de acento */
 [data-theme="light"]{
-  --bg:#eef5ee;--sur:#ffffff;--sur2:#f3f9f1;--hbg:#e3f0e2;
-  --club-cel:#16a34a;--club-ama:#d97706;
-  --gold:#ca8a04;--g2:#ca8a04;--gl:#eab308;--gd:#92660a;
-  --ink:#0f2417;--mut:#5a7a64;--brd:#cfe5cf;--b2:#a9d1a9;
-  --grn:#16a34a;--red:#dc2626;--sh:rgba(22,163,74,0.06);
-  --acc:#16a34a;--acc2:#15803d;--acc-ama:#ca8a04;
-  --card:#ffffff;--font-hd:'Bebas Neue',sans-serif;
+  --bg:#f4f1ea;--sur:rgba(255,255,255,0.75);--sur2:rgba(255,255,255,0.9);--hbg:rgba(255,255,255,0.85);
+  --club-cel:#15803d;--club-ama:#b8762a;
+  --gold:#b8762a;--g2:#b8762a;--gl:#c98f2e;--gd:#8f5e1f;
+  --ink:#1c1810;--mut:#7a7363;--brd:rgba(28,24,16,0.1);--b2:rgba(28,24,16,0.18);
+  --grn:#15803d;--red:#dc2626;--sh:rgba(184,118,42,0.08);
+  --acc:#b8762a;--acc2:#96601f;--acc-ama:#b8762a;
+  --card:rgba(255,255,255,0.75);--font-hd:'Bebas Neue',sans-serif;
   --font-display:'JetBrains Mono',monospace;
-  --font-body:'Outfit',sans-serif;
-  --grass-line:rgba(0,0,0,0.02);
-  --watermark-op:0.035;
+  --font-body:'Plus Jakarta Sans',sans-serif;
+  --grass-line:rgba(0,0,0,0);
+  --watermark-op:0.03;
+  --blur:18px;
   color-scheme:light;
 }
 [data-theme="light"] body{box-shadow:none;}
 [data-theme="light"] .dc,[data-theme="light"] .modal,[data-theme="light"] .card,[data-theme="light"] [class*="card"]{
-  box-shadow:0 1px 3px rgba(15,36,23,0.06);
+  box-shadow:0 1px 3px rgba(28,24,16,0.06);
 }
 
 body{
-  background:
-    repeating-linear-gradient(180deg,
-      var(--grass-line) 0px,
-      var(--grass-line) 40px,
-      transparent 40px,
-      transparent 80px),
-    var(--bg);
+  background-color:var(--bg);
   color:var(--ink);
   font-family:var(--font-body);
   min-height:100vh;overflow-x:hidden;
-  text-transform:uppercase;letter-spacing:0.04em;
+  letter-spacing:0.01em;
+  padding-bottom:104px; /* espacio para el dock flotante */
+  background-image:
+    radial-gradient(circle at 0% 0%, var(--sh) 0%, transparent 45%),
+    radial-gradient(circle at 100% 100%, rgba(255,90,90,0.025) 0%, transparent 45%);
+  background-attachment:fixed;
+  -webkit-font-smoothing:antialiased;
   transition:background-color 0.25s ease,color 0.25s ease;
 }
 /* 7:45 watermark en todas las pantallas */
@@ -3757,7 +3759,7 @@ body::before{
   transform:translate(-50%,-50%);
   font-family:var(--font-display);
   font-size:70vw;font-weight:900;
-  color:var(--club-cel);
+  color:var(--club-ama);
   opacity:var(--watermark-op);
   pointer-events:none;user-select:none;
   z-index:0;line-height:1;white-space:nowrap;
@@ -3767,7 +3769,7 @@ body::before{
 /* HEADER */
 header{
   position:relative;
-  background:var(--hbg);
+  background:transparent;
   padding:22px 16px 20px;overflow:hidden;
   border-bottom:2px solid var(--sh);
   transition:background-color 0.25s ease;
@@ -3790,7 +3792,7 @@ header::after{
 .nz{display:flex;align-items:center;gap:8px;margin-top:10px;}
 #prompt{display:flex;align-items:center;gap:6px;background:rgba(245,158,11,0.12);border:1px solid rgba(245,158,11,0.3);color:var(--gl);border-radius:100px;padding:8px 18px;font-size:0.9rem;font-weight:600;cursor:pointer;letter-spacing:0.06em;transition:all 0.2s;}
 #prompt:hover{background:rgba(245,158,11,0.2);border-color:rgba(245,158,11,0.4);}
-#badge{display:none;align-items:center;gap:8px;background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.25);color:var(--gl);border-radius:100px;padding:8px 16px;font-size:0.88rem;font-weight:600;cursor:pointer;}
+#badge{display:none;align-items:center;gap:8px;background:rgba(229,169,60,0.12);backdrop-filter:blur(8px);border:1px solid rgba(229,169,60,0.3);color:var(--gl);border-radius:100px;padding:8px 16px;font-size:0.88rem;font-weight:700;cursor:pointer;}
 .lx{color:rgba(253,248,240,0.25);font-size:0.9rem;cursor:pointer;margin-left:2px;}.lx:hover{color:var(--red);}
 #vbtn{background:none;border:none;font-size:1.2rem;cursor:pointer;padding:4px;opacity:0.6;flex-shrink:0;}
 
@@ -3811,9 +3813,36 @@ header::after{
 .tcx{background:none;border:none;color:rgba(253,248,240,0.2);font-size:0.88rem;cursor:pointer;padding:2px 6px;}.tcx:hover{color:var(--red);}
 
 /* TABS */
-.tabs{display:flex;background:rgba(10,8,5,0.95);backdrop-filter:blur(20px);border-bottom:1px solid var(--brd);padding:0 2px;overflow:hidden;position:sticky;top:0;z-index:10;}
-.tab{flex:1;padding:10px 1px;background:none;border:none;border-bottom:2px solid transparent;font-family:var(--font-body);font-size:0.7rem;font-weight:600;color:var(--mut);cursor:pointer;transition:all 0.2s;letter-spacing:0.02em;text-transform:uppercase;white-space:nowrap;overflow:hidden;}
-.tab.active{color:var(--club-cel);border-bottom-color:var(--club-cel);}
+/* DOCK FLOTANTE INFERIOR — reemplaza el tab bar superior */
+.tabs{
+  position:fixed;bottom:16px;left:50%;transform:translateX(-50%);
+  display:grid;grid-template-columns:repeat(7,1fr);gap:2px;
+  width:calc(100% - 24px);max-width:560px;
+  background:var(--hbg);
+  backdrop-filter:blur(var(--blur));-webkit-backdrop-filter:blur(var(--blur));
+  border:1px solid var(--brd);border-radius:24px;
+  padding:6px;box-shadow:0 16px 40px rgba(0,0,0,0.35);
+  z-index:200;overflow-x:auto;overflow-y:hidden;
+  scrollbar-width:none;
+}
+.tabs::-webkit-scrollbar{display:none;}
+.tab{
+  background:transparent;border:none;border-bottom:none;
+  font-family:var(--font-body);font-size:0.58rem;font-weight:700;
+  color:var(--mut);cursor:pointer;letter-spacing:0.01em;
+  text-transform:uppercase;white-space:nowrap;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
+  padding:9px 2px;border-radius:16px;
+  transition:all 0.25s cubic-bezier(0.4,0,0.2,1);
+  min-width:0;
+}
+.tab.active{
+  color:var(--gold);
+  background:rgba(229,169,60,0.12);
+  transform:translateY(-2px);
+}
+.tab:hover:not(.active){color:var(--ink);}
+.tab span{font-size:1.15rem;line-height:1;}
 /* tabs mesa/lista: JS las controla */
 
 /* MAIN */
@@ -3823,20 +3852,20 @@ header::after{
 
 /* DRINKS — lista compacta premium */
 .dg{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:0 12px;padding:4px 0;}
-.dc{background:var(--sur);border:1.5px solid var(--brd);border-radius:16px;
-  cursor:pointer;transition:all 0.18s;position:relative;overflow:hidden;
+.dc{background:var(--card);border:1px solid var(--brd);border-radius:20px;
+  backdrop-filter:blur(var(--blur));-webkit-backdrop-filter:blur(var(--blur));
+  cursor:pointer;transition:all 0.25s cubic-bezier(0.4,0,0.2,1);position:relative;overflow:hidden;
   display:flex;flex-direction:column;align-items:center;justify-content:center;
-  padding:16px 10px;min-height:90px;text-align:center;gap:6px;}
-.dc:hover{border-color:var(--club-cel);background:rgba(126,231,135,0.04);}
-.dc.sel{background:rgba(126,231,135,0.1);border-color:var(--club-cel);border-width:2px;}
-.dc.sel::after{content:"";position:absolute;top:6px;right:6px;width:8px;height:8px;
-  background:var(--club-cel);border-radius:50%;}
+  padding:16px 10px;min-height:90px;text-align:center;gap:6px;
+  box-shadow:0 4px 12px rgba(0,0,0,0.1);}
+.dc:hover{border-color:rgba(229,169,60,0.3);background:var(--sur2);transform:translateY(-2px);box-shadow:0 8px 20px rgba(0,0,0,0.18);}
+.dc.sel{background:rgba(229,169,60,0.1);border-color:var(--gold);border-width:1.5px;}
+.dc.sel::after{content:"";position:absolute;top:8px;right:8px;width:8px;height:8px;
+  background:var(--gold);border-radius:50%;}
 .dc:last-of-type{border-bottom:none;}
 .dc::before{display:none;}
-.dc:hover{background:var(--sur2);}
-.dc.sel{background:linear-gradient(90deg,rgba(245,158,11,0.08),transparent);border-left:3px solid var(--acc);}
 .dc.dragging{opacity:0.4;}
-.dc-edit{cursor:grab!important;border-style:dashed!important;border-color:#2a2a2a!important;}
+.dc-edit{cursor:grab!important;border-style:dashed!important;border-color:var(--b2)!important;}
 .dc-edit:active{cursor:grabbing!important;}
 .dc-edit .ck{display:none!important;}
 .ci{display:flex;flex-direction:column;align-items:center;gap:4px;width:100%;position:relative;z-index:1;}
@@ -3978,7 +4007,7 @@ header::after{
 .clr{background:none;border:none;font-size:0.65rem;color:var(--mut);cursor:pointer;padding:2px 6px;font-family:var(--font-body);}.clr:hover{color:var(--red);}
 .ld{width:6px;height:6px;background:var(--grn);border-radius:50%;display:inline-block;animation:pulse 2s infinite;}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.2}}
-#confirm-wrap{position:fixed;bottom:20px;left:12px;right:12px;display:none;z-index:98;}
+#confirm-wrap{position:fixed;bottom:96px;left:12px;right:12px;display:none;z-index:98;}
 .cbtn{width:100%;padding:15px;border:none;border-radius:14px;font-family:var(--font-body);font-size:0.88rem;font-weight:700;cursor:pointer;background:linear-gradient(135deg,var(--club-cel),var(--acc2));color:#0a0805;box-shadow:0 6px 24px rgba(126,231,135,0.3);letter-spacing:0.06em;}
 #toast{display:none;position:fixed;top:76px;left:50%;transform:translateX(-50%);background:#1a1510;color:var(--gl);padding:11px 22px;border-radius:100px;font-family:var(--font-body);font-weight:700;font-size:0.9rem;z-index:300;box-shadow:0 4px 20px rgba(0,0,0,0.5);white-space:nowrap;transition:opacity 0.4s;border:1px solid rgba(245,158,11,0.2);text-transform:uppercase;letter-spacing:0.03em;}
 
@@ -3987,7 +4016,7 @@ header::after{
 .modal-overlay.open{display:flex;}.modal-overlay.mc{align-items:center;}
 .modal-overlay.mc .modal{border-radius:20px;max-width:340px;margin:0 16px;animation:popIn 0.22s ease;}
 @keyframes popIn{from{opacity:0;transform:scale(0.94)}to{opacity:1;transform:scale(1)}}
-.modal{background:#111008;border-radius:20px 20px 0 0;border:1px solid var(--brd);border-bottom:none;padding:24px 24px 36px;width:100%;max-width:480px;animation:slideUp 0.22s ease;}
+.modal{background:var(--hbg);backdrop-filter:blur(var(--blur));-webkit-backdrop-filter:blur(var(--blur));border-radius:24px 24px 0 0;border:1px solid var(--brd);border-bottom:none;padding:24px 24px 36px;width:100%;max-width:480px;animation:slideUp 0.22s ease;box-shadow:0 -16px 40px rgba(0,0,0,0.3);}
 @keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
 .mh2{width:36px;height:3px;background:var(--b2);border-radius:2px;margin:0 auto 20px;}
 .modal h3{font-family:var(--font-display);font-size:1.3rem;font-weight:500;color:var(--ink);margin-bottom:4px;letter-spacing:-0.01em;}
@@ -4059,7 +4088,7 @@ header::after{
 
 /* PANTALLA LOGIN ESTILO ASADO */
 #login-screen{
-  position:fixed;inset:0;background:#050503;
+  position:fixed;inset:0;background:var(--bg);
   display:flex;flex-direction:column;align-items:center;justify-content:center;
   z-index:9998;padding:24px 0 40px;
   transition:opacity 0.4s ease;
@@ -4122,14 +4151,10 @@ header{background:var(--hbg);}
 header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,var(--club-ama) 65%,transparent);opacity:0.6;}
 
 /* Tabs — bien visibles */
-.tabs{background:var(--hbg);}
-.tab{color:var(--mut);}
-.tab.active{color:var(--club-ama);border-bottom-color:var(--club-ama);}
-.tab:hover:not(.active){color:var(--ink);opacity:0.85;}
+/* (estilos de dock ya definidos arriba) */
 
 /* Cards bebida */
-.dc{background:var(--card);border-color:var(--brd);min-height:120px;gap:10px;}
-.dc:hover{background:var(--sur2);border-color:var(--b2);}
+/* (estilos .dc ya definidos arriba) */
 
 /* + PEDIR más protagonista */
 .asist-btn.asist-load{
@@ -4278,7 +4303,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </header>
 <div id="cumple-banner" style="display:none"></div>
   <div id="asado-banner" style="display:none;background:linear-gradient(135deg,rgba(255,140,0,0.12),rgba(255,60,0,0.08));border:1.5px solid rgba(255,140,0,0.3);border-radius:16px;margin:0 0 12px;overflow:hidden"></div>
-  <div id="votacion-banner" style="display:none;background:linear-gradient(135deg,rgba(168,85,247,0.1),rgba(139,92,246,0.06));border:1.5px solid rgba(168,85,247,0.3);border-radius:16px;margin:0 0 12px;overflow:hidden"></div>
+  <div id="votacion-banner" style="display:none;background:linear-gradient(135deg,rgba(168,85,247,0.12),rgba(139,92,246,0.06));backdrop-filter:blur(var(--blur));-webkit-backdrop-filter:blur(var(--blur));border:1px solid rgba(168,85,247,0.3);border-radius:20px;margin:0 0 12px;overflow:hidden"></div>
   <div id="cafe-sponsors" style="display:none;margin:0 0 14px"></div>
 <div id="timer-bar" class="tbar">
   <span id="t-text">Cierra en</span><span id="t-count">—</span>
@@ -4286,13 +4311,13 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
   <div class="tpw"><div id="t-prog" style="width:100%"></div></div>
 </div>
 <div class="tabs">
-  <button class="tab" data-tab="pedir"   onclick="switchTab('pedir')">☕ Pedir</button>
-  <button class="tab" data-tab="resumen" onclick="switchTab('resumen')">📋 Resumen</button>
-  <button class="tab" data-tab="cumples" onclick="switchTab('cumples')">🎂 Cumples</button>
-  <button class="tab" data-tab="stats"   onclick="switchTab('stats')" style="display:none">📊 Stats</button>
-  <button class="tab" data-tab="mundial" onclick="switchTab('mundial')">🌍 Mundial</button>
-  <button class="tab" onclick="irAlAsado()" style="color:rgba(255,140,0,0.7)">🔥 Asado</button>
-  <button class="tab" data-tab="admin"   onclick="switchTab('admin')" style="display:none">⚙️ Admin</button>
+  <button class="tab" data-tab="pedir"   onclick="switchTab('pedir')"><span>☕</span>Pedir</button>
+  <button class="tab" data-tab="resumen" onclick="switchTab('resumen')"><span>📋</span>Mesa</button>
+  <button class="tab" data-tab="cumples" onclick="switchTab('cumples')"><span>🎂</span>Cumple</button>
+  <button class="tab" data-tab="stats"   onclick="switchTab('stats')" style="display:none"><span>📊</span>Stats</button>
+  <button class="tab" data-tab="mundial" onclick="switchTab('mundial')"><span>🌍</span>Mundial</button>
+  <button class="tab" onclick="irAlAsado()" style="color:#ff8c42"><span>🔥</span>Asado</button>
+  <button class="tab" data-tab="admin"   onclick="switchTab('admin')" style="display:none"><span>⚙️</span>Admin</button>
 </div>
 <div class="main">
   <div id="v-pedir">
@@ -4606,7 +4631,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.88";
+  var APP_VERSION="10.0.89";
 
   var STORED_VERSION=localStorage.getItem("app_version");
 
