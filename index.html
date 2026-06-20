@@ -2858,8 +2858,8 @@
               +"</div>";
           }
 
-          // Filas de historial
-          var filasHtml=filas.length?filas.map(function(f){
+          // Filas de historial — colapsado: primeras 4 + resto desplegable
+          function filaHtml(f){
             var dt=new Date(f.fecha+"T12:00:00");
             var dstr=(dt.getDate())+"/"+(dt.getMonth()+1);
             if(f.faltó){
@@ -2876,8 +2876,21 @@
               +(f.pagado>0?"<span style='font-family:\"Bebas Neue\",sans-serif;font-size:0.9rem;color:#4ade80'>$"+Math.round(f.pagado)+"</span>"
                 :"<span style='font-size:0.62rem;color:var(--mut)'>—</span>")
               +"</div>";
-          }).join("")
-          :"<div style='text-align:center;color:var(--mut);font-size:0.68rem;padding:12px'>Sin historial todavía</div>";
+          }
+          var filasHtml;
+          if(!filas.length){
+            filasHtml="<div style='text-align:center;color:var(--mut);font-size:0.68rem;padding:12px'>Sin historial todavía</div>";
+          } else if(filas.length<=4){
+            filasHtml=filas.map(filaHtml).join("");
+          } else {
+            var visibles=filas.slice(0,4).map(filaHtml).join("");
+            var ocultas=filas.slice(4).map(filaHtml).join("");
+            filasHtml=visibles
+              +"<details style='margin-top:2px'>"
+              +"<summary style='list-style:none;cursor:pointer;text-align:center;padding:10px 0 2px;font-size:0.62rem;font-weight:700;color:var(--gold);letter-spacing:0.06em;font-family:\"JetBrains Mono\",monospace'>VER TODO ("+filas.length+") ▾</summary>"
+              +ocultas
+              +"</details>";
+          }
 
           miHistHtml="<div style='padding:16px;margin-bottom:12px' class='surf'>"
             +"<div style='font-size:0.62rem;font-weight:700;color:var(--gold);letter-spacing:0.08em;margin-bottom:14px;font-family:\"JetBrains Mono\",monospace'>📊 TU HISTORIAL · "+me.toUpperCase()+"</div>"
@@ -3523,9 +3536,9 @@
       var isLast=idx===matches.length-1;
       return "<button data-gn='"+g+"' onclick='loginSelectGalan(this.dataset.gn)' "
         +"style='display:flex;align-items:center;gap:12px;width:100%;background:none;border:none;"
-        +(isLast?"":"border-bottom:1px solid rgba(255,255,255,0.06);")
+        +(isLast?"":"border-bottom:1px solid var(--brd);")
         +"padding:10px 16px;cursor:pointer;transition:background 0.1s;box-sizing:border-box;' "
-        +"onmouseenter=\"this.style.background='rgba(255,255,255,0.05)'\" "
+        +"onmouseenter=\"this.style.background='var(--sur2)'\" "
         +"onmouseleave=\"this.style.background='none'\">"
         +"<div style='width:38px;height:38px;border-radius:50%;background:"+col(g)+";"
         +"display:flex;align-items:center;justify-content:center;flex-shrink:0;"
@@ -4377,7 +4390,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
       oninput="this.value=this.value.toUpperCase();loginFiltrar(this.value)"
       onkeydown="if(event.key==='Enter')loginConfirmarNombre()">
     <!-- Sugerencias dinámicas — solo aparecen al escribir -->
-    <div id="login-sugerencias" style="display:none;width:100%;background:#1a3424;border:1px solid rgba(255,255,255,0.1);border-radius:14px;overflow:hidden;margin-bottom:10px"></div>
+    <div id="login-sugerencias" style="display:none;width:100%;background:var(--card);border:1px solid var(--brd);border-radius:14px;overflow:hidden;margin-bottom:10px"></div>
     <!-- Botón entrar -->
     <button onclick="loginConfirmarNombre()" style="width:100%;box-sizing:border-box;background:linear-gradient(135deg,var(--club-cel),var(--club-ama));color:#0a1810;border:none;border-radius:14px;padding:16px;font-family:'Bebas Neue',sans-serif;font-size:1.2rem;font-weight:400;cursor:pointer;letter-spacing:0.1em">ENTRAR →</button>
   </div>
@@ -4733,7 +4746,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.96";
+  var APP_VERSION="10.0.97";
 
   var STORED_VERSION=localStorage.getItem("app_version");
 
