@@ -443,6 +443,7 @@
   window.switchTab=function(tab,force){
     if(!me&&!force){showLoginScreen();return;}
     if(tab==="admin"&&!isAdmin()){showToast("Solo el admin puede ver esta sección");return;}
+    if(navigator.vibrate)navigator.vibrate(8);
     ["pedir","resumen","cumples","stats","mundial","admin"].forEach(function(t){
       var v=document.getElementById("v-"+t);if(v)v.style.display=t===tab?"block":"none";
       var b=document.querySelector("[data-tab='"+t+"']");if(b)b.classList.toggle("active",t===tab);
@@ -610,15 +611,55 @@
         banner.innerHTML=pills;banner.style.display="block";
       } else {banner.style.display="none";}
     }
-    if(misPed.length>0&&!confirmado()){w.style.display="flex";}
+    if(misPed.length>0&&!confirmado()){w.style.display="flex";setTimeout(setupSwipeGesture,50);}
     else{w.style.display="none";}
   }
   var _confirmando=false;
+  var _swipeReady=false;
+  function setupSwipeGesture(){
+    var handle=document.getElementById("swipe-handle");
+    var container=document.getElementById("swipe-container");
+    if(!handle||!container||_swipeReady)return;
+    _swipeReady=true;
+    var dragging=false,startX=0,maxSlide=0;
+    function calcMax(){maxSlide=container.clientWidth-handle.clientWidth-8;}
+    function onStart(e){
+      if(confirmado()||_confirmando)return;
+      dragging=true;calcMax();
+      startX=(e.type==="touchstart"?e.touches[0].clientX:e.clientX);
+      handle.style.transition="";
+    }
+    function onMove(e){
+      if(!dragging)return;
+      var x=(e.type==="touchmove"?e.touches[0].clientX:e.clientX);
+      var delta=x-startX;
+      if(delta<0)delta=0;
+      if(delta>maxSlide)delta=maxSlide;
+      handle.style.transform="translateX("+delta+"px)";
+      if(delta>=maxSlide-2){
+        dragging=false;
+        handle.classList.add("sending");
+        handle.textContent="✓";
+        if(navigator.vibrate)navigator.vibrate([60,30,60]);
+        doConfirm();
+      }
+    }
+    function onEnd(){
+      if(!dragging)return;
+      dragging=false;
+      handle.style.transition="transform 0.25s cubic-bezier(0.34,1.56,0.64,1)";
+      handle.style.transform="translateX(0px)";
+    }
+    handle.addEventListener("mousedown",onStart);
+    document.addEventListener("mousemove",onMove);
+    document.addEventListener("mouseup",onEnd);
+    handle.addEventListener("touchstart",onStart,{passive:true});
+    document.addEventListener("touchmove",onMove,{passive:true});
+    document.addEventListener("touchend",onEnd);
+  }
   window.doConfirm=async function(){
     if(!me||confirmado()||_confirmando)return;
     _confirmando=true;
-    var btn=document.querySelector(".cbtn");
-    if(btn){btn.disabled=true;btn.textContent="Enviando...";btn.style.opacity="0.6";}
     try{
       await set(ref(db,"pedido/confirmed/"+me),{ok:true,ts:Date.now()});
       await set(ref(db,"config/accesos/"+me),{va:true,ts:Date.now()});
@@ -630,11 +671,13 @@
       }
       renderConfirmBtn();renderDrinks();renderMiSaldo();
       setTimeout(renderEstuvoCerca,600);
+      if(navigator.vibrate)navigator.vibrate([40,30,40,30,80]);
       showToast("✅ Pedido enviado!");
       speak("Tu pedido fue enviado. Gracias "+me+"!");
     }catch(e){
       showToast("❌ Error al enviar, intentá de nuevo");
-      if(btn){btn.disabled=false;btn.textContent="☕ Enviar mi pedido";btn.style.opacity="1";}
+      var h=document.getElementById("swipe-handle");
+      if(h){h.classList.remove("sending");h.textContent="➔";h.style.transition="transform 0.25s ease";h.style.transform="translateX(0px)";}
       _confirmando=false;
     }
   };
@@ -1383,6 +1426,7 @@
   // ── PEDIDOS ───────────────────────────────────────────────
   window.selectDrink=function(idx){
     if(!me){showLoginScreen();return;}
+    if(navigator.vibrate)navigator.vibrate(8);
     // Si ya confirmó, solo avisar pero dejar continuar (puede querer cambiar)
     // El bloqueo total solo aplica si el admin cerró la mesa
     var myOrders=Object.entries(orders).filter(function(e){return e[1].player===me&&e[1].drinkIdx===idx;});
@@ -3768,10 +3812,11 @@ body::before{
 
 /* HEADER */
 header{
-  position:relative;
-  background:transparent;
+  position:sticky;top:0;z-index:50;
+  background:var(--hbg);
+  backdrop-filter:blur(var(--blur));-webkit-backdrop-filter:blur(var(--blur));
   padding:22px 16px 20px;overflow:hidden;
-  border-bottom:2px solid var(--sh);
+  border-bottom:1px solid var(--brd);
   transition:background-color 0.25s ease;
 }
 header::before{
@@ -4009,6 +4054,24 @@ header::after{
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.2}}
 #confirm-wrap{position:fixed;bottom:96px;left:12px;right:12px;display:none;z-index:98;}
 .cbtn{width:100%;padding:15px;border:none;border-radius:14px;font-family:var(--font-body);font-size:0.88rem;font-weight:700;cursor:pointer;background:linear-gradient(135deg,var(--club-cel),var(--acc2));color:#0a0805;box-shadow:0 6px 24px rgba(126,231,135,0.3);letter-spacing:0.06em;}
+
+/* SWIPE TO CONFIRM */
+.swipe-container{
+  position:relative;background:var(--sur);backdrop-filter:blur(var(--blur));
+  border:1px solid var(--brd);height:58px;border-radius:100px;
+  padding:4px;display:flex;align-items:center;justify-content:center;
+  overflow:hidden;width:100%;
+}
+.swipe-text{font-size:0.82rem;font-weight:700;color:var(--mut);letter-spacing:0.04em;pointer-events:none;z-index:1;}
+.swipe-handle{
+  position:absolute;left:4px;width:50px;height:50px;
+  background:linear-gradient(135deg,var(--club-cel),var(--gold));
+  border-radius:100px;display:flex;align-items:center;justify-content:center;
+  color:#0a0805;font-size:1.2rem;font-weight:900;cursor:grab;z-index:2;
+  box-shadow:0 4px 16px rgba(229,169,60,0.35);touch-action:none;
+}
+.swipe-handle:active{cursor:grabbing;}
+.swipe-handle.sending{background:linear-gradient(135deg,#22c55e,#16a34a);}
 #toast{display:none;position:fixed;top:76px;left:50%;transform:translateX(-50%);background:#1a1510;color:var(--gl);padding:11px 22px;border-radius:100px;font-family:var(--font-body);font-weight:700;font-size:0.9rem;z-index:300;box-shadow:0 4px 20px rgba(0,0,0,0.5);white-space:nowrap;transition:opacity 0.4s;border:1px solid rgba(245,158,11,0.2);text-transform:uppercase;letter-spacing:0.03em;}
 
 /* MODALES */
@@ -4147,7 +4210,7 @@ header::after{
 .slabel{font-family:'Bebas Neue',sans-serif;font-size:1.05rem;letter-spacing:0.16em;color:var(--club-ama);}
 
 /* Header */
-header{background:var(--hbg);}
+/* (header ya sticky con blur, definido arriba) */
 header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,var(--club-ama) 65%,transparent);opacity:0.6;}
 
 /* Tabs — bien visibles */
@@ -4422,7 +4485,12 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 <div id="toast"></div>
 <div id="version-label" style="text-align:center;padding:6px;font-size:0.55rem;color:var(--mut);font-family:monospace;letter-spacing:0.08em;user-select:none"></div>
-  <div id="confirm-wrap"><button class="cbtn" onclick="doConfirm()">☕ Enviar mi pedido</button></div>
+  <div id="confirm-wrap">
+    <div class="swipe-container" id="swipe-container">
+      <div class="swipe-text">DESLIZÁ PARA ENVIAR ☕</div>
+      <div class="swipe-handle" id="swipe-handle">➔</div>
+    </div>
+  </div>
 
 <!-- MODALES -->
 <div class="modal-overlay mc" id="mnombre" onclick="if(event.target===this)closeModal('mnombre')">
@@ -4631,7 +4699,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.90";
+  var APP_VERSION="10.0.91";
 
   var STORED_VERSION=localStorage.getItem("app_version");
 
