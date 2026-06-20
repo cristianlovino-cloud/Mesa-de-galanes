@@ -184,6 +184,22 @@
   loadVoice();
   window.speak=function(t){if(!voiceOn||!synth)return;synth.cancel();var u=new SpeechSynthesisUtterance(t);u.lang="es-AR";u.rate=1.05;if(esVoice)u.voice=esVoice;synth.speak(u);};
   window.toggleVoice=function(){voiceOn=!voiceOn;localStorage.setItem("voice",voiceOn?"1":"0");var b=document.getElementById("vbtn");if(b)b.textContent=voiceOn?"🔊":"🔇";if(voiceOn)speak("Audio activado.");};
+  window.toggleTheme=function(){
+    var cur=document.documentElement.getAttribute("data-theme")||"dark";
+    var next=cur==="dark"?"light":"dark";
+    document.documentElement.setAttribute("data-theme",next);
+    localStorage.setItem("theme",next);
+    var btn=document.getElementById("theme-toggle-btn");
+    if(btn)btn.textContent=next==="dark"?"🌙":"☀️";
+  };
+  // Sincronizar ícono del botón con el tema ya aplicado al cargar
+  (function(){
+    var t=document.documentElement.getAttribute("data-theme")||"dark";
+    document.addEventListener("DOMContentLoaded",function(){
+      var btn=document.getElementById("theme-toggle-btn");
+      if(btn)btn.textContent=t==="dark"?"🌙":"☀️";
+    });
+  })();
 
   window.addEventListener("error", function(e){
     if(e.message && (e.message.includes("import") || e.message.includes("firebase") || e.message.includes("fetch"))){
@@ -3686,7 +3702,7 @@
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:ital,wght@0,300;0,400;0,500;1,400&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap');
 /* TEMA CANCHA — verde césped + blanco + amarillo tarjeta */
-:root{
+:root,[data-theme="dark"]{
   --bg:#0d1f14;--sur:#142a1c;--sur2:#1a3424;--hbg:#0a1810;
   --club-cel:#7ee787;--club-ama:#f5c518;
   --gold:#f5c518;--g2:#f5c518;--gl:#fdd835;--gd:#b8860b;
@@ -3696,21 +3712,43 @@
   --card:#142a1c;--font-hd:'Bebas Neue',sans-serif;
   --font-display:'DM Mono',monospace;
   --font-body:'DM Sans',sans-serif;
+  --grass-line:rgba(255,255,255,0.025);
+  --watermark-op:0.05;
   color-scheme:dark;
+}
+/* TEMA CLARO — césped de día, blanco cálido */
+[data-theme="light"]{
+  --bg:#eef5ee;--sur:#ffffff;--sur2:#f3f9f1;--hbg:#e3f0e2;
+  --club-cel:#16a34a;--club-ama:#d97706;
+  --gold:#ca8a04;--g2:#ca8a04;--gl:#eab308;--gd:#92660a;
+  --ink:#0f2417;--mut:#5a7a64;--brd:#cfe5cf;--b2:#a9d1a9;
+  --grn:#16a34a;--red:#dc2626;--sh:rgba(22,163,74,0.06);
+  --acc:#16a34a;--acc2:#15803d;--acc-ama:#ca8a04;
+  --card:#ffffff;--font-hd:'Bebas Neue',sans-serif;
+  --font-display:'DM Mono',monospace;
+  --font-body:'DM Sans',sans-serif;
+  --grass-line:rgba(0,0,0,0.02);
+  --watermark-op:0.035;
+  color-scheme:light;
+}
+[data-theme="light"] body{box-shadow:none;}
+[data-theme="light"] .dc,[data-theme="light"] .modal,[data-theme="light"] .card,[data-theme="light"] [class*="card"]{
+  box-shadow:0 1px 3px rgba(15,36,23,0.06);
 }
 
 body{
   background:
     repeating-linear-gradient(180deg,
-      rgba(255,255,255,0.025) 0px,
-      rgba(255,255,255,0.025) 40px,
+      var(--grass-line) 0px,
+      var(--grass-line) 40px,
       transparent 40px,
       transparent 80px),
-    linear-gradient(180deg,#0f2417,#0a1810 60%,#081209);
+    var(--bg);
   color:var(--ink);
   font-family:var(--font-body);
   min-height:100vh;overflow-x:hidden;
   text-transform:uppercase;letter-spacing:0.04em;
+  transition:background-color 0.25s ease,color 0.25s ease;
 }
 /* 7:45 watermark en todas las pantallas */
 body::before{
@@ -3719,7 +3757,8 @@ body::before{
   transform:translate(-50%,-50%);
   font-family:var(--font-display);
   font-size:70vw;font-weight:900;
-  color:rgba(74,222,128,0.05);
+  color:var(--club-cel);
+  opacity:var(--watermark-op);
   pointer-events:none;user-select:none;
   z-index:0;line-height:1;white-space:nowrap;
 }
@@ -3728,15 +3767,16 @@ body::before{
 /* HEADER */
 header{
   position:relative;
-  background:linear-gradient(135deg,#0f2417,#0a1810);
+  background:var(--hbg);
   padding:22px 16px 20px;overflow:hidden;
-  border-bottom:2px solid rgba(74,222,128,0.18);
+  border-bottom:2px solid var(--sh);
+  transition:background-color 0.25s ease;
 }
 header::before{
   content:"7:45";position:absolute;right:-10px;top:50%;
   transform:translateY(-50%);
   font-family:var(--font-display);font-size:7.5rem;font-weight:900;
-  color:rgba(126,231,135,0.05);pointer-events:none;
+  color:var(--club-cel);opacity:var(--watermark-op);pointer-events:none;
   user-select:none;letter-spacing:-4px;line-height:1;
 }
 header::after{
@@ -4188,6 +4228,14 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 #mesa-count{color:rgba(255,255,255,0.65)!important;}
 .hmeta{color:rgba(255,255,255,0.5)!important;}
 </style>
+<script>
+// ── TEMA: detección + aplicación ANTES del primer paint (evita flash) ──────
+(function(){
+  var saved=localStorage.getItem("theme");
+  var theme=saved||(window.matchMedia&&window.matchMedia("(prefers-color-scheme: light)").matches?"light":"dark");
+  document.documentElement.setAttribute("data-theme",theme);
+})();
+</script>
 </head>
 <body>
 <div id="login-screen">
@@ -4209,7 +4257,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
     <button onclick="loginConfirmarNombre()" style="width:100%;box-sizing:border-box;background:linear-gradient(135deg,var(--club-cel),var(--club-ama));color:#0a1810;border:none;border-radius:14px;padding:16px;font-family:'Bebas Neue',sans-serif;font-size:1.2rem;font-weight:400;cursor:pointer;letter-spacing:0.1em">ENTRAR →</button>
   </div>
 </div>
-<div id="splash-screen" style="position:fixed;inset:0;background:#0f2417;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;transition:opacity 0.5s ease">
+<div id="splash-screen" style="position:fixed;inset:0;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;transition:opacity 0.5s ease">
   <img src="icon-transparent.png" style="width:150px;height:150px;object-fit:contain;animation:splashPulse 1.4s ease-in-out infinite;filter:drop-shadow(0 0 28px rgba(100,174,220,0.7));margin-bottom:28px">
   <div style="font-family:'Playfair Display',serif;font-size:0.75rem;color:rgba(255,255,255,0.5);letter-spacing:0.18em;text-transform:uppercase;animation:splashFadeIn 0.6s ease 0.2s both">Cargando...</div>
 </div>
@@ -4221,17 +4269,18 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
   <div class="nz">
     <div id="prompt" onclick="showLoginScreen()" style="cursor:pointer">👤 Quien sos?</div>
     <div id="badge" onclick="toggleBadgeMenu()" style="cursor:pointer;position:relative"></div>
-    <div id="badge-menu" style="display:none;position:fixed;top:62px;left:12px;background:#1a1a1a;border:1px solid #333;border-radius:14px;z-index:300;min-width:210px;overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,0.7)">
-      <div onclick="toggleBadgeMenu();showLoginScreen()" style="padding:14px 18px;font-size:0.8rem;cursor:pointer;border-bottom:1px solid #252525;color:#eee">👤 Cambiar usuario</div>
+    <div id="badge-menu" style="display:none;position:fixed;top:62px;left:12px;background:var(--card);border:1px solid var(--brd);border-radius:14px;z-index:300;min-width:210px;overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,0.4)">
+      <div onclick="toggleBadgeMenu();showLoginScreen()" style="padding:14px 18px;font-size:0.8rem;cursor:pointer;border-bottom:1px solid var(--brd);color:#eee">👤 Cambiar usuario</div>
       <div id="badge-menu-admin" style="display:none">
-        <div onclick="toggleBadgeMenu();switchTab('admin')" style="padding:14px 18px;font-size:0.8rem;cursor:pointer;border-bottom:1px solid #252525;color:#a5b4fc">⚙️ Panel admin</div>
-        <div onclick="toggleBadgeMenu();publicarVersion&&publicarVersion()" style="padding:14px 18px;font-size:0.8rem;cursor:pointer;border-bottom:1px solid #252525;color:#74aed6">📡 Publicar versión</div>
-        <div onclick="toggleBadgeMenu();kickAllUsers()" style="padding:14px 18px;font-size:0.8rem;cursor:pointer;border-bottom:1px solid #252525;color:#fb923c">🚪 Cerrar sesiones</div>
+        <div onclick="toggleBadgeMenu();switchTab('admin')" style="padding:14px 18px;font-size:0.8rem;cursor:pointer;border-bottom:1px solid var(--brd);color:#a5b4fc">⚙️ Panel admin</div>
+        <div onclick="toggleBadgeMenu();publicarVersion&&publicarVersion()" style="padding:14px 18px;font-size:0.8rem;cursor:pointer;border-bottom:1px solid var(--brd);color:#74aed6">📡 Publicar versión</div>
+        <div onclick="toggleBadgeMenu();kickAllUsers()" style="padding:14px 18px;font-size:0.8rem;cursor:pointer;border-bottom:1px solid var(--brd);color:#fb923c">🚪 Cerrar sesiones</div>
       </div>
-      <div id="pwa-install-btn" onclick="toggleBadgeMenu();installPWA()" style="display:none;padding:14px 18px;font-size:0.8rem;cursor:pointer;border-bottom:1px solid #252525;color:#4ade80;align-items:center;gap:8px">📲 Instalar app</div>
+      <div id="pwa-install-btn" onclick="toggleBadgeMenu();installPWA()" style="display:none;padding:14px 18px;font-size:0.8rem;cursor:pointer;border-bottom:1px solid var(--brd);color:#4ade80;align-items:center;gap:8px">📲 Instalar app</div>
       <div onclick="toggleBadgeMenu();logout()" style="padding:14px 18px;font-size:0.8rem;cursor:pointer;color:#f87171">🚪 Salir</div>
     </div>
-    <button id="vbtn" onclick="toggleVoice()" style="margin-left:auto">🔇</button>
+    <button id="theme-toggle-btn" onclick="toggleTheme()" style="margin-left:auto" title="Cambiar tema">🌙</button>
+    <button id="vbtn" onclick="toggleVoice()">🔇</button>
   </div>
 </header>
 <div id="cumple-banner" style="display:none"></div>
@@ -4340,7 +4389,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
           <button class="admin-action-btn" onclick="verHistorial()">📅 Historial</button>
           <button class="admin-action-btn" onclick="sortearPropina()" style="background:rgba(168,85,247,0.12);color:#c084fc;border-color:rgba(168,85,247,0.3)">🎲 Propina</button>
           <button class="admin-action-btn" onclick="togglePropResets()" id="prop-reset-toggle" style="background:none;border:none;color:rgba(255,255,255,0.2);font-size:0.65rem;padding:4px 8px" title="Opciones de reset">⚙</button>
-          <div id="prop-reset-panel" style="display:none;position:absolute;right:14px;background:#1a1a1a;border:1px solid #333;border-radius:10px;padding:8px;z-index:50;box-shadow:0 4px 16px rgba(0,0,0,0.6)">
+          <div id="prop-reset-panel" style="display:none;position:absolute;right:14px;background:var(--card);border:1px solid var(--brd);border-radius:10px;padding:8px;z-index:50;box-shadow:0 4px 16px rgba(0,0,0,0.3)">
             <div style="font-size:0.55rem;color:var(--mut);padding:0 4px 6px;letter-spacing:0.06em">PARCHES TEMPORALES</div>
             <button onclick="limpiarPropina();togglePropResets()" style="display:block;width:100%;background:none;border:none;color:#f87171;font-size:0.68rem;padding:6px 10px;cursor:pointer;text-align:left">✕ Reset propina activa</button>
             <button onclick="resetRondaPropina();togglePropResets()" style="display:block;width:100%;background:none;border:none;color:#fca5a5;font-size:0.68rem;padding:6px 10px;cursor:pointer;text-align:left">↺ Reset ronda entera</button>
@@ -4509,7 +4558,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
     <input type="file" id="ticket-input" accept="image/*" capture="environment" style="display:none" onchange="procesarTicket(this)">
     <div id="ticket-status" style="display:none;background:rgba(79,179,255,0.08);border:1px solid rgba(79,179,255,0.2);border-radius:10px;padding:10px 12px;margin-bottom:12px;font-size:0.68rem;color:#4fb3ff;text-align:center"></div>
     <!-- Tabla header -->
-    <div style="display:grid;grid-template-columns:1fr 100px;gap:8px;padding:6px 10px;border-bottom:1px solid #252525;margin-bottom:4px">
+    <div style="display:grid;grid-template-columns:1fr 100px;gap:8px;padding:6px 10px;border-bottom:1px solid var(--brd);margin-bottom:4px">
       <div style="font-size:0.6rem;color:rgba(255,255,255,0.35);letter-spacing:0.1em;text-transform:uppercase">Bebida / Combo</div>
       <div style="font-size:0.6rem;color:rgba(255,255,255,0.35);letter-spacing:0.1em;text-align:right;text-transform:uppercase">Precio $</div>
     </div>
@@ -4564,7 +4613,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.86";
+  var APP_VERSION="10.0.87";
 
   var STORED_VERSION=localStorage.getItem("app_version");
 
@@ -4643,7 +4692,7 @@ window.kickAllUsers=async function(){
   // Pequeño toast visual
   var t=document.createElement("div");
   t.textContent="✅ Sesiones cerradas";
-  t.style.cssText="position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#1a1a1a;color:#4ade80;border:1px solid #4ade80;padding:10px 20px;border-radius:20px;font-size:0.8rem;font-weight:700;z-index:9999";
+  t.style.cssText="position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--card);color:var(--grn);border:1px solid var(--grn);padding:10px 20px;border-radius:20px;font-size:0.8rem;font-weight:700;z-index:9999";
   document.body.appendChild(t);
   setTimeout(function(){t.remove();},3000);
 };
