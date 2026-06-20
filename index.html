@@ -276,7 +276,7 @@
           var tienePed=nd&&nd.pedidos&&nd.pedidos.length>0;
           return "<div style='padding:10px 12px;border-bottom:1px solid rgba(255,255,255,0.05)'>"
             +"<div style='display:flex;align-items:center;justify-content:space-between;margin-bottom:"+(tienePed?"6":"0")+"px'>"
-            +"<span style='font-size:0.75rem;color:#fff;font-weight:700'>👤 "+k.toUpperCase()+" quiere unirse</span>"
+            +"<span style='font-size:0.75rem;color:var(--ink);font-weight:700'>👤 "+k.toUpperCase()+" quiere unirse</span>"
             +"<button data-nuevo='"+enc+"' onclick='window.descartarNuevo(decodeURIComponent(this.dataset.nuevo))' style='background:none;border:none;color:var(--mut);cursor:pointer;font-size:1rem;padding:4px 8px'>✕</button>"
             +"</div>"
             +(tienePed?"<div style='font-size:0.68rem;color:var(--mut);margin-bottom:8px'>☕ "+peds+"</div>":"")
@@ -572,8 +572,8 @@
           +"<div style='width:44px;height:44px;background:rgba(22,197,94,0.18);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0'>✔️</div>"
           +"<div style='flex:1;min-width:0'>"
           +"<div style='font-size:0.58rem;font-weight:700;color:#4ade80;letter-spacing:0.12em;text-transform:uppercase'>✓ Pedido enviado</div>"
-          +"<div style='font-size:0.88rem;font-weight:700;color:#fff;margin-top:3px;white-space:normal;word-break:break-word;line-height:1.3'>"+misPed[0].drink+"</div>"
-          +(horaStr?"<div style='font-size:0.58rem;color:rgba(255,255,255,0.35);margin-top:2px;font-family:\"DM Mono\",monospace'>"+fechaStr+" · "+horaStr+"</div>":"")
+          +"<div style='font-size:0.88rem;font-weight:700;color:var(--ink);margin-top:3px;white-space:normal;word-break:break-word;line-height:1.3'>"+misPed[0].drink+"</div>"
+          +(horaStr?"<div style='font-size:0.58rem;color:var(--mut);margin-top:2px;font-family:\"JetBrains Mono\",monospace'>"+fechaStr+" · "+horaStr+"</div>":"")
           +"</div>"
           +"<button onclick='window.modificarPedido&&window.modificarPedido()' style='flex-shrink:0;background:rgba(255,255,255,0.1);border:1.5px solid rgba(255,255,255,0.3);border-radius:10px;padding:9px 14px;color:#fff;font-size:0.7rem;font-weight:700;cursor:pointer;letter-spacing:0.04em'>✏️ Cambiar</button>"
           +"</div>"
@@ -582,7 +582,7 @@
         pills+="<div style='flex:1;min-width:140px;background:rgba(251,146,60,0.12);border:1.5px solid rgba(251,146,60,0.4);border-radius:14px;padding:12px 14px;display:flex;align-items:center;gap:10px;cursor:pointer' onclick='document.querySelector(\".cbtn\")&&document.querySelector(\".cbtn\").click()'>"
           +"<span style='font-size:1.4rem'>🟠</span>"
           +"<div><div style='font-size:0.72rem;font-weight:700;color:#fb923c;letter-spacing:0.06em'>SIN ENVIAR</div>"
-          +"<div style='font-size:0.68rem;color:rgba(255,255,255,0.6);margin-top:2px'>"+misPed[0].drink+"</div></div>"
+          +"<div style='font-size:0.68rem;color:var(--ink);margin-top:2px'>"+misPed[0].drink+"</div></div>"
           +"</div>";
       }
       // Pill 2: saldo (solo si el admin cargó algo)
@@ -602,7 +602,7 @@
         pills+="<div style='background:rgba(245,197,24,0.1);border:1.5px solid rgba(245,197,24,0.35);border-radius:14px;padding:12px 14px;display:flex;align-items:center;gap:10px;cursor:pointer' onclick='repetirUltimo()'>"
           +"<span style='font-size:1.4rem'>🔁</span>"
           +"<div><div style='font-size:0.68rem;font-weight:700;color:var(--g2);letter-spacing:0.06em'>REPETIR</div>"
-          +"<div style='font-size:0.65rem;color:rgba(255,255,255,0.55);margin-top:2px'>"+ld.icon+" "+ld.drink+"</div></div>"
+          +"<div style='font-size:0.65rem;color:var(--mut);margin-top:2px'>"+ld.icon+" "+ld.drink+"</div></div>"
           +"</div>";
       }
       pills+="</div>";
@@ -733,7 +733,7 @@
       return "<div style='display:flex;align-items:center;gap:14px;padding:14px 16px;background:linear-gradient(135deg,rgba(245,197,24,0.15),rgba(234,88,12,0.10));border:1.5px solid rgba(245,197,24,0.4);border-radius:16px"+ea+"'>"        +"<div style='font-size:2rem;flex-shrink:0'>"+emoji+"</div>"
         +"<div style='flex:1'>"
         +"<div style='font-family:\"Bebas Neue\",sans-serif;font-size:1.1rem;letter-spacing:0.06em;color:var(--g2);line-height:1.1'>"+titulo+"</div>"
-        +"<div style='font-size:0.7rem;color:rgba(255,255,255,0.6);margin-top:3px;letter-spacing:0.04em'>"+subtitulo+"</div>"
+        +"<div style='font-size:0.7rem;color:var(--ink);margin-top:3px;letter-spacing:0.04em'>"+subtitulo+"</div>"
         +"</div></div>";
     }
     banner.style.cssText="display:none;margin:0 0 10px";
@@ -848,7 +848,7 @@
       var k=g.trim();if(seen[k])return false;seen[k]=true;return true;
     }).sort(function(a,b){return a.toLowerCase().localeCompare(b.toLowerCase());});
 
-    var html="<div style='font-size:0.65rem;color:rgba(255,255,255,0.5);letter-spacing:0.08em;margin-bottom:8px'>① MARCÁ LOS NOMBRES VIEJOS</div>"
+    var html="<div style='font-size:0.65rem;color:var(--mut);letter-spacing:0.08em;margin-bottom:8px'>① MARCÁ LOS NOMBRES VIEJOS</div>"
       +"<div id='merge-viejos-list' style='max-height:200px;overflow-y:auto;background:#0e2015;border:1px solid #252525;border-radius:12px;margin-bottom:14px'>"
       +todos.map(function(g){
         var isGalan=galanes.indexOf(g)!==-1;
@@ -859,11 +859,11 @@
           +g
           +(isGalan?"":"</b>")
           +"</span>"
-          +(isGalan?"<span style='margin-left:auto;font-size:0.6rem;color:rgba(255,255,255,0.25)'>lista</span>":"<span style='margin-left:auto;font-size:0.6rem;color:var(--club-ama)'>historial</span>")
+          +(isGalan?"<span style='margin-left:auto;font-size:0.6rem;color:var(--mut)'>lista</span>":"<span style='margin-left:auto;font-size:0.6rem;color:var(--club-ama)'>historial</span>")
           +"</label>";
       }).join("")
       +"</div>"
-      +"<div style='font-size:0.65rem;color:rgba(255,255,255,0.5);letter-spacing:0.08em;margin-bottom:8px'>② NOMBRE NUEVO (queda activo)</div>"
+      +"<div style='font-size:0.65rem;color:var(--mut);letter-spacing:0.08em;margin-bottom:8px'>② NOMBRE NUEVO (queda activo)</div>"
       +"<select id='merge-nuevo-sel' style='width:100%;background:#1a3424;border:1px solid rgba(245,197,24,0.3);border-radius:11px;padding:13px 16px;font-family:var(--font-body);font-size:0.88rem;color:var(--g2);outline:none;margin-bottom:4px'>"
       +galanes.slice().sort().map(function(g){return"<option value='"+g+"'>"+g+"</option>";}).join("")
       +"</select>";
@@ -887,9 +887,9 @@
       if(confDiv){
         confDiv.innerHTML="<div style='background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:12px;padding:12px 14px;margin-bottom:10px'>"
           +"<div style='font-size:0.72rem;font-weight:700;color:#f87171;margin-bottom:6px'>⚠️ Fusionar "+origenes.length+" → "+destino+"</div>"
-          +"<div style='font-size:0.65rem;color:rgba(255,255,255,0.6);margin-bottom:10px'>"+origenes.join(" · ")+"</div>"
+          +"<div style='font-size:0.65rem;color:var(--ink);margin-bottom:10px'>"+origenes.join(" · ")+"</div>"
           +"<div style='display:flex;gap:8px'>"
-          +"<button onclick='document.getElementById(\"merge-confirm-inline\").innerHTML=\"\"' style='flex:1;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:8px;cursor:pointer;color:rgba(255,255,255,0.6);font-size:0.72rem'>Cancelar</button>"
+          +"<button onclick='document.getElementById(\"merge-confirm-inline\").innerHTML=\"\"' style='flex:1;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:8px;cursor:pointer;color:var(--ink);font-size:0.72rem'>Cancelar</button>"
           +"<button onclick='confirmarFusionMasiva()' style='flex:2;background:rgba(239,68,68,0.2);border:1px solid rgba(239,68,68,0.4);border-radius:8px;padding:8px;cursor:pointer;color:#f87171;font-size:0.72rem;font-weight:700'>✓ Confirmar fusión</button>"
           +"</div></div>";
         confDiv.style.display="block";
@@ -1552,7 +1552,7 @@
         +"padding:10px 10px;background:rgba(255,255,255,0.03);border-radius:10px;margin-bottom:4px'>";
       html+="<div style='display:flex;align-items:center;gap:8px'>"
         +"<span style='font-size:1.2rem'>"+d.icon+"</span>"
-        +"<span style='font-size:0.78rem;font-weight:700;color:#fff;letter-spacing:0.03em'>"+d.name+"</span>"
+        +"<span style='font-size:0.78rem;font-weight:700;color:var(--ink);letter-spacing:0.03em'>"+d.name+"</span>"
         +"</div>";
       html+="<input type='number' data-idx='"+i+"' data-combo='' placeholder='0' min='0' step='100' value='"+(d.precio||"")+"' "
         +"style='width:100%;background:#0e2015;border:1px solid rgba(245,197,24,0.3);border-radius:8px;padding:8px;"
@@ -1564,10 +1564,10 @@
         var comboKey=ex.toLowerCase().replace(/\s+/g,"_");
         html+="<div style='display:grid;grid-template-columns:1fr 100px;gap:8px;align-items:center;"
           +"padding:6px 10px 6px 30px;margin-bottom:2px;border-left:2px solid #252525'>";
-        html+="<div style='font-size:0.68rem;color:rgba(255,255,255,0.45)'>+ "+ex+"</div>";
+        html+="<div style='font-size:0.68rem;color:var(--mut)'>+ "+ex+"</div>";
         html+="<input type='number' data-idx='"+i+"' data-combo='"+comboKey+"' placeholder='0' min='0' step='100' value='"+(comboPrices[comboKey]||"")+"' "
           +"style='width:100%;background:#0e2015;border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:7px;"
-          +"font-size:0.88rem;color:rgba(255,255,255,0.65);text-align:right;outline:none'>";
+          +"font-size:0.88rem;color:var(--ink);text-align:right;outline:none'>";
         html+="</div>";
       });
       html+="<div style='height:6px'></div>";
@@ -2054,7 +2054,7 @@
           var tienePed=nd&&nd.pedidos&&nd.pedidos.length>0;
           return "<div style='padding:10px 12px;border-bottom:1px solid rgba(255,255,255,0.05)'>"
             +"<div style='display:flex;align-items:center;justify-content:space-between;margin-bottom:"+(tienePed?"6":"0")+"px'>"
-            +"<span style='font-size:0.75rem;color:#fff;font-weight:700'>👤 "+k.toUpperCase()+" quiere unirse</span>"
+            +"<span style='font-size:0.75rem;color:var(--ink);font-weight:700'>👤 "+k.toUpperCase()+" quiere unirse</span>"
             +"<button data-nuevo='"+enc+"' onclick='window.descartarNuevo(decodeURIComponent(this.dataset.nuevo))' style='background:none;border:none;color:var(--mut);cursor:pointer;font-size:1rem;padding:4px 8px'>✕</button>"
             +"</div>"
             +(tienePed?"<div style='font-size:0.68rem;color:var(--mut);margin-bottom:8px'>☕ "+peds+"</div>":"")
@@ -2243,7 +2243,7 @@
       // REVISAR: solo en edit mode y solo si realmente tiene el flag
       if(isEdit&&d.pendingReview)html+="<div class='cx' onclick='aprobarBebida("+i+",event)' style='cursor:pointer'>✓ APROBAR</div>";
       if(isEdit&&d.createdBy)html+="<div class='ccreated'>Por "+d.createdBy+"</div>";
-      if(isEdit)html+="<button class='ch' style='background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.12);border-radius:6px;padding:3px 8px;font-size:0.55rem;cursor:pointer;color:rgba(255,255,255,0.6)' onclick='editarExtras("+i+");event.stopPropagation()'>⚙ extras</button>";
+      if(isEdit)html+="<button class='ch' style='background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.12);border-radius:6px;padding:3px 8px;font-size:0.55rem;cursor:pointer;color:var(--ink)' onclick='editarExtras("+i+");event.stopPropagation()'>⚙ extras</button>";
       html+="</div></div>";
     }
     // Botón agregar bebida solo en edit mode
@@ -2289,7 +2289,7 @@
         +"border-radius:12px;padding:10px 14px;display:flex;align-items:center;gap:10px;"
         +"cursor:pointer;text-align:left;transition:all 0.15s;'>"
         +"<span style='font-size:1.1rem'>🔁</span>"
-        +"<div><div style='font-size:0.62rem;color:rgba(255,255,255,0.4);letter-spacing:0.06em;margin-bottom:1px'>REPETIR ÚLTIMO</div>"
+        +"<div><div style='font-size:0.62rem;color:var(--mut);letter-spacing:0.06em;margin-bottom:1px'>REPETIR ÚLTIMO</div>"
         +"<div style='font-size:0.75rem;font-weight:600;color:#fff'>"+ld.icon+" "+ld.drink+"</div></div>"
         +"</button>";
       repWrap.style.display="block";
@@ -2366,13 +2366,13 @@
       deuda+=base+comboAdd;
     });
     var html="<div style='margin:14px 12px 0;background:linear-gradient(135deg,rgba(20,20,20,0.95),rgba(30,30,30,0.9));border:1.5px solid rgba(255,255,255,0.18);border-radius:16px;padding:16px 18px'>";
-    html+="<div style='font-size:0.65rem;color:rgba(255,255,255,0.65);letter-spacing:0.1em;margin-bottom:12px;font-family:\"DM Mono\",monospace'>TU CUENTA</div>";
+    html+="<div style='font-size:0.65rem;color:var(--ink);letter-spacing:0.1em;margin-bottom:12px;font-family:\"JetBrains Mono\",monospace'>TU CUENTA</div>";
     html+="<div style='display:flex;align-items:stretch;gap:12px'>";
     // Pedido
     if(misPed.length){
       html+="<div style='flex:1'>"
-        +"<div style='font-size:0.6rem;color:rgba(255,255,255,0.55);letter-spacing:0.06em;margin-bottom:4px'>PEDISTE</div>"
-        +"<div style='font-size:0.8rem;font-weight:600;color:#fff;line-height:1.3'>"+misPed[0].icon+" "+misPed[0].drink+"</div>"
+        +"<div style='font-size:0.6rem;color:var(--mut);letter-spacing:0.06em;margin-bottom:4px'>PEDISTE</div>"
+        +"<div style='font-size:0.8rem;font-weight:600;color:var(--ink);line-height:1.3'>"+misPed[0].icon+" "+misPed[0].drink+"</div>"
         +(deuda>0?"<div style='font-family:\"Bebas Neue\",sans-serif;font-size:1rem;color:rgba(245,197,24,0.7);margin-top:4px;letter-spacing:0.04em'>Precio: $"+Math.round(deuda)+"</div>":"")
         +"</div>";
     }
@@ -2380,22 +2380,22 @@
     html+="<div style='text-align:right;border-left:1px solid rgba(255,255,255,0.08);padding-left:14px;flex-shrink:0'>";
     if(pagado>0){
       var saldo=deuda>0?pagado-deuda:0;
-      html+="<div style='font-size:0.6rem;color:rgba(255,255,255,0.35);letter-spacing:0.06em;margin-bottom:2px'>PAGASTE</div>"
+      html+="<div style='font-size:0.6rem;color:var(--mut);letter-spacing:0.06em;margin-bottom:2px'>PAGASTE</div>"
         +"<div style='font-family:\"Bebas Neue\",sans-serif;font-size:2rem;color:#4ade80;letter-spacing:0.04em;line-height:1'>$"+Math.round(pagado)+"</div>";
       if(deuda>0){
         if(saldo===0)html+="<div style='font-size:0.65rem;color:#4ade80;margin-top:4px'>✓ Cuadra!</div>";
         else if(saldo>0)html+="<div style='font-size:0.65rem;color:#fbbf24;margin-top:4px'>Sobran $"+Math.round(saldo)+"</div>";
         else html+="<div style='font-size:0.65rem;color:#fb923c;margin-top:4px'>Faltan $"+Math.round(Math.abs(saldo))+"</div>";
       }
-      if(pg.cash>0&&pg.transfer>0)html+="<div style='font-size:0.58rem;color:rgba(255,255,255,0.3);margin-top:2px'>💵$"+Math.round(pg.cash)+" + 📲$"+Math.round(pg.transfer)+"</div>";
+      if(pg.cash>0&&pg.transfer>0)html+="<div style='font-size:0.58rem;color:var(--mut);margin-top:2px'>💵$"+Math.round(pg.cash)+" + 📲$"+Math.round(pg.transfer)+"</div>";
     } else {
       html+="<div style='font-size:0.6rem;color:rgba(251,146,60,0.95);letter-spacing:0.06em;margin-bottom:4px'>PENDIENTE</div>";
       if(deuda>0){
         html+="<div style='font-family:\"Bebas Neue\",sans-serif;font-size:1.8rem;color:#fb923c;letter-spacing:0.04em;line-height:1'>$"+Math.round(deuda)+"</div>"
-          +"<div style='font-size:0.6rem;color:rgba(255,255,255,0.3);margin-top:2px'>a pagar</div>";
+          +"<div style='font-size:0.6rem;color:var(--mut);margin-top:2px'>a pagar</div>";
       } else {
         html+="<div style='font-size:0.75rem;font-weight:600;color:#fb923c'>—</div>"
-          +"<div style='font-size:0.58rem;color:rgba(255,255,255,0.3);margin-top:2px'>Admin carga valor</div>";
+          +"<div style='font-size:0.58rem;color:var(--mut);margin-top:2px'>Admin carga valor</div>";
       }
     }
     html+="</div></div></div>";
@@ -2433,10 +2433,10 @@
         if(isAdmin()&&it.loadedBy==="admin")meta=" · 👑admin";
         row+="<div class='pdi'>";
         var pedHora="";
-        if(it.ts){var dh=new Date(it.ts);pedHora=" <span style='font-size:0.52rem;color:var(--mut);font-family:&quot;DM Mono&quot;,monospace'>"+dh.getHours()+":"+("0"+dh.getMinutes()).slice(-2)+"</span>";}
+        if(it.ts){var dh=new Date(it.ts);pedHora=" <span style='font-size:0.52rem;color:var(--mut);font-family:&quot;JetBrains Mono&quot;,monospace'>"+dh.getHours()+":"+("0"+dh.getMinutes()).slice(-2)+"</span>";}
         var adminTag=it.loadedBy==="admin"?" <span style='font-size:0.48rem;background:rgba(245,197,24,0.15);color:var(--g2);padding:1px 5px;border-radius:4px;font-weight:700'>ADM</span>":"";
         row+="<span class='pdt'>"+it.icon+" "+it.drink+pedHora+adminTag+"</span>";
-        if(hora||meta)row+="<span style='font-size:0.58rem;color:rgba(255,255,255,0.55);margin-left:6px;white-space:nowrap;font-family:var(--font-display)'>"+hora+meta+"</span>";
+        if(hora||meta)row+="<span style='font-size:0.58rem;color:var(--mut);margin-left:6px;white-space:nowrap;font-family:var(--font-display)'>"+hora+meta+"</span>";
         if(canDel)row+="<span class='cdel' onclick='removeOrder(\""+it.key+"\")'>✕</span>";
         row+="</div>";
       }
@@ -2627,16 +2627,16 @@
       row+="<div style='display:flex;gap:8px;align-items:baseline;margin-top:4px;flex-wrap:wrap'>";
       row+="<span style='font-family:\"Bebas Neue\",sans-serif;font-size:1.4rem;color:var(--grn);letter-spacing:0.04em'>$"+Math.round(total)+"</span>";
       if(cash>0&&tr>0){
-        row+="<span style='font-size:0.62rem;color:rgba(255,255,255,0.45)'>💵$"+Math.round(cash)+" + 📲$"+Math.round(tr)+"</span>";
+        row+="<span style='font-size:0.62rem;color:var(--mut)'>💵$"+Math.round(cash)+" + 📲$"+Math.round(tr)+"</span>";
       } else if(cash>0){
-        row+="<span style='font-size:0.62rem;color:rgba(255,255,255,0.45)'>💵 efectivo</span>";
+        row+="<span style='font-size:0.62rem;color:var(--mut)'>💵 efectivo</span>";
       } else if(tr>0){
-        row+="<span style='font-size:0.62rem;color:rgba(255,255,255,0.45)'>📲 transfer</span>";
+        row+="<span style='font-size:0.62rem;color:var(--mut)'>📲 transfer</span>";
       }
       row+="</div>";
       if(deuda>0){
         row+="<div style='display:flex;gap:8px;align-items:center;margin-top:3px;flex-wrap:wrap'>";
-        row+="<span style='font-size:0.6rem;color:rgba(255,255,255,0.35)'>Debe: <b style='color:rgba(245,197,24,0.85)'>$"+Math.round(deuda)+"</b></span>";
+        row+="<span style='font-size:0.6rem;color:var(--mut)'>Debe: <b style='color:rgba(245,197,24,0.85)'>$"+Math.round(deuda)+"</b></span>";
         if(saldo!==null){
           if(saldo===0) row+="<span style='font-size:0.6rem;color:#4ade80'>✓ Cuadra</span>";
           else if(saldo>0) row+="<span style='font-size:0.6rem;color:#fbbf24'>↑ Sobran $"+Math.round(saldo)+"</span>";
@@ -2739,15 +2739,15 @@
     } else {
       var d=Math.floor(diff/86400000),h=Math.floor((diff%86400000)/3600000),m2=Math.floor((diff%3600000)/60000),sv=Math.floor((diff%60000)/1000);
       cdHtml="<div style='text-align:center;background:#142a1c;border:1px solid #1e1e1e;border-radius:16px;padding:20px 16px;margin-bottom:14px'>"
-        +"<div style='font-size:0.6rem;color:var(--mut);letter-spacing:0.1em;margin-bottom:12px;font-family:\"DM Mono\",monospace'>☕ PRÓXIMO CAFÉ · CRR TENIS</div>"
+        +"<div style='font-size:0.6rem;color:var(--mut);letter-spacing:0.1em;margin-bottom:12px;font-family:\"JetBrains Mono\",monospace'>☕ PRÓXIMO CAFÉ · CRR TENIS</div>"
         +"<div style='display:flex;justify-content:center;gap:12px;align-items:flex-end;margin-bottom:10px'>"
-        +(d>0?"<div><div style='font-family:\"Bebas Neue\",sans-serif;font-size:3rem;color:#fff;line-height:1'>"+d+"</div><div style='font-size:0.52rem;color:var(--mut);margin-top:3px;font-family:\"DM Mono\",monospace'>DÍAS</div></div><div style='font-size:1.8rem;color:#222;padding-bottom:10px'>:</div>":"")
-        +"<div><div style='font-family:\"Bebas Neue\",sans-serif;font-size:3rem;color:#fff;line-height:1'>"+String(h).padStart(2,"0")+"</div><div style='font-size:0.52rem;color:var(--mut);margin-top:3px;font-family:\"DM Mono\",monospace'>HS</div></div>"
+        +(d>0?"<div><div style='font-family:\"Bebas Neue\",sans-serif;font-size:3rem;color:var(--ink);line-height:1'>"+d+"</div><div style='font-size:0.52rem;color:var(--mut);margin-top:3px;font-family:\"JetBrains Mono\",monospace'>DÍAS</div></div><div style='font-size:1.8rem;color:#222;padding-bottom:10px'>:</div>":"")
+        +"<div><div style='font-family:\"Bebas Neue\",sans-serif;font-size:3rem;color:var(--ink);line-height:1'>"+String(h).padStart(2,"0")+"</div><div style='font-size:0.52rem;color:var(--mut);margin-top:3px;font-family:\"JetBrains Mono\",monospace'>HS</div></div>"
         +"<div style='font-size:1.8rem;color:#222;padding-bottom:10px'>:</div>"
-        +"<div><div style='font-family:\"Bebas Neue\",sans-serif;font-size:3rem;color:#fff;line-height:1'>"+String(m2).padStart(2,"0")+"</div><div style='font-size:0.52rem;color:var(--mut);margin-top:3px;font-family:\"DM Mono\",monospace'>MIN</div></div>"
+        +"<div><div style='font-family:\"Bebas Neue\",sans-serif;font-size:3rem;color:var(--ink);line-height:1'>"+String(m2).padStart(2,"0")+"</div><div style='font-size:0.52rem;color:var(--mut);margin-top:3px;font-family:\"JetBrains Mono\",monospace'>MIN</div></div>"
         +"<div style='font-size:1.8rem;color:#222;padding-bottom:10px'>:</div>"
-        +"<div><div id='scd-s' style='font-family:\"Bebas Neue\",sans-serif;font-size:3rem;color:var(--club-cel);line-height:1'>"+String(sv).padStart(2,"0")+"</div><div style='font-size:0.52rem;color:var(--mut);margin-top:3px;font-family:\"DM Mono\",monospace'>SEG</div></div>"
-        +"</div><div style='font-size:0.6rem;color:var(--mut);font-family:\"DM Mono\",monospace'>SÁB "+sat.getDate()+" "+MESES_C[sat.getMonth()].toUpperCase()+" · 9:15 HS</div></div>";
+        +"<div><div id='scd-s' style='font-family:\"Bebas Neue\",sans-serif;font-size:3rem;color:var(--club-cel);line-height:1'>"+String(sv).padStart(2,"0")+"</div><div style='font-size:0.52rem;color:var(--mut);margin-top:3px;font-family:\"JetBrains Mono\",monospace'>SEG</div></div>"
+        +"</div><div style='font-size:0.6rem;color:var(--mut);font-family:\"JetBrains Mono\",monospace'>SÁB "+sat.getDate()+" "+MESES_C[sat.getMonth()].toUpperCase()+" · 9:15 HS</div></div>";
     }
 
     // Top bebidas HOY
@@ -2760,11 +2760,11 @@
         var medal=idx===0?"🥇":idx===1?"🥈":idx===2?"🥉":"";
         return "<div style='display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #1e1e1e'>"
           +"<span style='font-size:1.1rem;width:24px;text-align:center'>"+e[1].icon+"</span>"
-          +"<div style='flex:1;min-width:0'><div style='font-size:0.68rem;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis'>"+e[0].toUpperCase()+"</div>"
+          +"<div style='flex:1;min-width:0'><div style='font-size:0.68rem;font-weight:700;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis'>"+e[0].toUpperCase()+"</div>"
           +"<div style='margin-top:4px;height:4px;background:#1e1e1e;border-radius:2px'>"
           +"<div style='height:100%;width:"+pct+"%;background:linear-gradient(90deg,var(--club-cel),var(--club-ama));border-radius:2px'></div></div></div>"
           +"<span style='font-size:0.9rem'>"+medal+"</span>"
-          +"<b style='color:var(--club-cel);font-size:0.85rem;font-family:\"DM Mono\",monospace'>"+e[1].count+"x</b></div>";
+          +"<b style='color:var(--club-cel);font-size:0.85rem;font-family:\"JetBrains Mono\",monospace'>"+e[1].count+"x</b></div>";
       }).join("")
       :"<div style='text-align:center;color:var(--mut);font-size:0.72rem;padding:16px'>Nadie pidió todavía ☕</div>";
 
@@ -2772,9 +2772,9 @@
     var byP={};Object.values(orders).forEach(function(o){byP[o.player]=1;});
     var plrs=Object.keys(byP);
     var asisHtml="<div style='display:flex;align-items:center;justify-content:center;gap:20px;padding:10px 0'>"
-      +"<div style='text-align:center'><div style='font-family:\"Bebas Neue\",sans-serif;font-size:2.8rem;color:var(--club-cel);line-height:1'>"+plrs.length+"</div><div style='font-size:0.58rem;color:var(--mut);margin-top:4px;letter-spacing:0.06em;font-family:\"DM Mono\",monospace'>GALANES</div></div>"
+      +"<div style='text-align:center'><div style='font-family:\"Bebas Neue\",sans-serif;font-size:2.8rem;color:var(--club-cel);line-height:1'>"+plrs.length+"</div><div style='font-size:0.58rem;color:var(--mut);margin-top:4px;letter-spacing:0.06em;font-family:\"JetBrains Mono\",monospace'>GALANES</div></div>"
       +"<div style='width:1px;height:40px;background:#1e1e1e'></div>"
-      +"<div style='text-align:center'><div style='font-family:\"Bebas Neue\",sans-serif;font-size:2.8rem;color:var(--club-ama);line-height:1'>"+Object.values(orders).length+"</div><div style='font-size:0.58rem;color:var(--mut);margin-top:4px;letter-spacing:0.06em;font-family:\"DM Mono\",monospace'>PEDIDOS</div></div>"
+      +"<div style='text-align:center'><div style='font-family:\"Bebas Neue\",sans-serif;font-size:2.8rem;color:var(--club-ama);line-height:1'>"+Object.values(orders).length+"</div><div style='font-size:0.58rem;color:var(--mut);margin-top:4px;letter-spacing:0.06em;font-family:\"JetBrains Mono\",monospace'>PEDIDOS</div></div>"
       +"</div>";
 
     // MI HISTORIAL PERSONAL (desde Firebase historial)
@@ -2807,8 +2807,8 @@
                 return "<div style='flex:1;background:#1a3424;border:1px solid #252525;border-radius:12px;padding:10px 8px;text-align:center'>"
                   +"<div style='font-size:1.4rem'>"+e[1].icon+"</div>"
                   +"<div style='font-size:1.2rem;margin:2px 0'>"+medals[i]+"</div>"
-                  +"<div style='font-size:0.58rem;color:rgba(255,255,255,0.5);line-height:1.2'>"+e[0].split("+")[0].trim().toUpperCase()+"</div>"
-                  +"<div style='font-family:\"DM Mono\",monospace;font-size:0.7rem;color:var(--club-cel);margin-top:4px'>"+e[1].count+"x</div>"
+                  +"<div style='font-size:0.58rem;color:var(--mut);line-height:1.2'>"+e[0].split("+")[0].trim().toUpperCase()+"</div>"
+                  +"<div style='font-family:\"JetBrains Mono\",monospace;font-size:0.7rem;color:var(--club-cel);margin-top:4px'>"+e[1].count+"x</div>"
                   +"</div>";
               }).join("")
               +"</div>";
@@ -2820,15 +2820,15 @@
             var dstr=(dt.getDate())+"/"+(dt.getMonth()+1);
             if(f.faltó){
               return "<div style='display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #1a3424'>"
-                +"<span style='font-family:\"DM Mono\",monospace;font-size:0.62rem;color:var(--mut);width:32px;flex-shrink:0'>"+dstr+"</span>"
+                +"<span style='font-family:\"JetBrains Mono\",monospace;font-size:0.62rem;color:var(--mut);width:32px;flex-shrink:0'>"+dstr+"</span>"
                 +"<span style='font-size:0.75rem'>😴</span>"
                 +"<span style='font-size:0.68rem;color:rgba(251,146,60,0.6);flex:1;font-style:italic;letter-spacing:0.04em'>NO FUE</span>"
                 +"</div>";
             }
             return "<div style='display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #1a3424'>"
-              +"<span style='font-family:\"DM Mono\",monospace;font-size:0.62rem;color:var(--mut);width:32px;flex-shrink:0'>"+dstr+"</span>"
+              +"<span style='font-family:\"JetBrains Mono\",monospace;font-size:0.62rem;color:var(--mut);width:32px;flex-shrink:0'>"+dstr+"</span>"
               +"<span style='font-size:0.75rem'>"+f.icon+"</span>"
-              +"<span style='font-size:0.68rem;color:#fff;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis'>"+f.drink.toUpperCase()+"</span>"
+              +"<span style='font-size:0.68rem;color:var(--ink);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis'>"+f.drink.toUpperCase()+"</span>"
               +(f.pagado>0?"<span style='font-family:\"Bebas Neue\",sans-serif;font-size:0.9rem;color:#4ade80'>$"+Math.round(f.pagado)+"</span>"
                 :"<span style='font-size:0.62rem;color:var(--mut)'>—</span>")
               +"</div>";
@@ -2836,7 +2836,7 @@
           :"<div style='text-align:center;color:var(--mut);font-size:0.68rem;padding:12px'>Sin historial todavía</div>";
 
           miHistHtml="<div style='background:#142a1c;border:1px solid #1e1e1e;border-radius:16px;padding:16px;margin-bottom:12px'>"
-            +"<div style='font-size:0.62rem;font-weight:700;color:var(--club-ama);letter-spacing:0.08em;margin-bottom:14px;font-family:\"DM Mono\",monospace'>📊 TU HISTORIAL · "+me.toUpperCase()+"</div>"
+            +"<div style='font-size:0.62rem;font-weight:700;color:var(--club-ama);letter-spacing:0.08em;margin-bottom:14px;font-family:\"JetBrains Mono\",monospace'>📊 TU HISTORIAL · "+me.toUpperCase()+"</div>"
             +top3Html
             +filasHtml
             +"</div>";
@@ -2847,10 +2847,10 @@
     panel.innerHTML=cdHtml
       +(miHistHtml)
       +"<div style='background:#142a1c;border:1px solid #1e1e1e;border-radius:16px;padding:14px;margin-bottom:12px'>"
-      +"<div style='font-size:0.62rem;font-weight:700;color:var(--club-cel);letter-spacing:0.08em;margin-bottom:10px;font-family:\"DM Mono\",monospace'>☕ TOP BEBIDAS HOY</div>"
+      +"<div style='font-size:0.62rem;font-weight:700;color:var(--club-cel);letter-spacing:0.08em;margin-bottom:10px;font-family:\"JetBrains Mono\",monospace'>☕ TOP BEBIDAS HOY</div>"
       +bebidasHtml+"</div>"
       +"<div style='background:#142a1c;border:1px solid #1e1e1e;border-radius:16px;padding:14px'>"
-      +"<div style='font-size:0.62rem;font-weight:700;color:var(--club-cel);letter-spacing:0.08em;margin-bottom:10px;font-family:\"DM Mono\",monospace'>👥 ESTE SÁBADO</div>"
+      +"<div style='font-size:0.62rem;font-weight:700;color:var(--club-cel);letter-spacing:0.08em;margin-bottom:10px;font-family:\"JetBrains Mono\",monospace'>👥 ESTE SÁBADO</div>"
       +asisHtml+"</div>";
 
     // ── SECCIÓN TARDONES ─────────────────────────────────────
@@ -2878,7 +2878,7 @@
           +"<div style='width:26px;height:26px;border-radius:50%;background:"+col(o.player)+";display:flex;align-items:center;justify-content:center;font-family:\"Bebas Neue\",sans-serif;font-size:0.65rem;color:#fff;flex-shrink:0'>"+ini(o.player)+"</div>"
           +"<span style='flex:1;font-size:0.68rem;font-weight:600;color:"+(esYo?"var(--g2)":esTardón?"#f87171":"var(--ink)")+"'>"
           +o.player.toUpperCase()+(esTardón?" 🐢":"")+(esYo?" 👈":"")+"</span>"
-          +"<span style='font-size:0.6rem;font-family:\"DM Mono\",monospace;color:"+(i===0?"#4ade80":esTardón?"#f87171":"var(--mut)")+"'>"+label+"</span>"
+          +"<span style='font-size:0.6rem;font-family:\"JetBrains Mono\",monospace;color:"+(i===0?"#4ade80":esTardón?"#f87171":"var(--mut)")+"'>"+label+"</span>"
           +"</div>";
       });
       spanel.innerHTML=html;
@@ -2904,7 +2904,7 @@
           +"<div style='width:28px;height:28px;border-radius:50%;background:"+col(n)+";display:flex;align-items:center;justify-content:center;font-family:\"Bebas Neue\",sans-serif;font-size:0.7rem;color:#fff;flex-shrink:0'>"+ini(n)+"</div>"
           +"<span style='flex:1;font-size:0.72rem;font-weight:600;color:"+(esYo?"#f87171":"var(--ink)")+"'>"+n+(esYo?" 😬":"")+"</span>"
           +"<span style='font-size:0.65rem;color:#c084fc;font-weight:700'>"+veces+"x</span>"
-          +(isAdmin()?"<button data-n='"+enc+"' onclick='borrarHistorialPropina(decodeURIComponent(this.dataset.n))' style='background:none;border:none;color:rgba(255,255,255,0.2);font-size:0.7rem;cursor:pointer;padding:2px 4px' title='Borrar del historial'>✕</button>":"")
+          +(isAdmin()?"<button data-n='"+enc+"' onclick='borrarHistorialPropina(decodeURIComponent(this.dataset.n))' style='background:none;border:none;color:var(--mut);font-size:0.7rem;cursor:pointer;padding:2px 4px' title='Borrar del historial'>✕</button>":"")
           +"</div>";
       });
       html+="</div>";
@@ -3055,18 +3055,18 @@
       if(tieneScore){
         h+="<div style='display:flex;align-items:center;justify-content:center;gap:4px'>";
         h+="<span style='font-family:var(--font-display);font-size:1.4rem;font-weight:900;color:"+scoreColor+";line-height:1'>"+m.goles_local+"</span>";
-        h+="<span style='font-size:0.8rem;color:rgba(255,255,255,0.25)'>–</span>";
+        h+="<span style='font-size:0.8rem;color:var(--mut)'>–</span>";
         h+="<span style='font-family:var(--font-display);font-size:1.4rem;font-weight:900;color:"+scoreColor+";line-height:1'>"+m.goles_visita+"</span>";
         h+="</div>";
       } else {
-        h+="<div style='font-size:0.65rem;color:rgba(255,255,255,0.2);font-weight:600;letter-spacing:0.04em'>VS</div>";
+        h+="<div style='font-size:0.65rem;color:var(--mut);font-weight:600;letter-spacing:0.04em'>VS</div>";
       }
       if(vivo) h+="<div style='font-size:0.42rem;color:#4ade80;letter-spacing:0.08em;margin-top:2px'>● EN VIVO</div>";
-      else if(result) h+="<div style='font-size:0.42rem;color:rgba(255,255,255,0.35);letter-spacing:0.06em;margin-top:2px'>FINAL</div>";
+      else if(result) h+="<div style='font-size:0.42rem;color:var(--mut);letter-spacing:0.06em;margin-top:2px'>FINAL</div>";
       h+="</div>";
       h+=equipoHtml(m.visita,"left");
       h+="</div>";
-      if(meta) h+="<div style='text-align:center;font-size:0.52rem;color:rgba(255,255,255,0.6);margin-top:5px;letter-spacing:0.04em'>"+meta+"</div>";
+      if(meta) h+="<div style='text-align:center;font-size:0.52rem;color:var(--ink);margin-top:5px;letter-spacing:0.04em'>"+meta+"</div>";
       h+="</div>";
       return h;
     }
@@ -3078,7 +3078,7 @@
       vivos.forEach(function(m){htmlVivo+=tarjetaPartido(m,"vivo");});
     }
     if(hoyP.length){
-      if(htmlVivo) htmlVivo+="<div style='font-size:0.58rem;color:rgba(255,255,255,0.4);letter-spacing:0.06em;margin:10px 0 6px'>📅 HOY</div>";
+      if(htmlVivo) htmlVivo+="<div style='font-size:0.58rem;color:var(--mut);letter-spacing:0.06em;margin:10px 0 6px'>📅 HOY</div>";
       hoyP.forEach(function(m){htmlVivo+=tarjetaPartido(m,"hoy");});
     }
     if(!htmlVivo) htmlVivo="<div style='text-align:center;padding:30px 0;font-size:0.65rem;color:var(--mut)'>No hay partidos en este momento</div>";
@@ -3090,7 +3090,7 @@
     terminadosDesc.forEach(function(m){
       if(m.fecha!==fechaActual){
         fechaActual=m.fecha;
-        htmlResultados+="<div style='font-size:0.58rem;color:rgba(255,255,255,0.6);letter-spacing:0.06em;margin:10px 0 6px;padding-top:"+(htmlResultados?"4px":"0")+"'>"+m.fecha+"</div>";
+        htmlResultados+="<div style='font-size:0.58rem;color:var(--ink);letter-spacing:0.06em;margin:10px 0 6px;padding-top:"+(htmlResultados?"4px":"0")+"'>"+m.fecha+"</div>";
       }
       htmlResultados+=tarjetaPartido(m,"resultado");
     });
@@ -3102,7 +3102,7 @@
     proximos.forEach(function(m){
       if(m.fecha!==fechaProx){
         fechaProx=m.fecha;
-        htmlProximos+="<div style='font-size:0.58rem;color:rgba(255,255,255,0.6);letter-spacing:0.06em;margin:10px 0 6px;padding-top:"+(htmlProximos?"4px":"0")+"'>"+m.fecha+"</div>";
+        htmlProximos+="<div style='font-size:0.58rem;color:var(--ink);letter-spacing:0.06em;margin:10px 0 6px;padding-top:"+(htmlProximos?"4px":"0")+"'>"+m.fecha+"</div>";
       }
       htmlProximos+=tarjetaPartido(m,"proximo");
     });
@@ -3132,7 +3132,7 @@
       tabsData.forEach(function(t){
         var active=t.id===activeId;
         html+="<button onclick='window.switchMundialTab(\""+t.id+"\")' style='flex:1;min-width:64px;padding:6px 4px;border:none;border-radius:8px;font-size:0.5rem;font-weight:700;letter-spacing:0.04em;cursor:pointer;white-space:nowrap;transition:all 0.15s;"
-          +(active?"background:var(--g2);color:#000;":"background:transparent;color:rgba(255,255,255,0.45);")+"'>"+t.label+"</button>";
+          +(active?"background:var(--g2);color:#000;":"background:transparent;color:var(--mut);")+"'>"+t.label+"</button>";
       });
       html+="</div>";
 
@@ -3487,7 +3487,7 @@
         +"display:flex;align-items:center;justify-content:center;flex-shrink:0;"
         +"font-family:\"Bebas Neue\",sans-serif;font-size:0.95rem;color:white;letter-spacing:0.04em'>"
         +ini(g)+"</div>"
-        +"<span style='font-size:0.88rem;font-weight:700;color:#fff;letter-spacing:0.06em'>"+g.toUpperCase()+"</span>"
+        +"<span style='font-size:0.88rem;font-weight:700;color:var(--ink);letter-spacing:0.06em'>"+g.toUpperCase()+"</span>"
         +"</button>";
     }).join("");
   };
@@ -3660,7 +3660,7 @@
       if(byAdm)h+="<span style='font-size:0.48rem;background:rgba(245,197,24,0.15);color:var(--g2);padding:1px 5px;border-radius:4px;font-weight:700'>ADM</span>";
       h+="</div>";
       if(drinkTxt)h+="<div style='font-size:0.68rem;color:var(--mut);margin-top:2px'>"+drinkTxt+"</div>";
-      if(ts)h+="<div style='font-size:0.55rem;color:rgba(255,255,255,0.25);margin-top:2px'>"+ts+"</div>";
+      if(ts)h+="<div style='font-size:0.55rem;color:var(--mut);margin-top:2px'>"+ts+"</div>";
       h+="</div>";
       h+="<div>"+( conf?"<span style='color:#22c55e;font-size:1rem'>✓</span>":"<span style='color:#333;font-size:1rem'>○</span>")+"</div>";
       h+="</div>";
@@ -3700,7 +3700,7 @@
   });
 </script>
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:ital,wght@0,300;0,400;0,500;1,400&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
 /* TEMA CANCHA — verde césped + blanco + amarillo tarjeta */
 :root,[data-theme="dark"]{
   --bg:#0d1f14;--sur:#142a1c;--sur2:#1a3424;--hbg:#0a1810;
@@ -3710,8 +3710,8 @@
   --grn:#4ade80;--red:#ef4444;--sh:rgba(74,222,128,0.08);
   --acc:#4ade80;--acc2:#22c55e;--acc-ama:#f5c518;
   --card:#142a1c;--font-hd:'Bebas Neue',sans-serif;
-  --font-display:'DM Mono',monospace;
-  --font-body:'DM Sans',sans-serif;
+  --font-display:'JetBrains Mono',monospace;
+  --font-body:'Outfit',sans-serif;
   --grass-line:rgba(255,255,255,0.025);
   --watermark-op:0.05;
   color-scheme:dark;
@@ -3725,8 +3725,8 @@
   --grn:#16a34a;--red:#dc2626;--sh:rgba(22,163,74,0.06);
   --acc:#16a34a;--acc2:#15803d;--acc-ama:#ca8a04;
   --card:#ffffff;--font-hd:'Bebas Neue',sans-serif;
-  --font-display:'DM Mono',monospace;
-  --font-body:'DM Sans',sans-serif;
+  --font-display:'JetBrains Mono',monospace;
+  --font-body:'Outfit',sans-serif;
   --grass-line:rgba(0,0,0,0.02);
   --watermark-op:0.035;
   color-scheme:light;
@@ -3912,15 +3912,15 @@ header::after{
 .lstat-total{background:var(--brd);color:var(--mut);}
 .lista-grid{display:flex;flex-direction:column;gap:8px;}
 .lista-row{display:flex;align-items:flex-start;gap:10px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:10px 12px;transition:border-color 0.15s,background 0.15s;}
-.lista-row:hover{background:rgba(255,255,255,0.07);border-color:rgba(255,255,255,0.14);}
+.lista-row:hover{background:rgba(255,255,255,0.07);border-color:var(--mut);}
 .lista-pidio{background:rgba(16,185,129,0.06);border-color:rgba(16,185,129,0.22);}
 .lista-pidio:hover{background:rgba(16,185,129,0.09);border-color:rgba(16,185,129,0.32);}
 .lista-fsel{border-color:var(--acc)!important;background:rgba(245,158,11,0.05)!important;}
 .lista-av{width:42px;height:42px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:var(--font-display);font-size:1rem;font-weight:700;color:white;flex-shrink:0;box-shadow:0 2px 8px rgba(0,0,0,0.3);}
 .lista-info{flex:1;min-width:0;}
 .lista-name{font-weight:700;font-size:0.72rem;color:#eeeef0;display:flex;align-items:center;gap:5px;flex-wrap:wrap;letter-spacing:0.04em;}
-.lista-drinks{font-size:0.63rem;color:rgba(255,255,255,0.5);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:3px;letter-spacing:0.02em;}
-.lista-nd{color:rgba(255,255,255,0.28);font-style:italic;}
+.lista-drinks{font-size:0.63rem;color:var(--mut);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:3px;letter-spacing:0.02em;}
+.lista-nd{color:var(--mut);font-style:italic;}
 .lista-add-btn{background:var(--acc);color:#142a1c;border:none;border-radius:8px;padding:6px 10px;font-family:var(--font-body);font-size:0.88rem;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0;letter-spacing:0.04em;}
 .lista-sep{font-family:var(--font-display);font-size:0.88rem;letter-spacing:0.12em;color:var(--mut);margin:8px 0 4px;opacity:0.6;font-style:normal;}
 .fsel-ck{background:var(--acc);color:#142a1c;font-size:0.88rem;font-weight:800;padding:1px 6px;border-radius:100px;}
@@ -3999,7 +3999,7 @@ header::after{
 .bs{flex:1;background:var(--sur2);color:var(--mut);border:1px solid var(--brd);border-radius:11px;padding:13px;font-family:var(--font-body);font-weight:500;cursor:pointer;font-size:0.65rem;letter-spacing:0.03em;}
 .xg{display:flex;flex-direction:column;gap:6px;}
 .xbtn{background:var(--sur2);border:1px solid var(--brd);border-radius:14px;padding:16px 18px;font-family:var(--font-body);font-size:0.88rem;font-weight:600;color:var(--ink);cursor:pointer;text-align:left;transition:all 0.15s;letter-spacing:0.04em;text-transform:uppercase;width:100%;}
-.xbtn:hover,.xbtn:active{background:rgba(126,231,135,0.12);border-color:rgba(126,231,135,0.4);color:#fff;}
+.xbtn:hover,.xbtn:active{background:rgba(126,231,135,0.12);border-color:rgba(126,231,135,0.4);color:var(--ink);}
 .xbtn:hover{border-color:var(--acc);color:var(--g2);background:rgba(245,158,11,0.06);}
 .topt{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
 .tob{background:var(--sur2);border:1px solid var(--brd);border-radius:11px;padding:16px 8px;font-family:var(--font-display);font-size:1.4rem;font-weight:700;color:var(--ink);cursor:pointer;text-align:center;transition:all 0.15s;}
@@ -4027,11 +4027,11 @@ header::after{
 .admin-stab:hover{color:var(--ink);}
 .admin-action-btn{background:var(--sur2);border:1px solid var(--brd);border-radius:100px;padding:6px 14px;font-family:var(--font-body);font-size:0.78rem;font-weight:600;color:var(--ink);cursor:pointer;white-space:nowrap;transition:all 0.15s;letter-spacing:0.04em;text-transform:uppercase;}
 .admin-action-btn:hover{border-color:var(--acc);color:var(--g2);}
-.asist-btn{background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.12);border-radius:8px;padding:5px 10px;font-size:0.6rem;font-weight:700;cursor:pointer;color:rgba(255,255,255,0.6);transition:all 0.15s;white-space:nowrap;font-family:var(--font-body);text-transform:uppercase;letter-spacing:0.04em;}
+.asist-btn{background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.12);border-radius:8px;padding:5px 10px;font-size:0.6rem;font-weight:700;cursor:pointer;color:var(--ink);transition:all 0.15s;white-space:nowrap;font-family:var(--font-body);text-transform:uppercase;letter-spacing:0.04em;}
 .asist-btn.asist-va{background:rgba(34,197,94,0.15);border-color:rgba(34,197,94,0.4);color:#4ade80;}
 .asist-btn.asist-load{background:rgba(245,158,11,0.12);border-color:rgba(245,158,11,0.35);color:var(--g2);}
 .icon-btn{background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:5px 8px;font-size:0.88rem;cursor:pointer;transition:all 0.15s;line-height:1;}
-.icon-btn:hover{border-color:rgba(255,255,255,0.22);background:rgba(255,255,255,0.1);}
+.icon-btn:hover{border-color:var(--mut);background:rgba(255,255,255,0.1);}
 #merge-destino-sel{width:100%;background:var(--sur2);border:1px solid var(--brd);border-radius:11px;padding:13px 16px;font-family:var(--font-body);font-size:0.9rem;color:var(--ink);outline:none;}
 
 /* STATS */
@@ -4088,7 +4088,7 @@ header::after{
   border-radius:14px;padding:16px 8px;font-family:var(--font-body);font-size:0.75rem;
   font-weight:600;color:var(--mut);cursor:pointer;letter-spacing:0.06em;transition:all 0.2s;text-align:center;}
 .login-btn-no:hover{border-color:var(--red);color:#f87171;}
-.login-sin-confirmar{background:none;border:none;color:rgba(255,255,255,0.25);
+.login-sin-confirmar{background:none;border:none;color:var(--mut);
   font-family:var(--font-body);font-size:0.65rem;cursor:pointer;
   letter-spacing:0.04em;text-decoration:underline;margin-top:8px;}
 .login-sin-confirmar:hover{color:var(--mut);}
@@ -4110,26 +4110,26 @@ header::after{
   justify-content:center;font-family:var(--font-display);font-size:0.9rem;
   font-weight:700;color:white;flex-shrink:0;}
 .login-galan-name{font-size:0.65rem;font-weight:600;color:var(--ink);letter-spacing:0.04em;}
-/* ── MEJORAS VISUALES v9.8 ───────────────────────────── */
+/* ── MEJORAS VISUALES v9.8 — theme-aware ────────────────── */
 /* Bebas Neue solo en títulos grandes — NO en body/login */
-.htit{font-family:'Bebas Neue',sans-serif;font-size:2.4rem;letter-spacing:0.08em;color:#fff;}
+.htit{font-family:'Bebas Neue',sans-serif;font-size:2.4rem;letter-spacing:0.08em;color:var(--ink);}
 .htit span{color:var(--club-ama);}
 .mt,.tt{font-family:'Bebas Neue',sans-serif;}
 .slabel{font-family:'Bebas Neue',sans-serif;font-size:1.05rem;letter-spacing:0.16em;color:var(--club-ama);}
 
 /* Header */
-header{background:#050503;}
+header{background:var(--hbg);}
 header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,var(--club-ama) 65%,transparent);opacity:0.6;}
 
 /* Tabs — bien visibles */
-.tabs{background:#050503;}
-.tab{color:rgba(255,255,255,0.6);}
+.tabs{background:var(--hbg);}
+.tab{color:var(--mut);}
 .tab.active{color:var(--club-ama);border-bottom-color:var(--club-ama);}
-.tab:hover:not(.active){color:rgba(255,255,255,0.85);}
+.tab:hover:not(.active){color:var(--ink);opacity:0.85;}
 
 /* Cards bebida */
-.dc{background:#0e2015;border-color:#234430;min-height:120px;gap:10px;}
-.dc:hover{background:#16301f;border-color:#2e5a3c;}
+.dc{background:var(--card);border-color:var(--brd);min-height:120px;gap:10px;}
+.dc:hover{background:var(--sur2);border-color:var(--b2);}
 
 /* + PEDIR más protagonista */
 .asist-btn.asist-load{
@@ -4145,7 +4145,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 /* Estado visual en lista */
 .lista-row{gap:10px;padding:10px 12px;margin-bottom:2px;}
 .lista-row.lista-pidio{border-left:3px solid rgba(22,197,94,0.4);}
-.lista-row.lista-pendiente{border-left:3px solid rgba(255,255,255,0.08);}
+.lista-row.lista-pendiente{border-left:3px solid var(--brd);}
 .lista-row.lista-pagado{border-left:3px solid rgba(245,158,11,0.5);background:rgba(245,158,11,0.04);}
 
 /* Botones de acción más separados y grandes */
@@ -4155,56 +4155,55 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 /* Saldo en pagos más visible */
 .pago-total-big{font-family:'Bebas Neue',sans-serif;font-size:2rem;color:var(--grn);letter-spacing:0.06em;}
 .pago-falta-big{font-family:'Bebas Neue',sans-serif;font-size:1.4rem;color:var(--red);letter-spacing:0.06em;}
-.dc:hover{background:#131313;border-color:#2a2a2a;}
-.cn{color:#ffffff!important;font-weight:700;font-size:1rem!important;}
-.cs{color:rgba(255,255,255,0.65);font-size:0.7rem;}
-.ch{color:rgba(255,255,255,0.55);}
+.cn{color:var(--ink)!important;font-weight:700;font-size:1rem!important;}
+.cs{color:var(--ink);opacity:0.7;font-size:0.7rem;}
+.ch{color:var(--mut);}
 
 /* Lista admin */
-.lista-name{color:#fff!important;font-weight:800!important;}
-.lista-drinks{color:rgba(255,255,255,0.7)!important;}
-.lista-nd{color:rgba(255,255,255,0.45)!important;font-style:italic!important;}
+.lista-name{color:var(--ink)!important;font-weight:800!important;}
+.lista-drinks{color:var(--ink)!important;opacity:0.75;}
+.lista-nd{color:var(--mut)!important;font-style:italic!important;}
 
 /* Tabs admin */
-.admin-stab{color:rgba(255,255,255,0.5);}
+.admin-stab{color:var(--mut);}
 .admin-stab.active{color:var(--club-ama);border-bottom-color:var(--club-ama);}
-.admin-stab:hover:not(.active){color:rgba(255,255,255,0.8);}
+.admin-stab:hover:not(.active){color:var(--ink);opacity:0.85;}
 
 /* Botones admin */
-.admin-action-btn{color:rgba(255,255,255,0.75);border-color:rgba(255,255,255,0.15);}
-.admin-action-btn:hover{color:#fff;border-color:rgba(255,255,255,0.3);}
-.asist-btn{color:rgba(255,255,255,0.7);border-color:rgba(255,255,255,0.15);}
-.asist-btn:hover{color:#fff;}
-.icon-btn{border-color:rgba(255,255,255,0.15);color:rgba(255,255,255,0.7);}
-.icon-btn:hover{border-color:rgba(255,255,255,0.3);color:#fff;}
+.admin-action-btn{color:var(--ink);opacity:0.8;border-color:var(--brd);}
+.admin-action-btn:hover{color:var(--ink);opacity:1;border-color:var(--b2);}
+.asist-btn{color:var(--ink);opacity:0.75;border-color:var(--brd);}
+.asist-btn:hover{color:var(--ink);opacity:1;}
+.icon-btn{border-color:var(--brd);color:var(--ink);opacity:0.75;}
+.icon-btn:hover{border-color:var(--b2);color:var(--ink);opacity:1;}
 
 /* lstat badges */
-.lstat-ok{color:#6ee7b7;border:1px solid rgba(22,197,94,0.3);}
+.lstat-ok{color:#22c55e;border:1px solid rgba(22,197,94,0.3);}
 .lstat-warn{color:var(--club-ama);border:1px solid rgba(245,197,24,0.3);}
-.lstat-total{background:#1e1e1e;color:rgba(255,255,255,0.6);}
+.lstat-total{background:var(--sur2);color:var(--mut);}
 
 /* Resumen / Mesa */
-.on{color:#fff;font-weight:700;}
-.an{color:#fff;font-weight:700;}
-.ait{color:rgba(255,255,255,0.65);}
-.hmeta{color:rgba(255,255,255,0.5);}
+.on{color:var(--ink);font-weight:700;}
+.an{color:var(--ink);font-weight:700;}
+.ait{color:var(--mut);}
+.hmeta{color:var(--mut);}
 
 /* Cumples */
-.cumple-name{color:#fff!important;}
-.cumple-detalle{color:rgba(255,255,255,0.65)!important;}
+.cumple-name{color:var(--ink)!important;}
+.cumple-detalle{color:var(--mut)!important;}
 
 /* Hist */
-.hist-label{color:#fff!important;}
-.hist-stats{color:rgba(255,255,255,0.65)!important;}
+.hist-label{color:var(--ink)!important;}
+.hist-stats{color:var(--mut)!important;}
 
 /* Modal textos */
-.msub{color:rgba(255,255,255,0.6)!important;}
-.ppname{color:#fff!important;}
+.msub{color:var(--mut)!important;}
+.ppname{color:var(--ink)!important;}
 
 /* Login textos — más grandes */
-.login-hola{color:rgba(255,255,255,0.6)!important;font-size:0.8rem!important;letter-spacing:0.12em!important;}
+.login-hola{color:var(--mut)!important;font-size:0.8rem!important;letter-spacing:0.12em!important;}
 .login-sub{color:var(--club-ama)!important;font-size:0.8rem!important;}
-.login-sat{color:rgba(255,255,255,0.6)!important;font-size:0.82rem!important;}
+.login-sat{color:var(--mut)!important;font-size:0.82rem!important;}
 .login-titulo{font-size:2.4rem!important;}
 
 /* Input login más grande */
@@ -4212,21 +4211,15 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 .login-input::placeholder{font-size:0.85rem;}
 
 /* ¿Quién sos? label */
-#login-step1 > div:first-child{font-size:0.82rem!important;color:rgba(255,255,255,0.7)!important;}
-
-/* Modal textos */
-.msub{color:rgba(255,255,255,0.6)!important;font-size:0.82rem!important;}
-.ppname{color:#fff!important;font-size:0.82rem!important;}
-.modal h3{font-size:1.5rem!important;}
+#login-step1 > div:first-child{font-size:0.82rem!important;color:var(--mut)!important;}
 
 /* Nombres en sugerencias login */
 .login-galan-name{font-size:0.85rem!important;}
 
 /* Misc */
-.es{color:rgba(255,255,255,0.45);}
-.clr{color:rgba(255,255,255,0.45);}
-#mesa-count{color:rgba(255,255,255,0.65)!important;}
-.hmeta{color:rgba(255,255,255,0.5)!important;}
+.es{color:var(--mut);}
+.clr{color:var(--mut);}
+#mesa-count{color:var(--mut)!important;}
 </style>
 <script>
 // ── TEMA: detección + aplicación ANTES del primer paint (evita flash) ──────
@@ -4259,7 +4252,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 <div id="splash-screen" style="position:fixed;inset:0;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;transition:opacity 0.5s ease">
   <img src="icon-transparent.png" style="width:150px;height:150px;object-fit:contain;animation:splashPulse 1.4s ease-in-out infinite;filter:drop-shadow(0 0 28px rgba(100,174,220,0.7));margin-bottom:28px">
-  <div style="font-family:'Playfair Display',serif;font-size:0.75rem;color:rgba(255,255,255,0.5);letter-spacing:0.18em;text-transform:uppercase;animation:splashFadeIn 0.6s ease 0.2s both">Cargando...</div>
+  <div style="font-family:'Playfair Display',serif;font-size:0.75rem;color:var(--mut);letter-spacing:0.18em;text-transform:uppercase;animation:splashFadeIn 0.6s ease 0.2s both">Cargando...</div>
 </div>
 <header>
   <div class="htop">
@@ -4388,7 +4381,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
         <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap;position:relative">
           <button class="admin-action-btn" onclick="verHistorial()">📅 Historial</button>
           <button class="admin-action-btn" onclick="sortearPropina()" style="background:rgba(168,85,247,0.12);color:#c084fc;border-color:rgba(168,85,247,0.3)">🎲 Propina</button>
-          <button class="admin-action-btn" onclick="togglePropResets()" id="prop-reset-toggle" style="background:none;border:none;color:rgba(255,255,255,0.2);font-size:0.65rem;padding:4px 8px" title="Opciones de reset">⚙</button>
+          <button class="admin-action-btn" onclick="togglePropResets()" id="prop-reset-toggle" style="background:none;border:none;color:var(--mut);font-size:0.65rem;padding:4px 8px" title="Opciones de reset">⚙</button>
           <div id="prop-reset-panel" style="display:none;position:absolute;right:14px;background:var(--card);border:1px solid var(--brd);border-radius:10px;padding:8px;z-index:50;box-shadow:0 4px 16px rgba(0,0,0,0.3)">
             <div style="font-size:0.55rem;color:var(--mut);padding:0 4px 6px;letter-spacing:0.06em">PARCHES TEMPORALES</div>
             <button onclick="limpiarPropina();togglePropResets()" style="display:block;width:100%;background:none;border:none;color:#f87171;font-size:0.68rem;padding:6px 10px;cursor:pointer;text-align:left">✕ Reset propina activa</button>
@@ -4403,7 +4396,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
   <div id="v-mesa" style="display:none"><div id="mesa-admin-bar" style="display:none"></div><div id="fusion-bar" style="display:none"></div></div>
 </div>
 <div id="toast"></div>
-<div id="version-label" style="text-align:center;padding:6px;font-size:0.55rem;color:rgba(255,255,255,0.15);font-family:monospace;letter-spacing:0.08em;user-select:none"></div>
+<div id="version-label" style="text-align:center;padding:6px;font-size:0.55rem;color:var(--mut);font-family:monospace;letter-spacing:0.08em;user-select:none"></div>
   <div id="confirm-wrap"><button class="cbtn" onclick="doConfirm()">☕ Enviar mi pedido</button></div>
 
 <!-- MODALES -->
@@ -4559,8 +4552,8 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
     <div id="ticket-status" style="display:none;background:rgba(79,179,255,0.08);border:1px solid rgba(79,179,255,0.2);border-radius:10px;padding:10px 12px;margin-bottom:12px;font-size:0.68rem;color:#4fb3ff;text-align:center"></div>
     <!-- Tabla header -->
     <div style="display:grid;grid-template-columns:1fr 100px;gap:8px;padding:6px 10px;border-bottom:1px solid var(--brd);margin-bottom:4px">
-      <div style="font-size:0.6rem;color:rgba(255,255,255,0.35);letter-spacing:0.1em;text-transform:uppercase">Bebida / Combo</div>
-      <div style="font-size:0.6rem;color:rgba(255,255,255,0.35);letter-spacing:0.1em;text-align:right;text-transform:uppercase">Precio $</div>
+      <div style="font-size:0.6rem;color:var(--mut);letter-spacing:0.1em;text-transform:uppercase">Bebida / Combo</div>
+      <div style="font-size:0.6rem;color:var(--mut);letter-spacing:0.1em;text-align:right;text-transform:uppercase">Precio $</div>
     </div>
     <div id="precios-grid"></div>
     <div class="ma" style="margin-top:14px">
@@ -4575,9 +4568,9 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
     <div class="mh2"></div>
     <h3 id="edit-extras-title" style="margin-bottom:6px">Bebida</h3>
     <p class="msub" id="edit-extras-hint" style="margin-bottom:16px"></p>
-    <div style="font-size:0.68rem;color:rgba(255,255,255,0.5);letter-spacing:0.08em;margin-bottom:6px">ACOMPAÑAMIENTOS (separados por coma)</div>
+    <div style="font-size:0.68rem;color:var(--mut);letter-spacing:0.08em;margin-bottom:6px">ACOMPAÑAMIENTOS (separados por coma)</div>
     <input type="text" id="edit-extras-input" placeholder="Tostadas, Medialunas, Sin acompanamiento" style="width:100%;background:#1a3424;border:1px solid #2a2a2a;border-radius:10px;padding:12px 14px;font-family:var(--font-body);font-size:0.85rem;color:var(--ink);outline:none;margin-bottom:12px">
-    <div style="font-size:0.68rem;color:rgba(255,255,255,0.5);letter-spacing:0.08em;margin-bottom:6px">💲 PRECIO BASE (dejar vacío si no aplica)</div>
+    <div style="font-size:0.68rem;color:var(--mut);letter-spacing:0.08em;margin-bottom:6px">💲 PRECIO BASE (dejar vacío si no aplica)</div>
     <input type="number" id="edit-precio-input" placeholder="Ej: 7000" min="0" step="100" style="width:100%;background:#1a3424;border:1px solid rgba(245,197,24,0.25);border-radius:10px;padding:12px 14px;font-family:var(--font-body);font-size:1rem;color:var(--g2);outline:none;margin-bottom:16px;font-weight:700">
     <div class="ma">
       <button class="bs" onclick="closeModal('mEditExtras')">Cancelar</button>
@@ -4613,7 +4606,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.87";
+  var APP_VERSION="10.0.88";
 
   var STORED_VERSION=localStorage.getItem("app_version");
 
