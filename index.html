@@ -907,7 +907,7 @@
       }).join("")
       +"</div>"
       +"<div style='font-size:0.65rem;color:var(--mut);letter-spacing:0.08em;margin-bottom:8px'>② NOMBRE NUEVO (queda activo)</div>"
-      +"<select id='merge-nuevo-sel' style='width:100%;background:#1a3424;border:1px solid rgba(245,197,24,0.3);border-radius:11px;padding:13px 16px;font-family:var(--font-body);font-size:0.88rem;color:var(--g2);outline:none;margin-bottom:4px'>"
+      +"<select id='merge-nuevo-sel' style='width:100%;background:var(--sur2);border:1px solid var(--gold);border-radius:11px;padding:13px 16px;font-family:var(--font-body);font-size:0.88rem;color:var(--ink);outline:none;margin-bottom:4px'>"
       +galanes.slice().sort().map(function(g){return"<option value='"+g+"'>"+g+"</option>";}).join("")
       +"</select>";
 
@@ -1591,30 +1591,36 @@
     var html="";
     drinks.forEach(function(d,i){
       var comboPrices=d.comboPrices||{};
-      // Fila bebida base
-      html+="<div style='display:grid;grid-template-columns:1fr 100px;gap:8px;align-items:center;"
-        +"padding:10px 10px;background:var(--sur2);border-radius:10px;margin-bottom:4px'>";
+      // Fila bebida base — superficie clara destacada
+      html+="<div class='surf' style='display:grid;grid-template-columns:1fr 110px;gap:10px;align-items:center;"
+        +"padding:12px 14px;margin-bottom:6px'>";
       html+="<div style='display:flex;align-items:center;gap:8px'>"
-        +"<span style='font-size:1.2rem'>"+d.icon+"</span>"
-        +"<span style='font-size:0.78rem;font-weight:700;color:var(--ink);letter-spacing:0.03em'>"+d.name+"</span>"
+        +"<span style='font-size:1.3rem'>"+d.icon+"</span>"
+        +"<span style='font-size:0.82rem;font-weight:700;color:var(--ink);letter-spacing:0.03em'>"+d.name+"</span>"
         +"</div>";
-      html+="<input type='number' data-idx='"+i+"' data-combo='' placeholder='0' min='0' step='100' value='"+(d.precio||"")+"' "
-        +"style='width:100%;background:#0e2015;border:1px solid rgba(245,197,24,0.3);border-radius:8px;padding:8px;"
-        +"font-family:\"Bebas Neue\",sans-serif;font-size:1rem;color:var(--g2);text-align:right;outline:none'>";
+      html+="<div style='position:relative;display:flex;align-items:center'>"
+        +"<span style='position:absolute;left:10px;font-size:0.8rem;color:var(--mut);pointer-events:none'>$</span>"
+        +"<input type='number' data-idx='"+i+"' data-combo='' placeholder='0' min='0' step='100' value='"+(d.precio||"")+"' "
+        +"style='width:100%;background:var(--sur2);border:1px solid var(--gold);border-radius:10px;padding:9px 10px 9px 22px;"
+        +"font-family:\"Bebas Neue\",sans-serif;font-size:1.1rem;color:var(--gold);text-align:right;outline:none;letter-spacing:0.03em'>"
+        +"</div>";
       html+="</div>";
-      // Combos
+      // Combos — sangría sutil, inputs claros
       var extras=d.extras||["Sin acompanamiento","2 Medialunas saladas","2 Medialunas dulces","Tostadas","Huevos revueltos","Huevos revueltos con palta","Alfajor de maicena"];
       extras.filter(function(e){return e!=="Sin acompanamiento";}).forEach(function(ex){
         var comboKey=ex.toLowerCase().replace(/\s+/g,"_");
-        html+="<div style='display:grid;grid-template-columns:1fr 100px;gap:8px;align-items:center;"
-          +"padding:6px 10px 6px 30px;margin-bottom:2px;border-left:2px solid #252525'>";
-        html+="<div style='font-size:0.68rem;color:var(--mut)'>+ "+ex+"</div>";
-        html+="<input type='number' data-idx='"+i+"' data-combo='"+comboKey+"' placeholder='0' min='0' step='100' value='"+(comboPrices[comboKey]||"")+"' "
-          +"style='width:100%;background:#0e2015;border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:7px;"
-          +"font-size:0.88rem;color:var(--ink);text-align:right;outline:none'>";
+        html+="<div style='display:grid;grid-template-columns:1fr 110px;gap:10px;align-items:center;"
+          +"padding:5px 14px 5px 30px;margin-bottom:3px;border-left:2px solid var(--brd)'>";
+        html+="<div style='font-size:0.72rem;color:var(--mut)'>+ "+ex+"</div>";
+        html+="<div style='position:relative;display:flex;align-items:center'>"
+          +"<span style='position:absolute;left:10px;font-size:0.72rem;color:var(--mut);pointer-events:none'>$</span>"
+          +"<input type='number' data-idx='"+i+"' data-combo='"+comboKey+"' placeholder='0' min='0' step='100' value='"+(comboPrices[comboKey]||"")+"' "
+          +"style='width:100%;background:var(--sur2);border:1px solid var(--brd);border-radius:8px;padding:7px 10px 7px 20px;"
+          +"font-family:\"Bebas Neue\",sans-serif;font-size:0.95rem;color:var(--ink);text-align:right;outline:none'>"
+          +"</div>";
         html+="</div>";
       });
-      html+="<div style='height:6px'></div>";
+      html+="<div style='height:10px'></div>";
     });
     document.getElementById("precios-grid").innerHTML=html;
     openModal("mprecios");
@@ -4693,7 +4699,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
     <input type="file" id="ticket-input" accept="image/*" capture="environment" style="display:none" onchange="procesarTicket(this)">
     <div id="ticket-status" style="display:none;background:rgba(79,179,255,0.08);border:1px solid rgba(79,179,255,0.2);border-radius:10px;padding:10px 12px;margin-bottom:12px;font-size:0.68rem;color:#4fb3ff;text-align:center"></div>
     <!-- Tabla header -->
-    <div style="display:grid;grid-template-columns:1fr 100px;gap:8px;padding:6px 10px;border-bottom:1px solid var(--brd);margin-bottom:4px">
+    <div style="display:grid;grid-template-columns:1fr 110px;gap:10px;padding:6px 14px;border-bottom:1px solid var(--brd);margin-bottom:8px">
       <div style="font-size:0.6rem;color:var(--mut);letter-spacing:0.1em;text-transform:uppercase">Bebida / Combo</div>
       <div style="font-size:0.6rem;color:var(--mut);letter-spacing:0.1em;text-align:right;text-transform:uppercase">Precio $</div>
     </div>
@@ -4711,9 +4717,9 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
     <h3 id="edit-extras-title" style="margin-bottom:6px">Bebida</h3>
     <p class="msub" id="edit-extras-hint" style="margin-bottom:16px"></p>
     <div style="font-size:0.68rem;color:var(--mut);letter-spacing:0.08em;margin-bottom:6px">ACOMPAÑAMIENTOS (separados por coma)</div>
-    <input type="text" id="edit-extras-input" placeholder="Tostadas, Medialunas, Sin acompanamiento" style="width:100%;background:#1a3424;border:1px solid #2a2a2a;border-radius:10px;padding:12px 14px;font-family:var(--font-body);font-size:0.85rem;color:var(--ink);outline:none;margin-bottom:12px">
+    <input type="text" id="edit-extras-input" placeholder="Tostadas, Medialunas, Sin acompanamiento" style="width:100%;background:var(--sur2);border:1px solid var(--brd);border-radius:10px;padding:12px 14px;font-family:var(--font-body);font-size:0.85rem;color:var(--ink);outline:none;margin-bottom:12px">
     <div style="font-size:0.68rem;color:var(--mut);letter-spacing:0.08em;margin-bottom:6px">💲 PRECIO BASE (dejar vacío si no aplica)</div>
-    <input type="number" id="edit-precio-input" placeholder="Ej: 7000" min="0" step="100" style="width:100%;background:#1a3424;border:1px solid rgba(245,197,24,0.25);border-radius:10px;padding:12px 14px;font-family:var(--font-body);font-size:1rem;color:var(--g2);outline:none;margin-bottom:16px;font-weight:700">
+    <input type="number" id="edit-precio-input" placeholder="Ej: 7000" min="0" step="100" style="width:100%;background:var(--sur2);border:1px solid var(--gold);border-radius:10px;padding:12px 14px;font-family:var(--font-body);font-size:1rem;color:var(--gold);outline:none;margin-bottom:16px;font-weight:700">
     <div class="ma">
       <button class="bs" onclick="closeModal('mEditExtras')">Cancelar</button>
       <button class="bp" onclick="guardarExtras()">Guardar ✓</button>
@@ -4748,7 +4754,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.98";
+  var APP_VERSION="10.0.99";
 
   var STORED_VERSION=localStorage.getItem("app_version");
 
