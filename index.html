@@ -6,7 +6,7 @@
 <title>Mesa de Galanes</title>
 <meta name='app-version' content='2.16'>
 <meta name="color-scheme" content="dark">
-<meta name="theme-color" content="#080808">
+<meta name="theme-color" content="#0a1810">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Mesa 7:45">
@@ -833,7 +833,7 @@
     }).sort(function(a,b){return a.toLowerCase().localeCompare(b.toLowerCase());});
 
     var html="<div style='font-size:0.65rem;color:rgba(255,255,255,0.5);letter-spacing:0.08em;margin-bottom:8px'>① MARCÁ LOS NOMBRES VIEJOS</div>"
-      +"<div id='merge-viejos-list' style='max-height:200px;overflow-y:auto;background:#0d0d0d;border:1px solid #252525;border-radius:12px;margin-bottom:14px'>"
+      +"<div id='merge-viejos-list' style='max-height:200px;overflow-y:auto;background:#0e2015;border:1px solid #252525;border-radius:12px;margin-bottom:14px'>"
       +todos.map(function(g){
         var isGalan=galanes.indexOf(g)!==-1;
         return "<label style='display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid #1a1a1a;cursor:pointer'>"
@@ -848,7 +848,7 @@
       }).join("")
       +"</div>"
       +"<div style='font-size:0.65rem;color:rgba(255,255,255,0.5);letter-spacing:0.08em;margin-bottom:8px'>② NOMBRE NUEVO (queda activo)</div>"
-      +"<select id='merge-nuevo-sel' style='width:100%;background:#161616;border:1px solid rgba(245,197,24,0.3);border-radius:11px;padding:13px 16px;font-family:var(--font-body);font-size:0.88rem;color:var(--g2);outline:none;margin-bottom:4px'>"
+      +"<select id='merge-nuevo-sel' style='width:100%;background:#1a3424;border:1px solid rgba(245,197,24,0.3);border-radius:11px;padding:13px 16px;font-family:var(--font-body);font-size:0.88rem;color:var(--g2);outline:none;margin-bottom:4px'>"
       +galanes.slice().sort().map(function(g){return"<option value='"+g+"'>"+g+"</option>";}).join("")
       +"</select>";
 
@@ -1234,34 +1234,30 @@
   // Versión silenciosa para auto-sorteo en primer pedido
   async function sortearPropinaSilencioso(){
     try{
-      // Elegibles HOY = solo quienes ya tienen pedido activo
+      // Elegibles = solo quienes YA tienen pedido activo HOY (confirmados o no)
+      // Así solo puede tocarle a alguien que realmente está en la mesa
       var jugadoresHoy=Object.keys(
         Object.values(orders).reduce(function(acc,o){if(o.player)acc[o.player]=1;return acc;},{})
       );
       if(!jugadoresHoy.length)return; // nadie pidió todavía
       var pSnap=await get(rPropina);
       var pData=pSnap.exists()?pSnap.val():{ronda:[],historial:[]};
-      // La ronda se arma sobre TODOS los galanes habituales (no solo los de hoy),
-      // así nadie se "olvida" por faltar un sábado.
-      var todosGalanes=galanes.length?galanes.slice():jugadoresHoy.slice();
-      var ronda=pData.ronda||[];
-      // Si la ronda está vacía o tiene nombres que ya no son galanes, regenerar shuffle completo
-      var rondaValida=ronda.length&&ronda.every(function(n){return todosGalanes.some(function(g){return g.toUpperCase()===n.toUpperCase();});});
-      if(!rondaValida){
-        ronda=todosGalanes.slice();
+      // La ronda filtra solo quienes están hoy
+      var ronda=(pData.ronda||[]).filter(function(n){
+        return jugadoresHoy.some(function(j){return j.toUpperCase()===n.toUpperCase();});
+      });
+      if(!ronda.length){
+        // Nueva ronda: shuffle de los de hoy
+        ronda=jugadoresHoy.slice();
         for(var i=ronda.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1));var t=ronda[i];ronda[i]=ronda[j];ronda[j]=t;}
       }
-      // Elegir al primero de la ronda que ESTÉ presente hoy (saltea a los que faltaron, sin sacarlos de la ronda)
-      var idx=ronda.findIndex(function(n){return jugadoresHoy.some(function(j){return j.toUpperCase()===n.toUpperCase();});});
-      if(idx===-1)return; // nadie de la ronda está presente hoy (no debería pasar)
-      var ganador=ronda[idx];
-      ronda.splice(idx,1); // sacarlo de la ronda actual — no vuelve a salir hasta que todos pasen
+      var ganador=ronda.shift();
       var hoy=new Date().toISOString().slice(0,10);
       var hh=(pData.historial||[]);
       hh.push({nombre:ganador,ts:Date.now(),fecha:hoy,total:0});
       await set(rPropina,{ronda:ronda,historial:hh.slice(-20)});
       await set(ref(db,"pedido/propina"),{nombre:ganador,restantes:ronda.length,ts:Date.now()});
-      console.log("Auto-propina sorteada:",ganador,"| quedan en ronda:",ronda.length);
+      console.log("Auto-propina sorteada:",ganador);
     }catch(e){console.error("sortearPropinaSilencioso error:",e);}
   }
   window.sortearPropina=async function(){
@@ -1271,28 +1267,24 @@
     var hist=hSnap.val();
     var fechas=Object.keys(hist).sort().reverse().slice(0,3);
     if(!fechas.length){showToast("Sin historial todavia");return;}
-    // Elegibles HOY = solo quienes tienen pedido activo
+    // Elegibles = solo quienes tienen pedido activo HOY
     var elegibles=Object.keys(
       Object.values(orders).reduce(function(a,o){if(o.player)a[o.player]=1;return a;},{})
     );
     if(!elegibles.length){showToast("No hay pedidos todavía");return;}
     var pSnap=await get(rPropina);
     var pData=pSnap.exists()?pSnap.val():{ronda:[],historial:[]};
-    var todosGalanes=galanes.length?galanes.slice():elegibles.slice();
-    var ronda=pData.ronda||[];
-    var rondaValida=ronda.length&&ronda.every(function(n){return todosGalanes.some(function(g){return g.toUpperCase()===n.toUpperCase();});});
-    if(!rondaValida){
-      ronda=todosGalanes.slice();
+    var ronda=(pData.ronda||[]).filter(function(n){return elegibles.indexOf(n)!==-1;});
+    if(!ronda.length){
+      ronda=elegibles.slice();
       for(var i=ronda.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1));var t=ronda[i];ronda[i]=ronda[j];ronda[j]=t;}
     }
-    var idx=ronda.findIndex(function(n){return elegibles.some(function(j){return j.toUpperCase()===n.toUpperCase();});});
-    if(idx===-1){showToast("Nadie de la ronda está presente hoy");return;}
-    var ganador=ronda[idx];
-    ronda.splice(idx,1);
+    var ganador=ronda.shift();
     var hoy=new Date().toISOString().slice(0,10);
     var hh=(pData.historial||[]);
     hh.push({nombre:ganador,ts:Date.now(),fecha:hoy,total:0}); // total se actualiza al cerrar mesa
     await set(rPropina,{ronda:ronda,historial:hh.slice(-20)});
+    // Guardar solo nombre, sin total (se calcula al cerrar)
     await set(ref(db,"pedido/propina"),{nombre:ganador,restantes:ronda.length,ts:Date.now()});
     showToast("🎲 Propina sorteada: "+ganador);
   };
@@ -1547,7 +1539,7 @@
         +"<span style='font-size:0.78rem;font-weight:700;color:#fff;letter-spacing:0.03em'>"+d.name+"</span>"
         +"</div>";
       html+="<input type='number' data-idx='"+i+"' data-combo='' placeholder='0' min='0' step='100' value='"+(d.precio||"")+"' "
-        +"style='width:100%;background:#0d0d0d;border:1px solid rgba(245,197,24,0.3);border-radius:8px;padding:8px;"
+        +"style='width:100%;background:#0e2015;border:1px solid rgba(245,197,24,0.3);border-radius:8px;padding:8px;"
         +"font-family:\"Bebas Neue\",sans-serif;font-size:1rem;color:var(--g2);text-align:right;outline:none'>";
       html+="</div>";
       // Combos
@@ -1558,7 +1550,7 @@
           +"padding:6px 10px 6px 30px;margin-bottom:2px;border-left:2px solid #252525'>";
         html+="<div style='font-size:0.68rem;color:rgba(255,255,255,0.45)'>+ "+ex+"</div>";
         html+="<input type='number' data-idx='"+i+"' data-combo='"+comboKey+"' placeholder='0' min='0' step='100' value='"+(comboPrices[comboKey]||"")+"' "
-          +"style='width:100%;background:#0d0d0d;border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:7px;"
+          +"style='width:100%;background:#0e2015;border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:7px;"
           +"font-size:0.88rem;color:rgba(255,255,255,0.65);text-align:right;outline:none'>";
         html+="</div>";
       });
@@ -2254,11 +2246,11 @@
     if(isAdmin()){
       editWrap.style.display="flex";
       editWrap.innerHTML="<button onclick='toggleEditMode()' style='"
-        +"background:"+(editMode?"rgba(106,176,216,0.15)":"rgba(255,255,255,0.06)")+";"
-        +"border:1px solid "+(editMode?"rgba(106,176,216,0.4)":"rgba(255,255,255,0.12)")+";"
+        +"background:"+(editMode?"rgba(126,231,135,0.15)":"rgba(255,255,255,0.06)")+";"
+        +"border:1px solid "+(editMode?"rgba(126,231,135,0.4)":"rgba(255,255,255,0.12)")+";"
         +"border-radius:100px;padding:8px 18px;"
         +"font-family:var(--font-body);font-size:0.65rem;font-weight:700;"
-        +"color:"+(editMode?"#6ab0d8":"rgba(255,255,255,0.6)")+";"
+        +"color:"+(editMode?"#7ee787":"rgba(255,255,255,0.6)")+";"
         +"cursor:pointer;letter-spacing:0.05em;text-transform:uppercase;'>"
         +(editMode?"✓ Listo":"✏️ Editar bebidas")+"</button>";
     } else {
@@ -2727,10 +2719,10 @@
     var diff=sat-new Date();
     var cdHtml="";
     if(diff<=0){
-      cdHtml="<div style='text-align:center;padding:18px;background:linear-gradient(135deg,rgba(106,176,216,0.15),rgba(245,197,24,0.1));border-radius:16px;margin-bottom:14px'><div style='font-size:2rem'>☕</div><div style='font-family:\"Bebas Neue\",sans-serif;font-size:1.6rem;color:var(--club-cel);margin-top:6px;letter-spacing:0.08em'>HOY ES EL DÍA</div></div>";
+      cdHtml="<div style='text-align:center;padding:18px;background:linear-gradient(135deg,rgba(126,231,135,0.15),rgba(245,197,24,0.1));border-radius:16px;margin-bottom:14px'><div style='font-size:2rem'>☕</div><div style='font-family:\"Bebas Neue\",sans-serif;font-size:1.6rem;color:var(--club-cel);margin-top:6px;letter-spacing:0.08em'>HOY ES EL DÍA</div></div>";
     } else {
       var d=Math.floor(diff/86400000),h=Math.floor((diff%86400000)/3600000),m2=Math.floor((diff%3600000)/60000),sv=Math.floor((diff%60000)/1000);
-      cdHtml="<div style='text-align:center;background:#111;border:1px solid #1e1e1e;border-radius:16px;padding:20px 16px;margin-bottom:14px'>"
+      cdHtml="<div style='text-align:center;background:#142a1c;border:1px solid #1e1e1e;border-radius:16px;padding:20px 16px;margin-bottom:14px'>"
         +"<div style='font-size:0.6rem;color:var(--mut);letter-spacing:0.1em;margin-bottom:12px;font-family:\"DM Mono\",monospace'>☕ PRÓXIMO CAFÉ · CRR TENIS</div>"
         +"<div style='display:flex;justify-content:center;gap:12px;align-items:flex-end;margin-bottom:10px'>"
         +(d>0?"<div><div style='font-family:\"Bebas Neue\",sans-serif;font-size:3rem;color:#fff;line-height:1'>"+d+"</div><div style='font-size:0.52rem;color:var(--mut);margin-top:3px;font-family:\"DM Mono\",monospace'>DÍAS</div></div><div style='font-size:1.8rem;color:#222;padding-bottom:10px'>:</div>":"")
@@ -2796,7 +2788,7 @@
             var medals=["🥇","🥈","🥉"];
             top3Html="<div style='display:flex;gap:8px;justify-content:center;margin-bottom:16px'>"
               +top3.map(function(e,i){
-                return "<div style='flex:1;background:#161616;border:1px solid #252525;border-radius:12px;padding:10px 8px;text-align:center'>"
+                return "<div style='flex:1;background:#1a3424;border:1px solid #252525;border-radius:12px;padding:10px 8px;text-align:center'>"
                   +"<div style='font-size:1.4rem'>"+e[1].icon+"</div>"
                   +"<div style='font-size:1.2rem;margin:2px 0'>"+medals[i]+"</div>"
                   +"<div style='font-size:0.58rem;color:rgba(255,255,255,0.5);line-height:1.2'>"+e[0].split("+")[0].trim().toUpperCase()+"</div>"
@@ -2811,13 +2803,13 @@
             var dt=new Date(f.fecha+"T12:00:00");
             var dstr=(dt.getDate())+"/"+(dt.getMonth()+1);
             if(f.faltó){
-              return "<div style='display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #161616'>"
+              return "<div style='display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #1a3424'>"
                 +"<span style='font-family:\"DM Mono\",monospace;font-size:0.62rem;color:var(--mut);width:32px;flex-shrink:0'>"+dstr+"</span>"
                 +"<span style='font-size:0.75rem'>😴</span>"
                 +"<span style='font-size:0.68rem;color:rgba(251,146,60,0.6);flex:1;font-style:italic;letter-spacing:0.04em'>NO FUE</span>"
                 +"</div>";
             }
-            return "<div style='display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #161616'>"
+            return "<div style='display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #1a3424'>"
               +"<span style='font-family:\"DM Mono\",monospace;font-size:0.62rem;color:var(--mut);width:32px;flex-shrink:0'>"+dstr+"</span>"
               +"<span style='font-size:0.75rem'>"+f.icon+"</span>"
               +"<span style='font-size:0.68rem;color:#fff;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis'>"+f.drink.toUpperCase()+"</span>"
@@ -2827,7 +2819,7 @@
           }).join("")
           :"<div style='text-align:center;color:var(--mut);font-size:0.68rem;padding:12px'>Sin historial todavía</div>";
 
-          miHistHtml="<div style='background:#111;border:1px solid #1e1e1e;border-radius:16px;padding:16px;margin-bottom:12px'>"
+          miHistHtml="<div style='background:#142a1c;border:1px solid #1e1e1e;border-radius:16px;padding:16px;margin-bottom:12px'>"
             +"<div style='font-size:0.62rem;font-weight:700;color:var(--club-ama);letter-spacing:0.08em;margin-bottom:14px;font-family:\"DM Mono\",monospace'>📊 TU HISTORIAL · "+me.toUpperCase()+"</div>"
             +top3Html
             +filasHtml
@@ -2838,10 +2830,10 @@
 
     panel.innerHTML=cdHtml
       +(miHistHtml)
-      +"<div style='background:#111;border:1px solid #1e1e1e;border-radius:16px;padding:14px;margin-bottom:12px'>"
+      +"<div style='background:#142a1c;border:1px solid #1e1e1e;border-radius:16px;padding:14px;margin-bottom:12px'>"
       +"<div style='font-size:0.62rem;font-weight:700;color:var(--club-cel);letter-spacing:0.08em;margin-bottom:10px;font-family:\"DM Mono\",monospace'>☕ TOP BEBIDAS HOY</div>"
       +bebidasHtml+"</div>"
-      +"<div style='background:#111;border:1px solid #1e1e1e;border-radius:16px;padding:14px'>"
+      +"<div style='background:#142a1c;border:1px solid #1e1e1e;border-radius:16px;padding:14px'>"
       +"<div style='font-size:0.62rem;font-weight:700;color:var(--club-cel);letter-spacing:0.08em;margin-bottom:10px;font-family:\"DM Mono\",monospace'>👥 ESTE SÁBADO</div>"
       +asisHtml+"</div>";
 
@@ -3693,21 +3685,29 @@
 </script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:ital,wght@0,300;0,400;0,500;1,400&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap');
-/* DARK MODE — default */
+/* TEMA CANCHA — verde césped + blanco + amarillo tarjeta */
 :root{
-  --bg:#080808;--sur:#111111;--sur2:#191919;--hbg:#050505;
-  --club-cel:#6ab0d8;--club-ama:#f5c518;
+  --bg:#0d1f14;--sur:#142a1c;--sur2:#1a3424;--hbg:#0a1810;
+  --club-cel:#7ee787;--club-ama:#f5c518;
   --gold:#f5c518;--g2:#f5c518;--gl:#fdd835;--gd:#b8860b;
-  --ink:#f0f0f0;--mut:#777;--brd:#1e1e1e;--b2:#2a2a2a;
-  --grn:#22c55e;--red:#ef4444;--sh:rgba(106,176,216,0.06);
-  --acc:#6ab0d8;--acc2:#4a90b8;--acc-ama:#f5c518;
+  --ink:#f4f7f2;--mut:#8aa893;--brd:#234430;--b2:#2e5a3c;
+  --grn:#4ade80;--red:#ef4444;--sh:rgba(74,222,128,0.08);
+  --acc:#4ade80;--acc2:#22c55e;--acc-ama:#f5c518;
+  --card:#142a1c;--font-hd:'Bebas Neue',sans-serif;
   --font-display:'DM Mono',monospace;
   --font-body:'DM Sans',sans-serif;
   color-scheme:dark;
 }
 
 body{
-  background:var(--bg);color:var(--ink);
+  background:
+    repeating-linear-gradient(180deg,
+      rgba(255,255,255,0.025) 0px,
+      rgba(255,255,255,0.025) 40px,
+      transparent 40px,
+      transparent 80px),
+    linear-gradient(180deg,#0f2417,#0a1810 60%,#081209);
+  color:var(--ink);
   font-family:var(--font-body);
   min-height:100vh;overflow-x:hidden;
   text-transform:uppercase;letter-spacing:0.04em;
@@ -3719,7 +3719,7 @@ body::before{
   transform:translate(-50%,-50%);
   font-family:var(--font-display);
   font-size:70vw;font-weight:900;
-  color:rgba(116,174,214,0.04);
+  color:rgba(74,222,128,0.05);
   pointer-events:none;user-select:none;
   z-index:0;line-height:1;white-space:nowrap;
 }
@@ -3728,20 +3728,20 @@ body::before{
 /* HEADER */
 header{
   position:relative;
-  background:#0a0a0a;
+  background:linear-gradient(135deg,#0f2417,#0a1810);
   padding:22px 16px 20px;overflow:hidden;
-  border-bottom:1px solid rgba(245,158,11,0.12);
+  border-bottom:2px solid rgba(74,222,128,0.18);
 }
 header::before{
   content:"7:45";position:absolute;right:-10px;top:50%;
   transform:translateY(-50%);
   font-family:var(--font-display);font-size:7.5rem;font-weight:900;
-  color:rgba(116,174,214,0.05);pointer-events:none;
+  color:rgba(126,231,135,0.05);pointer-events:none;
   user-select:none;letter-spacing:-4px;line-height:1;
 }
 header::after{
   content:"";position:absolute;bottom:0;left:0;right:0;height:1px;
-  background:linear-gradient(90deg,transparent,rgba(116,174,214,0.4),rgba(251,191,36,0.3),transparent);
+  background:linear-gradient(90deg,transparent,rgba(126,231,135,0.4),rgba(251,191,36,0.3),transparent);
 }
 .htop{display:flex;align-items:flex-start;justify-content:space-between;position:relative;gap:10px;}
 .htit{font-family:var(--font-display);font-size:2rem;font-weight:500;letter-spacing:-0.03em;line-height:1.05;color:#e6edf3;}
@@ -3779,7 +3779,7 @@ header::after{
 /* MAIN */
 .main{padding:0 0 100px;width:100%;}
 .slabel{font-family:var(--font-display);font-size:0.9rem;letter-spacing:0.12em;color:var(--g2);padding:18px 16px 12px;opacity:1;display:flex;align-items:center;gap:10px;font-style:normal;}
-.slabel::after{content:"";flex:1;height:1px;background:linear-gradient(to right,rgba(116,174,214,0.4),transparent);}
+.slabel::after{content:"";flex:1;height:1px;background:linear-gradient(to right,rgba(126,231,135,0.4),transparent);}
 
 /* DRINKS — lista compacta premium */
 .dg{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:0 12px;padding:4px 0;}
@@ -3787,8 +3787,8 @@ header::after{
   cursor:pointer;transition:all 0.18s;position:relative;overflow:hidden;
   display:flex;flex-direction:column;align-items:center;justify-content:center;
   padding:16px 10px;min-height:90px;text-align:center;gap:6px;}
-.dc:hover{border-color:var(--club-cel);background:rgba(116,174,214,0.04);}
-.dc.sel{background:rgba(116,174,214,0.1);border-color:var(--club-cel);border-width:2px;}
+.dc:hover{border-color:var(--club-cel);background:rgba(126,231,135,0.04);}
+.dc.sel{background:rgba(126,231,135,0.1);border-color:var(--club-cel);border-width:2px;}
 .dc.sel::after{content:"";position:absolute;top:6px;right:6px;width:8px;height:8px;
   background:var(--club-cel);border-radius:50%;}
 .dc:last-of-type{border-bottom:none;}
@@ -3804,7 +3804,7 @@ header::after{
 .cn{font-weight:700;font-size:1rem;color:#ffffff!important;line-height:1.2;text-align:center;letter-spacing:0.04em;}
 .cs{font-size:0.65rem;color:var(--mut);letter-spacing:0.04em;}
 .ch{font-size:0.55rem;color:var(--mut);letter-spacing:0.02em;text-align:center;}
-.cx{background:rgba(116,174,214,0.15);color:var(--club-cel);border-radius:6px;padding:2px 8px;font-size:0.55rem;font-weight:700;}
+.cx{background:rgba(126,231,135,0.15);color:var(--club-cel);border-radius:6px;padding:2px 8px;font-size:0.55rem;font-weight:700;}
 .ccreated{font-size:0.56rem;color:var(--mut);opacity:0.5;}
 .ck{position:absolute;top:6px;right:6px;width:22px;height:22px;background:var(--club-cel);border-radius:50%;display:flex;align-items:center;justify-content:center;z-index:2;}
 .ck-multi{font-family:var(--font-display);font-size:0.9rem;font-weight:700;}
@@ -3821,7 +3821,7 @@ header::after{
 .ort{display:flex;align-items:center;gap:6px;margin-bottom:8px;}
 .pasm{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:var(--font-display);font-size:0.9rem;font-weight:700;color:white;flex-shrink:0;}
 .on{flex:1;font-weight:600;font-size:0.65rem;color:var(--ink);display:flex;align-items:center;gap:5px;flex-wrap:wrap;min-width:0;letter-spacing:0.04em;}.onm{color:var(--g2)!important;}
-.oq{background:var(--acc);color:#111111;border-radius:100px;padding:2px 10px;font-size:0.88rem;font-weight:700;font-family:var(--font-display);flex-shrink:0;}
+.oq{background:var(--acc);color:#142a1c;border-radius:100px;padding:2px 10px;font-size:0.88rem;font-weight:700;font-family:var(--font-display);flex-shrink:0;}
 .pbtn{border:none;border-radius:8px;padding:5px 8px;font-size:0.88rem;font-weight:600;cursor:pointer;font-family:var(--font-body);flex-shrink:0;}
 .pb-cash{background:rgba(245,158,11,0.1);color:var(--g2);border:1px solid rgba(245,158,11,0.2);}
 .pb-tr{background:rgba(99,102,241,0.1);color:#a5b4fc;border:1px solid rgba(99,102,241,0.2);}
@@ -3881,9 +3881,9 @@ header::after{
 .lista-name{font-weight:700;font-size:0.72rem;color:#eeeef0;display:flex;align-items:center;gap:5px;flex-wrap:wrap;letter-spacing:0.04em;}
 .lista-drinks{font-size:0.63rem;color:rgba(255,255,255,0.5);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:3px;letter-spacing:0.02em;}
 .lista-nd{color:rgba(255,255,255,0.28);font-style:italic;}
-.lista-add-btn{background:var(--acc);color:#111111;border:none;border-radius:8px;padding:6px 10px;font-family:var(--font-body);font-size:0.88rem;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0;letter-spacing:0.04em;}
+.lista-add-btn{background:var(--acc);color:#142a1c;border:none;border-radius:8px;padding:6px 10px;font-family:var(--font-body);font-size:0.88rem;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0;letter-spacing:0.04em;}
 .lista-sep{font-family:var(--font-display);font-size:0.88rem;letter-spacing:0.12em;color:var(--mut);margin:8px 0 4px;opacity:0.6;font-style:normal;}
-.fsel-ck{background:var(--acc);color:#111111;font-size:0.88rem;font-weight:800;padding:1px 6px;border-radius:100px;}
+.fsel-ck{background:var(--acc);color:#142a1c;font-size:0.88rem;font-weight:800;padding:1px 6px;border-radius:100px;}
 .res-tag{font-size:0.58rem;background:rgba(245,158,11,0.1);color:var(--g2);padding:1px 6px;border-radius:100px;font-weight:600;}
 .lista-acceso{font-size:0.9rem;color:var(--b2);margin-top:2px;letter-spacing:0.02em;}
 .badge-admin-pidio{font-size:0.58rem;background:rgba(99,102,241,0.15);color:#a5b4fc;padding:1px 6px;border-radius:100px;font-weight:600;}
@@ -3907,7 +3907,7 @@ header::after{
 .res-banner{display:flex;align-items:center;justify-content:space-between;padding:11px 14px;margin:10px 12px 0;background:var(--sur);border:1px solid var(--brd);border-radius:12px;font-size:0.65rem;color:var(--mut);gap:10px;flex-wrap:wrap;letter-spacing:0.03em;}
 .res-banner.res-ok{background:rgba(16,185,129,0.06);border-color:rgba(16,185,129,0.2);color:var(--grn);font-weight:600;}
 .res-banner.res-warn{background:rgba(245,158,11,0.06);border-color:rgba(245,158,11,0.25);}
-.res-apunto-btn{background:var(--acc);color:#111111;border:none;border-radius:8px;padding:7px 14px;font-family:var(--font-body);font-size:0.9rem;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0;letter-spacing:0.04em;}
+.res-apunto-btn{background:var(--acc);color:#142a1c;border:none;border-radius:8px;padding:7px 14px;font-family:var(--font-body);font-size:0.9rem;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0;letter-spacing:0.04em;}
 .res-pending-title{font-family:var(--font-display);font-size:0.65rem;letter-spacing:0.1em;color:var(--g2);margin-bottom:8px;font-style:normal;}
 .res-pending-item{font-size:0.65rem;color:var(--mut);padding:4px 0;display:flex;align-items:center;gap:8px;letter-spacing:0.02em;}
 
@@ -3923,7 +3923,7 @@ header::after{
 .cumple-info{flex:1;min-width:0;}
 .cumple-name{font-weight:600;font-size:0.64rem;color:var(--ink);display:flex;align-items:center;gap:5px;letter-spacing:0.04em;}
 .cumple-detalle{font-size:0.88rem;color:var(--mut);margin-top:1px;letter-spacing:0.02em;}
-.cumple-hoy-tag{background:var(--acc);color:#111111;font-size:0.9rem;font-weight:800;padding:2px 8px;border-radius:100px;white-space:nowrap;}
+.cumple-hoy-tag{background:var(--acc);color:#142a1c;font-size:0.9rem;font-weight:800;padding:2px 8px;border-radius:100px;white-space:nowrap;}
 .cumple-pronto-tag{background:rgba(245,158,11,0.1);color:var(--g2);font-size:0.9rem;font-weight:700;padding:2px 8px;border-radius:100px;white-space:nowrap;border:1px solid rgba(245,158,11,0.2);}
 .cumple-fecha-tag{font-size:0.88rem;color:var(--mut);font-weight:600;white-space:nowrap;}
 
@@ -3939,7 +3939,7 @@ header::after{
 .ld{width:6px;height:6px;background:var(--grn);border-radius:50%;display:inline-block;animation:pulse 2s infinite;}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.2}}
 #confirm-wrap{position:fixed;bottom:20px;left:12px;right:12px;display:none;z-index:98;}
-.cbtn{width:100%;padding:15px;border:none;border-radius:14px;font-family:var(--font-body);font-size:0.88rem;font-weight:700;cursor:pointer;background:linear-gradient(135deg,var(--club-cel),var(--acc2));color:#0a0805;box-shadow:0 6px 24px rgba(116,174,214,0.3);letter-spacing:0.06em;}
+.cbtn{width:100%;padding:15px;border:none;border-radius:14px;font-family:var(--font-body);font-size:0.88rem;font-weight:700;cursor:pointer;background:linear-gradient(135deg,var(--club-cel),var(--acc2));color:#0a0805;box-shadow:0 6px 24px rgba(126,231,135,0.3);letter-spacing:0.06em;}
 #toast{display:none;position:fixed;top:76px;left:50%;transform:translateX(-50%);background:#1a1510;color:var(--gl);padding:11px 22px;border-radius:100px;font-family:var(--font-body);font-weight:700;font-size:0.9rem;z-index:300;box-shadow:0 4px 20px rgba(0,0,0,0.5);white-space:nowrap;transition:opacity 0.4s;border:1px solid rgba(245,158,11,0.2);text-transform:uppercase;letter-spacing:0.03em;}
 
 /* MODALES */
@@ -3955,11 +3955,11 @@ header::after{
 .modal input{width:100%;background:var(--sur2);border:1px solid var(--brd);border-radius:11px;padding:12px 16px;font-family:var(--font-body);font-size:0.65rem;color:var(--ink);margin-bottom:10px;outline:none;transition:border-color 0.15s;text-transform:none;letter-spacing:normal;}
 .modal input:focus{border-color:var(--acc);}.modal input::placeholder{color:var(--mut);}
 .ma{display:flex;gap:8px;margin-top:8px;}
-.bp{flex:1;background:var(--acc);color:#111111;border:none;border-radius:11px;padding:13px;font-family:var(--font-body);font-weight:700;cursor:pointer;font-size:0.65rem;letter-spacing:0.04em;}
+.bp{flex:1;background:var(--acc);color:#142a1c;border:none;border-radius:11px;padding:13px;font-family:var(--font-body);font-weight:700;cursor:pointer;font-size:0.65rem;letter-spacing:0.04em;}
 .bs{flex:1;background:var(--sur2);color:var(--mut);border:1px solid var(--brd);border-radius:11px;padding:13px;font-family:var(--font-body);font-weight:500;cursor:pointer;font-size:0.65rem;letter-spacing:0.03em;}
 .xg{display:flex;flex-direction:column;gap:6px;}
 .xbtn{background:var(--sur2);border:1px solid var(--brd);border-radius:14px;padding:16px 18px;font-family:var(--font-body);font-size:0.88rem;font-weight:600;color:var(--ink);cursor:pointer;text-align:left;transition:all 0.15s;letter-spacing:0.04em;text-transform:uppercase;width:100%;}
-.xbtn:hover,.xbtn:active{background:rgba(106,176,216,0.12);border-color:rgba(106,176,216,0.4);color:#fff;}
+.xbtn:hover,.xbtn:active{background:rgba(126,231,135,0.12);border-color:rgba(126,231,135,0.4);color:#fff;}
 .xbtn:hover{border-color:var(--acc);color:var(--g2);background:rgba(245,158,11,0.06);}
 .topt{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
 .tob{background:var(--sur2);border:1px solid var(--brd);border-radius:11px;padding:16px 8px;font-family:var(--font-display);font-size:1.4rem;font-weight:700;color:var(--ink);cursor:pointer;text-align:center;transition:all 0.15s;}
@@ -4088,8 +4088,8 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 .tab:hover:not(.active){color:rgba(255,255,255,0.85);}
 
 /* Cards bebida */
-.dc{background:#0d0d0d;border-color:#1e1e1e;min-height:120px;gap:10px;}
-.dc:hover{background:#131313;border-color:#2a2a2a;}
+.dc{background:#0e2015;border-color:#234430;min-height:120px;gap:10px;}
+.dc:hover{background:#16301f;border-color:#2e5a3c;}
 
 /* + PEDIR más protagonista */
 .asist-btn.asist-load{
@@ -4192,7 +4192,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 <body>
 <div id="login-screen">
   <img id="login-logo-img" src="icon-transparent.png" class="login-logo" onerror="this.style.display='none';document.getElementById('login-logo-fallback').style.display='block'">
-  <div id="login-logo-fallback" style="display:none;font-size:5rem;margin-bottom:20px;filter:drop-shadow(0 0 24px rgba(106,176,216,0.5))">☕</div>
+  <div id="login-logo-fallback" style="display:none;font-size:5rem;margin-bottom:20px;filter:drop-shadow(0 0 24px rgba(126,231,135,0.5))">☕</div>
   <div class="login-titulo" style="font-size:2.2rem;letter-spacing:0.1em">MESA DE <span style="color:var(--g2)">GALANES</span></div>
   <div class="login-sub" style="font-size:0.72rem;letter-spacing:0.12em;margin-bottom:6px">☕ SÁBADOS 7:45 · CRR TENIS</div>
   <div class="login-sat" id="login-sat-label" style="font-size:0.75rem;letter-spacing:0.1em;margin-bottom:22px">PRÓXIMO: SÁB 23 MAY</div>
@@ -4204,19 +4204,19 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
       oninput="this.value=this.value.toUpperCase();loginFiltrar(this.value)"
       onkeydown="if(event.key==='Enter')loginConfirmarNombre()">
     <!-- Sugerencias dinámicas — solo aparecen al escribir -->
-    <div id="login-sugerencias" style="display:none;width:100%;background:#161616;border:1px solid rgba(255,255,255,0.1);border-radius:14px;overflow:hidden;margin-bottom:10px"></div>
+    <div id="login-sugerencias" style="display:none;width:100%;background:#1a3424;border:1px solid rgba(255,255,255,0.1);border-radius:14px;overflow:hidden;margin-bottom:10px"></div>
     <!-- Botón entrar -->
-    <button onclick="loginConfirmarNombre()" style="width:100%;box-sizing:border-box;background:linear-gradient(135deg,var(--club-cel),var(--club-ama));color:#080808;border:none;border-radius:14px;padding:16px;font-family:'Bebas Neue',sans-serif;font-size:1.2rem;font-weight:400;cursor:pointer;letter-spacing:0.1em">ENTRAR →</button>
+    <button onclick="loginConfirmarNombre()" style="width:100%;box-sizing:border-box;background:linear-gradient(135deg,var(--club-cel),var(--club-ama));color:#0a1810;border:none;border-radius:14px;padding:16px;font-family:'Bebas Neue',sans-serif;font-size:1.2rem;font-weight:400;cursor:pointer;letter-spacing:0.1em">ENTRAR →</button>
   </div>
 </div>
-<div id="splash-screen" style="position:fixed;inset:0;background:#0a0a0a;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;transition:opacity 0.5s ease">
+<div id="splash-screen" style="position:fixed;inset:0;background:#0f2417;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;transition:opacity 0.5s ease">
   <img src="icon-transparent.png" style="width:150px;height:150px;object-fit:contain;animation:splashPulse 1.4s ease-in-out infinite;filter:drop-shadow(0 0 28px rgba(100,174,220,0.7));margin-bottom:28px">
   <div style="font-family:'Playfair Display',serif;font-size:0.75rem;color:rgba(255,255,255,0.5);letter-spacing:0.18em;text-transform:uppercase;animation:splashFadeIn 0.6s ease 0.2s both">Cargando...</div>
 </div>
 <header>
   <div class="htop">
     <div class="htit">Mesa de <span>Galanes</span></div>
-    <img src="icon-transparent.png" style="width:40px;height:40px;object-fit:contain;flex-shrink:0;align-self:center;opacity:0.9;filter:drop-shadow(0 0 8px rgba(116,174,214,0.4))">
+    <img src="icon-transparent.png" style="width:40px;height:40px;object-fit:contain;flex-shrink:0;align-self:center;opacity:0.9;filter:drop-shadow(0 0 8px rgba(126,231,135,0.4))">
   </div>
   <div class="nz">
     <div id="prompt" onclick="showLoginScreen()" style="cursor:pointer">👤 Quien sos?</div>
@@ -4527,9 +4527,9 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
     <h3 id="edit-extras-title" style="margin-bottom:6px">Bebida</h3>
     <p class="msub" id="edit-extras-hint" style="margin-bottom:16px"></p>
     <div style="font-size:0.68rem;color:rgba(255,255,255,0.5);letter-spacing:0.08em;margin-bottom:6px">ACOMPAÑAMIENTOS (separados por coma)</div>
-    <input type="text" id="edit-extras-input" placeholder="Tostadas, Medialunas, Sin acompanamiento" style="width:100%;background:#161616;border:1px solid #2a2a2a;border-radius:10px;padding:12px 14px;font-family:var(--font-body);font-size:0.85rem;color:var(--ink);outline:none;margin-bottom:12px">
+    <input type="text" id="edit-extras-input" placeholder="Tostadas, Medialunas, Sin acompanamiento" style="width:100%;background:#1a3424;border:1px solid #2a2a2a;border-radius:10px;padding:12px 14px;font-family:var(--font-body);font-size:0.85rem;color:var(--ink);outline:none;margin-bottom:12px">
     <div style="font-size:0.68rem;color:rgba(255,255,255,0.5);letter-spacing:0.08em;margin-bottom:6px">💲 PRECIO BASE (dejar vacío si no aplica)</div>
-    <input type="number" id="edit-precio-input" placeholder="Ej: 7000" min="0" step="100" style="width:100%;background:#161616;border:1px solid rgba(245,197,24,0.25);border-radius:10px;padding:12px 14px;font-family:var(--font-body);font-size:1rem;color:var(--g2);outline:none;margin-bottom:16px;font-weight:700">
+    <input type="number" id="edit-precio-input" placeholder="Ej: 7000" min="0" step="100" style="width:100%;background:#1a3424;border:1px solid rgba(245,197,24,0.25);border-radius:10px;padding:12px 14px;font-family:var(--font-body);font-size:1rem;color:var(--g2);outline:none;margin-bottom:16px;font-weight:700">
     <div class="ma">
       <button class="bs" onclick="closeModal('mEditExtras')">Cancelar</button>
       <button class="bp" onclick="guardarExtras()">Guardar ✓</button>
@@ -4564,7 +4564,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.85";
+  var APP_VERSION="10.0.86";
 
   var STORED_VERSION=localStorage.getItem("app_version");
 
