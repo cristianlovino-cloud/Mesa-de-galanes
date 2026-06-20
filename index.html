@@ -3840,6 +3840,14 @@ header::after{
 #badge{display:none;align-items:center;gap:8px;background:rgba(229,169,60,0.12);backdrop-filter:blur(8px);border:1px solid rgba(229,169,60,0.3);color:var(--gl);border-radius:100px;padding:8px 16px;font-size:0.88rem;font-weight:700;cursor:pointer;}
 .lx{color:rgba(253,248,240,0.25);font-size:0.9rem;cursor:pointer;margin-left:2px;}.lx:hover{color:var(--red);}
 #vbtn{background:none;border:none;font-size:1.2rem;cursor:pointer;padding:4px;opacity:0.6;flex-shrink:0;}
+#theme-toggle-btn{
+  background:var(--sur2);border:1px solid var(--brd);border-radius:100px;
+  cursor:pointer;padding:5px 10px;font-size:1rem;line-height:1;flex-shrink:0;
+  transition:all 0.2s;display:inline-flex;align-items:center;justify-content:center;
+  min-width:34px;height:30px;
+}
+#theme-toggle-btn:hover{border-color:var(--gold);background:rgba(229,169,60,0.1);}
+#theme-toggle-btn:active{transform:scale(0.92);}
 
 /* CUMPLE BANNER */
 .cumple-banner{background:linear-gradient(90deg,rgba(245,158,11,0.15),rgba(234,88,12,0.1));border-bottom:1px solid rgba(245,158,11,0.2);padding:10px 16px;font-size:0.65rem;color:var(--g2);font-weight:600;text-align:center;letter-spacing:0.05em;}
@@ -4386,16 +4394,6 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
   <div class="nz">
     <div id="prompt" onclick="showLoginScreen()" style="cursor:pointer">👤 Quien sos?</div>
     <div id="badge" onclick="toggleBadgeMenu()" style="cursor:pointer;position:relative"></div>
-    <div id="badge-menu" style="display:none;position:fixed;top:62px;left:12px;background:var(--card);border:1px solid var(--brd);border-radius:14px;z-index:300;min-width:210px;overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,0.4)">
-      <div onclick="toggleBadgeMenu();showLoginScreen()" style="padding:14px 18px;font-size:0.8rem;cursor:pointer;border-bottom:1px solid var(--brd);color:var(--ink)">👤 Cambiar usuario</div>
-      <div id="badge-menu-admin" style="display:none">
-        <div onclick="toggleBadgeMenu();switchTab('admin')" style="padding:14px 18px;font-size:0.8rem;cursor:pointer;border-bottom:1px solid var(--brd);color:#a5b4fc">⚙️ Panel admin</div>
-        <div onclick="toggleBadgeMenu();publicarVersion&&publicarVersion()" style="padding:14px 18px;font-size:0.8rem;cursor:pointer;border-bottom:1px solid var(--brd);color:#74aed6">📡 Publicar versión</div>
-        <div onclick="toggleBadgeMenu();kickAllUsers()" style="padding:14px 18px;font-size:0.8rem;cursor:pointer;border-bottom:1px solid var(--brd);color:#fb923c">🚪 Cerrar sesiones</div>
-      </div>
-      <div id="pwa-install-btn" onclick="toggleBadgeMenu();installPWA()" style="display:none;padding:14px 18px;font-size:0.8rem;cursor:pointer;border-bottom:1px solid var(--brd);color:#4ade80;align-items:center;gap:8px">📲 Instalar app</div>
-      <div onclick="toggleBadgeMenu();logout()" style="padding:14px 18px;font-size:0.8rem;cursor:pointer;color:#f87171">🚪 Salir</div>
-    </div>
     <button id="theme-toggle-btn" onclick="toggleTheme()" style="margin-left:auto" title="Cambiar tema">🌙</button>
     <button id="vbtn" onclick="toggleVoice()">🔇</button>
   </div>
@@ -4735,7 +4733,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.95";
+  var APP_VERSION="10.0.96";
 
   var STORED_VERSION=localStorage.getItem("app_version");
 
@@ -4956,5 +4954,15 @@ window.addEventListener("load",function(){
   </div>
 </div>
 
+<div id="badge-menu" style="display:none;position:fixed;top:72px;left:12px;background:var(--card);backdrop-filter:blur(var(--blur));-webkit-backdrop-filter:blur(var(--blur));border:1px solid var(--brd);border-radius:16px;z-index:9000;min-width:220px;overflow:hidden;box-shadow:0 12px 40px rgba(0,0,0,0.35)">
+  <div onclick="toggleBadgeMenu();showLoginScreen()" style="padding:14px 18px;font-size:0.8rem;cursor:pointer;border-bottom:1px solid var(--brd);color:var(--ink)">👤 Cambiar usuario</div>
+  <div id="badge-menu-admin" style="display:none">
+    <div onclick="toggleBadgeMenu();switchTab('admin')" style="padding:14px 18px;font-size:0.8rem;cursor:pointer;border-bottom:1px solid var(--brd);color:#a5b4fc">⚙️ Panel admin</div>
+    <div onclick="toggleBadgeMenu();publicarVersion&&publicarVersion()" style="padding:14px 18px;font-size:0.8rem;cursor:pointer;border-bottom:1px solid var(--brd);color:#74aed6">📡 Publicar versión</div>
+    <div onclick="toggleBadgeMenu();kickAllUsers()" style="padding:14px 18px;font-size:0.8rem;cursor:pointer;border-bottom:1px solid var(--brd);color:#fb923c">🚪 Cerrar sesiones</div>
+  </div>
+  <div id="pwa-install-btn" onclick="toggleBadgeMenu();installPWA()" style="display:none;padding:14px 18px;font-size:0.8rem;cursor:pointer;border-bottom:1px solid var(--brd);color:#4ade80;align-items:center;gap:8px">📲 Instalar app</div>
+  <div onclick="toggleBadgeMenu();logout()" style="padding:14px 18px;font-size:0.8rem;cursor:pointer;color:#f87171">🚪 Salir</div>
+</div>
 </body>
 </html>
