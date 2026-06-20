@@ -2365,37 +2365,37 @@
       }
       deuda+=base+comboAdd;
     });
-    var html="<div style='margin:14px 12px 0;background:linear-gradient(135deg,rgba(20,20,20,0.95),rgba(30,30,30,0.9));border:1.5px solid rgba(255,255,255,0.18);border-radius:16px;padding:16px 18px'>";
-    html+="<div style='font-size:0.65rem;color:var(--ink);letter-spacing:0.1em;margin-bottom:12px;font-family:\"JetBrains Mono\",monospace'>TU CUENTA</div>";
+    var html="<div style='margin:14px 12px 0;background:linear-gradient(135deg,rgba(20,20,20,0.95),rgba(30,30,30,0.9));backdrop-filter:blur(var(--blur));border:1.5px solid rgba(255,255,255,0.18);border-radius:20px;padding:16px 18px'>";
+    html+="<div style='font-size:0.65rem;color:rgba(255,255,255,0.9);letter-spacing:0.1em;margin-bottom:12px;font-family:\"JetBrains Mono\",monospace'>TU CUENTA</div>";
     html+="<div style='display:flex;align-items:stretch;gap:12px'>";
     // Pedido
     if(misPed.length){
       html+="<div style='flex:1'>"
-        +"<div style='font-size:0.6rem;color:var(--mut);letter-spacing:0.06em;margin-bottom:4px'>PEDISTE</div>"
-        +"<div style='font-size:0.8rem;font-weight:600;color:var(--ink);line-height:1.3'>"+misPed[0].icon+" "+misPed[0].drink+"</div>"
-        +(deuda>0?"<div style='font-family:\"Bebas Neue\",sans-serif;font-size:1rem;color:rgba(245,197,24,0.7);margin-top:4px;letter-spacing:0.04em'>Precio: $"+Math.round(deuda)+"</div>":"")
+        +"<div style='font-size:0.6rem;color:rgba(255,255,255,0.5);letter-spacing:0.06em;margin-bottom:4px'>PEDISTE</div>"
+        +"<div style='font-size:0.8rem;font-weight:600;color:#fff;line-height:1.3'>"+misPed[0].icon+" "+misPed[0].drink+"</div>"
+        +(deuda>0?"<div style='font-family:\"Bebas Neue\",sans-serif;font-size:1rem;color:rgba(229,169,60,0.85);margin-top:4px;letter-spacing:0.04em'>Precio: $"+Math.round(deuda)+"</div>":"")
         +"</div>";
     }
     // Saldo
-    html+="<div style='text-align:right;border-left:1px solid rgba(255,255,255,0.08);padding-left:14px;flex-shrink:0'>";
+    html+="<div style='text-align:right;border-left:1px solid rgba(255,255,255,0.12);padding-left:14px;flex-shrink:0'>";
     if(pagado>0){
       var saldo=deuda>0?pagado-deuda:0;
-      html+="<div style='font-size:0.6rem;color:var(--mut);letter-spacing:0.06em;margin-bottom:2px'>PAGASTE</div>"
+      html+="<div style='font-size:0.6rem;color:rgba(255,255,255,0.5);letter-spacing:0.06em;margin-bottom:2px'>PAGASTE</div>"
         +"<div style='font-family:\"Bebas Neue\",sans-serif;font-size:2rem;color:#4ade80;letter-spacing:0.04em;line-height:1'>$"+Math.round(pagado)+"</div>";
       if(deuda>0){
         if(saldo===0)html+="<div style='font-size:0.65rem;color:#4ade80;margin-top:4px'>✓ Cuadra!</div>";
         else if(saldo>0)html+="<div style='font-size:0.65rem;color:#fbbf24;margin-top:4px'>Sobran $"+Math.round(saldo)+"</div>";
         else html+="<div style='font-size:0.65rem;color:#fb923c;margin-top:4px'>Faltan $"+Math.round(Math.abs(saldo))+"</div>";
       }
-      if(pg.cash>0&&pg.transfer>0)html+="<div style='font-size:0.58rem;color:var(--mut);margin-top:2px'>💵$"+Math.round(pg.cash)+" + 📲$"+Math.round(pg.transfer)+"</div>";
+      if(pg.cash>0&&pg.transfer>0)html+="<div style='font-size:0.58rem;color:rgba(255,255,255,0.5);margin-top:2px'>💵$"+Math.round(pg.cash)+" + 📲$"+Math.round(pg.transfer)+"</div>";
     } else {
       html+="<div style='font-size:0.6rem;color:rgba(251,146,60,0.95);letter-spacing:0.06em;margin-bottom:4px'>PENDIENTE</div>";
       if(deuda>0){
         html+="<div style='font-family:\"Bebas Neue\",sans-serif;font-size:1.8rem;color:#fb923c;letter-spacing:0.04em;line-height:1'>$"+Math.round(deuda)+"</div>"
-          +"<div style='font-size:0.6rem;color:var(--mut);margin-top:2px'>a pagar</div>";
+          +"<div style='font-size:0.6rem;color:rgba(255,255,255,0.5);margin-top:2px'>a pagar</div>";
       } else {
         html+="<div style='font-size:0.75rem;font-weight:600;color:#fb923c'>—</div>"
-          +"<div style='font-size:0.58rem;color:var(--mut);margin-top:2px'>Admin carga valor</div>";
+          +"<div style='font-size:0.58rem;color:rgba(255,255,255,0.5);margin-top:2px'>Admin carga valor</div>";
       }
     }
     html+="</div></div></div>";
@@ -2478,21 +2478,21 @@
       var sumTrOtro=sumT-(sumTrModo+sumTrMP);if(sumTrOtro<0)sumTrOtro=0;
       var h="<div style='display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px'>";
       h+="<div style='background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.2);border-radius:10px;padding:8px 10px'>";
-      h+="<div style='font-size:0.55rem;color:var(--mut);letter-spacing:0.06em'>💵 EFECTIVO</div>";
+      h+="<div style='font-size:0.55rem;color:rgba(255,255,255,0.55);letter-spacing:0.06em'>💵 EFECTIVO</div>";
       h+="<div style='font-size:1.1rem;font-weight:800;color:#4ade80'>$"+Math.round(sumCash)+"</div></div>";
       h+="<div style='background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.2);border-radius:10px;padding:8px 10px'>";
-      h+="<div style='font-size:0.55rem;color:var(--mut);letter-spacing:0.06em'>📲 TRANSFER TOTAL</div>";
+      h+="<div style='font-size:0.55rem;color:rgba(255,255,255,0.55);letter-spacing:0.06em'>📲 TRANSFER TOTAL</div>";
       h+="<div style='font-size:1.1rem;font-weight:800;color:#a5b4fc'>$"+Math.round(sumT)+"</div></div>";
       if(sumTrModo>0||sumTrMP>0){
         h+="<div style='background:rgba(99,102,241,0.05);border:1px solid rgba(99,102,241,0.1);border-radius:10px;padding:6px 10px'>";
-        h+="<div style='font-size:0.55rem;color:var(--mut)'>MODO</div><div style='font-size:0.9rem;font-weight:700;color:#a5b4fc'>$"+Math.round(sumTrModo)+"</div></div>";
+        h+="<div style='font-size:0.55rem;color:rgba(255,255,255,0.55)'>MODO</div><div style='font-size:0.9rem;font-weight:700;color:#a5b4fc'>$"+Math.round(sumTrModo)+"</div></div>";
         h+="<div style='background:rgba(0,180,216,0.05);border:1px solid rgba(0,180,216,0.1);border-radius:10px;padding:6px 10px'>";
-        h+="<div style='font-size:0.55rem;color:var(--mut)'>MERCADO PAGO</div><div style='font-size:0.9rem;font-weight:700;color:#67e8f9'>$"+Math.round(sumTrMP)+"</div></div>";
+        h+="<div style='font-size:0.55rem;color:rgba(255,255,255,0.55)'>MERCADO PAGO</div><div style='font-size:0.9rem;font-weight:700;color:#67e8f9'>$"+Math.round(sumTrMP)+"</div></div>";
       }
       h+="</div>";
       // Total recaudado vs total bar
       h+="<div style='display:flex;align-items:center;justify-content:space-between;padding:4px 0'>";
-      h+="<span style='font-size:0.65rem;color:var(--mut)'>TOTAL RECAUDADO</span><span style='font-size:1rem;font-weight:800;color:var(--ink)'>$"+Math.round(rec)+"</span></div>";
+      h+="<span style='font-size:0.65rem;color:rgba(255,255,255,0.55)'>TOTAL RECAUDADO</span><span style='font-size:1rem;font-weight:800;color:#fff'>$"+Math.round(rec)+"</span></div>";
       if(isAdmin())h+="<div class='pres-row' style='margin-top:6px'><span class='pres-item' style='flex:1'>🧾 Total del bar:</span><button onclick='openTotalBar()' class='bar-total-btn'>"+(totalBar>0?"$"+Math.round(totalBar):"Ingresar →")+"</button></div>";
       if(totalBar>0)h+="<div class='pres-dif' style='color:"+difColor+"'>"+difStr+"</div>";
       h+=faltan>0?"<div class='pres-falta'>⚠️ "+faltan+" sin pagar</div>":"<div class='pres-ok'>✓ Todos pagaron</div>";
@@ -2735,19 +2735,19 @@
     var diff=sat-new Date();
     var cdHtml="";
     if(diff<=0){
-      cdHtml="<div style='text-align:center;padding:18px;background:linear-gradient(135deg,rgba(126,231,135,0.15),rgba(245,197,24,0.1));border-radius:16px;margin-bottom:14px'><div style='font-size:2rem'>☕</div><div style='font-family:\"Bebas Neue\",sans-serif;font-size:1.6rem;color:var(--club-cel);margin-top:6px;letter-spacing:0.08em'>HOY ES EL DÍA</div></div>";
+      cdHtml="<div style='text-align:center;padding:18px;background:linear-gradient(135deg,rgba(126,231,135,0.15),rgba(245,197,24,0.1));border-radius:16px;margin-bottom:14px'><div style='font-size:2rem'>☕</div><div style='font-family:\"Bebas Neue\",sans-serif;font-size:1.6rem;color:#38ef7d;margin-top:6px;letter-spacing:0.08em'>HOY ES EL DÍA</div></div>";
     } else {
       var d=Math.floor(diff/86400000),h=Math.floor((diff%86400000)/3600000),m2=Math.floor((diff%3600000)/60000),sv=Math.floor((diff%60000)/1000);
-      cdHtml="<div style='text-align:center;background:#142a1c;border:1px solid #1e1e1e;border-radius:16px;padding:20px 16px;margin-bottom:14px'>"
-        +"<div style='font-size:0.6rem;color:var(--mut);letter-spacing:0.1em;margin-bottom:12px;font-family:\"JetBrains Mono\",monospace'>☕ PRÓXIMO CAFÉ · CRR TENIS</div>"
+      cdHtml="<div style='text-align:center;background:linear-gradient(135deg,#14110a,#1c1810);backdrop-filter:blur(var(--blur));border:1px solid rgba(255,255,255,0.1);border-radius:20px;padding:20px 16px;margin-bottom:14px'>"
+        +"<div style='font-size:0.6rem;color:rgba(255,255,255,0.55);letter-spacing:0.1em;margin-bottom:12px;font-family:\"JetBrains Mono\",monospace'>☕ PRÓXIMO CAFÉ · CRR TENIS</div>"
         +"<div style='display:flex;justify-content:center;gap:12px;align-items:flex-end;margin-bottom:10px'>"
-        +(d>0?"<div><div style='font-family:\"Bebas Neue\",sans-serif;font-size:3rem;color:var(--ink);line-height:1'>"+d+"</div><div style='font-size:0.52rem;color:var(--mut);margin-top:3px;font-family:\"JetBrains Mono\",monospace'>DÍAS</div></div><div style='font-size:1.8rem;color:#222;padding-bottom:10px'>:</div>":"")
-        +"<div><div style='font-family:\"Bebas Neue\",sans-serif;font-size:3rem;color:var(--ink);line-height:1'>"+String(h).padStart(2,"0")+"</div><div style='font-size:0.52rem;color:var(--mut);margin-top:3px;font-family:\"JetBrains Mono\",monospace'>HS</div></div>"
-        +"<div style='font-size:1.8rem;color:#222;padding-bottom:10px'>:</div>"
-        +"<div><div style='font-family:\"Bebas Neue\",sans-serif;font-size:3rem;color:var(--ink);line-height:1'>"+String(m2).padStart(2,"0")+"</div><div style='font-size:0.52rem;color:var(--mut);margin-top:3px;font-family:\"JetBrains Mono\",monospace'>MIN</div></div>"
-        +"<div style='font-size:1.8rem;color:#222;padding-bottom:10px'>:</div>"
-        +"<div><div id='scd-s' style='font-family:\"Bebas Neue\",sans-serif;font-size:3rem;color:var(--club-cel);line-height:1'>"+String(sv).padStart(2,"0")+"</div><div style='font-size:0.52rem;color:var(--mut);margin-top:3px;font-family:\"JetBrains Mono\",monospace'>SEG</div></div>"
-        +"</div><div style='font-size:0.6rem;color:var(--mut);font-family:\"JetBrains Mono\",monospace'>SÁB "+sat.getDate()+" "+MESES_C[sat.getMonth()].toUpperCase()+" · 9:15 HS</div></div>";
+        +(d>0?"<div><div style='font-family:\"Bebas Neue\",sans-serif;font-size:3rem;color:#fff;line-height:1'>"+d+"</div><div style='font-size:0.52rem;color:rgba(255,255,255,0.55);margin-top:3px;font-family:\"JetBrains Mono\",monospace'>DÍAS</div></div><div style='font-size:1.8rem;color:rgba(255,255,255,0.3);padding-bottom:10px'>:</div>":"")
+        +"<div><div style='font-family:\"Bebas Neue\",sans-serif;font-size:3rem;color:#fff;line-height:1'>"+String(h).padStart(2,"0")+"</div><div style='font-size:0.52rem;color:rgba(255,255,255,0.55);margin-top:3px;font-family:\"JetBrains Mono\",monospace'>HS</div></div>"
+        +"<div style='font-size:1.8rem;color:rgba(255,255,255,0.3);padding-bottom:10px'>:</div>"
+        +"<div><div style='font-family:\"Bebas Neue\",sans-serif;font-size:3rem;color:#fff;line-height:1'>"+String(m2).padStart(2,"0")+"</div><div style='font-size:0.52rem;color:rgba(255,255,255,0.55);margin-top:3px;font-family:\"JetBrains Mono\",monospace'>MIN</div></div>"
+        +"<div style='font-size:1.8rem;color:rgba(255,255,255,0.3);padding-bottom:10px'>:</div>"
+        +"<div><div id='scd-s' style='font-family:\"Bebas Neue\",sans-serif;font-size:3rem;color:#e5a93c;line-height:1'>"+String(sv).padStart(2,"0")+"</div><div style='font-size:0.52rem;color:rgba(255,255,255,0.55);margin-top:3px;font-family:\"JetBrains Mono\",monospace'>SEG</div></div>"
+        +"</div><div style='font-size:0.6rem;color:rgba(255,255,255,0.55);font-family:\"JetBrains Mono\",monospace'>SÁB "+sat.getDate()+" "+MESES_C[sat.getMonth()].toUpperCase()+" · 9:15 HS</div></div>";
     }
 
     // Top bebidas HOY
@@ -2760,21 +2760,21 @@
         var medal=idx===0?"🥇":idx===1?"🥈":idx===2?"🥉":"";
         return "<div style='display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #1e1e1e'>"
           +"<span style='font-size:1.1rem;width:24px;text-align:center'>"+e[1].icon+"</span>"
-          +"<div style='flex:1;min-width:0'><div style='font-size:0.68rem;font-weight:700;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis'>"+e[0].toUpperCase()+"</div>"
+          +"<div style='flex:1;min-width:0'><div style='font-size:0.68rem;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis'>"+e[0].toUpperCase()+"</div>"
           +"<div style='margin-top:4px;height:4px;background:#1e1e1e;border-radius:2px'>"
-          +"<div style='height:100%;width:"+pct+"%;background:linear-gradient(90deg,var(--club-cel),var(--club-ama));border-radius:2px'></div></div></div>"
+          +"<div style='height:100%;width:"+pct+"%;background:linear-gradient(90deg,#38ef7d,#e5a93c);border-radius:2px'></div></div></div>"
           +"<span style='font-size:0.9rem'>"+medal+"</span>"
-          +"<b style='color:var(--club-cel);font-size:0.85rem;font-family:\"JetBrains Mono\",monospace'>"+e[1].count+"x</b></div>";
+          +"<b style='color:#38ef7d;font-size:0.85rem;font-family:\"JetBrains Mono\",monospace'>"+e[1].count+"x</b></div>";
       }).join("")
-      :"<div style='text-align:center;color:var(--mut);font-size:0.72rem;padding:16px'>Nadie pidió todavía ☕</div>";
+      :"<div style='text-align:center;color:rgba(255,255,255,0.55);font-size:0.72rem;padding:16px'>Nadie pidió todavía ☕</div>";
 
     // Este sábado
     var byP={};Object.values(orders).forEach(function(o){byP[o.player]=1;});
     var plrs=Object.keys(byP);
     var asisHtml="<div style='display:flex;align-items:center;justify-content:center;gap:20px;padding:10px 0'>"
-      +"<div style='text-align:center'><div style='font-family:\"Bebas Neue\",sans-serif;font-size:2.8rem;color:var(--club-cel);line-height:1'>"+plrs.length+"</div><div style='font-size:0.58rem;color:var(--mut);margin-top:4px;letter-spacing:0.06em;font-family:\"JetBrains Mono\",monospace'>GALANES</div></div>"
+      +"<div style='text-align:center'><div style='font-family:\"Bebas Neue\",sans-serif;font-size:2.8rem;color:#38ef7d;line-height:1'>"+plrs.length+"</div><div style='font-size:0.58rem;color:rgba(255,255,255,0.55);margin-top:4px;letter-spacing:0.06em;font-family:\"JetBrains Mono\",monospace'>GALANES</div></div>"
       +"<div style='width:1px;height:40px;background:#1e1e1e'></div>"
-      +"<div style='text-align:center'><div style='font-family:\"Bebas Neue\",sans-serif;font-size:2.8rem;color:var(--club-ama);line-height:1'>"+Object.values(orders).length+"</div><div style='font-size:0.58rem;color:var(--mut);margin-top:4px;letter-spacing:0.06em;font-family:\"JetBrains Mono\",monospace'>PEDIDOS</div></div>"
+      +"<div style='text-align:center'><div style='font-family:\"Bebas Neue\",sans-serif;font-size:2.8rem;color:#e5a93c;line-height:1'>"+Object.values(orders).length+"</div><div style='font-size:0.58rem;color:rgba(255,255,255,0.55);margin-top:4px;letter-spacing:0.06em;font-family:\"JetBrains Mono\",monospace'>PEDIDOS</div></div>"
       +"</div>";
 
     // MI HISTORIAL PERSONAL (desde Firebase historial)
@@ -2804,11 +2804,11 @@
             var medals=["🥇","🥈","🥉"];
             top3Html="<div style='display:flex;gap:8px;justify-content:center;margin-bottom:16px'>"
               +top3.map(function(e,i){
-                return "<div style='flex:1;background:#1a3424;border:1px solid #252525;border-radius:12px;padding:10px 8px;text-align:center'>"
+                return "<div style='flex:1;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:14px;padding:10px 8px;text-align:center'>"
                   +"<div style='font-size:1.4rem'>"+e[1].icon+"</div>"
                   +"<div style='font-size:1.2rem;margin:2px 0'>"+medals[i]+"</div>"
-                  +"<div style='font-size:0.58rem;color:var(--mut);line-height:1.2'>"+e[0].split("+")[0].trim().toUpperCase()+"</div>"
-                  +"<div style='font-family:\"JetBrains Mono\",monospace;font-size:0.7rem;color:var(--club-cel);margin-top:4px'>"+e[1].count+"x</div>"
+                  +"<div style='font-size:0.58rem;color:rgba(255,255,255,0.55);line-height:1.2'>"+e[0].split("+")[0].trim().toUpperCase()+"</div>"
+                  +"<div style='font-family:\"JetBrains Mono\",monospace;font-size:0.7rem;color:#38ef7d;margin-top:4px'>"+e[1].count+"x</div>"
                   +"</div>";
               }).join("")
               +"</div>";
@@ -2820,23 +2820,23 @@
             var dstr=(dt.getDate())+"/"+(dt.getMonth()+1);
             if(f.faltó){
               return "<div style='display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #1a3424'>"
-                +"<span style='font-family:\"JetBrains Mono\",monospace;font-size:0.62rem;color:var(--mut);width:32px;flex-shrink:0'>"+dstr+"</span>"
+                +"<span style='font-family:\"JetBrains Mono\",monospace;font-size:0.62rem;color:rgba(255,255,255,0.55);width:32px;flex-shrink:0'>"+dstr+"</span>"
                 +"<span style='font-size:0.75rem'>😴</span>"
                 +"<span style='font-size:0.68rem;color:rgba(251,146,60,0.6);flex:1;font-style:italic;letter-spacing:0.04em'>NO FUE</span>"
                 +"</div>";
             }
             return "<div style='display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #1a3424'>"
-              +"<span style='font-family:\"JetBrains Mono\",monospace;font-size:0.62rem;color:var(--mut);width:32px;flex-shrink:0'>"+dstr+"</span>"
+              +"<span style='font-family:\"JetBrains Mono\",monospace;font-size:0.62rem;color:rgba(255,255,255,0.55);width:32px;flex-shrink:0'>"+dstr+"</span>"
               +"<span style='font-size:0.75rem'>"+f.icon+"</span>"
-              +"<span style='font-size:0.68rem;color:var(--ink);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis'>"+f.drink.toUpperCase()+"</span>"
+              +"<span style='font-size:0.68rem;color:#fff;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis'>"+f.drink.toUpperCase()+"</span>"
               +(f.pagado>0?"<span style='font-family:\"Bebas Neue\",sans-serif;font-size:0.9rem;color:#4ade80'>$"+Math.round(f.pagado)+"</span>"
-                :"<span style='font-size:0.62rem;color:var(--mut)'>—</span>")
+                :"<span style='font-size:0.62rem;color:rgba(255,255,255,0.55)'>—</span>")
               +"</div>";
           }).join("")
-          :"<div style='text-align:center;color:var(--mut);font-size:0.68rem;padding:12px'>Sin historial todavía</div>";
+          :"<div style='text-align:center;color:rgba(255,255,255,0.55);font-size:0.68rem;padding:12px'>Sin historial todavía</div>";
 
-          miHistHtml="<div style='background:#142a1c;border:1px solid #1e1e1e;border-radius:16px;padding:16px;margin-bottom:12px'>"
-            +"<div style='font-size:0.62rem;font-weight:700;color:var(--club-ama);letter-spacing:0.08em;margin-bottom:14px;font-family:\"JetBrains Mono\",monospace'>📊 TU HISTORIAL · "+me.toUpperCase()+"</div>"
+          miHistHtml="<div style='background:linear-gradient(135deg,#14110a,#1c1810);backdrop-filter:blur(var(--blur));border:1px solid rgba(255,255,255,0.1);border-radius:20px;padding:16px;margin-bottom:12px'>"
+            +"<div style='font-size:0.62rem;font-weight:700;color:#e5a93c;letter-spacing:0.08em;margin-bottom:14px;font-family:\"JetBrains Mono\",monospace'>📊 TU HISTORIAL · "+me.toUpperCase()+"</div>"
             +top3Html
             +filasHtml
             +"</div>";
@@ -2846,11 +2846,11 @@
 
     panel.innerHTML=cdHtml
       +(miHistHtml)
-      +"<div style='background:#142a1c;border:1px solid #1e1e1e;border-radius:16px;padding:14px;margin-bottom:12px'>"
-      +"<div style='font-size:0.62rem;font-weight:700;color:var(--club-cel);letter-spacing:0.08em;margin-bottom:10px;font-family:\"JetBrains Mono\",monospace'>☕ TOP BEBIDAS HOY</div>"
+      +"<div style='background:linear-gradient(135deg,#14110a,#1c1810);backdrop-filter:blur(var(--blur));border:1px solid rgba(255,255,255,0.1);border-radius:20px;padding:14px;margin-bottom:12px'>"
+      +"<div style='font-size:0.62rem;font-weight:700;color:#38ef7d;letter-spacing:0.08em;margin-bottom:10px;font-family:\"JetBrains Mono\",monospace'>☕ TOP BEBIDAS HOY</div>"
       +bebidasHtml+"</div>"
-      +"<div style='background:#142a1c;border:1px solid #1e1e1e;border-radius:16px;padding:14px'>"
-      +"<div style='font-size:0.62rem;font-weight:700;color:var(--club-cel);letter-spacing:0.08em;margin-bottom:10px;font-family:\"JetBrains Mono\",monospace'>👥 ESTE SÁBADO</div>"
+      +"<div style='background:linear-gradient(135deg,#14110a,#1c1810);backdrop-filter:blur(var(--blur));border:1px solid rgba(255,255,255,0.1);border-radius:20px;padding:14px'>"
+      +"<div style='font-size:0.62rem;font-weight:700;color:#38ef7d;letter-spacing:0.08em;margin-bottom:10px;font-family:\"JetBrains Mono\",monospace'>👥 ESTE SÁBADO</div>"
       +asisHtml+"</div>";
 
     // ── SECCIÓN TARDONES ─────────────────────────────────────
@@ -2859,7 +2859,7 @@
       if(!spanel)return;
       // Calcular ranking de velocidad de pedido del sábado actual
       var pedidosHoy=Object.values(orders).filter(function(o){return o.player&&o.ts;});
-      if(!pedidosHoy.length){spanel.innerHTML="<div style='font-size:0.65rem;color:var(--mut);text-align:center;padding:8px'>Nadie pidió todavía ☕</div>";return;}
+      if(!pedidosHoy.length){spanel.innerHTML="<div style='font-size:0.65rem;color:rgba(255,255,255,0.55);text-align:center;padding:8px'>Nadie pidió todavía ☕</div>";return;}
       // Ordenar por ts (el primero es el más rápido)
       pedidosHoy.sort(function(a,b){return a.ts-b.ts;});
       // Deduplicar por player (quedar con el primer pedido de cada uno)
@@ -2874,7 +2874,7 @@
         var esTardón=i===ranking.length-1&&ranking.length>2;
         var esYo=me&&o.player.toUpperCase()===me.toUpperCase();
         html+="<div style='display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,0.05)'>"
-          +"<span style='font-size:0.65rem;color:var(--mut);width:18px;text-align:center'>"+(i+1)+"</span>"
+          +"<span style='font-size:0.65rem;color:rgba(255,255,255,0.55);width:18px;text-align:center'>"+(i+1)+"</span>"
           +"<div style='width:26px;height:26px;border-radius:50%;background:"+col(o.player)+";display:flex;align-items:center;justify-content:center;font-family:\"Bebas Neue\",sans-serif;font-size:0.65rem;color:#fff;flex-shrink:0'>"+ini(o.player)+"</div>"
           +"<span style='flex:1;font-size:0.68rem;font-weight:600;color:"+(esYo?"var(--g2)":esTardón?"#f87171":"var(--ink)")+"'>"
           +o.player.toUpperCase()+(esTardón?" 🐢":"")+(esYo?" 👈":"")+"</span>"
@@ -2888,9 +2888,9 @@
     get(rPropina).then(function(ps){
       var spanel=document.getElementById("stats-propina-panel");
       if(!spanel)return;
-      if(!ps.exists()){spanel.innerHTML="<div style='font-size:0.68rem;color:var(--mut);text-align:center;padding:8px'>Sin sorteos registrados todavía</div>";return;}
+      if(!ps.exists()){spanel.innerHTML="<div style='font-size:0.68rem;color:rgba(255,255,255,0.55);text-align:center;padding:8px'>Sin sorteos registrados todavía</div>";return;}
       var pd=ps.val(),hh=(pd.historial||[]).slice().reverse();
-      if(!hh.length){spanel.innerHTML="<div style='font-size:0.68rem;color:var(--mut);text-align:center;padding:8px'>Sin sorteos registrados todavía</div>";return;}
+      if(!hh.length){spanel.innerHTML="<div style='font-size:0.68rem;color:rgba(255,255,255,0.55);text-align:center;padding:8px'>Sin sorteos registrados todavía</div>";return;}
       // Contar cuántas veces le tocó a cada uno
       var conteo={};hh.forEach(function(h){conteo[h.nombre]=(conteo[h.nombre]||0)+1;});
       var ranking=Object.keys(conteo).sort(function(a,b){return conteo[b]-conteo[a];});
@@ -2900,19 +2900,19 @@
         var esYo=me&&n.toUpperCase()===me.toUpperCase();
         var enc=encodeURIComponent(n);
         html+="<div style='display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.05)'>"
-          +"<span style='font-size:0.7rem;color:var(--mut);width:16px;text-align:center'>"+(i+1)+"</span>"
+          +"<span style='font-size:0.7rem;color:rgba(255,255,255,0.55);width:16px;text-align:center'>"+(i+1)+"</span>"
           +"<div style='width:28px;height:28px;border-radius:50%;background:"+col(n)+";display:flex;align-items:center;justify-content:center;font-family:\"Bebas Neue\",sans-serif;font-size:0.7rem;color:#fff;flex-shrink:0'>"+ini(n)+"</div>"
           +"<span style='flex:1;font-size:0.72rem;font-weight:600;color:"+(esYo?"#f87171":"var(--ink)")+"'>"+n+(esYo?" 😬":"")+"</span>"
           +"<span style='font-size:0.65rem;color:#c084fc;font-weight:700'>"+veces+"x</span>"
-          +(isAdmin()?"<button data-n='"+enc+"' onclick='borrarHistorialPropina(decodeURIComponent(this.dataset.n))' style='background:none;border:none;color:var(--mut);font-size:0.7rem;cursor:pointer;padding:2px 4px' title='Borrar del historial'>✕</button>":"")
+          +(isAdmin()?"<button data-n='"+enc+"' onclick='borrarHistorialPropina(decodeURIComponent(this.dataset.n))' style='background:none;border:none;color:rgba(255,255,255,0.55);font-size:0.7rem;cursor:pointer;padding:2px 4px' title='Borrar del historial'>✕</button>":"")
           +"</div>";
       });
       html+="</div>";
       // Último sorteo
       var ult=hh[0];
       var dUlt=new Date(ult.ts||0);
-      html+="<div style='font-size:0.58rem;color:var(--mut);text-align:center'>Último: <b style='color:#c084fc'>"+ult.nombre.toUpperCase()+"</b> · "+dUlt.getDate()+"/"+(dUlt.getMonth()+1)+(ult.total>0?" · Mesa $"+Math.round(ult.total):"")+"</div>";
-      html+="<div style='font-size:0.58rem;color:var(--mut);text-align:center;margin-top:4px'>Quedan <b style='color:var(--ink)'>"+(pd.ronda||[]).length+"</b> en la ronda actual</div>";
+      html+="<div style='font-size:0.58rem;color:rgba(255,255,255,0.55);text-align:center'>Último: <b style='color:#c084fc'>"+ult.nombre.toUpperCase()+"</b> · "+dUlt.getDate()+"/"+(dUlt.getMonth()+1)+(ult.total>0?" · Mesa $"+Math.round(ult.total):"")+"</div>";
+      html+="<div style='font-size:0.58rem;color:rgba(255,255,255,0.55);text-align:center;margin-top:4px'>Quedan <b style='color:#fff'>"+(pd.ronda||[]).length+"</b> en la ronda actual</div>";
       spanel.innerHTML=html;
     }).catch(function(){});
 
@@ -3904,10 +3904,10 @@ header::after{
 .pdt{font-size:0.65rem;color:var(--mut);font-weight:500;letter-spacing:0.03em;}.cdel{cursor:pointer;opacity:0.3;font-size:0.88rem;padding:2px 4px;}.cdel:hover{opacity:1;color:var(--red);}
 
 /* TOTALS */
-#totals-panel{margin:10px 12px 0;background:linear-gradient(135deg,#0d0b07,#1a1510);border-radius:14px;padding:14px 16px;display:none;border:1px solid var(--brd);}
-.tt{font-family:var(--font-display);font-size:0.9rem;letter-spacing:0.12em;color:var(--g2);margin-bottom:10px;opacity:0.8;font-style:normal;}
-.tr{display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid rgba(255,255,255,0.04);font-size:0.88rem;color:var(--ink);font-weight:500;letter-spacing:0.03em;}.tr:last-child{border-bottom:none;}
-.tq{font-family:var(--font-display);font-size:0.88rem;font-weight:700;color:var(--g2);}
+#totals-panel{margin:10px 12px 0;background:linear-gradient(135deg,#0d0b07,#1a1510);backdrop-filter:blur(var(--blur));border-radius:20px;padding:14px 16px;display:none;border:1px solid rgba(255,255,255,0.1);}
+.tt{font-family:var(--font-display);font-size:0.9rem;letter-spacing:0.12em;color:#e5a93c;margin-bottom:10px;opacity:0.85;font-style:normal;}
+.tr{display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid rgba(255,255,255,0.08);font-size:0.88rem;color:#fff;font-weight:500;letter-spacing:0.03em;}.tr:last-child{border-bottom:none;}
+.tq{font-family:var(--font-display);font-size:0.88rem;font-weight:700;color:#e5a93c;}
 
 /* MESA */
 .mh{display:flex;align-items:center;justify-content:space-between;padding:14px 16px 10px;}
@@ -3917,7 +3917,7 @@ header::after{
 .mabtn{background:rgba(26,21,16,0.8);color:var(--gl);border:1px solid rgba(245,158,11,0.2);border-radius:100px;padding:8px 14px;font-family:var(--font-body);font-size:0.88rem;font-weight:600;cursor:pointer;white-space:nowrap;letter-spacing:0.04em;transition:all 0.15s;}
 .mabtn:hover{background:rgba(245,158,11,0.1);border-color:rgba(245,158,11,0.4);}
 #ws-btn{display:none;background:linear-gradient(135deg,#16a34a,#15803d);color:white;border:none;border-radius:100px;padding:8px 16px;font-family:var(--font-body);font-size:0.88rem;font-weight:700;cursor:pointer;align-items:center;gap:6px;white-space:nowrap;letter-spacing:0.04em;}
-#pago-resumen{margin:0 12px 12px;background:linear-gradient(135deg,#0d0b07,#1a1510);border-radius:14px;padding:14px 16px;display:none;border:1px solid var(--brd);}
+#pago-resumen{margin:0 12px 12px;background:linear-gradient(135deg,#0d0b07,#1a1510);backdrop-filter:blur(var(--blur));border-radius:20px;padding:14px 16px;display:none;border:1px solid rgba(255,255,255,0.1);}
 .pres-row{display:flex;flex-wrap:wrap;gap:12px;margin-bottom:8px;}
 .pres-item{font-size:0.65rem;color:rgba(253,248,240,0.5);letter-spacing:0.03em;}.pres-item b{color:var(--gl);}
 .pres-total{font-size:0.9rem;font-weight:700;color:var(--gl);margin-left:auto;letter-spacing:0.03em;}
@@ -4401,7 +4401,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
     <div id="vadmin-pagos" style="display:none">
       <div style="padding:12px 14px 80px">
         <div id="propina-indicator" style="display:none;margin:0 0 10px;background:rgba(168,85,247,0.08);border:1px solid rgba(168,85,247,0.2);border-radius:12px;padding:10px 14px"></div>
-        <div id="pago-resumen" style="margin:0 0 12px;background:linear-gradient(135deg,#0d0b07,#1a1510);border-radius:14px;padding:14px 16px;border:1px solid var(--brd)"></div>
+        <div id="pago-resumen" style="margin:0 0 12px;background:linear-gradient(135deg,#0d0b07,#1a1510);backdrop-filter:blur(18px);border-radius:20px;padding:14px 16px;border:1px solid rgba(255,255,255,0.1)"></div>
         <div id="pagos-detail-panel"></div>
         <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap;position:relative">
           <button class="admin-action-btn" onclick="verHistorial()">📅 Historial</button>
@@ -4631,7 +4631,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.89";
+  var APP_VERSION="10.0.90";
 
   var STORED_VERSION=localStorage.getItem("app_version");
 
