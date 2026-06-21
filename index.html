@@ -1586,45 +1586,104 @@
     closeModal("mEditExtras");
     showToast("✓ "+obj.name+(precioVal>0?" · $"+Math.round(precioVal):""));
   };
+  var DEFAULT_EXTRAS=["Sin acompanamiento","2 Medialunas saladas","2 Medialunas dulces","Tostadas","Huevos revueltos","Huevos revueltos con palta","Alfajor de maicena"];
+  function comboKeyOf(ex){return ex.toLowerCase().replace(/\s+/g,"_");}
+  function extrasFor(d){return (d.extras&&d.extras.length?d.extras:DEFAULT_EXTRAS).filter(function(e){return e&&e.trim()&&e!=="Sin acompanamiento";});}
+  function keysFor(d){return extrasFor(d).map(comboKeyOf);}
+
   window.abrirPrecios=function(){
     if(!isAdmin())return;
+    // Valor global por acompañamiento: si ya tiene precio en OTRA bebida, se usa ese (compartido por nombre)
+    var globalCombo={};
+    drinks.forEach(function(d){
+      if(!d||!d.name||!d.comboPrices)return;
+      Object.keys(d.comboPrices).forEach(function(k){if(d.comboPrices[k]>0&&!globalCombo[k])globalCombo[k]=d.comboPrices[k];});
+    });
     var html="";
     drinks.forEach(function(d,i){
       if(!d||!d.name)return; // salta bebidas fantasma (sin nombre/icono)
       var comboPrices=d.comboPrices||{};
-      // Fila bebida base — superficie clara destacada
-      html+="<div class='surf' style='display:grid;grid-template-columns:1fr 110px;gap:10px;align-items:center;"
-        +"padding:12px 14px;margin-bottom:6px'>";
+      var extras=extrasFor(d);
+      html+="<div class='surf' data-precio-card='"+i+"' style='padding:14px;margin-bottom:10px'>";
       html+="<div style='display:flex;align-items:center;gap:8px'>"
         +"<span style='font-size:1.3rem'>"+d.icon+"</span>"
-        +"<span style='font-size:0.82rem;font-weight:700;color:var(--ink);letter-spacing:0.03em'>"+d.name+"</span>"
-        +"</div>";
-      html+="<div style='position:relative;display:flex;align-items:center'>"
-        +"<span style='position:absolute;left:10px;font-size:0.8rem;color:var(--mut);pointer-events:none'>$</span>"
+        +"<span style='flex:1;font-size:0.82rem;font-weight:700;color:var(--ink);letter-spacing:0.03em'>"+d.name+"</span>"
+        +"<div style='position:relative;width:104px;flex-shrink:0'>"
+        +"<span style='position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:0.8rem;color:var(--mut);pointer-events:none'>$</span>"
         +"<input type='number' data-idx='"+i+"' data-combo='' placeholder='0' min='0' step='100' value='"+(d.precio||"")+"' "
         +"style='width:100%;background:var(--sur2);border:1px solid var(--gold);border-radius:10px;padding:9px 10px 9px 22px;"
         +"font-family:\"Bebas Neue\",sans-serif;font-size:1.1rem;color:var(--gold);text-align:right;outline:none;letter-spacing:0.03em'>"
-        +"</div>";
-      html+="</div>";
-      // Combos — sangría sutil, inputs claros
-      var extras=d.extras||["Sin acompanamiento","2 Medialunas saladas","2 Medialunas dulces","Tostadas","Huevos revueltos","Huevos revueltos con palta","Alfajor de maicena"];
-      extras.filter(function(e){return e&&e.trim()&&e!=="Sin acompanamiento";}).forEach(function(ex){
-        var comboKey=ex.toLowerCase().replace(/\s+/g,"_");
-        html+="<div style='display:grid;grid-template-columns:1fr 110px;gap:10px;align-items:center;"
-          +"padding:5px 14px 5px 30px;margin-bottom:3px;border-left:2px solid var(--brd)'>";
-        html+="<div style='font-size:0.72rem;color:var(--mut)'>+ "+ex+"</div>";
-        html+="<div style='position:relative;display:flex;align-items:center'>"
-          +"<span style='position:absolute;left:10px;font-size:0.72rem;color:var(--mut);pointer-events:none'>$</span>"
-          +"<input type='number' data-idx='"+i+"' data-combo='"+comboKey+"' placeholder='0' min='0' step='100' value='"+(comboPrices[comboKey]||"")+"' "
-          +"style='width:100%;background:var(--sur2);border:1px solid var(--brd);border-radius:8px;padding:7px 10px 7px 20px;"
-          +"font-family:\"Bebas Neue\",sans-serif;font-size:0.95rem;color:var(--ink);text-align:right;outline:none'>"
-          +"</div>";
+        +"</div></div>";
+      if(extras.length){
+        html+="<div style='display:flex;flex-direction:column;gap:7px;margin-top:10px;padding-top:10px;border-top:1px solid var(--brd)'>";
+        extras.forEach(function(ex){
+          var comboKey=comboKeyOf(ex);
+          var val=comboPrices[comboKey]>0?comboPrices[comboKey]:(globalCombo[comboKey]||"");
+          html+="<div style='display:flex;align-items:center;gap:8px'>"
+            +"<span style='flex:1;font-size:0.7rem;color:var(--mut)'>+ "+ex+"</span>"
+            +"<div style='position:relative;width:92px;flex-shrink:0'>"
+            +"<span style='position:absolute;left:9px;top:50%;transform:translateY(-50%);font-size:0.7rem;color:var(--mut);pointer-events:none'>$</span>"
+            +"<input type='number' data-idx='"+i+"' data-combo='"+comboKey+"' placeholder='0' min='0' step='100' value='"+val+"' "
+            +"style='width:100%;background:var(--sur2);border:1px solid var(--brd);border-radius:8px;padding:7px 8px 7px 19px;"
+            +"font-family:\"Bebas Neue\",sans-serif;font-size:0.85rem;color:var(--ink);text-align:right;outline:none'>"
+            +"</div></div>";
+        });
         html+="</div>";
-      });
-      html+="<div style='height:10px'></div>";
+      }
+      html+="</div>";
     });
     document.getElementById("precios-grid").innerHTML=html;
+    setupPreciosAutoSave();
     openModal("mprecios");
+  };
+
+  function setupPreciosAutoSave(){
+    var grid=document.getElementById("precios-grid");
+    if(!grid||grid._autosaveBound)return;
+    grid._autosaveBound=true;
+    var saveTimer=null;
+    grid.addEventListener("input",function(e){
+      var inp=e.target;
+      if(!inp||inp.tagName!=="INPUT")return;
+      var combo=inp.getAttribute("data-combo");
+      if(combo){
+        // Reflejar en vivo en las demás cards que comparten este acompañamiento
+        grid.querySelectorAll("input[data-combo='"+combo+"']").forEach(function(other){
+          if(other!==inp)other.value=inp.value;
+        });
+      }
+      var ind=document.getElementById("precios-save-ind");
+      if(ind){ind.textContent="Guardando…";ind.style.opacity="1";}
+      clearTimeout(saveTimer);
+      saveTimer=setTimeout(window.guardarPreciosAuto,650);
+    });
+  }
+
+  window.guardarPreciosAuto=async function(){
+    var inputs=document.querySelectorAll("#precios-grid input");
+    var nd=drinks.map(function(d){return Object.assign({},d);});
+    inputs.forEach(function(inp){
+      var idx=parseInt(inp.getAttribute("data-idx"));
+      if(!nd[idx])return;
+      var combo=inp.getAttribute("data-combo");
+      var val=parseFloat(inp.value)||0;
+      if(combo===""){
+        if(val>0)nd[idx].precio=val;else delete nd[idx].precio;
+      } else {
+        // Mismo acompañamiento → mismo precio en TODAS las bebidas que lo tengan
+        nd.forEach(function(d2,i2){
+          if(!d2||!d2.name)return;
+          if(keysFor(d2).indexOf(combo)===-1)return;
+          if(!nd[i2].comboPrices)nd[i2].comboPrices={};
+          if(val>0)nd[i2].comboPrices[combo]=val;else delete nd[i2].comboPrices[combo];
+        });
+      }
+    });
+    drinks=nd;
+    await set(rD,nd);
+    renderDrinks();
+    var ind=document.getElementById("precios-save-ind");
+    if(ind){ind.textContent="✓ Guardado";setTimeout(function(){if(ind)ind.style.opacity="0";},1400);}
   };
 
   window.procesarTicket=function(input){
@@ -2064,29 +2123,7 @@
     showToast("✓ "+matched+" precios actualizados desde el ticket!");
     document.getElementById("ticket-status").style.display="none";
   };
-  window.guardarPrecios=async function(){
-    var inputs=document.querySelectorAll("#precios-grid input");
-    var nd=drinks.map(function(d){return Object.assign({},d);});
-    inputs.forEach(function(inp){
-      var idx=parseInt(inp.getAttribute("data-idx"));
-      var combo=inp.getAttribute("data-combo");
-      var val=parseFloat(inp.value)||0;
-      if(combo===""){
-        // Precio base de la bebida
-        if(val>0)nd[idx].precio=val;else delete nd[idx].precio;
-      } else {
-        // Precio del combo
-        if(!nd[idx].comboPrices)nd[idx].comboPrices={};
-        if(val>0)nd[idx].comboPrices[combo]=val;
-        else delete nd[idx].comboPrices[combo];
-      }
-    });
-    drinks=nd;
-    await set(rD,nd);
-    closeModal("mprecios");
-    showToast("💲 Precios guardados!");
-    renderDrinks();
-  };
+  // (guardarPrecios reemplazado por guardarPreciosAuto — autoguardado, ver arriba)
 
   // Re-evaluar banner de nuevos (útil cuando admin abre tab admin)
   function checkNuevosAlert(){
@@ -4699,15 +4736,13 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
     </div>
     <input type="file" id="ticket-input" accept="image/*" capture="environment" style="display:none" onchange="procesarTicket(this)">
     <div id="ticket-status" style="display:none;background:rgba(79,179,255,0.08);border:1px solid rgba(79,179,255,0.2);border-radius:10px;padding:10px 12px;margin-bottom:12px;font-size:0.68rem;color:#4fb3ff;text-align:center"></div>
-    <!-- Tabla header -->
-    <div style="display:grid;grid-template-columns:1fr 110px;gap:10px;padding:6px 14px;border-bottom:1px solid var(--brd);margin-bottom:8px">
-      <div style="font-size:0.6rem;color:var(--mut);letter-spacing:0.1em;text-transform:uppercase">Bebida / Combo</div>
-      <div style="font-size:0.6rem;color:var(--mut);letter-spacing:0.1em;text-align:right;text-transform:uppercase">Precio $</div>
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:0 2px;margin-bottom:10px">
+      <span style="font-size:0.6rem;color:var(--mut);letter-spacing:0.08em">Mismo acompañamiento = mismo precio en todas</span>
+      <span id="precios-save-ind" style="font-size:0.62rem;color:var(--g2);font-weight:700;opacity:0;transition:opacity .3s;white-space:nowrap">✓ Guardado</span>
     </div>
     <div id="precios-grid"></div>
     <div class="ma" style="margin-top:14px">
-      <button class="bs" onclick="closeModal('mprecios')">Cancelar</button>
-      <button class="bp" onclick="guardarPrecios()">💾 Guardar</button>
+      <button class="bp" style="flex:1" onclick="closeModal('mprecios')">Listo ✓</button>
     </div>
   </div>
 </div>
@@ -4755,7 +4790,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.100";
+  var APP_VERSION="10.0.101";
 
   var STORED_VERSION=localStorage.getItem("app_version");
 
