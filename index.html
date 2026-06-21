@@ -2080,24 +2080,31 @@
    try{
     var pill=document.getElementById("asado-pill");
     if(!pill)return;
-    var cfg=window._asadoConfig;
     var admin=isAdmin();
+    // Fuente 1 (preferida): evento activo en Supabase, la misma fuente que ya usa la app de Asado
+    // Fuente 2 (respaldo manual): config/asado en este Firebase, por si Supabase no respondió
+    var ev=window._sbEvento;
+    var fecha=ev&&ev.event_date?ev.event_date:null;
+    var deSupabase=!!fecha;
+    if(!fecha&&window._asadoConfig&&window._asadoConfig.fecha)fecha=window._asadoConfig.fecha;
     pill.style.cssText="position:fixed;top:64px;right:12px;z-index:150;";
-    if(!cfg||!cfg.fecha){
+    if(!fecha){
       if(!admin){pill.style.display="none";return;}
       pill.style.display="block";
       pill.innerHTML="<button onclick='abrirConfigAsado()' style='display:flex;align-items:center;gap:6px;padding:8px 12px;border-radius:100px;background:var(--card);border:1px dashed var(--brd);color:var(--mut);font-size:0.65rem;cursor:pointer;backdrop-filter:blur(var(--blur));-webkit-backdrop-filter:blur(var(--blur))'>🔥 + Configurar asado</button>";
       return;
     }
     // Calcular dias restantes en hora Argentina (UTC-3)
-    var fechaAsado=new Date(cfg.fecha+"T12:00:00Z"); // mediodia UTC = 9am AR
+    var fechaAsado=new Date(fecha+"T12:00:00Z"); // mediodia UTC = 9am AR
     var arNow=new Date(new Date().getTime()-3*3600000); // hora AR
     var arHoy=new Date(arNow.getUTCFullYear(),arNow.getUTCMonth(),arNow.getUTCDate());
     var dias=Math.round((fechaAsado-arHoy)/(1000*60*60*24));
     var enVentana=dias>=0&&dias<=14; // se muestra a todos desde 14 días antes y hasta el día
     if(!enVentana&&!admin){pill.style.display="none";return;}
     pill.style.display="block";
-    var editBtn=admin?"<button onclick='event.stopPropagation();abrirConfigAsado()' style='background:rgba(0,0,0,0.15);border:none;border-radius:100px;width:22px;height:22px;flex-shrink:0;color:#fff;font-size:0.7rem;cursor:pointer;display:flex;align-items:center;justify-content:center;margin-left:4px'>✏️</button>":"";
+    // El ✏️ solo tiene sentido si la fecha viene del respaldo manual — si viene de Supabase,
+    // se edita desde la app de Asado, no acá
+    var editBtn=(admin&&!deSupabase)?"<button onclick='event.stopPropagation();abrirConfigAsado()' style='background:rgba(0,0,0,0.15);border:none;border-radius:100px;width:22px;height:22px;flex-shrink:0;color:#fff;font-size:0.7rem;cursor:pointer;display:flex;align-items:center;justify-content:center;margin-left:4px'>✏️</button>":"";
     if(enVentana){
       var label=dias===0?"¡HOY!":dias===1?"Mañana":"En "+dias+" días";
       pill.innerHTML="<div onclick='irAlAsado()' style='cursor:pointer;display:flex;align-items:center;gap:7px;padding:8px 10px 8px 12px;border-radius:100px;"
@@ -2107,8 +2114,8 @@
         +editBtn
         +"</div>";
     } else {
-      // Solo admin, fuera de la ventana de 14 días: versión apagada, únicamente para poder editar
-      var ed=cfg.fecha.split("-");
+      // Solo admin, fuera de la ventana de 14 días: versión apagada, únicamente para poder editar (si es respaldo manual)
+      var ed=fecha.split("-");
       pill.innerHTML="<div style='cursor:default;display:flex;align-items:center;gap:6px;padding:7px 11px;border-radius:100px;background:var(--card);border:1px solid var(--brd);color:var(--mut);font-size:0.62rem;backdrop-filter:blur(var(--blur));-webkit-backdrop-filter:blur(var(--blur))'>"
         +"🔥 "+ed[2]+"/"+ed[1]+editBtn+"</div>";
     }
@@ -4846,7 +4853,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.105";
+  var APP_VERSION="10.0.106";
 
   var STORED_VERSION=localStorage.getItem("app_version");
 
@@ -5008,19 +5015,22 @@ window.modificarPedido=function(){
 
 <script>
 // ── SUPABASE conexión con App Asado ──────────────────────────────────────────
-window._sb=null;window._sbSponsors=[];window._sbVotaciones=[];
+window._sb=null;window._sbSponsors=[];window._sbVotaciones=[];window._sbEvento=null;
 window.addEventListener("load",function(){
   try{
     if(window.supabase&&window.supabase.createClient){
       window._sb=window.supabase.createClient("https://tppffkngfncybwkmmbjc.supabase.co","eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRwcGZma25nZm5jeWJ3a21tYmpjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUyMjIyMTIsImV4cCI6MjA5MDc5ODIxMn0.8yBlL6vDqIuKGlcbuPW_emziMg88ZknFqargEXIdlU0");
       Promise.all([
         window._sb.from("sponsors").select("*").eq("active",true).order("id"),
-        window._sb.from("votaciones").select("*").eq("activa",true)
+        window._sb.from("votaciones").select("*").eq("activa",true),
+        window._sb.from("events").select("*").eq("archived",false).order("created_at",{ascending:false}).limit(1)
       ]).then(function(res){
         window._sbSponsors=(res[0].data)||[];
         window._sbVotaciones=(res[1].data)||[];
+        window._sbEvento=(res[2].data&&res[2].data[0])||null;
         if(window.renderSponsorsCafe)window.renderSponsorsCafe();
         if(window.renderVotacionBanner)window.renderVotacionBanner();
+        if(typeof renderAsadoBanner==="function")renderAsadoBanner();
       }).catch(function(e){console.log("[Supabase]",e);});
     }
   }catch(e){console.log("[Supabase init]",e);}
