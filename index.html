@@ -2076,6 +2076,20 @@
     renderAsadoBanner();
   });
 
+  // Acepta tanto ISO (2026-06-27) como DD/MM/AAAA (27/06/2026, formato que usa
+  // realmente la app de Asado) y devuelve un Date a mediodía UTC, o null si no parsea.
+  function parseFechaAsado(s){
+    if(!s)return null;
+    s=(""+s).trim();
+    var y,m,d;
+    var iso=s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+    var dmy=s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+    if(iso){y=iso[1];m=iso[2];d=iso[3];}
+    else if(dmy){d=dmy[1];m=dmy[2];y=dmy[3];}
+    else return null;
+    var dt=new Date(y+"-"+("0"+m).slice(-2)+"-"+("0"+d).slice(-2)+"T12:00:00Z");
+    return isNaN(dt)?null:dt;
+  }
   function renderAsadoBanner(){
    try{
     var pill=document.getElementById("asado-pill");
@@ -2087,15 +2101,17 @@
     var fecha=ev&&ev.event_date?ev.event_date:null;
     var deSupabase=!!fecha;
     if(!fecha&&window._asadoConfig&&window._asadoConfig.fecha)fecha=window._asadoConfig.fecha;
-    pill.style.cssText="position:fixed;top:64px;right:12px;z-index:150;";
-    if(!fecha){
+    var hdr=document.querySelector("header");
+    var topPx=(hdr?hdr.getBoundingClientRect().bottom:64)+10;
+    pill.style.cssText="position:fixed;top:"+topPx+"px;right:12px;z-index:150;";
+    var fechaAsado=parseFechaAsado(fecha);
+    if(!fecha||!fechaAsado){
       if(!admin){pill.style.display="none";return;}
       pill.style.display="block";
       pill.innerHTML="<button onclick='abrirConfigAsado()' style='display:flex;align-items:center;gap:6px;padding:8px 12px;border-radius:100px;background:var(--card);border:1px dashed var(--brd);color:var(--mut);font-size:0.65rem;cursor:pointer;backdrop-filter:blur(var(--blur));-webkit-backdrop-filter:blur(var(--blur))'>🔥 + Configurar asado</button>";
       return;
     }
     // Calcular dias restantes en hora Argentina (UTC-3)
-    var fechaAsado=new Date(fecha+"T12:00:00Z"); // mediodia UTC = 9am AR
     var arNow=new Date(new Date().getTime()-3*3600000); // hora AR
     var arHoy=new Date(arNow.getUTCFullYear(),arNow.getUTCMonth(),arNow.getUTCDate());
     var dias=Math.round((fechaAsado-arHoy)/(1000*60*60*24));
@@ -2115,9 +2131,9 @@
         +"</div>";
     } else {
       // Solo admin, fuera de la ventana de 14 días: versión apagada, únicamente para poder editar (si es respaldo manual)
-      var ed=fecha.split("-");
+      var dd=("0"+fechaAsado.getUTCDate()).slice(-2),mm=("0"+(fechaAsado.getUTCMonth()+1)).slice(-2);
       pill.innerHTML="<div style='cursor:default;display:flex;align-items:center;gap:6px;padding:7px 11px;border-radius:100px;background:var(--card);border:1px solid var(--brd);color:var(--mut);font-size:0.62rem;backdrop-filter:blur(var(--blur));-webkit-backdrop-filter:blur(var(--blur))'>"
-        +"🔥 "+ed[2]+"/"+ed[1]+editBtn+"</div>";
+        +"🔥 "+dd+"/"+mm+editBtn+"</div>";
     }
    }catch(e){
     console.error("[renderAsadoBanner]",e);
@@ -4853,7 +4869,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.106";
+  var APP_VERSION="10.0.107";
 
   var STORED_VERSION=localStorage.getItem("app_version");
 
