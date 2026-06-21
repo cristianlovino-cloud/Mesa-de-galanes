@@ -219,6 +219,7 @@
         loginFiltrar(inp.value);
       }
       renderLoginGalanes();renderLista();
+      if(me&&typeof renderMyName==="function")renderMyName();
     });
     onValue(rD,function(s){
       drinks=s.exists()?s.val():DRINKS_DEF.slice();
@@ -2671,7 +2672,7 @@
     document.getElementById("sum-panel").innerHTML=rows.join("");
     var tots={};Object.values(orders).forEach(function(o){if(!tots[o.drink])tots[o.drink]={icon:o.icon,count:0};tots[o.drink].count++;});
     var tk=Object.keys(tots),tp=document.getElementById("totals-panel");
-    if(tk.length){var th="<div class='tt'>Total por bebida</div>";tk.forEach(function(d){th+="<div class='tr'><span>"+tots[d].icon+" "+d+"</span><span class='tq'>x"+tots[d].count+"</span></div>";});tp.innerHTML=th;tp.style.display="block";}
+    if(tk.length){var th="";tk.forEach(function(d){th+="<div class='tr'><span>"+tots[d].icon+" "+d+"</span><span class='tq'>x"+tots[d].count+"</span></div>";});tp.innerHTML=th;tp.style.display="block";}
     else tp.style.display="none";
     renderMesaStats();
     var wb=document.getElementById("ws-btn");if(wb)wb.style.display=isAdmin()&&total>0?"inline-flex":"none";
@@ -4027,9 +4028,14 @@ header::after{
 }
 .tab.active:not(.tab-center){
   color:var(--gold);
+  font-size:0.62rem;
+}
+.tab.active:not(.tab-center) span:first-child{
+  font-size:1.35rem;
+  transform:scale(1.05);
 }
 .tab:hover:not(.active){color:var(--ink);}
-.tab span{font-size:1.1rem;line-height:1;}
+.tab span{font-size:1.1rem;line-height:1;transition:font-size 0.25s cubic-bezier(0.4,0,0.2,1),transform 0.25s cubic-bezier(0.4,0,0.2,1);}
 
 /* BOTÓN CENTRAL ELEVADO — tipo QR de Mercado Pago */
 .tab-center{
@@ -4869,7 +4875,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.107";
+  var APP_VERSION="10.0.108";
 
   var STORED_VERSION=localStorage.getItem("app_version");
 
