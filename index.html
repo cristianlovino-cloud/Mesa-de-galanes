@@ -2085,7 +2085,16 @@
       pill.innerHTML="<div style='cursor:default;display:flex;align-items:center;gap:6px;padding:7px 11px;border-radius:100px;background:var(--card);border:1px solid var(--brd);color:var(--mut);font-size:0.62rem;backdrop-filter:blur(var(--blur));-webkit-backdrop-filter:blur(var(--blur))'>"
         +"🔥 "+ed[2]+"/"+ed[1]+editBtn+"</div>";
     }
-   }catch(e){console.error("[renderAsadoBanner]",e);}
+   }catch(e){
+    console.error("[renderAsadoBanner]",e);
+    try{
+      var p2=document.getElementById("asado-pill");
+      if(p2){
+        p2.style.cssText="position:fixed;top:64px;right:12px;z-index:150;display:block;";
+        p2.innerHTML="<div style='background:#ef4444;color:#fff;font-size:0.55rem;padding:6px 10px;border-radius:8px;max-width:220px;line-height:1.3'>🐛 asado-pill: "+String((e&&e.message)||e).slice(0,80)+"</div>";
+      }
+    }catch(e2){}
+   }
   }
 
   // Admin: configurar próximo asado (se abre tocando el ✏️ de la píldora)
@@ -2512,7 +2521,7 @@
     for(var i=0;i<en.length;i++){var k=en[i][0],o=en[i][1];if(!by[o.player])by[o.player]=[];by[o.player].push({key:k,drink:o.drink,icon:o.icon});}
     var galanesCnt=Object.keys(by).length;
     var players=Object.keys(by).sort(),rows=[];
-    if(!players.length){document.getElementById("sum-panel").innerHTML="<div class='es'>Nadie pidio nada todavia 👀</div>";document.getElementById("totals-panel").style.display="none";var wb2=document.getElementById("ws-btn");if(wb2)wb2.style.display="none";return;}
+    if(!players.length){document.getElementById("sum-panel").innerHTML="";var tp0=document.getElementById("totals-panel");tp0.innerHTML="<div class='es'>Nadie pidio nada todavia 👀</div>";tp0.style.display="block";var wb2=document.getElementById("ws-btn");if(wb2)wb2.style.display="none";return;}
     for(var p=0;p<players.length;p++){
       var pl=players[p],items=by[pl],mine=pl===me,canDel=mine||isAdmin();
       var pg=pagos[pl]||{},cash=pg.cash||0,transfer=pg.transfer||0,conf=confirmed[pl];
@@ -2976,7 +2985,7 @@
       if(!spanel)return;
       // Calcular ranking de velocidad de pedido del sábado actual
       var pedidosHoy=Object.values(orders).filter(function(o){return o.player&&o.ts;});
-      if(!pedidosHoy.length){spanel.innerHTML="<div style='font-size:0.65rem;color:rgba(255,255,255,0.55);text-align:center;padding:8px'>Nadie pidió todavía ☕</div>";return;}
+      if(!pedidosHoy.length){spanel.innerHTML="<div style='font-size:0.65rem;color:var(--mut);text-align:center;padding:8px'>Nadie pidió todavía ☕</div>";return;}
       // Ordenar por ts (el primero es el más rápido)
       pedidosHoy.sort(function(a,b){return a.ts-b.ts;});
       // Deduplicar por player (quedar con el primer pedido de cada uno)
@@ -2991,7 +3000,7 @@
         var esTardón=i===ranking.length-1&&ranking.length>2;
         var esYo=me&&o.player.toUpperCase()===me.toUpperCase();
         html+="<div style='display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,0.05)'>"
-          +"<span style='font-size:0.65rem;color:rgba(255,255,255,0.55);width:18px;text-align:center'>"+(i+1)+"</span>"
+          +"<span style='font-size:0.65rem;color:var(--mut);width:18px;text-align:center'>"+(i+1)+"</span>"
           +"<div style='width:26px;height:26px;border-radius:50%;background:"+col(o.player)+";display:flex;align-items:center;justify-content:center;font-family:\"Bebas Neue\",sans-serif;font-size:0.65rem;color:#fff;flex-shrink:0'>"+ini(o.player)+"</div>"
           +"<span style='flex:1;font-size:0.68rem;font-weight:600;color:"+(esYo?"var(--g2)":esTardón?"#f87171":"var(--ink)")+"'>"
           +o.player.toUpperCase()+(esTardón?" 🐢":"")+(esYo?" 👈":"")+"</span>"
@@ -3005,9 +3014,9 @@
     get(rPropina).then(function(ps){
       var spanel=document.getElementById("stats-propina-panel");
       if(!spanel)return;
-      if(!ps.exists()){spanel.innerHTML="<div style='font-size:0.68rem;color:rgba(255,255,255,0.55);text-align:center;padding:8px'>Sin sorteos registrados todavía</div>";return;}
+      if(!ps.exists()){spanel.innerHTML="<div style='font-size:0.68rem;color:var(--mut);text-align:center;padding:8px'>Sin sorteos registrados todavía</div>";return;}
       var pd=ps.val(),hh=(pd.historial||[]).slice().reverse();
-      if(!hh.length){spanel.innerHTML="<div style='font-size:0.68rem;color:rgba(255,255,255,0.55);text-align:center;padding:8px'>Sin sorteos registrados todavía</div>";return;}
+      if(!hh.length){spanel.innerHTML="<div style='font-size:0.68rem;color:var(--mut);text-align:center;padding:8px'>Sin sorteos registrados todavía</div>";return;}
       // Contar cuántas veces le tocó a cada uno
       var conteo={};hh.forEach(function(h){conteo[h.nombre]=(conteo[h.nombre]||0)+1;});
       var ranking=Object.keys(conteo).sort(function(a,b){return conteo[b]-conteo[a];});
@@ -3017,19 +3026,19 @@
         var esYo=me&&n.toUpperCase()===me.toUpperCase();
         var enc=encodeURIComponent(n);
         html+="<div style='display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.05)'>"
-          +"<span style='font-size:0.7rem;color:rgba(255,255,255,0.55);width:16px;text-align:center'>"+(i+1)+"</span>"
+          +"<span style='font-size:0.7rem;color:var(--mut);width:16px;text-align:center'>"+(i+1)+"</span>"
           +"<div style='width:28px;height:28px;border-radius:50%;background:"+col(n)+";display:flex;align-items:center;justify-content:center;font-family:\"Bebas Neue\",sans-serif;font-size:0.7rem;color:#fff;flex-shrink:0'>"+ini(n)+"</div>"
           +"<span style='flex:1;font-size:0.72rem;font-weight:600;color:"+(esYo?"#f87171":"var(--ink)")+"'>"+n+(esYo?" 😬":"")+"</span>"
           +"<span style='font-size:0.65rem;color:#c084fc;font-weight:700'>"+veces+"x</span>"
-          +(isAdmin()?"<button data-n='"+enc+"' onclick='borrarHistorialPropina(decodeURIComponent(this.dataset.n))' style='background:none;border:none;color:rgba(255,255,255,0.55);font-size:0.7rem;cursor:pointer;padding:2px 4px' title='Borrar del historial'>✕</button>":"")
+          +(isAdmin()?"<button data-n='"+enc+"' onclick='borrarHistorialPropina(decodeURIComponent(this.dataset.n))' style='background:none;border:none;color:var(--mut);font-size:0.7rem;cursor:pointer;padding:2px 4px' title='Borrar del historial'>✕</button>":"")
           +"</div>";
       });
       html+="</div>";
       // Último sorteo
       var ult=hh[0];
       var dUlt=new Date(ult.ts||0);
-      html+="<div style='font-size:0.58rem;color:rgba(255,255,255,0.55);text-align:center'>Último: <b style='color:#c084fc'>"+ult.nombre.toUpperCase()+"</b> · "+dUlt.getDate()+"/"+(dUlt.getMonth()+1)+(ult.total>0?" · Mesa $"+Math.round(ult.total):"")+"</div>";
-      html+="<div style='font-size:0.58rem;color:rgba(255,255,255,0.55);text-align:center;margin-top:4px'>Quedan <b style='color:#fff'>"+(pd.ronda||[]).length+"</b> en la ronda actual</div>";
+      html+="<div style='font-size:0.58rem;color:var(--mut);text-align:center'>Último: <b style='color:#c084fc'>"+ult.nombre.toUpperCase()+"</b> · "+dUlt.getDate()+"/"+(dUlt.getMonth()+1)+(ult.total>0?" · Mesa $"+Math.round(ult.total):"")+"</div>";
+      html+="<div style='font-size:0.58rem;color:var(--mut);text-align:center;margin-top:4px'>Quedan <b style='color:var(--ink)'>"+(pd.ronda||[]).length+"</b> en la ronda actual</div>";
       spanel.innerHTML=html;
     }).catch(function(){});
 
@@ -4013,7 +4022,7 @@ header::after{
   box-shadow:0 4px 12px rgba(0,0,0,0.2);
   color:#fff;
 }
-.surf-dark .mut2{color:rgba(255,255,255,0.55);}
+.surf-dark .mut2{color:var(--mut);}
 .surf-dark .gold2{color:#e5a93c;}
 
 .dc{background:var(--card);border:1px solid var(--brd);border-radius:20px;
@@ -4522,9 +4531,9 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
     </div>
   </div>
   <div id="v-resumen" style="display:none">
-    <div class="slabel">Pedidos en vivo <button class="clr" onclick="clearAll()">limpiar</button></div>
-    <div id="resumen-pagos-hint" style="display:none;font-size:0.6rem;color:var(--mut);padding:4px 14px 0;text-align:right">💡 Cargar pagos en Admin → Pedidos</div>
-    <div class="sp" id="sum-panel"><div class="es">Nadie pidio nada todavia 👀</div></div>
+    <div class="slabel">Total por bebida <button class="clr" onclick="clearAll()">limpiar</button></div>
+    <div id="resumen-pagos-hint" style="display:none;font-size:0.6rem;color:var(--mut);padding:4px 14px 0;text-align:right">💡 Ver detalle por persona en Admin → Pedidos</div>
+    <div class="sp" id="sum-panel" style="display:none"></div>
     <div id="totals-panel"></div>
   </div>
   <div id="v-cumples" style="display:none">
@@ -4805,7 +4814,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.103";
+  var APP_VERSION="10.0.104";
 
   var STORED_VERSION=localStorage.getItem("app_version");
 
