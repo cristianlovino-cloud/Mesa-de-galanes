@@ -312,6 +312,7 @@
     // Login: si ya tiene nombre guardado, entrar directo. Si no, mostrar login.
     if(me){
       renderMyName();
+      if(typeof renderAsadoBanner==="function")renderAsadoBanner();
       var ls0=document.getElementById("login-screen");
       if(ls0){ls0.style.transition="none";ls0.style.display="none";}
       window._esNuevo=!isAdmin()&&!galanes.some(function(g){return normName(g)===normName(me);});
@@ -2049,6 +2050,7 @@
   });
 
   function renderAsadoBanner(){
+   try{
     var pill=document.getElementById("asado-pill");
     if(!pill)return;
     var cfg=window._asadoConfig;
@@ -2083,6 +2085,7 @@
       pill.innerHTML="<div style='cursor:default;display:flex;align-items:center;gap:6px;padding:7px 11px;border-radius:100px;background:var(--card);border:1px solid var(--brd);color:var(--mut);font-size:0.62rem;backdrop-filter:blur(var(--blur));-webkit-backdrop-filter:blur(var(--blur))'>"
         +"🔥 "+ed[2]+"/"+ed[1]+editBtn+"</div>";
     }
+   }catch(e){console.error("[renderAsadoBanner]",e);}
   }
 
   // Admin: configurar próximo asado (se abre tocando el ✏️ de la píldora)
@@ -4802,7 +4805,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.102";
+  var APP_VERSION="10.0.103";
 
   var STORED_VERSION=localStorage.getItem("app_version");
 
@@ -4829,6 +4832,12 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
     var btn=document.getElementById("pwa-install-btn");
     if(btn)btn.style.display="none";
     _installPrompt=null;
+  });
+
+  // Fallback de seguridad: garantiza que la píldora de asado se evalúe aunque
+  // algún otro call-site no haya corrido todavía (carrera con el DOM/Firebase)
+  window.addEventListener("load",function(){
+    setTimeout(function(){if(typeof renderAsadoBanner==="function")renderAsadoBanner();},1500);
   });
 
   if("serviceWorker"in navigator){
