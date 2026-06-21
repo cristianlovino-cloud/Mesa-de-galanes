@@ -366,7 +366,7 @@
     closeModal("mnombre");
     var ahora=Date.now(),cur=accesos[me]||{count:0};
     set(ref(db,"config/accesos/"+me),{count:(cur.count||0)+1,lastAccess:ahora});
-    renderMyName();renderDrinks();renderOrders();renderMesa();renderLista();renderConfirmBtn();renderCumpleBanner();
+    renderMyName();renderDrinks();renderOrders();renderMesa();renderLista();renderConfirmBtn();renderCumpleBanner();if(window._asadoConfig!==undefined)renderAsadoBanner();
     switchTab("pedir",true);
     if(!canonical&&me!==ADMIN){
       set(ref(db,"config/pendientes/"+me),{ts:Date.now(),nombre:me});
@@ -2049,30 +2049,43 @@
   });
 
   function renderAsadoBanner(){
-    var banner=document.getElementById("asado-banner");
-    if(!banner)return;
+    var pill=document.getElementById("asado-pill");
+    if(!pill)return;
     var cfg=window._asadoConfig;
-    if(!cfg||!cfg.fecha){banner.style.display="none";return;}
-    // Verificar si el asado es próximo (dentro de los próximos 7 días)
+    var admin=isAdmin();
+    pill.style.cssText="position:fixed;top:64px;right:12px;z-index:150;";
+    if(!cfg||!cfg.fecha){
+      if(!admin){pill.style.display="none";return;}
+      pill.style.display="block";
+      pill.innerHTML="<button onclick='abrirConfigAsado()' style='display:flex;align-items:center;gap:6px;padding:8px 12px;border-radius:100px;background:var(--card);border:1px dashed var(--brd);color:var(--mut);font-size:0.65rem;cursor:pointer;backdrop-filter:blur(var(--blur));-webkit-backdrop-filter:blur(var(--blur))'>🔥 + Configurar asado</button>";
+      return;
+    }
     // Calcular dias restantes en hora Argentina (UTC-3)
     var fechaAsado=new Date(cfg.fecha+"T12:00:00Z"); // mediodia UTC = 9am AR
     var arNow=new Date(new Date().getTime()-3*3600000); // hora AR
     var arHoy=new Date(arNow.getUTCFullYear(),arNow.getUTCMonth(),arNow.getUTCDate());
     var dias=Math.round((fechaAsado-arHoy)/(1000*60*60*24));
-    var label=dias===0?"HOY":dias===1?"MAÑANA":"en "+dias+" días";
-    var titulo=cfg.titulo||"ASADO EN LA CALETA";
-    banner.style.display="block";
-    banner.innerHTML="<div onclick='irAlAsado()' style='cursor:pointer;display:flex;align-items:center;gap:12px;padding:14px 16px'>"
-      +"<div style='font-size:2rem;flex-shrink:0;animation:fireAnim 1s ease-in-out infinite alternate'>🔥</div>"
-      +"<div style='flex:1'>"
-      +"<div style='font-family:\"Bebas Neue\",sans-serif;font-size:1.1rem;letter-spacing:0.06em;color:#ff8c00;line-height:1'>"+titulo.toUpperCase()+"</div>"
-      +"<div style='font-size:0.62rem;color:rgba(255,140,0,0.7);margin-top:2px;letter-spacing:0.06em'>"+label.toUpperCase()+(cfg.lugar?" · "+cfg.lugar.toUpperCase():"")+"</div>"
-      +"</div>"
-      +"<div style='background:rgba(255,140,0,0.15);border:1px solid rgba(255,140,0,0.4);border-radius:10px;padding:8px 14px;font-size:0.7rem;font-weight:700;color:#ff8c00;white-space:nowrap'>Ver →</div>"
-      +"</div>";
+    var enVentana=dias>=0&&dias<=14; // se muestra a todos desde 14 días antes y hasta el día
+    if(!enVentana&&!admin){pill.style.display="none";return;}
+    pill.style.display="block";
+    var editBtn=admin?"<button onclick='event.stopPropagation();abrirConfigAsado()' style='background:rgba(0,0,0,0.15);border:none;border-radius:100px;width:22px;height:22px;flex-shrink:0;color:#fff;font-size:0.7rem;cursor:pointer;display:flex;align-items:center;justify-content:center;margin-left:4px'>✏️</button>":"";
+    if(enVentana){
+      var label=dias===0?"¡HOY!":dias===1?"Mañana":"En "+dias+" días";
+      pill.innerHTML="<div onclick='irAlAsado()' style='cursor:pointer;display:flex;align-items:center;gap:7px;padding:8px 10px 8px 12px;border-radius:100px;"
+        +"background:linear-gradient(135deg,#ff8c00,#ff5e00);box-shadow:0 6px 18px rgba(255,90,0,0.4);max-width:180px'>"
+        +"<span style='font-size:1.1rem;flex-shrink:0;animation:fireAnim 1s ease-in-out infinite alternate'>🔥</span>"
+        +"<span style='font-family:\"Bebas Neue\",sans-serif;font-size:0.78rem;letter-spacing:0.03em;color:#fff;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis'>"+label+"<br><span style='font-size:0.52rem;font-weight:600;opacity:0.85;letter-spacing:0.04em'>ASADO →</span></span>"
+        +editBtn
+        +"</div>";
+    } else {
+      // Solo admin, fuera de la ventana de 14 días: versión apagada, únicamente para poder editar
+      var ed=cfg.fecha.split("-");
+      pill.innerHTML="<div style='cursor:default;display:flex;align-items:center;gap:6px;padding:7px 11px;border-radius:100px;background:var(--card);border:1px solid var(--brd);color:var(--mut);font-size:0.62rem;backdrop-filter:blur(var(--blur));-webkit-backdrop-filter:blur(var(--blur))'>"
+        +"🔥 "+ed[2]+"/"+ed[1]+editBtn+"</div>";
+    }
   }
 
-  // Admin: configurar próximo asado
+  // Admin: configurar próximo asado (se abre tocando el ✏️ de la píldora)
   window.abrirConfigAsado=function(){
     var cfg=window._asadoConfig||{};
     // Pre-cargar valores en el modal
@@ -4458,7 +4471,6 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
   </div>
 </header>
 <div id="cumple-banner" style="display:none"></div>
-  <div id="asado-banner" style="display:none;background:linear-gradient(135deg,rgba(255,140,0,0.12),rgba(255,60,0,0.08));border:1.5px solid rgba(255,140,0,0.3);border-radius:16px;margin:0 0 12px;overflow:hidden"></div>
   <div id="votacion-banner" class="surf" style="display:none;margin:0 0 12px;overflow:hidden"></div>
   <div id="cafe-sponsors" style="display:none;margin:0 0 14px"></div>
 <div id="timer-bar" class="tbar">
@@ -4477,6 +4489,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 <div class="main">
   <div id="v-pedir">
+    <div id="asado-pill" style="display:none"></div>
     <div id="pedido-status-banner" style="display:none"></div>
     <div id="mi-saldo-card"></div>
     <div id="estuvo-cerca-banner" style="display:none;margin:8px 0 0"></div>
@@ -4546,7 +4559,6 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
           <button class="admin-action-btn" onclick="abrirPrecios()" style="background:rgba(245,197,24,0.12);color:var(--g2);border-color:rgba(245,197,24,0.3)">💲 Precios</button>
           <button class="admin-action-btn" onclick="refreshDrinkIcons()" style="font-size:0.6rem">🔄 Emojis</button>
           <button class="admin-action-btn" style="background:rgba(239,68,68,0.12);color:#f87171;border-color:rgba(239,68,68,0.25)" onclick="cerrarMesa()">🔒 Cerrar</button>
-          <button class="admin-action-btn" onclick="abrirConfigAsado()" style="background:rgba(255,140,0,0.12);color:#ff8c00;border-color:rgba(255,140,0,0.3)">🔥 Asado</button>
           <button class="admin-action-btn" onclick="openLiveModal()" style="background:rgba(239,68,68,0.12);color:#f87171;border-color:rgba(239,68,68,0.25)">📺 Live</button>
         </div>
       </div>
@@ -4790,7 +4802,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.101";
+  var APP_VERSION="10.0.102";
 
   var STORED_VERSION=localStorage.getItem("app_version");
 
