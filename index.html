@@ -1590,6 +1590,7 @@
     if(!isAdmin())return;
     var html="";
     drinks.forEach(function(d,i){
+      if(!d||!d.name)return; // salta bebidas fantasma (sin nombre/icono)
       var comboPrices=d.comboPrices||{};
       // Fila bebida base — superficie clara destacada
       html+="<div class='surf' style='display:grid;grid-template-columns:1fr 110px;gap:10px;align-items:center;"
@@ -1607,7 +1608,7 @@
       html+="</div>";
       // Combos — sangría sutil, inputs claros
       var extras=d.extras||["Sin acompanamiento","2 Medialunas saladas","2 Medialunas dulces","Tostadas","Huevos revueltos","Huevos revueltos con palta","Alfajor de maicena"];
-      extras.filter(function(e){return e!=="Sin acompanamiento";}).forEach(function(ex){
+      extras.filter(function(e){return e&&e.trim()&&e!=="Sin acompanamiento";}).forEach(function(ex){
         var comboKey=ex.toLowerCase().replace(/\s+/g,"_");
         html+="<div style='display:grid;grid-template-columns:1fr 110px;gap:10px;align-items:center;"
           +"padding:5px 14px 5px 30px;margin-bottom:3px;border-left:2px solid var(--brd)'>";
@@ -4754,7 +4755,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.99";
+  var APP_VERSION="10.0.100";
 
   var STORED_VERSION=localStorage.getItem("app_version");
 
