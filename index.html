@@ -1276,6 +1276,21 @@
     showToast("✓ "+nombre+" removido del historial");
     renderStats(); // refrescar
   };
+  window.corregirUltimaPropina=async function(){
+    if(!isAdmin())return;
+    var pSnap=await get(rPropina);
+    if(!pSnap.exists())return;
+    var pd=pSnap.val();
+    var hh=(pd.historial||[]).slice();
+    if(!hh.length)return;
+    var ult=hh[hh.length-1];
+    var nuevo=prompt("Corregir nombre del último sorteo (era: "+ult.nombre+")", ult.nombre);
+    if(!nuevo||!nuevo.trim())return;
+    hh[hh.length-1]=Object.assign({},ult,{nombre:nuevo.trim()});
+    await set(rPropina,Object.assign({},pd,{historial:hh}));
+    showToast("✓ Corregido a "+nuevo.trim());
+    renderStats();
+  };
   // Actualizar iconos de bebidas según autoEmoji
   window.refreshDrinkIcons=async function(){
     if(!isAdmin())return;
@@ -1291,32 +1306,40 @@
     var pind=document.getElementById("propina-indicator");if(pind)pind.style.display="none";
     showToast("✓ Propina limpiada");
   };
+  // Devuelve quiénes de "elegibles" todavía NO ganaron en el ciclo actual.
+  // El ciclo se define por pData.cicloDesdeTs: todo lo de historial con ts >= eso
+  // ya tuvo su turno. Si no hay cicloDesdeTs (datos viejos), arranca limpio ahora.
+  function pendientesCicloPropina(pData,elegibles){
+    var desde=pData.cicloDesdeTs||0;
+    var yaGanaron=(pData.historial||[]).filter(function(h){return (h.ts||0)>=desde;}).map(function(h){return (h.nombre||"").toUpperCase();});
+    return elegibles.filter(function(n){return yaGanaron.indexOf(n.toUpperCase())===-1;});
+  }
   // Versión silenciosa para auto-sorteo en primer pedido
   async function sortearPropinaSilencioso(){
     try{
       // Elegibles = solo quienes YA tienen pedido activo HOY (confirmados o no)
-      // Así solo puede tocarle a alguien que realmente está en la mesa
       var jugadoresHoy=Object.keys(
         Object.values(orders).reduce(function(acc,o){if(o.player)acc[o.player]=1;return acc;},{})
       );
       if(!jugadoresHoy.length)return; // nadie pidió todavía
       var pSnap=await get(rPropina);
-      var pData=pSnap.exists()?pSnap.val():{ronda:[],historial:[]};
-      // La ronda filtra solo quienes están hoy
-      var ronda=(pData.ronda||[]).filter(function(n){
-        return jugadoresHoy.some(function(j){return j.toUpperCase()===n.toUpperCase();});
-      });
-      if(!ronda.length){
-        // Nueva ronda: shuffle de los de hoy
-        ronda=jugadoresHoy.slice();
-        for(var i=ronda.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1));var t=ronda[i];ronda[i]=ronda[j];ronda[j]=t;}
+      var pData=pSnap.exists()?pSnap.val():{};
+      if(!pData.historial)pData.historial=[];
+      if(!pData.cicloDesdeTs)pData.cicloDesdeTs=0; // se inicializa abajo si hace falta
+      var pendientes=pendientesCicloPropina(pData,jugadoresHoy);
+      var cicloDesdeTs=pData.cicloDesdeTs;
+      if(!pendientes.length){
+        // Ciclo completo (o primera vez): arranca uno nuevo con TODOS los de hoy
+        cicloDesdeTs=Date.now();
+        pendientes=jugadoresHoy.slice();
       }
-      var ganador=ronda.shift();
+      var ganador=pendientes[Math.floor(Math.random()*pendientes.length)];
       var hoy=new Date().toISOString().slice(0,10);
       var hh=(pData.historial||[]);
       hh.push({nombre:ganador,ts:Date.now(),fecha:hoy,total:0});
-      await set(rPropina,{ronda:ronda,historial:hh.slice(-20)});
-      await set(ref(db,"pedido/propina"),{nombre:ganador,restantes:ronda.length,ts:Date.now()});
+      var restantes=pendientes.length-1;
+      await set(rPropina,{historial:hh.slice(-40),cicloDesdeTs:cicloDesdeTs});
+      await set(ref(db,"pedido/propina"),{nombre:ganador,restantes:restantes,ts:Date.now()});
       console.log("Auto-propina sorteada:",ganador);
     }catch(e){console.error("sortearPropinaSilencioso error:",e);}
   }
@@ -1333,19 +1356,23 @@
     );
     if(!elegibles.length){showToast("No hay pedidos todavía");return;}
     var pSnap=await get(rPropina);
-    var pData=pSnap.exists()?pSnap.val():{ronda:[],historial:[]};
-    var ronda=(pData.ronda||[]).filter(function(n){return elegibles.indexOf(n)!==-1;});
-    if(!ronda.length){
-      ronda=elegibles.slice();
-      for(var i=ronda.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1));var t=ronda[i];ronda[i]=ronda[j];ronda[j]=t;}
+    var pData=pSnap.exists()?pSnap.val():{};
+    if(!pData.historial)pData.historial=[];
+    if(!pData.cicloDesdeTs)pData.cicloDesdeTs=0;
+    var pendientes=pendientesCicloPropina(pData,elegibles);
+    var cicloDesdeTs=pData.cicloDesdeTs;
+    if(!pendientes.length){
+      cicloDesdeTs=Date.now();
+      pendientes=elegibles.slice();
     }
-    var ganador=ronda.shift();
+    var ganador=pendientes[Math.floor(Math.random()*pendientes.length)];
     var hoy=new Date().toISOString().slice(0,10);
     var hh=(pData.historial||[]);
     hh.push({nombre:ganador,ts:Date.now(),fecha:hoy,total:0}); // total se actualiza al cerrar mesa
-    await set(rPropina,{ronda:ronda,historial:hh.slice(-20)});
+    var restantes=pendientes.length-1;
+    await set(rPropina,{historial:hh.slice(-40),cicloDesdeTs:cicloDesdeTs});
     // Guardar solo nombre, sin total (se calcula al cerrar)
-    await set(ref(db,"pedido/propina"),{nombre:ganador,restantes:ronda.length,ts:Date.now()});
+    await set(ref(db,"pedido/propina"),{nombre:ganador,restantes:restantes,ts:Date.now()});
     showToast("🎲 Propina sorteada: "+ganador);
   };
 
@@ -2515,13 +2542,76 @@
     card.innerHTML=html;
   }
 
+  function renderMesaStats(){
+   try{
+    var bp=document.getElementById("mesa-bebidas-panel"),sp=document.getElementById("mesa-sabado-panel"),rp=document.getElementById("stats-tardones-panel");
+    if(!bp||!sp)return;
+    // Top bebidas
+    var tots={};Object.values(orders).forEach(function(o){var k=o.drink||"?";if(!tots[k])tots[k]={icon:o.icon||"☕",count:0};tots[k].count++;});
+    var sortedB=Object.entries(tots).sort(function(a,b){return b[1].count-a[1].count;});
+    var maxC=sortedB.length?sortedB[0][1].count:1;
+    var bebidasHtml=sortedB.length
+      ?sortedB.map(function(e,idx){
+        var pct=Math.round(e[1].count/maxC*100);
+        var medal=idx===0?"🥇":idx===1?"🥈":idx===2?"🥉":"";
+        return "<div style='display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--brd)'>"
+          +"<span style='font-size:1.1rem;width:24px;text-align:center'>"+e[1].icon+"</span>"
+          +"<div style='flex:1;min-width:0'><div style='font-size:0.68rem;font-weight:700;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis'>"+e[0].toUpperCase()+"</div>"
+          +"<div style='margin-top:4px;height:4px;background:var(--brd);border-radius:2px'>"
+          +"<div style='height:100%;width:"+pct+"%;background:linear-gradient(90deg,#38ef7d,#e5a93c);border-radius:2px'></div></div></div>"
+          +"<span style='font-size:0.9rem'>"+medal+"</span>"
+          +"<b style='color:var(--grn);font-size:0.85rem;font-family:\"JetBrains Mono\",monospace'>"+e[1].count+"x</b></div>";
+      }).join("")
+      :"<div style='text-align:center;color:var(--mut);font-size:0.72rem;padding:16px'>Nadie pidió todavía ☕</div>";
+    bp.innerHTML="<div style='padding:0 14px 12px'><div style='padding:14px' class='surf'>"
+      +"<div style='font-size:0.62rem;font-weight:700;color:var(--grn);letter-spacing:0.08em;margin-bottom:10px;font-family:\"JetBrains Mono\",monospace'>☕ TOP BEBIDAS HOY</div>"
+      +bebidasHtml+"</div></div>";
+    // Este sábado
+    var byP={};Object.values(orders).forEach(function(o){byP[o.player]=1;});
+    var plrs=Object.keys(byP);
+    sp.innerHTML="<div style='padding:0 14px 12px'><div style='padding:14px' class='surf'>"
+      +"<div style='font-size:0.62rem;font-weight:700;color:var(--grn);letter-spacing:0.08em;margin-bottom:10px;font-family:\"JetBrains Mono\",monospace'>👥 ESTE SÁBADO</div>"
+      +"<div style='display:flex;align-items:center;justify-content:center;gap:20px;padding:10px 0'>"
+      +"<div style='text-align:center'><div style='font-family:\"Bebas Neue\",sans-serif;font-size:2.8rem;color:var(--grn);line-height:1'>"+plrs.length+"</div><div style='font-size:0.58rem;color:var(--mut);margin-top:4px;letter-spacing:0.06em;font-family:\"JetBrains Mono\",monospace'>GALANES</div></div>"
+      +"<div style='width:1px;height:40px;background:var(--brd)'></div>"
+      +"<div style='text-align:center'><div style='font-family:\"Bebas Neue\",sans-serif;font-size:2.8rem;color:var(--gold);line-height:1'>"+Object.values(orders).length+"</div><div style='font-size:0.58rem;color:var(--mut);margin-top:4px;letter-spacing:0.06em;font-family:\"JetBrains Mono\",monospace'>PEDIDOS</div></div>"
+      +"</div></div></div>";
+    // Ranking de hoy — velocidad de pedido
+    if(rp){
+      var pedidosHoy=Object.values(orders).filter(function(o){return o.player&&o.ts;});
+      if(!pedidosHoy.length){rp.innerHTML="<div style='font-size:0.65rem;color:var(--mut);text-align:center;padding:8px'>Nadie pidió todavía ☕</div>";}
+      else{
+        pedidosHoy.sort(function(a,b){return a.ts-b.ts;});
+        var seen={},ranking=[];
+        pedidosHoy.forEach(function(o){if(!seen[o.player]){seen[o.player]=true;ranking.push(o);}});
+        var primeraTs=ranking[0].ts,rhtml="";
+        ranking.forEach(function(o,i){
+          var demora=Math.floor((o.ts-primeraTs)/1000);
+          var mins=Math.floor(demora/60),segs=demora%60;
+          var label=i===0?"⚡ PRIMERO":(mins>0?"+"+mins+"m "+segs+"s":"+"+segs+"s");
+          var esTardón=i===ranking.length-1&&ranking.length>2;
+          var esYo=me&&o.player.toUpperCase()===me.toUpperCase();
+          rhtml+="<div style='display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--brd)'>"
+            +"<span style='font-size:0.65rem;color:var(--mut);width:18px;text-align:center'>"+(i+1)+"</span>"
+            +"<div style='width:26px;height:26px;border-radius:50%;background:"+col(o.player)+";display:flex;align-items:center;justify-content:center;font-family:\"Bebas Neue\",sans-serif;font-size:0.65rem;color:#fff;flex-shrink:0'>"+ini(o.player)+"</div>"
+            +"<span style='flex:1;font-size:0.68rem;font-weight:600;color:"+(esYo?"var(--g2)":esTardón?"#f87171":"var(--ink)")+"'>"
+            +o.player.toUpperCase()+(esTardón?" 🐢":"")+(esYo?" 👈":"")+"</span>"
+            +"<span style='font-size:0.6rem;font-family:\"JetBrains Mono\",monospace;color:"+(i===0?"#4ade80":esTardón?"#f87171":"var(--mut)")+"'>"+label+"</span>"
+            +"</div>";
+        });
+        rp.innerHTML=rhtml;
+      }
+    }
+   }catch(e){console.error("[renderMesaStats]",e);}
+  }
+
   function renderOrders(){
     var total=Object.keys(orders).length;
     var by={},en=Object.entries(orders).sort(function(a,b){return a[1].ts-b[1].ts;});
     for(var i=0;i<en.length;i++){var k=en[i][0],o=en[i][1];if(!by[o.player])by[o.player]=[];by[o.player].push({key:k,drink:o.drink,icon:o.icon});}
     var galanesCnt=Object.keys(by).length;
     var players=Object.keys(by).sort(),rows=[];
-    if(!players.length){document.getElementById("sum-panel").innerHTML="";var tp0=document.getElementById("totals-panel");tp0.innerHTML="<div class='es'>Nadie pidio nada todavia 👀</div>";tp0.style.display="block";var wb2=document.getElementById("ws-btn");if(wb2)wb2.style.display="none";return;}
+    if(!players.length){document.getElementById("sum-panel").innerHTML="";var tp0=document.getElementById("totals-panel");tp0.innerHTML="<div class='es'>Nadie pidio nada todavia 👀</div>";tp0.style.display="block";var wb2=document.getElementById("ws-btn");if(wb2)wb2.style.display="none";renderMesaStats();return;}
     for(var p=0;p<players.length;p++){
       var pl=players[p],items=by[pl],mine=pl===me,canDel=mine||isAdmin();
       var pg=pagos[pl]||{},cash=pg.cash||0,transfer=pg.transfer||0,conf=confirmed[pl];
@@ -2560,6 +2650,7 @@
     var tk=Object.keys(tots),tp=document.getElementById("totals-panel");
     if(tk.length){var th="<div class='tt'>Total por bebida</div>";tk.forEach(function(d){th+="<div class='tr'><span>"+tots[d].icon+" "+d+"</span><span class='tq'>x"+tots[d].count+"</span></div>";});tp.innerHTML=th;tp.style.display="block";}
     else tp.style.display="none";
+    renderMesaStats();
     var wb=document.getElementById("ws-btn");if(wb)wb.style.display=isAdmin()&&total>0?"inline-flex":"none";
     var pb=document.getElementById("propina-ws-btn");
     if(pb)pb.style.display=isAdmin()&&total>0?"inline-flex":"none";
@@ -2863,33 +2954,6 @@
         +"</div><div style='font-size:0.6rem;color:var(--mut);font-family:\"JetBrains Mono\",monospace'>SÁB "+sat.getDate()+" "+MESES_C[sat.getMonth()].toUpperCase()+" · 9:15 HS</div></div>";
     }
 
-    // Top bebidas HOY
-    var tots={};Object.values(orders).forEach(function(o){var k=o.drink||"?";if(!tots[k])tots[k]={icon:o.icon||"☕",count:0};tots[k].count++;});
-    var sortedB=Object.entries(tots).sort(function(a,b){return b[1].count-a[1].count;});
-    var maxC=sortedB.length?sortedB[0][1].count:1;
-    var bebidasHtml=sortedB.length
-      ?sortedB.map(function(e,idx){
-        var pct=Math.round(e[1].count/maxC*100);
-        var medal=idx===0?"🥇":idx===1?"🥈":idx===2?"🥉":"";
-        return "<div style='display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #1e1e1e'>"
-          +"<span style='font-size:1.1rem;width:24px;text-align:center'>"+e[1].icon+"</span>"
-          +"<div style='flex:1;min-width:0'><div style='font-size:0.68rem;font-weight:700;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis'>"+e[0].toUpperCase()+"</div>"
-          +"<div style='margin-top:4px;height:4px;background:#1e1e1e;border-radius:2px'>"
-          +"<div style='height:100%;width:"+pct+"%;background:linear-gradient(90deg,#38ef7d,#e5a93c);border-radius:2px'></div></div></div>"
-          +"<span style='font-size:0.9rem'>"+medal+"</span>"
-          +"<b style='color:var(--grn);font-size:0.85rem;font-family:\"JetBrains Mono\",monospace'>"+e[1].count+"x</b></div>";
-      }).join("")
-      :"<div style='text-align:center;color:var(--mut);font-size:0.72rem;padding:16px'>Nadie pidió todavía ☕</div>";
-
-    // Este sábado
-    var byP={};Object.values(orders).forEach(function(o){byP[o.player]=1;});
-    var plrs=Object.keys(byP);
-    var asisHtml="<div style='display:flex;align-items:center;justify-content:center;gap:20px;padding:10px 0'>"
-      +"<div style='text-align:center'><div style='font-family:\"Bebas Neue\",sans-serif;font-size:2.8rem;color:var(--grn);line-height:1'>"+plrs.length+"</div><div style='font-size:0.58rem;color:var(--mut);margin-top:4px;letter-spacing:0.06em;font-family:\"JetBrains Mono\",monospace'>GALANES</div></div>"
-      +"<div style='width:1px;height:40px;background:#1e1e1e'></div>"
-      +"<div style='text-align:center'><div style='font-family:\"Bebas Neue\",sans-serif;font-size:2.8rem;color:var(--gold);line-height:1'>"+Object.values(orders).length+"</div><div style='font-size:0.58rem;color:var(--mut);margin-top:4px;letter-spacing:0.06em;font-family:\"JetBrains Mono\",monospace'>PEDIDOS</div></div>"
-      +"</div>";
-
     // MI HISTORIAL PERSONAL (desde Firebase historial)
     var miHistHtml="";
     if(me){
@@ -2970,45 +3034,9 @@
       }catch(e){console.error("hist",e);}
     }
 
-    panel.innerHTML=cdHtml
-      +(miHistHtml)
-      +"<div style='padding:14px;margin-bottom:12px' class='surf'>"
-      +"<div style='font-size:0.62rem;font-weight:700;color:var(--grn);letter-spacing:0.08em;margin-bottom:10px;font-family:\"JetBrains Mono\",monospace'>☕ TOP BEBIDAS HOY</div>"
-      +bebidasHtml+"</div>"
-      +"<div style='padding:14px' class='surf'>"
-      +"<div style='font-size:0.62rem;font-weight:700;color:var(--grn);letter-spacing:0.08em;margin-bottom:10px;font-family:\"JetBrains Mono\",monospace'>👥 ESTE SÁBADO</div>"
-      +asisHtml+"</div>";
+    panel.innerHTML=cdHtml+(miHistHtml);
 
-    // ── SECCIÓN TARDONES ─────────────────────────────────────
-    (function(){
-      var spanel=document.getElementById("stats-tardones-panel");
-      if(!spanel)return;
-      // Calcular ranking de velocidad de pedido del sábado actual
-      var pedidosHoy=Object.values(orders).filter(function(o){return o.player&&o.ts;});
-      if(!pedidosHoy.length){spanel.innerHTML="<div style='font-size:0.65rem;color:var(--mut);text-align:center;padding:8px'>Nadie pidió todavía ☕</div>";return;}
-      // Ordenar por ts (el primero es el más rápido)
-      pedidosHoy.sort(function(a,b){return a.ts-b.ts;});
-      // Deduplicar por player (quedar con el primer pedido de cada uno)
-      var seen={}, ranking=[];
-      pedidosHoy.forEach(function(o){if(!seen[o.player]){seen[o.player]=true;ranking.push(o);}});
-      var primeraTs=ranking[0].ts;
-      var html="";
-      ranking.forEach(function(o,i){
-        var demora=Math.floor((o.ts-primeraTs)/1000);
-        var mins=Math.floor(demora/60),segs=demora%60;
-        var label=i===0?"⚡ PRIMERO":(mins>0?"+"+mins+"m "+segs+"s":"+"+segs+"s");
-        var esTardón=i===ranking.length-1&&ranking.length>2;
-        var esYo=me&&o.player.toUpperCase()===me.toUpperCase();
-        html+="<div style='display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,0.05)'>"
-          +"<span style='font-size:0.65rem;color:var(--mut);width:18px;text-align:center'>"+(i+1)+"</span>"
-          +"<div style='width:26px;height:26px;border-radius:50%;background:"+col(o.player)+";display:flex;align-items:center;justify-content:center;font-family:\"Bebas Neue\",sans-serif;font-size:0.65rem;color:#fff;flex-shrink:0'>"+ini(o.player)+"</div>"
-          +"<span style='flex:1;font-size:0.68rem;font-weight:600;color:"+(esYo?"var(--g2)":esTardón?"#f87171":"var(--ink)")+"'>"
-          +o.player.toUpperCase()+(esTardón?" 🐢":"")+(esYo?" 👈":"")+"</span>"
-          +"<span style='font-size:0.6rem;font-family:\"JetBrains Mono\",monospace;color:"+(i===0?"#4ade80":esTardón?"#f87171":"var(--mut)")+"'>"+label+"</span>"
-          +"</div>";
-      });
-      spanel.innerHTML=html;
-    })();
+    renderMesaStats();
 
     // Sección propinas históricas
     get(rPropina).then(function(ps){
@@ -3037,8 +3065,10 @@
       // Último sorteo
       var ult=hh[0];
       var dUlt=new Date(ult.ts||0);
-      html+="<div style='font-size:0.58rem;color:var(--mut);text-align:center'>Último: <b style='color:#c084fc'>"+ult.nombre.toUpperCase()+"</b> · "+dUlt.getDate()+"/"+(dUlt.getMonth()+1)+(ult.total>0?" · Mesa $"+Math.round(ult.total):"")+"</div>";
-      html+="<div style='font-size:0.58rem;color:var(--mut);text-align:center;margin-top:4px'>Quedan <b style='color:var(--ink)'>"+(pd.ronda||[]).length+"</b> en la ronda actual</div>";
+      html+="<div style='font-size:0.58rem;color:var(--mut);text-align:center'>Último: <b style='color:#c084fc'>"+ult.nombre.toUpperCase()+"</b> · "+dUlt.getDate()+"/"+(dUlt.getMonth()+1)+(ult.total>0?" · Mesa $"+Math.round(ult.total):"")+(isAdmin()?" <button onclick='corregirUltimaPropina()' style='background:none;border:none;color:var(--mut);font-size:0.62rem;cursor:pointer;text-decoration:underline;padding:0 0 0 4px'>✏️ corregir</button>":"")+"</div>";
+      var jugadoresHoy=Object.keys(Object.values(orders).reduce(function(a,o){if(o.player)a[o.player]=1;return a;},{}));
+      var pendientesAhora=pendientesCicloPropina(pd,jugadoresHoy);
+      html+="<div style='font-size:0.58rem;color:var(--mut);text-align:center;margin-top:4px'>Quedan <b style='color:var(--ink)'>"+pendientesAhora.length+"</b> en la ronda actual</div>";
       spanel.innerHTML=html;
     }).catch(function(){});
 
@@ -4517,12 +4547,6 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
     <div id="stats-content" style="padding:12px 14px">
       <div class="es" style="padding:40px 0;opacity:0.5">Cargando stats... 📊</div>
     </div>
-    <div style="padding:0 14px 8px">
-      <div style="background:rgba(239,68,68,0.06);border:1px solid rgba(239,68,68,0.15);border-radius:14px;padding:14px">
-        <div style="font-size:0.6rem;font-weight:700;color:#f87171;letter-spacing:0.1em;margin-bottom:10px">🐢 RANKING DE HOY — VELOCIDAD DE PEDIDO</div>
-        <div id="stats-tardones-panel"><div style="font-size:0.65rem;color:var(--mut);text-align:center;padding:8px">Nadie pidió todavía ☕</div></div>
-      </div>
-    </div>
     <div style="padding:0 14px 16px">
       <div style="background:rgba(168,85,247,0.08);border:1px solid rgba(168,85,247,0.2);border-radius:14px;padding:14px">
         <div style="font-size:0.6rem;font-weight:700;color:#c084fc;letter-spacing:0.1em;margin-bottom:10px">🎲 HISTORIAL PROPINAS</div>
@@ -4531,6 +4555,14 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
     </div>
   </div>
   <div id="v-resumen" style="display:none">
+    <div id="mesa-bebidas-panel"></div>
+    <div id="mesa-sabado-panel"></div>
+    <div style="padding:0 14px 12px">
+      <div style="background:rgba(239,68,68,0.06);border:1px solid rgba(239,68,68,0.15);border-radius:14px;padding:14px">
+        <div style="font-size:0.6rem;font-weight:700;color:#f87171;letter-spacing:0.1em;margin-bottom:10px">🐢 RANKING DE HOY — VELOCIDAD DE PEDIDO</div>
+        <div id="stats-tardones-panel"><div style="font-size:0.65rem;color:var(--mut);text-align:center;padding:8px">Nadie pidió todavía ☕</div></div>
+      </div>
+    </div>
     <div class="slabel">Total por bebida <button class="clr" onclick="clearAll()">limpiar</button></div>
     <div id="resumen-pagos-hint" style="display:none;font-size:0.6rem;color:var(--mut);padding:4px 14px 0;text-align:right">💡 Ver detalle por persona en Admin → Pedidos</div>
     <div class="sp" id="sum-panel" style="display:none"></div>
@@ -4814,7 +4846,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.104";
+  var APP_VERSION="10.0.105";
 
   var STORED_VERSION=localStorage.getItem("app_version");
 
