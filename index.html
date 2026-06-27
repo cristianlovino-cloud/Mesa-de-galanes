@@ -3217,9 +3217,26 @@
       var fl=flag?"<img src='"+flag+"' style='width:18px;height:13px;object-fit:cover;border-radius:2px;flex-shrink:0' onerror='this.style.display=\"none\"'>":"";
       var isRight=align==="right";
       return "<div style='flex:1;display:flex;align-items:center;gap:5px;justify-content:"+(isRight?"flex-end":"flex-start")+";overflow:hidden'>"
-        +(isRight?("<span style='font-size:0.75rem;font-weight:700;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis'>"+nombre+"</span>"+fl)
-                 :(fl+"<span style='font-size:0.75rem;font-weight:700;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis'>"+nombre+"</span>"))
+        +(isRight?("<span style='font-size:0.85rem;font-weight:700;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis'>"+nombre+"</span>"+fl)
+                 :(fl+"<span style='font-size:0.85rem;font-weight:700;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis'>"+nombre+"</span>"))
         +"</div>";
+    }
+    // Convierte "HH:MM" (que viene en hora local del país sede / UTC del backend) a hora Argentina (UTC-3)
+    // La sede es USA/Canadá/México: hora del partido en backend → sumamos offset a UTC → restamos 3h (AR)
+    // El backend de live.html ya entrega m.hora en horario de Argentina directamente,
+    // pero si viene como UTC la convertimos. Probamos: si el backend ya da AR, la diferencia real
+    // es 0. Lo más seguro es asumir que viene en UTC y mostrar AR = UTC - 3h.
+    function horaAR(horaStr){
+      if(!horaStr)return "";
+      var parts=horaStr.match(/(\d{1,2}):(\d{2})/);
+      if(!parts)return horaStr;
+      var h=parseInt(parts[1]),m=parseInt(parts[2]);
+      // Convertir a minutos, restar 3 horas, ajustar día
+      var totalMin=h*60+m-3*60;
+      if(totalMin<0)totalMin+=24*60;
+      if(totalMin>=24*60)totalMin-=24*60;
+      var hAR=Math.floor(totalMin/60),mAR=totalMin%60;
+      return ("0"+hAR).slice(-2)+":"+("0"+mAR).slice(-2);
     }
     function tarjetaPartido(m,modo){
       var vivo=modo==="vivo",result=modo==="resultado";
@@ -3229,26 +3246,26 @@
       var scoreColor=vivo?"var(--grn)":result?"var(--ink)":"var(--mut)";
       var border=vivo?"rgba(74,222,128,0.45)":"var(--brd)";
       var bg=vivo?"rgba(74,222,128,0.06)":"var(--card)";
-      var meta=(m.grupo?"Gr. "+m.grupo:"")+(m.fecha?" · "+m.fecha:"")+(m.hora?" · "+m.hora+" hs":"");
-      var h="<div class='surf' style='background:"+bg+";border:1px solid "+border+";padding:10px 12px;margin-bottom:8px'>";
+      var meta=(m.grupo?"Gr. "+m.grupo:"")+(m.fecha?" · "+m.fecha:"")+(m.hora?" · "+horaAR(m.hora)+" hs":"");
+      var h="<div class='surf' style='background:"+bg+";border:1px solid "+border+";padding:12px 14px;margin-bottom:8px'>";
       h+="<div style='display:flex;align-items:center;gap:6px'>";
       h+=equipoHtml(m.local,"right");
-      h+="<div style='min-width:70px;text-align:center;flex-shrink:0'>";
+      h+="<div style='min-width:76px;text-align:center;flex-shrink:0'>";
       if(tieneScore){
         h+="<div style='display:flex;align-items:center;justify-content:center;gap:4px'>";
-        h+="<span style='font-family:var(--font-display);font-size:1.4rem;font-weight:900;color:"+scoreColor+";line-height:1'>"+parseInt(m.goles_local)+"</span>";
-        h+="<span style='font-size:0.8rem;color:var(--mut)'>–</span>";
-        h+="<span style='font-family:var(--font-display);font-size:1.4rem;font-weight:900;color:"+scoreColor+";line-height:1'>"+parseInt(m.goles_visita)+"</span>";
+        h+="<span style='font-family:var(--font-display);font-size:1.6rem;font-weight:900;color:"+scoreColor+";line-height:1'>"+parseInt(m.goles_local)+"</span>";
+        h+="<span style='font-size:0.9rem;color:var(--mut)'>–</span>";
+        h+="<span style='font-family:var(--font-display);font-size:1.6rem;font-weight:900;color:"+scoreColor+";line-height:1'>"+parseInt(m.goles_visita)+"</span>";
         h+="</div>";
       } else {
-        h+="<div style='font-size:0.65rem;color:var(--mut);font-weight:600;letter-spacing:0.04em'>VS</div>";
+        h+="<div style='font-size:0.72rem;color:var(--mut);font-weight:600;letter-spacing:0.04em'>VS</div>";
       }
-      if(vivo) h+="<div style='font-size:0.42rem;color:var(--grn);letter-spacing:0.08em;margin-top:2px'>● EN VIVO</div>";
-      else if(result) h+="<div style='font-size:0.42rem;color:var(--mut);letter-spacing:0.06em;margin-top:2px'>FINAL</div>";
+      if(vivo) h+="<div style='font-size:0.5rem;color:var(--grn);letter-spacing:0.08em;margin-top:2px'>● EN VIVO</div>";
+      else if(result) h+="<div style='font-size:0.5rem;color:var(--mut);letter-spacing:0.06em;margin-top:2px'>FINAL</div>";
       h+="</div>";
       h+=equipoHtml(m.visita,"left");
       h+="</div>";
-      if(meta) h+="<div style='text-align:center;font-size:0.52rem;color:var(--mut);margin-top:5px;letter-spacing:0.04em'>"+meta+"</div>";
+      if(meta) h+="<div style='text-align:center;font-size:0.6rem;color:var(--mut);margin-top:6px;letter-spacing:0.04em'>"+meta+"</div>";
       h+="</div>";
       return h;
     }
@@ -4875,7 +4892,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.108";
+  var APP_VERSION="10.0.109";
 
   var STORED_VERSION=localStorage.getItem("app_version");
 
