@@ -112,7 +112,15 @@
 
   const app=initializeApp(FC),db=getDatabase(app);
   const rO=ref(db,"pedido/orders"),rD=ref(db,"pedido/drinks"),rS=ref(db,"pedido/session");
+  const rNotif=ref(db,"config/notif"); // nodo de notificaciones por galan
   const rF=ref(db,"pedido/favorito"),rT=ref(db,"pedido/timer"),rC=ref(db,"pedido/confirmed");
+  // ── ENVÍO DE NOTIFICACIONES (solo admin) ───────────────────────────────────
+  async function enviarNotif(galan,msg,tipo){
+    if(!isAdmin()||!galan)return;
+    var key=galan.toLowerCase().replace(/\s+/g,"_");
+    await set(ref(db,"config/notif/"+key),{msg:msg,tipo:tipo||"info",ts:Date.now()});
+  }
+
   const rP=ref(db,"pedido/pagos"),rB=ref(db,"pedido/totalBar");
   const rG=ref(db,"config/galanes"),rR=ref(db,"reserva"),rH=ref(db,"historial");
   const rA=ref(db,"config/accesos"),rCump=ref(db,"config/cumples"),rPend=ref(db,"config/pendientes"),rPres=ref(db,"pedido/presentes");
@@ -248,6 +256,61 @@
     onValue(rO,function(s){try{orders=s.exists()?s.val():{};renderDrinks();renderOrders();renderMesa();renderLista();renderConfirmBtn();maybeRenderStats();renderPagosDetail();renderPagosHeader();if(document.getElementById("mlive")&&document.getElementById("mlive").classList.contains("open"))renderLiveModal();}catch(e){console.error("rO",e);}});
     onValue(rC,function(s){try{confirmed=s.exists()?s.val():{};renderConfirmBtn();renderDrinks();renderMiSaldo();renderOrders();renderMesa();renderLista();}catch(e){console.error("rC",e);}});
     onValue(rP,function(s){try{pagos=s.exists()?s.val():{};renderOrders();renderMesa();renderLista();renderPagosDetail();renderMiSaldo();renderConfirmBtn();}catch(e){console.error("rP",e);}});
+
+    // ── NOTIFICACIONES IN-APP ──────────────────────────────────────────────────
+    // Cada galan escucha su propio nodo. Cuando el admin escribe ahí, recibe un toast.
+    function suscribirNotif(){
+      if(!me)return;
+      var key=me.toLowerCase().replace(/\s+/g,"_");
+      onValue(ref(db,"config/notif/"+key),function(s){
+        if(!s.exists())return;
+        var n=s.val();
+        if(!n||!n.msg||!n.ts)return;
+        // Mostrar solo si es nueva (último 60 seg) y no la vimos ya
+        var ahora=Date.now();
+        var visto=parseInt(localStorage.getItem("notif_ts_"+key)||"0");
+        if(n.ts>visto&&(ahora-n.ts)<60000){
+          localStorage.setItem("notif_ts_"+key,n.ts);
+          showNotifBanner(n.msg,n.tipo||"info");
+        }
+      });
+    }
+
+    function showNotifBanner(msg,tipo){
+      var colores={
+        pago:  {bg:"rgba(74,222,128,0.15)",border:"rgba(74,222,128,0.4)",icon:"💸"},
+        cierre:{bg:"rgba(245,197,24,0.12)", border:"rgba(245,197,24,0.4)", icon:"🔒"},
+        info:  {bg:"rgba(79,179,255,0.12)", border:"rgba(79,179,255,0.3)", icon:"ℹ️"}
+      };
+      var c=colores[tipo]||colores.info;
+      var banner=document.createElement("div");
+      banner.style.cssText="position:fixed;top:70px;left:50%;transform:translateX(-50%);"
+        +"z-index:9999;background:"+c.bg+";border:1px solid "+c.border+";"
+        +"border-radius:16px;padding:12px 18px;display:flex;align-items:center;gap:10px;"
+        +"max-width:320px;width:calc(100% - 32px);box-shadow:0 8px 24px rgba(0,0,0,0.18);"
+        +"backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);"
+        +"animation:slideDown 0.3s cubic-bezier(0.4,0,0.2,1)";
+      banner.innerHTML="<span style='font-size:1.4rem;flex-shrink:0'>"+c.icon+"</span>"
+        +"<span style='font-size:0.75rem;color:var(--ink);line-height:1.35;font-weight:600'>"+msg+"</span>";
+      document.body.appendChild(banner);
+      // Vibrar si el dispositivo lo soporta
+      if(navigator.vibrate)navigator.vibrate([100,50,100]);
+      setTimeout(function(){
+        banner.style.transition="opacity 0.4s,transform 0.4s";
+        banner.style.opacity="0";banner.style.transform="translateX(-50%) translateY(-8px)";
+        setTimeout(function(){if(banner.parentNode)banner.parentNode.removeChild(banner);},400);
+      },4500);
+    }
+
+    // Animación para el banner
+    if(!document.getElementById("notif-style")){
+      var ns=document.createElement("style");
+      ns.id="notif-style";
+      ns.textContent="@keyframes slideDown{from{opacity:0;transform:translateX(-50%) translateY(-16px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}";
+      document.head.appendChild(ns);
+    }
+
+    suscribirNotif();
     onValue(rB,function(s){try{totalBar=s.exists()?s.val():0;renderMesa();}catch(e){console.error("rB",e);}});
     onValue(rT,function(s){timerD=s.exists()?s.val():null;renderTimer();});
     onValue(rR,function(s){try{reservas=s.exists()?s.val():{};renderReserva();renderMesa();renderLista();if(document.getElementById("v-stats")&&document.getElementById("v-stats").style.display!=="none")renderStats();}catch(e){console.error("rR",e);}});
@@ -368,7 +431,7 @@
     closeModal("mnombre");
     var ahora=Date.now(),cur=accesos[me]||{count:0};
     set(ref(db,"config/accesos/"+me),{count:(cur.count||0)+1,lastAccess:ahora});
-    renderMyName();renderDrinks();renderOrders();renderMesa();renderLista();renderConfirmBtn();renderCumpleBanner();if(window._asadoConfig!==undefined)renderAsadoBanner();
+    renderMyName();renderDrinks();renderOrders();renderMesa();renderLista();renderConfirmBtn();renderCumpleBanner();if(window._asadoConfig!==undefined)renderAsadoBanner();if(typeof suscribirNotif==="function")suscribirNotif();
     switchTab("pedir",true);
     if(!canonical&&me!==ADMIN){
       set(ref(db,"config/pendientes/"+me),{ts:Date.now(),nombre:me});
@@ -724,6 +787,9 @@
     pagos[pk]=cur;
     closeModal("mpago");
     showToast("✓ Pago guardado");
+    // Notificar al galan que se registró su pago
+    var monto=(cur.cash||0)+(cur.transfer||0);
+    await enviarNotif(pk,"💸 Tu pago fue registrado"+(monto>0?" ($"+Math.round(monto).toLocaleString("es-AR")+")":" ")+" · ¡Nos vemos el próximo sábado! ☕","pago");
     renderMesa();renderPagosDetail();
   };
   window.openTotalBar=function(){document.getElementById("total-bar-input").value=totalBar>0?totalBar:"";openModal("mtotalbar");};
@@ -1183,6 +1249,12 @@
     }
     await Promise.all([set(rO,null),set(rC,null),set(rP,null),set(rT,null),set(rB,0),set(rPres,null),set(rR,null),
       set(ref(db,"pedido/propina"),null),set(ref(db,"config/nuevos"),null)]);
+    // Notificar a todos los que tenían pedido hoy
+    var galansCierre=Object.values(orders).map(function(o){return o.player;}).filter(function(p,i,a){return p&&a.indexOf(p)===i;});
+    var fechaLabel=new Date().toLocaleDateString("es-AR",{weekday:"long",day:"numeric",month:"long"});
+    await Promise.all(galansCierre.map(function(g){
+      return enviarNotif(g,"☕ Mesa cerrada · "+fechaLabel+" · ¡Nos vemos el próximo sábado, galanes!","cierre");
+    }));
     showToast("✓ Mesa archivada!");speak("Mesa cerrada. Hasta el próximo sábado!");switchTab("admin");
 
   };
@@ -4876,7 +4948,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.111";
+  var APP_VERSION="10.0.112";
 
   var STORED_VERSION=localStorage.getItem("app_version");
 
