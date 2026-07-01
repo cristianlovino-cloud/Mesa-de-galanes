@@ -680,28 +680,53 @@
     else{w.style.display="none";}
   }
   var _confirmando=false;
+  // ── SANITIZER XSS ─────────────────────────────────────────────────────────
+  // Usar esc() en TODA interpolación de datos de usuario dentro de innerHTML
+  function esc(s){
+    return String(s==null?"":s)
+      .replace(/&/g,"&amp;")
+      .replace(/</g,"&lt;")
+      .replace(/>/g,"&gt;")
+      .replace(/"/g,"&quot;")
+      .replace(/'/g,"&#39;");
+  }
+
   var _swipeReady=false;
   function setupSwipeGesture(){
     var handle=document.getElementById("swipe-handle");
     var container=document.getElementById("swipe-container");
     if(!handle||!container||_swipeReady)return;
     _swipeReady=true;
-    var dragging=false,startX=0,maxSlide=0;
+    var dragging=false,startX=0,startY=0,maxSlide=0,intentHoriz=false;
+    // pan-y: el navegador maneja el scroll vertical; el swipe horizontal lo manejamos nosotros
+    container.style.touchAction="pan-y";
+    handle.style.touchAction="pan-y";
     function calcMax(){maxSlide=container.clientWidth-handle.clientWidth-8;}
     function onStart(e){
       if(confirmado()||_confirmando)return;
-      dragging=true;calcMax();
-      startX=(e.type==="touchstart"?e.touches[0].clientX:e.clientX);
+      dragging=true;intentHoriz=false;calcMax();
+      var t=e.type==="touchstart"?e.touches[0]:e;
+      startX=t.clientX;startY=t.clientY;
       handle.style.transition="";
     }
     function onMove(e){
       if(!dragging)return;
-      var x=(e.type==="touchmove"?e.touches[0].clientX:e.clientX);
-      var delta=x-startX;
-      if(delta<0)delta=0;
-      if(delta>maxSlide)delta=maxSlide;
-      handle.style.transform="translateX("+delta+"px)";
-      if(delta>=maxSlide-2){
+      var t=e.type==="touchmove"?e.touches[0]:e;
+      var dx=t.clientX-startX;
+      var dy=t.clientY-startY;
+      // Hasta 10px no decidimos si es horizontal o vertical
+      if(!intentHoriz&&Math.abs(dx)<10&&Math.abs(dy)<10)return;
+      if(!intentHoriz){
+        // Si el gesto es más vertical que horizontal, lo dejamos pasar al scroll
+        if(Math.abs(dy)>Math.abs(dx)){dragging=false;return;}
+        intentHoriz=true;
+      }
+      // Es horizontal: ahora sí bloqueamos el scroll para que no compita
+      if(e.cancelable)e.preventDefault();
+      if(dx<0)dx=0;
+      if(dx>maxSlide)dx=maxSlide;
+      handle.style.transform="translateX("+dx+"px)";
+      if(dx>=maxSlide-2){
         dragging=false;
         handle.classList.add("sending");
         handle.textContent="✓";
@@ -711,15 +736,16 @@
     }
     function onEnd(){
       if(!dragging)return;
-      dragging=false;
+      dragging=false;intentHoriz=false;
       handle.style.transition="transform 0.25s cubic-bezier(0.34,1.56,0.64,1)";
       handle.style.transform="translateX(0px)";
     }
     handle.addEventListener("mousedown",onStart);
     document.addEventListener("mousemove",onMove);
     document.addEventListener("mouseup",onEnd);
+    // touchmove NO puede ser passive si queremos llamar preventDefault() en él
     handle.addEventListener("touchstart",onStart,{passive:true});
-    document.addEventListener("touchmove",onMove,{passive:true});
+    document.addEventListener("touchmove",onMove,{passive:false});
     document.addEventListener("touchend",onEnd);
   }
   window.doConfirm=async function(){
@@ -2552,7 +2578,7 @@
     get(ref(db,"pedido/propina")).then(function(ps){
       if(!ps.exists()||!ps.val().nombre){div.style.display="none";return;}
       var pd=ps.val();
-      var esSorteado=me.toUpperCase()===pd.nombre.toUpperCase();
+      var esSorteado=me.toUpperCase()===esc(pd.nombre).toUpperCase();
       // Mostrar si: (a) tiene pedido confirmado, o (b) es admin, o (c) es el sorteado
       var tienePedido=confirmed[me]||isAdmin();
       if(!tienePedido){div.style.display="none";return;}
@@ -2563,7 +2589,7 @@
         playPropinaSorteado();
       } else {
         div.innerHTML="<div style='font-size:0.65rem;color:var(--mut);text-align:center;padding:8px 4px;line-height:1.5'>"
-          +"😅 Hoy zafaste — la propina la pone <b style='color:#c084fc'>"+pd.nombre.toUpperCase()+"</b>"
+          +"😅 Hoy zafaste — la propina la pone <b style='color:#c084fc'>"+esc(pd.nombre).toUpperCase()+"</b>"
           +" <span style='font-size:0.8rem'>🎲</span></div>";
         playPropinaZafe();
       }
@@ -2691,7 +2717,7 @@
             +"<span style='font-size:0.65rem;color:var(--mut);width:18px;text-align:center'>"+(i+1)+"</span>"
             +"<div style='width:26px;height:26px;border-radius:50%;background:"+col(o.player)+";display:flex;align-items:center;justify-content:center;font-family:\"Bebas Neue\",sans-serif;font-size:0.65rem;color:#fff;flex-shrink:0'>"+ini(o.player)+"</div>"
             +"<span style='flex:1;font-size:0.68rem;font-weight:600;color:"+(esYo?"var(--g2)":esTardón?"#f87171":"var(--ink)")+"'>"
-            +o.player.toUpperCase()+(esTardón?" 🐢":"")+(esYo?" 👈":"")+"</span>"
+            +esc(o.player).toUpperCase()+(esTardón?" 🐢":"")+(esYo?" 👈":"")+"</span>"
             +"<span style='font-size:0.6rem;font-family:\"JetBrains Mono\",monospace;color:"+(i===0?"#4ade80":esTardón?"#f87171":"var(--mut)")+"'>"+label+"</span>"
             +"</div>";
         });
@@ -2888,7 +2914,7 @@
       var dS=new Date(pd.ts||0),label=dS.getDate()+"/"+(dS.getMonth()+1);
       var dS=new Date(pd.ts||0),label=dS.getDate()+"/"+(dS.getMonth()+1);
       pind.innerHTML="<span style='font-size:0.6rem;color:var(--mut);letter-spacing:0.06em'>🎲 PROPINA "+label+":</span> "
-        +"<b style='color:#c084fc;font-size:0.8rem'>"+pd.nombre.toUpperCase()+"</b>"
+        +"<b style='color:#c084fc;font-size:0.8rem'>"+esc(pd.nombre).toUpperCase()+"</b>"
         +"<span style='font-size:0.6rem;color:var(--mut);margin-left:6px'>(quedan "+(pd.restantes||0)+" en ronda)</span>";
         +"<span style='font-size:0.6rem;color:var(--mut);margin-left:6px'>(quedan "+(pd.restantes||0)+" en ronda)</span>";
       pind.style.display="block";
@@ -3161,7 +3187,7 @@
       // Último sorteo
       var ult=hh[0];
       var dUlt=new Date(ult.ts||0);
-      html+="<div style='font-size:0.58rem;color:var(--mut);text-align:center'>Último: <b style='color:#c084fc'>"+ult.nombre.toUpperCase()+"</b> · "+dUlt.getDate()+"/"+(dUlt.getMonth()+1)+(ult.total>0?" · Mesa $"+Math.round(ult.total):"")+(isAdmin()?" <button onclick='corregirUltimaPropina()' style='background:none;border:none;color:var(--mut);font-size:0.62rem;cursor:pointer;text-decoration:underline;padding:0 0 0 4px'>✏️ corregir</button>":"")+"</div>";
+      html+="<div style='font-size:0.58rem;color:var(--mut);text-align:center'>Último: <b style='color:#c084fc'>"+esc(ult.nombre).toUpperCase()+"</b> · "+dUlt.getDate()+"/"+(dUlt.getMonth()+1)+(ult.total>0?" · Mesa $"+Math.round(ult.total):"")+(isAdmin()?" <button onclick='corregirUltimaPropina()' style='background:none;border:none;color:var(--mut);font-size:0.62rem;cursor:pointer;text-decoration:underline;padding:0 0 0 4px'>✏️ corregir</button>":"")+"</div>";
       var jugadoresHoy=Object.keys(Object.values(orders).reduce(function(a,o){if(o.player)a[o.player]=1;return a;},{}));
       var pendientesAhora=pendientesCicloPropina(pd,jugadoresHoy);
       html+="<div style='font-size:0.58rem;color:var(--mut);text-align:center;margin-top:4px'>Quedan <b style='color:var(--ink)'>"+pendientesAhora.length+"</b> en la ronda actual</div>";
@@ -4948,7 +4974,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.112";
+  var APP_VERSION="10.0.113";
 
   var STORED_VERSION=localStorage.getItem("app_version");
 
