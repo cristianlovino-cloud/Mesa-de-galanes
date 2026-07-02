@@ -1848,15 +1848,23 @@
   // ── BANNER VOTACIÓN ACTIVA ───────────────────────────────────────────────
   window.renderVotacionBanner=function(){
     var el=document.getElementById("votacion-banner");if(!el)return;
-    if(!window._sbVotaciones.length){el.style.display="none";return;}
-    var v=window._sbVotaciones[0];
-    var plural=window._sbVotaciones.length>1?" ("+window._sbVotaciones.length+")":"";
+    var hoy=new Date();
+    // Filtrar igual que el modal: activa=true Y dentro del rango de fechas
+    var vigentes=(window._sbVotaciones||[]).filter(function(v){
+      if(!v.activa)return false;
+      var desde=v.desde?parseFCafe(v.desde):null;
+      var hasta=v.hasta?parseFCafe(v.hasta):null;
+      return(!desde||hoy>=desde)&&(!hasta||hoy<=hasta);
+    });
+    if(!vigentes.length){el.style.display="none";return;}
+    var v=vigentes[0];
+    var plural=vigentes.length>1?" ("+vigentes.length+")":"";
     el.style.display="block";
     el.innerHTML="<div onclick='abrirVotaciones()' style='cursor:pointer;display:flex;align-items:center;gap:12px;padding:12px 16px;border-left:3px solid #a855f7;border-radius:20px'>"
       +"<div style='font-size:1.6rem;flex-shrink:0'>🗳️</div>"
       +"<div style='flex:1'>"
       +"<div style='font-family:\'Bebas Neue\',sans-serif;font-size:1rem;color:var(--ink);letter-spacing:0.05em'>VOTACIÓN ABIERTA"+plural+"</div>"
-      +"<div style='font-size:0.65rem;color:var(--mut);margin-top:2px'>"+v.titulo+"</div>"
+      +"<div style='font-size:0.65rem;color:var(--mut);margin-top:2px'>"+esc(v.titulo)+"</div>"
       +"</div>"
       +"<div style='background:rgba(168,85,247,0.15);border:1px solid rgba(168,85,247,0.4);border-radius:10px;padding:7px 13px;font-size:0.68rem;font-weight:700;color:#a855f7;white-space:nowrap'>VOTAR →</div>"
       +"</div>";
@@ -4974,7 +4982,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.113";
+  var APP_VERSION="10.0.114";
 
   var STORED_VERSION=localStorage.getItem("app_version");
 
