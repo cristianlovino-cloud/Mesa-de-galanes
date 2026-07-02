@@ -3062,6 +3062,125 @@
   }
 
 
+  var _asistenciaAdminMode=false; // false=solo yo, true=todos (solo admin)
+  window.toggleAsistenciaAdmin=function(){
+    _asistenciaAdminMode=!_asistenciaAdminMode;
+    var tog=document.getElementById("asistencia-toggle");
+    if(tog)tog.textContent=_asistenciaAdminMode?"solo yo":"ver todos";
+    renderAsistencia();
+  };
+
+  async function renderAsistencia(){
+    var panel=document.getElementById("stats-asistencia-panel");
+    var toggle=document.getElementById("asistencia-toggle");
+    if(!panel)return;
+    panel.innerHTML="<div style='font-size:0.68rem;color:var(--mut);text-align:center;padding:12px'>Cargando...</div>";
+    var snap=await get(rH);
+    if(!snap.exists()){panel.innerHTML="<div style='font-size:0.68rem;color:var(--mut);text-align:center;padding:12px'>Sin historial todavía ☕</div>";return;}
+    var hist=snap.val();
+    // Últimas 10 fechas ordenadas de más nueva a más vieja
+    var fechas=Object.keys(hist).sort().reverse().slice(0,10);
+    // Construir mapa {galan: {fecha: true}}
+    var mapa={}; // mapa[galan][fecha]=true si pidió
+    fechas.forEach(function(f){
+      var pedidos=hist[f].pedidos||{};
+      Object.values(pedidos).forEach(function(o){
+        if(!o.player)return;
+        var n=o.player;
+        if(!mapa[n])mapa[n]={};
+        mapa[n][f]=true;
+      });
+    });
+    // Lista de galanes a mostrar
+    var admin=isAdmin();
+    if(toggle)toggle.style.display=admin?"block":"none";
+    var galansList=admin&&_asistenciaAdminMode
+      ? Object.keys(mapa).sort()      // admin modo full: todos los que aparecen
+      : (me?[me]:[]);                 // modo personal: solo yo
+    if(!galansList.length){panel.innerHTML="<div style='font-size:0.68rem;color:var(--mut);text-align:center;padding:12px'>Sin datos para mostrar</div>";return;}
+    // Cabecera de fechas
+    var labelF=fechas.map(function(f){var p=f.split("-");return p[2]+"/"+p[1];});
+    var html="";
+    // ── TABLA ADMIN ────────────────────────────────────────────────────────────
+    if(admin&&_asistenciaAdminMode){
+      // Cabecera con fechas en vertical compacto
+      html+="<div style='overflow-x:auto;-webkit-overflow-scrolling:touch'>";
+      html+="<table style='width:100%;border-collapse:collapse;font-size:0.58rem'>";
+      html+="<thead><tr><th style='text-align:left;padding:4px 6px 6px;color:var(--mut);font-weight:700;white-space:nowrap;position:sticky;left:0;background:var(--sur2)'>GALAN</th>";
+      fechas.forEach(function(f,i){
+        html+="<th style='text-align:center;padding:4px 3px 6px;color:var(--mut);font-weight:700;min-width:32px'>"+labelF[i]+"</th>";
+      });
+      html+="<th style='text-align:center;padding:4px 6px 6px;color:var(--mut);font-weight:700;white-space:nowrap'>%</th></tr></thead><tbody>";
+      // Ordenar por asistencia (más presente primero)
+      galansList=galansList.sort(function(a,b){
+        var ca=fechas.filter(function(f){return !!(mapa[a]&&mapa[a][f]);}).length;
+        var cb=fechas.filter(function(f){return !!(mapa[b]&&mapa[b][f]);}).length;
+        return cb-ca;
+      });
+      galansList.forEach(function(g,ri){
+        var esYo=me&&g.toUpperCase()===me.toUpperCase();
+        var bg=ri%2===0?"var(--sur)":"var(--sur2)";
+        html+="<tr style='background:"+bg+"'>";
+        html+="<td style='padding:5px 6px;font-weight:"+(esYo?"700":"500")+";color:"+(esYo?"var(--gold)":"var(--ink)")+";white-space:nowrap;position:sticky;left:0;background:"+bg+";max-width:90px;overflow:hidden;text-overflow:ellipsis'>"+esc(g.split(" ")[0])+"</td>";
+        var count=0;
+        fechas.forEach(function(f){
+          var estuvo=!!(mapa[g]&&mapa[g][f]);
+          if(estuvo)count++;
+          html+="<td style='text-align:center;padding:4px 3px;font-size:0.85rem'>"+(estuvo?"✅":"❌")+"</td>";
+        });
+        var pct=Math.round(count/fechas.length*100);
+        var pctColor=pct>=80?"var(--grn)":pct>=50?"var(--gold)":"#f87171";
+        html+="<td style='text-align:center;padding:4px 6px;font-weight:700;color:"+pctColor+";white-space:nowrap'>"+pct+"%</td>";
+        html+="</tr>";
+      });
+      html+="</tbody></table></div>";
+    } else {
+      // ── VISTA PERSONAL ───────────────────────────────────────────────────────
+      var g=galansList[0];
+      var total=fechas.filter(function(f){return !!(mapa[g]&&mapa[g][f]);}).length;
+      var pct=Math.round(total/fechas.length*100);
+      var pctColor=pct>=80?"var(--grn)":pct>=50?"var(--gold)":"#f87171";
+      // Streak actual (días consecutivos desde la fecha más reciente)
+      var streak=0;
+      for(var i=0;i<fechas.length;i++){
+        if(mapa[g]&&mapa[g][fechas[i]])streak++;else break;
+      }
+      // Resumen personal
+      html+="<div style='display:flex;gap:10px;margin-bottom:12px'>";
+      html+="<div style='flex:1;background:var(--sur2);border-radius:10px;padding:10px;text-align:center'>";
+      html+="<div style='font-family:\"Bebas Neue\",sans-serif;font-size:2rem;color:"+pctColor+";line-height:1'>"+pct+"%</div>";
+      html+="<div style='font-size:0.52rem;color:var(--mut);margin-top:2px;letter-spacing:0.06em'>ASISTENCIA</div></div>";
+      html+="<div style='flex:1;background:var(--sur2);border-radius:10px;padding:10px;text-align:center'>";
+      html+="<div style='font-family:\"Bebas Neue\",sans-serif;font-size:2rem;color:var(--gold);line-height:1'>"+total+"/"+fechas.length+"</div>";
+      html+="<div style='font-size:0.52rem;color:var(--mut);margin-top:2px;letter-spacing:0.06em'>CAFÉS</div></div>";
+      if(streak>1){
+        html+="<div style='flex:1;background:var(--sur2);border-radius:10px;padding:10px;text-align:center'>";
+        html+="<div style='font-family:\"Bebas Neue\",sans-serif;font-size:2rem;color:#f97316;line-height:1'>"+streak+"🔥</div>";
+        html+="<div style='font-size:0.52rem;color:var(--mut);margin-top:2px;letter-spacing:0.06em'>STREAK</div></div>";
+      }
+      html+="</div>";
+      // Calendario personal — una fila por fecha
+      fechas.forEach(function(f){
+        var estuvo=!!(mapa[g]&&mapa[g][f]);
+        var pedidosF=hist[f]&&hist[f].pedidos?Object.values(hist[f].pedidos).filter(function(o){return o.player&&o.player.toUpperCase()===g.toUpperCase();}):[];
+        var bebida=pedidosF.length?pedidosF[0].drink:"";
+        var pagadoF=hist[f]&&hist[f].pagos&&hist[f].pagos[g]?((hist[f].pagos[g].cash||0)+(hist[f].pagos[g].transfer||0)):0;
+        var p=f.split("-");var label=p[2]+"/"+p[1];
+        html+="<div style='display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--brd)'>";
+        html+="<span style='font-size:1rem;flex-shrink:0'>"+(estuvo?"✅":"❌")+"</span>";
+        html+="<span style='font-size:0.65rem;color:var(--mut);width:36px;flex-shrink:0'>"+label+"</span>";
+        if(estuvo){
+          html+="<span style='flex:1;font-size:0.65rem;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap'>"+esc(bebida)+"</span>";
+          if(pagadoF>0)html+="<span style='font-size:0.65rem;font-weight:700;color:var(--grn);white-space:nowrap'>$"+Math.round(pagadoF).toLocaleString("es-AR")+"</span>";
+        } else {
+          html+="<span style='flex:1;font-size:0.62rem;color:var(--mut);font-style:italic'>no estuvo</span>";
+        }
+        html+="</div>";
+      });
+    }
+    panel.innerHTML=html;
+  }
+
   window.renderStats=async function(){
     var panel=document.getElementById("stats-content");if(!panel)return;
     // Countdown
@@ -3167,6 +3286,7 @@
     panel.innerHTML=cdHtml+(miHistHtml);
 
     renderMesaStats();
+    renderAsistencia();
 
     // Sección propinas históricas
     get(rPropina).then(function(ps){
@@ -4683,6 +4803,15 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
     <div id="stats-content" style="padding:12px 14px">
       <div class="es" style="padding:40px 0;opacity:0.5">Cargando stats... 📊</div>
     </div>
+    <div style="padding:0 14px 14px">
+      <div style="background:rgba(245,197,24,0.06);border:1px solid rgba(245,197,24,0.18);border-radius:14px;padding:14px;overflow:hidden">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+          <div style="font-size:0.6rem;font-weight:700;color:var(--gold);letter-spacing:0.1em">📅 ASISTENCIA GALANES</div>
+          <div id="asistencia-toggle" style="display:none;font-size:0.55rem;color:var(--mut);cursor:pointer;text-decoration:underline" onclick="toggleAsistenciaAdmin()">ver todos</div>
+        </div>
+        <div id="stats-asistencia-panel"><div style="font-size:0.68rem;color:var(--mut);text-align:center;padding:12px">Cargando...</div></div>
+      </div>
+    </div>
     <div style="padding:0 14px 16px">
       <div style="background:rgba(168,85,247,0.08);border:1px solid rgba(168,85,247,0.2);border-radius:14px;padding:14px">
         <div style="font-size:0.6rem;font-weight:700;color:#c084fc;letter-spacing:0.1em;margin-bottom:10px">🎲 HISTORIAL PROPINAS</div>
@@ -4982,7 +5111,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.114";
+  var APP_VERSION="10.0.115";
 
   var STORED_VERSION=localStorage.getItem("app_version");
 
