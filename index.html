@@ -2527,6 +2527,24 @@
       html+="<div class='ac' onclick='openModal(\"mdrink\")'><div class='ap'>+</div><div class='rc'>Agregar bebida</div></div>";
     }
     grid.innerHTML=html;
+    // Marcar la card favorita con un ⭐ (async, post-render)
+    if(!isEdit&&me){
+      get(rF).then(function(favSnap){
+        if(!favSnap.exists())return;
+        var favs=favSnap.val();
+        if(!favs||!favs.length)return;
+        var favIdx=favs[0].drinkIdx;
+        var favCard=grid.querySelector("[data-longpress='"+favIdx+"']");
+        if(!favCard)return;
+        if(favCard.querySelector(".fav-star"))return; // ya marcado
+        var star=document.createElement("div");
+        star.className="fav-star";
+        star.textContent="⭐";
+        star.style.cssText="position:absolute;top:6px;right:6px;font-size:0.7rem;line-height:1;pointer-events:none;";
+        favCard.style.position="relative";
+        favCard.appendChild(star);
+      });
+    }
     // Botón editar (solo admin) debajo del grid
     var editWrap=document.getElementById("drinks-edit-wrap");
     if(!editWrap){
@@ -2580,11 +2598,11 @@
         var ld=JSON.parse(last);
         repWrap.innerHTML="<button onclick='repetirUltimo()' style='"
           +"width:100%;background:var(--card);border:1px solid var(--brd);"
-          +"border-radius:12px;padding:10px 14px;display:flex;align-items:center;gap:10px;"
-          +"cursor:pointer;text-align:left;transition:all 0.15s;'>"
+          +"border-radius:12px;padding:12px 16px;display:flex;align-items:center;justify-content:center;gap:10px;"
+          +"cursor:pointer;transition:all 0.15s;'>"
           +"<span style='font-size:1.1rem'>🔁</span>"
-          +"<div><div style='font-size:0.62rem;color:var(--mut);letter-spacing:0.06em;margin-bottom:1px'>REPETIR ÚLTIMO</div>"
-          +"<div style='font-size:0.75rem;font-weight:600;color:var(--ink)'>"+ld.icon+" "+ld.drink+"</div></div>"
+          +"<div style='text-align:center'><div style='font-size:0.6rem;color:var(--mut);letter-spacing:0.08em;margin-bottom:2px'>REPETIR ÚLTIMO</div>"
+          +"<div style='font-size:0.8rem;font-weight:700;color:var(--ink)'>"+ld.icon+" "+ld.drink+"</div></div>"
           +"</button>";
         repWrap.style.display="block";
       } else {
@@ -3265,11 +3283,15 @@
       +"<div style='font-size:0.7rem;color:rgba(255,255,255,0.4);letter-spacing:0.1em;margin-bottom:32px;text-align:center'>"+totalPedidos+" PEDIDOS</div>";
     items.forEach(function(e){
       var nombre=e[0],data=e[1];
+      // Si el drink ya incluye el extra en su nombre (ej "Cafe con Leche + Tostadas"),
+      // no mostrar la línea de extra por separado para evitar duplicado
+      var extraYaEnNombre=data.extra&&data.extra!=="Sin acompanamiento"
+        &&data.drink.toUpperCase().indexOf(data.extra.toUpperCase())>-1;
       html+="<div style='width:100%;max-width:380px;display:flex;align-items:center;gap:16px;padding:14px 0;border-bottom:1px solid rgba(255,255,255,0.08)'>";
       html+="<div style='font-family:\"Bebas Neue\",sans-serif;font-size:3.5rem;color:#f5c518;line-height:1;width:56px;text-align:right;flex-shrink:0'>"+data.count+"</div>";
       html+="<div style='flex:1'>";
       html+="<div style='font-family:\"Bebas Neue\",sans-serif;font-size:1.5rem;color:#fff;letter-spacing:0.04em;line-height:1.1'>"+esc(data.drink.toUpperCase())+"</div>";
-      if(data.extra&&data.extra!=="Sin acompanamiento")
+      if(data.extra&&data.extra!=="Sin acompanamiento"&&!extraYaEnNombre)
         html+="<div style='font-size:0.75rem;color:rgba(255,255,255,0.55);margin-top:3px;letter-spacing:0.06em'>+ "+esc(data.extra.toUpperCase())+"</div>";
       html+="</div></div>";
     });
@@ -5226,7 +5248,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.119";
+  var APP_VERSION="10.0.120";
 
   var STORED_VERSION=localStorage.getItem("app_version");
 
