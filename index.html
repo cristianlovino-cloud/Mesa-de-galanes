@@ -2498,8 +2498,14 @@
       var cnt=myIdxs.filter(function(x){return x===i;}).length;
       var isSel=cnt>0;
       html+="<div class='dc"+(isSel?" sel":"")+(isEdit?" dc-edit":"")+"'";
-      if(!isEdit)html+=" onclick='selectDrink("+i+")'";
-      if(isEdit){html+=" draggable='true' ondragstart='dragStart(event,"+i+")' ondragover='dragOver(event)' ondrop='drop(event,"+i+")' ondragend='dragEnd()'";};
+      if(!isEdit){
+        html+=" onclick='selectDrink("+i+")'";
+        html+=" oncontextmenu='guardarFavoritoDesdeDrink("+i+",event)'";
+        html+=" data-longpress='"+i+"'";
+      }
+      if(isEdit){
+        html+=" draggable='true' ondragstart='dragStart(event,"+i+")' ondragover='dragOver(event)' ondrop='drop(event,"+i+")' ondragend='dragEnd()'";
+      }
       html+=">";
       // X y handle SOLO en modo edición
       if(isEdit&&drinks.length>1)html+="<button class='ddel' onclick='delDrinkIdx("+i+",event)' style='display:flex'>✕</button>";
@@ -2551,21 +2557,40 @@
       repWrap.style.cssText="padding:0 12px 8px;";
       grid.parentNode.insertBefore(repWrap,grid);
     }
-    var last=me?localStorage.getItem("last_order_"+me):null;
-    if(last&&!confirmado()&&!misPed.length){
-      var ld=JSON.parse(last);
-      repWrap.innerHTML="<button onclick='repetirUltimo()' style='"
-        +"width:100%;background:var(--card);border:1px solid var(--brd);"
-        +"border-radius:12px;padding:10px 14px;display:flex;align-items:center;gap:10px;"
-        +"cursor:pointer;text-align:left;transition:all 0.15s;'>"
-        +"<span style='font-size:1.1rem'>🔁</span>"
-        +"<div><div style='font-size:0.62rem;color:var(--mut);letter-spacing:0.06em;margin-bottom:1px'>REPETIR ÚLTIMO</div>"
-        +"<div style='font-size:0.75rem;font-weight:600;color:var(--ink)'>"+ld.icon+" "+ld.drink+"</div></div>"
-        +"</button>";
-      repWrap.style.display="block";
-    } else {
-      repWrap.style.display="none";
-    }
+    // Favorito guardado tiene prioridad sobre "repetir último"
+    get(rF).then(function(favSnap){
+      if(!repWrap)return;
+      var hasFav=favSnap.exists()&&favSnap.val()&&favSnap.val().length;
+      var last=me?localStorage.getItem("last_order_"+me):null;
+      if(confirmado()||misPed.length){repWrap.style.display="none";return;}
+      if(hasFav){
+        var favs=favSnap.val();
+        var desc=favs.map(function(f){return f.icon+" "+f.drink;}).join(" + ");
+        repWrap.innerHTML="<button onclick='mostrarLoDeSimepre()' style=\""
+          +"width:100%;background:linear-gradient(135deg,rgba(245,197,24,0.15),rgba(245,197,24,0.05));border:1.5px solid rgba(245,197,24,0.4);"
+          +"border-radius:14px;padding:12px 16px;display:flex;align-items:center;gap:12px;"
+          +"cursor:pointer;text-align:left;transition:all 0.15s;\">"
+          +"<span style=\"font-size:1.4rem\">⭐</span>"
+          +"<div style=\"flex:1\"><div style=\"font-size:0.55rem;color:var(--gold);letter-spacing:0.08em;font-weight:700;margin-bottom:2px\">LO DE SIEMPRE</div>"
+          +"<div style=\"font-size:0.78rem;font-weight:700;color:var(--ink)\">"+desc+"</div></div>"
+          +"<span style=\"font-size:0.7rem;color:var(--gold);font-weight:800\">→</span>"
+          +"</button>";
+        repWrap.style.display="block";
+      } else if(last){
+        var ld=JSON.parse(last);
+        repWrap.innerHTML="<button onclick='repetirUltimo()' style='"
+          +"width:100%;background:var(--card);border:1px solid var(--brd);"
+          +"border-radius:12px;padding:10px 14px;display:flex;align-items:center;gap:10px;"
+          +"cursor:pointer;text-align:left;transition:all 0.15s;'>"
+          +"<span style='font-size:1.1rem'>🔁</span>"
+          +"<div><div style='font-size:0.62rem;color:var(--mut);letter-spacing:0.06em;margin-bottom:1px'>REPETIR ÚLTIMO</div>"
+          +"<div style='font-size:0.75rem;font-weight:600;color:var(--ink)'>"+ld.icon+" "+ld.drink+"</div></div>"
+          +"</button>";
+        repWrap.style.display="block";
+      } else {
+        repWrap.style.display="none";
+      }
+    });
   }
 
   // Aprobar bebida propuesta por usuario (quita flag pendingReview)
@@ -2778,8 +2803,9 @@
     document.getElementById("sum-panel").innerHTML=rows.join("");
     var tots={};Object.values(orders).forEach(function(o){if(!tots[o.drink])tots[o.drink]={icon:o.icon,count:0};tots[o.drink].count++;});
     var tk=Object.keys(tots),tp=document.getElementById("totals-panel");
-    if(tk.length){var th="";tk.forEach(function(d){th+="<div class='tr'><span>"+tots[d].icon+" "+d+"</span><span class='tq'>x"+tots[d].count+"</span></div>";});tp.innerHTML=th;tp.style.display="block";}
-    else tp.style.display="none";
+    var cp=document.getElementById("comanda-panel");
+    if(tk.length){var th="";tk.forEach(function(d){th+="<div class='tr'><span>"+tots[d].icon+" "+d+"</span><span class='tq'>x"+tots[d].count+"</span></div>";});tp.innerHTML=th;tp.style.display="block";if(cp)cp.style.display="block";}
+    else{tp.style.display="none";if(cp)cp.style.display="none";}
     renderMesaStats();
     var wb=document.getElementById("ws-btn");if(wb)wb.style.display=isAdmin()&&total>0?"inline-flex":"none";
     var pb=document.getElementById("propina-ws-btn");
@@ -3180,6 +3206,89 @@
     }
     panel.innerHTML=html;
   }
+
+  window.guardarFavoritoDesdeDrink=async function(idx,e){
+    if(e)e.preventDefault();
+    var d=drinks[idx];if(!d)return;
+    var extra=null;
+    // Si ya tiene pedido con ese drink, toma el extra
+    var miPed=Object.values(orders).filter(function(o){return o.player===me&&o.drinkIdx===idx;});
+    if(miPed.length)extra=miPed[0].extra||null;
+    await set(rF,[{drink:d.name,icon:d.icon,drinkIdx:idx,extra:extra}]);
+    // Feedback visual
+    var card=document.querySelector(".dc[data-longpress='"+idx+"']");
+    if(card){
+      var tag=document.createElement("div");
+      tag.textContent="⭐ Favorito!";
+      tag.style.cssText="position:absolute;top:6px;left:50%;transform:translateX(-50%);background:var(--gold);color:#0a0805;font-size:0.5rem;font-weight:800;border-radius:100px;padding:2px 8px;white-space:nowrap;z-index:10;animation:fadeOut 1.8s forwards";
+      card.style.position="relative";
+      card.appendChild(tag);
+      setTimeout(function(){if(tag.parentNode)tag.parentNode.removeChild(tag);},1800);
+    }
+    if(navigator.vibrate)navigator.vibrate([60,30,120]);
+    showToast("⭐ Guardado como favorito!");
+    renderDrinks();
+  };
+  // Long press táctil en cards de bebida
+  (function(){
+    var lpTimer=null,lpIdx=-1;
+    document.addEventListener("touchstart",function(e){
+      var card=e.target.closest("[data-longpress]");
+      if(!card)return;
+      lpIdx=parseInt(card.getAttribute("data-longpress"));
+      lpTimer=setTimeout(function(){
+        lpTimer=null;
+        guardarFavoritoDesdeDrink(lpIdx,null);
+      },600);
+    },{passive:true});
+    document.addEventListener("touchend",function(){if(lpTimer){clearTimeout(lpTimer);lpTimer=null;}},{passive:true});
+    document.addEventListener("touchmove",function(){if(lpTimer){clearTimeout(lpTimer);lpTimer=null;}},{passive:true});
+  })();
+
+  window.abrirPantallaMovil=function(){
+    // Construir comanda agrupada
+    var tots={};
+    Object.values(orders).forEach(function(o){
+      var k=(o.extra&&o.extra!=="Sin acompanamiento")?o.drink+" + "+o.extra:o.drink;
+      var ki=(o.extra&&o.extra!=="Sin acompanamiento")?o.icon+"☕":o.icon;
+      if(!tots[k]){tots[k]={icon:ki,count:0,drink:o.drink,extra:o.extra};}
+      tots[k].count++;
+    });
+    var items=Object.entries(tots).sort(function(a,b){return b[1].count-a[1].count;});
+    if(!items.length){showToast("No hay pedidos todavía");return;}
+    var totalPedidos=Object.values(orders).length;
+    var html="<div id='pantalla-mozo' style='"
+      +"position:fixed;inset:0;z-index:99999;background:#0a0805;"
+      +"display:flex;flex-direction:column;align-items:center;justify-content:center;"
+      +"padding:24px;overflow:auto'>"
+      +"<div style='font-family:\"Bebas Neue\",sans-serif;font-size:1.2rem;letter-spacing:0.2em;color:#f5c518;margin-bottom:4px;text-align:center'>☕ MESA DE GALANES</div>"
+      +"<div style='font-size:0.7rem;color:rgba(255,255,255,0.4);letter-spacing:0.1em;margin-bottom:32px;text-align:center'>"+totalPedidos+" PEDIDOS</div>";
+    items.forEach(function(e){
+      var nombre=e[0],data=e[1];
+      html+="<div style='width:100%;max-width:380px;display:flex;align-items:center;gap:16px;padding:14px 0;border-bottom:1px solid rgba(255,255,255,0.08)'>";
+      html+="<div style='font-family:\"Bebas Neue\",sans-serif;font-size:3.5rem;color:#f5c518;line-height:1;width:56px;text-align:right;flex-shrink:0'>"+data.count+"</div>";
+      html+="<div style='flex:1'>";
+      html+="<div style='font-family:\"Bebas Neue\",sans-serif;font-size:1.5rem;color:#fff;letter-spacing:0.04em;line-height:1.1'>"+esc(data.drink.toUpperCase())+"</div>";
+      if(data.extra&&data.extra!=="Sin acompanamiento")
+        html+="<div style='font-size:0.75rem;color:rgba(255,255,255,0.55);margin-top:3px;letter-spacing:0.06em'>+ "+esc(data.extra.toUpperCase())+"</div>";
+      html+="</div></div>";
+    });
+    html+="<button onclick='cerrarPantallaMovil()' style='"
+      +"margin-top:36px;background:#f5c518;color:#0a0805;border:none;border-radius:100px;"
+      +"padding:16px 48px;font-family:\"Bebas Neue\",sans-serif;font-size:1.3rem;letter-spacing:0.1em;"
+      +"cursor:pointer;box-shadow:0 8px 24px rgba(245,197,24,0.4)'>✓ TOMADO</button>"
+      +"</div>";
+    document.body.insertAdjacentHTML("beforeend",html);
+    // Intentar pantalla completa
+    if(document.documentElement.requestFullscreen)document.documentElement.requestFullscreen().catch(function(){});
+    // Mantener pantalla encendida si la API está disponible
+    if(navigator.wakeLock)navigator.wakeLock.request("screen").catch(function(){});
+  };
+  window.cerrarPantallaMovil=function(){
+    var m=document.getElementById("pantalla-mozo");
+    if(m)m.parentNode.removeChild(m);
+    if(document.exitFullscreen&&document.fullscreenElement)document.exitFullscreen().catch(function(){});
+  };
 
   window.renderStats=async function(){
     var panel=document.getElementById("stats-content");if(!panel)return;
@@ -4218,6 +4327,7 @@ header::after{
 .cumple-banner{background:linear-gradient(90deg,rgba(245,158,11,0.15),rgba(234,88,12,0.1));border-bottom:1px solid rgba(245,158,11,0.2);padding:10px 16px;font-size:0.65rem;color:var(--g2);font-weight:600;text-align:center;letter-spacing:0.05em;}
 .cumple-hoy{background:linear-gradient(135deg,rgba(245,197,24,0.22),rgba(234,88,12,0.18))!important;border-bottom:2px solid rgba(245,197,24,0.5)!important;padding:14px 16px!important;font-size:0.82rem!important;animation:pulseBanner 1.5s ease-in-out infinite alternate;}
 @keyframes fireAnim{from{transform:scale(1) rotate(-3deg);}to{transform:scale(1.15) rotate(3deg);}}
+@keyframes fadeOut{0%{opacity:1;transform:translateX(-50%) translateY(0)}80%{opacity:1}100%{opacity:0;transform:translateX(-50%) translateY(-8px)}}
   @keyframes pulseBanner{from{box-shadow:0 0 8px rgba(245,197,24,0.15);}to{box-shadow:0 0 24px rgba(245,197,24,0.4);}}
 
 /* TIMER */
@@ -4832,6 +4942,11 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
     <div id="resumen-pagos-hint" style="display:none;font-size:0.6rem;color:var(--mut);padding:4px 14px 0;text-align:right">💡 Ver detalle por persona en Admin → Pedidos</div>
     <div class="sp" id="sum-panel" style="display:none"></div>
     <div id="totals-panel"></div>
+    <div id="comanda-panel" style="display:none;padding:0 0 8px">
+      <button onclick="abrirPantallaMovil()" style="width:100%;background:linear-gradient(135deg,var(--gold),#e5a93c);color:#0a0805;border:none;border-radius:14px;padding:13px;font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:0.08em;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 4px 12px rgba(245,197,24,0.3)">
+        📋 PANTALLA MOZO
+      </button>
+    </div>
   </div>
   <div id="v-cumples" style="display:none">
     <div class="slabel">🎂 Cumpleaños</div>
@@ -5111,7 +5226,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.115";
+  var APP_VERSION="10.0.119";
 
   var STORED_VERSION=localStorage.getItem("app_version");
 
