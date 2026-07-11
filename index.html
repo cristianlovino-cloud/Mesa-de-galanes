@@ -113,7 +113,8 @@
   const app=initializeApp(FC),db=getDatabase(app);
   const rO=ref(db,"pedido/orders"),rD=ref(db,"pedido/drinks"),rS=ref(db,"pedido/session");
   const rNotif=ref(db,"config/notif"); // nodo de notificaciones por galan
-  const rF=ref(db,"pedido/favorito"),rT=ref(db,"pedido/timer"),rC=ref(db,"pedido/confirmed");
+  const rT=ref(db,"pedido/timer"),rC=ref(db,"pedido/confirmed");
+  function rF(){var k=me?me.toLowerCase().replace(/\s+/g,"_"):"__anon";return ref(db,"pedido/favorito/"+k);}
   // ── ENVÍO DE NOTIFICACIONES (solo admin) ───────────────────────────────────
   async function enviarNotif(galan,msg,tipo){
     if(!isAdmin()||!galan)return;
@@ -2400,7 +2401,7 @@
     // Solo mostrar si no tiene pedido hoy y tiene favorito
     var yaHoyTienePedido=Object.values(orders).some(function(o){return o.player===me;});
     if(yaHoyTienePedido&&confirmado())return;  // solo bloquear si ambos son true
-    var snap=await get(rF);
+    var snap=await get(rF());
     if(!snap.exists())return;
     var favs=snap.val();
     if(!favs||!favs.length)return;
@@ -2412,7 +2413,7 @@
   };
   window.pedirLoMismo=async function(){
     closeModal("mloMismo");
-    var snap=await get(rF);
+    var snap=await get(rF());
     if(!snap.exists())return;
     var favs=snap.val();
     // Borrar pedidos previos si los hay
@@ -2439,8 +2440,8 @@
   };
 
   // ── FAVORITO / RESERVA ────────────────────────────────────
-  window.grabarFav=async function(){var mo=Object.values(orders).filter(function(o){return o.player===me;});if(!mo.length){showToast("Primero hace tu pedido!");return;}await set(rF,mo.map(function(o){return{drink:o.drink,icon:o.icon,drinkIdx:o.drinkIdx,extra:o.extra};}));showToast("⭐ Favorito guardado!");};
-  window.cargarFav=async function(){var s=await get(rF);if(!s.exists()){showToast("No hay favorito guardado");return;}var favs=s.val(),en=Object.entries(orders);for(var i=0;i<en.length;i++)if(en[i][1].player===me)await remove(ref(db,"pedido/orders/"+en[i][0]));for(var j=0;j<favs.length;j++){var f=favs[j];await push(rO,{player:me,drinkIdx:f.drinkIdx,drink:f.drink,icon:f.icon,extra:f.extra||null,ts:Date.now()});}showToast("⭐ Mi habitual cargado!");};
+  window.grabarFav=async function(){var mo=Object.values(orders).filter(function(o){return o.player===me;});if(!mo.length){showToast("Primero hace tu pedido!");return;}await set(rF(),mo.map(function(o){return{drink:o.drink,icon:o.icon,drinkIdx:o.drinkIdx,extra:o.extra};}));showToast("⭐ Favorito guardado!");};
+  window.cargarFav=async function(){var s=await get(rF());if(!s.exists()){showToast("No hay favorito guardado");return;}var favs=s.val(),en=Object.entries(orders);for(var i=0;i<en.length;i++)if(en[i][1].player===me)await remove(ref(db,"pedido/orders/"+en[i][0]));for(var j=0;j<favs.length;j++){var f=favs[j];await push(rO,{player:me,drinkIdx:f.drinkIdx,drink:f.drink,icon:f.icon,extra:f.extra||null,ts:Date.now()});}showToast("⭐ Mi habitual cargado!");};
 
   window.confirmarSinPedir=function(){
     closeModal("mpedirreserva");
@@ -2529,7 +2530,7 @@
     grid.innerHTML=html;
     // Marcar la card favorita con un ⭐ (async, post-render)
     if(!isEdit&&me){
-      get(rF).then(function(favSnap){
+      get(rF()).then(function(favSnap){
         if(!favSnap.exists())return;
         var favs=favSnap.val();
         if(!favs||!favs.length)return;
@@ -2576,7 +2577,7 @@
       grid.parentNode.insertBefore(repWrap,grid);
     }
     // Favorito guardado tiene prioridad sobre "repetir último"
-    get(rF).then(function(favSnap){
+    get(rF()).then(function(favSnap){
       if(!repWrap)return;
       var hasFav=favSnap.exists()&&favSnap.val()&&favSnap.val().length;
       var last=me?localStorage.getItem("last_order_"+me):null;
@@ -3232,7 +3233,7 @@
     // Si ya tiene pedido con ese drink, toma el extra
     var miPed=Object.values(orders).filter(function(o){return o.player===me&&o.drinkIdx===idx;});
     if(miPed.length)extra=miPed[0].extra||null;
-    await set(rF,[{drink:d.name,icon:d.icon,drinkIdx:idx,extra:extra}]);
+    await set(rF(),[{drink:d.name,icon:d.icon,drinkIdx:idx,extra:extra}]);
     // Feedback visual
     var card=document.querySelector(".dc[data-longpress='"+idx+"']");
     if(card){
@@ -5248,7 +5249,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.120";
+  var APP_VERSION="10.0.121";
 
   var STORED_VERSION=localStorage.getItem("app_version");
 
