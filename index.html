@@ -2195,118 +2195,164 @@
     var cfg=window._argBanner;
     if(!cfg||!cfg.activo){el.style.display="none";el.innerHTML="";return;}
     var texto=cfg.texto||"¡Vamos Argentina! 🇦🇷";
-    // Si ya está renderizado con el mismo texto, no re-renderizar (evita matar animaciones)
     var existing=el.querySelector(".arg-texto");
     if(existing&&existing.textContent===texto)return;
-    el.innerHTML=""; // limpiar para re-renderizar limpio
+    el.innerHTML="";
     el.style.display="block";
-    var editBtn=isAdmin()
-      ?"<div style='display:flex;gap:6px;margin-top:10px;justify-content:center;position:relative;z-index:2'>"
-        +"<button onclick='editarArgBanner()' style='background:rgba(255,255,255,0.2);border:1px solid rgba(255,255,255,0.4);border-radius:100px;padding:5px 14px;color:#fff;font-size:0.6rem;cursor:pointer;font-weight:700;backdrop-filter:blur(4px)'>✏️ Editar</button>"
-        +"<button onclick='tocarLaT()' style='background:rgba(246,180,14,0.3);border:1px solid rgba(246,180,14,0.6);border-radius:100px;padding:5px 14px;color:#F6B40E;font-size:0.6rem;cursor:pointer;font-weight:700;backdrop-filter:blur(4px)'>🎺 Tocar</button>"
-        +"<button onclick='toggleArgBanner(false)' style='background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);border-radius:100px;padding:5px 14px;color:rgba(255,255,255,0.7);font-size:0.6rem;cursor:pointer;backdrop-filter:blur(4px)'>✕</button>"
-        +"</div>":"";
 
-    el.innerHTML="<div class='arg-inner' style='border-radius:16px;overflow:hidden;position:relative;"
-      +"box-shadow:0 6px 28px rgba(116,172,223,0.5),0 2px 8px rgba(0,0,0,0.2)'>"
-      // Fondo animado — rayas celeste/blanco que se deslizan
-      +"<div class='arg-bg' style='position:absolute;inset:0;background:linear-gradient(135deg,"
-        +"#74ACDF 0%,#74ACDF 30%,#fff 30%,#fff 40%,#74ACDF 40%,#74ACDF 60%,#fff 60%,#fff 70%,#74ACDF 70%,#74ACDF 100%);"
-        +"background-size:200% 100%;animation:argStripe 3s linear infinite'></div>"
-      // Sol dorado central pulsante
-      +"<div style='position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);"
-        +"font-size:5rem;opacity:0.12;animation:argSol 2s ease-in-out infinite alternate;pointer-events:none;line-height:1'>☀️</div>"
-      // Canvas para partículas
-      +"<canvas id='arg-canvas' style='position:absolute;inset:0;pointer-events:none;border-radius:16px'></canvas>"
-      // Contenido
-      +"<div style='position:relative;z-index:2;padding:18px 16px;text-align:center'>"
-      +"<div style='font-size:2.2rem;margin-bottom:6px;filter:drop-shadow(0 2px 6px rgba(0,0,0,0.4));animation:argFlag 1.5s ease-in-out infinite alternate'>🇦🇷</div>"
-      +"<div class='arg-texto' style='font-family:\"Bebas Neue\",sans-serif;font-size:1.6rem;letter-spacing:0.08em;"
-        +"color:#fff;text-shadow:0 2px 12px rgba(0,0,0,0.6),0 0 20px rgba(116,172,223,0.8);line-height:1.15;"
-        +"animation:argPulse 1.8s ease-in-out infinite'>"+esc(texto)+"</div>"
-      +editBtn
-      +"</div></div>";
-
-    // CSS de animaciones (inyectar una sola vez)
+    // CSS una sola vez
     if(!document.getElementById("arg-css")){
       var s=document.createElement("style");s.id="arg-css";
-      s.textContent="@keyframes argStripe{0%{background-position:0% 0%}100%{background-position:200% 0%}}"
-        +"@keyframes argSol{from{transform:translate(-50%,-50%) scale(0.9)}to{transform:translate(-50%,-50%) scale(1.15)}}"
-        +"@keyframes argFlag{from{transform:rotate(-5deg) scale(1)}to{transform:rotate(5deg) scale(1.1)}}"
-        +"@keyframes argPulse{0%,100%{text-shadow:0 2px 12px rgba(0,0,0,0.6),0 0 20px rgba(116,172,223,0.8)}"
-          +"50%{text-shadow:0 2px 12px rgba(0,0,0,0.6),0 0 40px rgba(246,180,14,0.9),0 0 60px rgba(116,172,223,0.6)}}";
+      s.textContent="@keyframes argPulse{0%,100%{text-shadow:0 2px 12px rgba(0,0,0,0.7),0 0 20px rgba(116,172,223,0.9)}"
+        +"50%{text-shadow:0 0 24px rgba(246,180,14,1),0 0 48px rgba(116,172,223,0.8),0 2px 4px rgba(0,0,0,0.8)}}"
+        +".arg-tap-hint{animation:argHint 2s ease-in-out 1.5s forwards;opacity:0;}"
+        +"@keyframes argHint{0%{opacity:0}20%{opacity:1}80%{opacity:1}100%{opacity:0}}";
       document.head.appendChild(s);
     }
 
-    // Partículas celeste y blanco
+    var adminBtns=isAdmin()
+      ?"<div style='display:flex;gap:6px;margin-top:8px;justify-content:center'>"
+        +"<button onclick='event.stopPropagation();editarArgBanner()' style='background:rgba(255,255,255,0.2);border:1px solid rgba(255,255,255,0.35);border-radius:100px;padding:5px 14px;color:#fff;font-size:0.58rem;cursor:pointer;font-weight:700'>✏️ Editar</button>"
+        +"<button onclick='event.stopPropagation();toggleArgBanner(false)' style='background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.2);border-radius:100px;padding:5px 14px;color:rgba(255,255,255,0.6);font-size:0.58rem;cursor:pointer'>✕ Cerrar</button>"
+        +"</div>":"";
+
+    el.innerHTML="<div class='arg-inner' onclick='tocarLaT()' style='border-radius:16px;overflow:hidden;position:relative;cursor:pointer;"
+      +"box-shadow:0 8px 32px rgba(116,172,223,0.6),0 2px 8px rgba(0,0,0,0.25)'>"
+      // Canvas para la bandera ondulante
+      +"<canvas id='arg-flag-canvas' style='position:absolute;inset:0;width:100%;height:100%;display:block'></canvas>"
+      // Overlay sutil para legibilidad
+      +"<div style='position:absolute;inset:0;background:rgba(0,0,0,0.25)'></div>"
+      // Contenido encima
+      +"<div style='position:relative;z-index:2;padding:22px 16px 14px;text-align:center'>"
+      // Bandera enorme central
+      +"<div style='font-size:4rem;line-height:1;margin-bottom:8px;filter:drop-shadow(0 3px 8px rgba(0,0,0,0.5))'>🇦🇷</div>"
+      +"<div class='arg-texto' style='font-family:\"Bebas Neue\",sans-serif;font-size:1.9rem;letter-spacing:0.1em;"
+        +"color:#fff;line-height:1.1;animation:argPulse 2s ease-in-out infinite'>"+esc(texto)+"</div>"
+      +"<div class='arg-tap-hint' style='margin-top:6px;font-size:0.6rem;color:rgba(255,255,255,0.6);letter-spacing:0.06em'>🎺 Tocá para escuchar la cumbia</div>"
+      +adminBtns
+      +"</div></div>";
+
+    // Bandera ondulante en canvas
     requestAnimationFrame(function(){
-      var canvas=document.getElementById("arg-canvas");
+      var canvas=document.getElementById("arg-flag-canvas");
       if(!canvas)return;
       var inner=canvas.parentNode;
-      canvas.width=inner.offsetWidth;canvas.height=inner.offsetHeight;
+      canvas.width=inner.offsetWidth*2;canvas.height=inner.offsetHeight*2; // retina
+      canvas.style.width=inner.offsetWidth+"px";canvas.style.height=inner.offsetHeight+"px";
+      var W=canvas.width,H=canvas.height;
       var ctx=canvas.getContext("2d");
-      var particles=[];
-      for(var i=0;i<28;i++){
-        particles.push({
-          x:Math.random()*canvas.width,y:Math.random()*canvas.height,
-          r:Math.random()*3+1,
-          vx:(Math.random()-0.5)*0.6,vy:-(Math.random()*0.8+0.3),
-          color:Math.random()>0.5?"rgba(116,172,223,0.7)":"rgba(255,255,255,0.6)",
-          life:Math.random()
-        });
+      var t=0;
+      var cols=["#74ACDF","#74ACDF","#ffffff","#74ACDF","#74ACDF"]; // franja celeste/blanco/celeste
+      var franja=H/cols.length;
+      function dibujar(){
+        if(!document.getElementById("arg-flag-canvas"))return;
+        ctx.clearRect(0,0,W,H);
+        // Dibujar cada franja con onda sinusoidal
+        for(var fi=0;fi<cols.length;fi++){
+          var y0=fi*franja,y1=(fi+1)*franja;
+          ctx.beginPath();
+          ctx.moveTo(0,y0);
+          // Borde superior ondulante
+          for(var x=0;x<=W;x+=4){
+            var wave=Math.sin(x/W*Math.PI*3+t)*12*(x/W);
+            ctx.lineTo(x,y0+wave);
+          }
+          // Borde inferior ondulante
+          for(var x=W;x>=0;x-=4){
+            var wave=Math.sin(x/W*Math.PI*3+t)*12*(x/W);
+            ctx.lineTo(x,y1+wave);
+          }
+          ctx.closePath();
+          ctx.fillStyle=cols[fi];
+          ctx.globalAlpha=0.9;
+          ctx.fill();
+        }
+        // Sol dorado en el centro
+        ctx.globalAlpha=0.18;
+        ctx.font=(H*0.45)+"px serif";
+        ctx.textAlign="center";ctx.textBaseline="middle";
+        ctx.fillText("☀",W/2,H/2);
+        ctx.globalAlpha=1;
+        t+=0.04;
+        requestAnimationFrame(dibujar);
       }
-      var running=true;
-      function tick(){
-        if(!document.getElementById("arg-canvas")){running=false;return;}
-        ctx.clearRect(0,0,canvas.width,canvas.height);
-        particles.forEach(function(p){
-          p.x+=p.vx;p.y+=p.vy;p.life+=0.005;
-          if(p.y<0||p.life>1){p.y=canvas.height+4;p.x=Math.random()*canvas.width;p.life=0;}
-          ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
-          ctx.fillStyle=p.color;ctx.fill();
-        });
-        if(running)requestAnimationFrame(tick);
-      }
-      tick();
+      dibujar();
     });
   }
 
-  // 🎺 La T — trompeta argentina con Web Audio API
+  // 🎶 Cumbia de La T y la M — "Vamos vamos Argentina"
   window.tocarLaT=function(){
     try{
       var ac=new(window.AudioContext||window.webkitAudioContext)();
-      // La melodía de la tribuna argentina (la famosa)
-      // Notas: frecuencias en Hz, duraciones en segundos
-      var BPM=140,B=60/BPM;
+      var BPM=125,B=60/BPM,B2=B/2,B4=B/4;
+
+      // ── CUMBIA RHYTHM (bombo + clave) ────────────────────────
+      function bombo(t,dur){
+        var osc=ac.createOscillator(),g=ac.createGain();
+        osc.connect(g);g.connect(ac.destination);
+        osc.type="sine";
+        osc.frequency.setValueAtTime(120,t);
+        osc.frequency.exponentialRampToValueAtTime(50,t+0.12);
+        g.gain.setValueAtTime(0.7,t);g.gain.exponentialRampToValueAtTime(0.001,t+dur);
+        osc.start(t);osc.stop(t+dur);
+      }
+      function clave(t){
+        var buf=ac.createBuffer(1,ac.sampleRate*0.05,ac.sampleRate);
+        var d=buf.getChannelData(0);for(var i=0;i<d.length;i++)d[i]=(Math.random()*2-1)*Math.exp(-i/800);
+        var src=ac.createBufferSource(),g=ac.createGain();
+        src.buffer=buf;src.connect(g);g.connect(ac.destination);
+        g.gain.setValueAtTime(0.4,t);src.start(t);
+      }
+
+      var start=ac.currentTime+0.05;
+      var measures=4;
+      for(var m=0;m<measures;m++){
+        var mt=start+m*B*4;
+        // Cumbia pattern: bombo en 1 y 3, clave en 2 y 4 y offbeats
+        bombo(mt,0.15);bombo(mt+B,0.1);bombo(mt+B*2,0.15);bombo(mt+B*3,0.1);
+        clave(mt+B2);clave(mt+B+B2);clave(mt+B*2+B2);clave(mt+B*3+B2);
+        clave(mt+B4*3);clave(mt+B4*7);clave(mt+B4*11);
+      }
+
+      // ── MELODÍA "Vamos vamos Argentina" ──────────────────────
+      // Notas: [freq, dur] — melodía de la tribuna sobre base cumbia
       var notas=[
-        [523.25,B*0.5],[523.25,B*0.5],[523.25,B*0.5],[523.25,B*0.5],
-        [659.25,B*1.5],[0,B*0.5],
-        [523.25,B*0.5],[587.33,B*0.5],[659.25,B*0.5],[587.33,B*0.5],
-        [523.25,B*2],[0,B*0.5],
-        [659.25,B*0.5],[659.25,B*0.5],[659.25,B*0.5],[659.25,B*0.5],
-        [783.99,B*1.5],[0,B*0.5],
-        [659.25,B*0.5],[698.46,B*0.5],[783.99,B*0.5],[698.46,B*0.5],
-        [659.25,B*2]
+        // "Va-mos va-mos Ar-gen-ti-na"
+        [392,B4],[392,B4],[392,B2],
+        [440,B4],[440,B4],[440,B2],
+        [523,B4],[494,B4],[440,B2],[392,B],
+        // "va-mos va-mos a ga-nar"
+        [440,B4],[440,B4],[440,B2],
+        [494,B4],[494,B4],[494,B2],
+        [523,B4],[494,B4],[440,B4],[392,B+B2],
+        // Repetición con más energía
+        [392,B4],[392,B4],[392,B2],
+        [440,B4],[440,B4],[523,B2],
+        [587,B4],[523,B4],[494,B4],[440,B],
+        [392,B2],[440,B2],[523,B+B2]
       ];
-      var t=ac.currentTime+0.05;
-      notas.forEach(function(n){
-        var freq=n[0],dur=n[1];
-        if(freq>0){
-          var osc=ac.createOscillator();
-          var gain=ac.createGain();
-          osc.connect(gain);gain.connect(ac.destination);
-          osc.type="sawtooth"; // timbre de trompeta
-          osc.frequency.setValueAtTime(freq,t);
-          // Envelope: ataque corto, decay natural
-          gain.gain.setValueAtTime(0,t);
-          gain.gain.linearRampToValueAtTime(0.35,t+0.02);
-          gain.gain.exponentialRampToValueAtTime(0.001,t+dur-0.02);
-          osc.start(t);osc.stop(t+dur);
-        }
-        t+=dur;
-      });
-      if(navigator.vibrate)navigator.vibrate([80,40,80,40,80]);
-    }catch(e){showToast("🎺 Tu browser no soporta audio");}
+
+      function nota(freq,dur,t,vol){
+        vol=vol||0.28;
+        var osc=ac.createOscillator(),g=ac.createGain();
+        // Sawtooth + filtro para simular trompeta/acordeón
+        var filt=ac.createBiquadFilter();
+        filt.type="bandpass";filt.frequency.value=freq*2;filt.Q.value=1.5;
+        osc.connect(filt);filt.connect(g);g.connect(ac.destination);
+        osc.type="sawtooth";osc.frequency.setValueAtTime(freq,t);
+        g.gain.setValueAtTime(0,t);
+        g.gain.linearRampToValueAtTime(vol,t+0.03);
+        g.gain.setValueAtTime(vol,t+dur*0.7);
+        g.gain.exponentialRampToValueAtTime(0.001,t+dur);
+        osc.start(t);osc.stop(t+dur+0.05);
+      }
+
+      var nt=start+B4; // la melodía entra un compás después
+      notas.forEach(function(n){nota(n[0],n[1],nt);nt+=n[1];});
+
+      if(navigator.vibrate)navigator.vibrate([100,50,100,50,200]);
+      showToast("🎶 ¡Arriba Argentina! 🇦🇷");
+    }catch(e){showToast("El browser no soporta audio 🎺");}
   };
 
   window.toggleArgBanner=async function(activo){
@@ -5399,7 +5445,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.124";
+  var APP_VERSION="10.0.125";
 
   var STORED_VERSION=localStorage.getItem("app_version");
 
