@@ -432,7 +432,7 @@
     closeModal("mnombre");
     var ahora=Date.now(),cur=accesos[me]||{count:0};
     set(ref(db,"config/accesos/"+me),{count:(cur.count||0)+1,lastAccess:ahora});
-    renderMyName();renderDrinks();renderOrders();renderMesa();renderLista();renderConfirmBtn();renderCumpleBanner();if(window._asadoConfig!==undefined)renderAsadoBanner();if(typeof suscribirNotif==="function")suscribirNotif();
+    renderMyName();renderDrinks();renderOrders();renderMesa();renderLista();renderConfirmBtn();renderCumpleBanner();if(window._asadoConfig!==undefined)renderAsadoBanner();if(typeof suscribirNotif==="function")suscribirNotif();if(typeof renderArgBanner==="function")renderArgBanner();
     switchTab("pedir",true);
     if(!canonical&&me!==ADMIN){
       set(ref(db,"config/pendientes/"+me),{ts:Date.now(),nombre:me});
@@ -2158,6 +2158,7 @@
 
   // Config asado: admin puede setear fecha del próximo asado
   const rAsadoConfig=ref(db,"config/asado");
+  const rArgBanner=ref(db,"config/argBanner");
   // ── Kick all: cuando admin escribe timestamp, todos los no-admin son expulsados
   onValue(rKick,function(s){
     if(!s.exists())return;
@@ -2183,6 +2184,54 @@
     window._asadoConfig=s.exists()?s.val():null;
     renderAsadoBanner();
   });
+
+  onValue(rArgBanner,function(s){
+    window._argBanner=s.exists()?s.val():null;
+    renderArgBanner();
+  });
+
+  function renderArgBanner(){
+    var el=document.getElementById("arg-banner");if(!el)return;
+    var cfg=window._argBanner;
+    if(!cfg||!cfg.activo){el.style.display="none";return;}
+    el.style.display="block";
+    var texto=cfg.texto||"¡Vamos Argentina! 🇦🇷";
+    var editBtn=isAdmin()
+      ?"<div style='display:flex;gap:6px;margin-top:10px;justify-content:center'>"
+        +"<button onclick='editarArgBanner()' style='background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);border-radius:100px;padding:4px 12px;color:#fff;font-size:0.6rem;cursor:pointer;font-weight:700'>✏️ Editar</button>"
+        +"<button onclick='toggleArgBanner(false)' style='background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);border-radius:100px;padding:4px 12px;color:rgba(255,255,255,0.6);font-size:0.6rem;cursor:pointer'>✕ Cerrar</button>"
+        +"</div>":"";
+    el.innerHTML="<div style='"
+      +"background:linear-gradient(135deg,#74ACDF 0%,#74ACDF 33%,#fff 33%,#fff 43%,#F6B40E 43%,#F6B40E 57%,#fff 57%,#fff 67%,#74ACDF 67%,#74ACDF 100%);"
+      +"border-radius:16px;padding:16px;text-align:center;position:relative;overflow:hidden;"
+      +"box-shadow:0 4px 20px rgba(116,172,223,0.4)'>"
+      // Overlay oscuro para legibilidad del texto
+      +"<div style='position:absolute;inset:0;background:rgba(0,0,0,0.32);border-radius:16px'></div>"
+      +"<div style='position:relative;z-index:1'>"
+      +"<div style='font-size:2rem;margin-bottom:4px'>🇦🇷</div>"
+      +"<div style='font-family:\"Bebas Neue\",sans-serif;font-size:1.4rem;letter-spacing:0.06em;color:#fff;text-shadow:0 2px 8px rgba(0,0,0,0.5);line-height:1.15'>"+esc(texto)+"</div>"
+      +editBtn
+      +"</div>"
+      +"</div>";
+  }
+
+  window.toggleArgBanner=async function(activo){
+    var cfg=window._argBanner||{texto:"¡Vamos Argentina! 🇦🇷"};
+    await set(rArgBanner,Object.assign({},cfg,{activo:!!activo}));
+  };
+
+  window.editarArgBanner=function(){
+    var cfg=window._argBanner||{};
+    var nuevo=prompt("Texto del banner:",cfg.texto||"¡Vamos Argentina! 🇦🇷");
+    if(nuevo===null)return;
+    set(rArgBanner,{texto:nuevo.trim()||"¡Vamos Argentina! 🇦🇷",activo:true});
+  };
+
+  window.activarArgBanner=async function(){
+    var cfg=window._argBanner||{texto:"¡Vamos Argentina! 🇦🇷"};
+    await set(rArgBanner,Object.assign({},cfg,{activo:true}));
+    showToast("🇦🇷 Banner activado!");
+  };
 
   // Acepta tanto ISO (2026-06-27) como DD/MM/AAAA (27/06/2026, formato que usa
   // realmente la app de Asado) y devuelve un Date a mediodía UTC, o null si no parsea.
@@ -4903,6 +4952,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </header>
 <div id="cumple-banner" style="display:none"></div>
   <div id="votacion-banner" class="surf" style="display:none;margin:0 0 12px;overflow:hidden"></div>
+  <div id="arg-banner" style="display:none;margin:0 0 12px"></div>
   <div id="cafe-sponsors" style="display:none;margin:0 0 14px"></div>
 <div id="timer-bar" class="tbar">
   <span id="t-text">Cierra en</span><span id="t-count">—</span>
@@ -5007,6 +5057,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
           <button class="admin-action-btn" onclick="refreshDrinkIcons()" style="font-size:0.6rem">🔄 Emojis</button>
           <button class="admin-action-btn" style="background:rgba(239,68,68,0.12);color:#f87171;border-color:rgba(239,68,68,0.25)" onclick="cerrarMesa()">🔒 Cerrar</button>
           <button class="admin-action-btn" onclick="openLiveModal()" style="background:rgba(239,68,68,0.12);color:#f87171;border-color:rgba(239,68,68,0.25)">📺 Live</button>
+          <button class="admin-action-btn" onclick="activarArgBanner()" style="background:rgba(116,172,223,0.15);color:#74ACDF;border-color:rgba(116,172,223,0.35)">🇦🇷 Banner</button>
         </div>
       </div>
       <div id="mesa-reserva-info" style="display:none"></div>
@@ -5249,7 +5300,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.121";
+  var APP_VERSION="10.0.122";
 
   var STORED_VERSION=localStorage.getItem("app_version");
 
