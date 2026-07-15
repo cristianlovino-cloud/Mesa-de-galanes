@@ -2193,15 +2193,13 @@
   function renderArgBanner(){
     var el=document.getElementById("arg-banner");if(!el)return;
     var cfg=window._argBanner;
-    if(!cfg||!cfg.activo){el.style.display="none";return;}
-    if(el.querySelector(".arg-inner")){
-      // ya renderizado, solo actualizar texto
-      var t=el.querySelector(".arg-texto");
-      if(t)t.textContent=(cfg.texto||"¡Vamos Argentina! 🇦🇷");
-      return;
-    }
-    el.style.display="block";
+    if(!cfg||!cfg.activo){el.style.display="none";el.innerHTML="";return;}
     var texto=cfg.texto||"¡Vamos Argentina! 🇦🇷";
+    // Si ya está renderizado con el mismo texto, no re-renderizar (evita matar animaciones)
+    var existing=el.querySelector(".arg-texto");
+    if(existing&&existing.textContent===texto)return;
+    el.innerHTML=""; // limpiar para re-renderizar limpio
+    el.style.display="block";
     var editBtn=isAdmin()
       ?"<div style='display:flex;gap:6px;margin-top:10px;justify-content:center;position:relative;z-index:2'>"
         +"<button onclick='editarArgBanner()' style='background:rgba(255,255,255,0.2);border:1px solid rgba(255,255,255,0.4);border-radius:100px;padding:5px 14px;color:#fff;font-size:0.6rem;cursor:pointer;font-weight:700;backdrop-filter:blur(4px)'>✏️ Editar</button>"
@@ -2321,18 +2319,17 @@
     var cfg=window._argBanner||{};
     var nuevo=prompt("Texto del banner:",cfg.texto||"¡Vamos Argentina! 🇦🇷");
     if(nuevo===null)return;
-    // Limpiar el banner para que se re-renderice con el texto nuevo
-    var el=document.getElementById("arg-banner");if(el)el.innerHTML="";
+    // Forzar re-render completo borrando el inner
+    var el=document.getElementById("arg-banner");
+    if(el)el.querySelector&&el.querySelector(".arg-inner")&&(el.innerHTML="");
     set(rArgBanner,{texto:nuevo.trim()||"¡Vamos Argentina! 🇦🇷",activo:true});
   };
 
   window.activarArgBanner=async function(){
     var cfg=window._argBanner||{texto:"¡Vamos Selección!!! 🇦🇷 Todos Juntos!"};
-    // Limpiar para re-renderizar con animación fresca
-    var el=document.getElementById("arg-banner");if(el)el.innerHTML="";
+    // NO tocar música automático — solo cuando el usuario toca el botón 🎺
     await set(rArgBanner,Object.assign({},cfg,{activo:true}));
     showToast("🇦🇷 ¡Arriba Argentina!");
-    setTimeout(window.tocarLaT,400);
   };
 
   // Acepta tanto ISO (2026-06-27) como DD/MM/AAAA (27/06/2026, formato que usa
@@ -5402,7 +5399,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.123";
+  var APP_VERSION="10.0.124";
 
   var STORED_VERSION=localStorage.getItem("app_version");
 
