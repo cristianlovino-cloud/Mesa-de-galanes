@@ -2194,202 +2194,247 @@
     var el=document.getElementById("arg-banner");if(!el)return;
     var cfg=window._argBanner;
     if(!cfg||!cfg.activo){el.style.display="none";el.innerHTML="";return;}
-    var texto=cfg.texto||"¡Vamos Argentina! 🇦🇷";
+    var texto=cfg.texto||"¡Vamos Argentina!";
     var existing=el.querySelector(".arg-texto");
-    if(existing&&existing.textContent===texto)return;
-    el.innerHTML="";
-    el.style.display="block";
+    if(existing&&existing.textContent===texto&&el.querySelector("#arg-flag-canvas"))return;
+    el.innerHTML="";el.style.display="block";
 
-    // CSS una sola vez
     if(!document.getElementById("arg-css")){
       var s=document.createElement("style");s.id="arg-css";
-      s.textContent="@keyframes argPulse{0%,100%{text-shadow:0 2px 12px rgba(0,0,0,0.7),0 0 20px rgba(116,172,223,0.9)}"
-        +"50%{text-shadow:0 0 24px rgba(246,180,14,1),0 0 48px rgba(116,172,223,0.8),0 2px 4px rgba(0,0,0,0.8)}}"
-        +".arg-tap-hint{animation:argHint 2s ease-in-out 1.5s forwards;opacity:0;}"
-        +"@keyframes argHint{0%{opacity:0}20%{opacity:1}80%{opacity:1}100%{opacity:0}}";
+      s.textContent="@keyframes argTxt{0%,100%{letter-spacing:0.12em;color:#1a5fa8}50%{letter-spacing:0.18em;color:#0d4a8a}}"
+        +"@keyframes argSub{0%,100%{opacity:0.6}50%{opacity:1}}";
       document.head.appendChild(s);
     }
 
+    var audioLabel=cfg.audioData?"🎵 "+esc(cfg.audioNombre||"Audio").slice(0,18)
+      :(cfg.audioTipo==="gol"?"🥅 Grito de gol":"🎺 Sintetizador");
     var adminBtns=isAdmin()
-      ?"<div style='display:flex;gap:6px;margin-top:8px;justify-content:center;flex-wrap:wrap'>"
-        +"<button onclick='event.stopPropagation();editarArgBanner()' style='background:rgba(255,255,255,0.2);border:1px solid rgba(255,255,255,0.35);border-radius:100px;padding:5px 14px;color:#fff;font-size:0.58rem;cursor:pointer;font-weight:700'>✏️ Texto</button>"
-        +"<label onclick='event.stopPropagation()' style='background:rgba(246,180,14,0.3);border:1px solid rgba(246,180,14,0.6);border-radius:100px;padding:5px 14px;color:#F6B40E;font-size:0.58rem;cursor:pointer;font-weight:700'>🎵 Música<input type=\"file\" accept=\"audio/*\" onchange=\"subirMusicaBanner(this);event.stopPropagation()\" style=\"display:none\"></label>"
-        +"<button onclick='event.stopPropagation();toggleArgBanner(false)' style='background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.2);border-radius:100px;padding:5px 14px;color:rgba(255,255,255,0.6);font-size:0.58rem;cursor:pointer'>✕</button>"
+      ?"<div style='display:flex;gap:6px;margin-top:10px;justify-content:center;flex-wrap:wrap'>"
+        +"<button onclick='event.stopPropagation();editarArgBanner()' style='background:#f0f4ff;border:1px solid #c8d8f0;border-radius:100px;padding:5px 14px;color:#1a5fa8;font-size:0.58rem;cursor:pointer;font-weight:700'>✏️ Texto</button>"
+        +"<button onclick='event.stopPropagation();abrirMusicaModal()' style='background:#fffbe6;border:1px solid #f6d860;border-radius:100px;padding:5px 14px;color:#a07800;font-size:0.62rem;cursor:pointer;font-weight:700'>"+audioLabel+"</button>"
+        +"<button onclick='event.stopPropagation();toggleArgBanner(false)' style='background:#f5f5f5;border:1px solid #ddd;border-radius:100px;padding:5px 14px;color:#888;font-size:0.58rem;cursor:pointer'>✕</button>"
         +"</div>":"";
 
-    el.innerHTML="<div class='arg-inner' onclick='tocarLaT()' style='border-radius:16px;overflow:hidden;position:relative;cursor:pointer;"
-      +"box-shadow:0 8px 32px rgba(116,172,223,0.6),0 2px 8px rgba(0,0,0,0.25)'>"
-      // Canvas para la bandera ondulante
-      +"<canvas id='arg-flag-canvas' style='position:absolute;inset:0;width:100%;height:100%;display:block'></canvas>"
-      // Overlay sutil para legibilidad
-      +"<div style='position:absolute;inset:0;background:rgba(0,0,0,0.25)'></div>"
-      // Contenido encima
-      +"<div style='position:relative;z-index:2;padding:22px 16px 14px;text-align:center'>"
-      // Bandera enorme central
-      +"<div style='font-size:4rem;line-height:1;margin-bottom:8px;filter:drop-shadow(0 3px 8px rgba(0,0,0,0.5))'>🇦🇷</div>"
-      +"<div class='arg-texto' style='font-family:\"Bebas Neue\",sans-serif;font-size:1.9rem;letter-spacing:0.1em;"
-        +"color:#fff;line-height:1.1;animation:argPulse 2s ease-in-out infinite'>"+esc(texto)+"</div>"
-      +"<div class='arg-tap-hint' style='margin-top:6px;font-size:0.6rem;color:rgba(255,255,255,0.6);letter-spacing:0.06em'>"
-      +(cfg.audioData?"🎵 Tocá para escuchar":"🎺 Tocá para escuchar la cumbia")
-      +"</div>"
+    var tapHint=cfg.audioTipo==="gol"?"🥅 Tocá para el grito"
+      :cfg.audioData?"🎵 Tocá para escuchar":"🎺 Tocá para escuchar";
+
+    el.innerHTML="<div class='arg-inner' onclick='tocarLaT()' style='background:#fff;"
+      +"border-radius:16px;overflow:hidden;position:relative;cursor:pointer;"
+      +"border:2px solid #e8f0fb;"
+      +"box-shadow:0 6px 24px rgba(116,172,223,0.25),0 2px 8px rgba(0,0,0,0.06)'>"
+      // Canvas bandera grande real a la derecha, semitransparente
+      +"<canvas id='arg-flag-canvas' style='position:absolute;right:-20px;top:0;height:100%;opacity:0.28;pointer-events:none'></canvas>"
+      // Franja celeste izquierda decorativa
+      +"<div style='position:absolute;left:0;top:0;bottom:0;width:6px;background:linear-gradient(#74ACDF,#4a90d9)'></div>"
+      // Franja celeste derecha decorativa
+      +"<div style='position:absolute;right:0;top:0;bottom:0;width:6px;background:linear-gradient(#74ACDF,#4a90d9)'></div>"
+      // Contenido
+      +"<div style='position:relative;z-index:2;padding:16px 20px 12px;text-align:center'>"
+      // Bandera grande
+      +"<div style='font-size:5rem;line-height:1;margin-bottom:6px;filter:drop-shadow(0 2px 6px rgba(0,0,0,0.12))'>🇦🇷</div>"
+      +"<div class='arg-texto' style='font-family:\"Bebas Neue\",sans-serif;font-size:1.8rem;"
+        +"letter-spacing:0.12em;color:#1a5fa8;line-height:1.1;animation:argTxt 2.5s ease-in-out infinite'>"
+        +esc(texto)+"</div>"
+      +"<div style='font-size:0.6rem;color:#74ACDF;margin-top:4px;letter-spacing:0.06em;animation:argSub 2s ease-in-out infinite'>"+tapHint+"</div>"
       +adminBtns
       +"</div></div>";
 
-    // Bandera ondulante en canvas
+    // Dibujar bandera real ondulante en canvas
     requestAnimationFrame(function(){
       var canvas=document.getElementById("arg-flag-canvas");
       if(!canvas)return;
-      var inner=canvas.parentNode;
-      canvas.width=inner.offsetWidth*2;canvas.height=inner.offsetHeight*2; // retina
-      canvas.style.width=inner.offsetWidth+"px";canvas.style.height=inner.offsetHeight+"px";
-      var W=canvas.width,H=canvas.height;
+      var H=el.querySelector(".arg-inner").offsetHeight;
+      var W=H*1.5; // proporción bandera argentina
+      canvas.width=W*2;canvas.height=H*2;
+      canvas.style.width=W+"px";canvas.style.height=H+"px";
       var ctx=canvas.getContext("2d");
       var t=0;
-      var cols=["#74ACDF","#74ACDF","#ffffff","#74ACDF","#74ACDF"]; // franja celeste/blanco/celeste
-      var franja=H/cols.length;
       function dibujar(){
         if(!document.getElementById("arg-flag-canvas"))return;
-        ctx.clearRect(0,0,W,H);
-        // Dibujar cada franja con onda sinusoidal
-        for(var fi=0;fi<cols.length;fi++){
-          var y0=fi*franja,y1=(fi+1)*franja;
+        var cW=canvas.width,cH=canvas.height;
+        ctx.clearRect(0,0,cW,cH);
+        var franjas=[{c:"#74ACDF",y0:0,y1:cH/3},{c:"#fff",y0:cH/3,y1:cH*2/3},{c:"#74ACDF",y0:cH*2/3,y1:cH}];
+        franjas.forEach(function(f){
           ctx.beginPath();
-          ctx.moveTo(0,y0);
-          // Borde superior ondulante
-          for(var x=0;x<=W;x+=4){
-            var wave=Math.sin(x/W*Math.PI*3+t)*12*(x/W);
-            ctx.lineTo(x,y0+wave);
+          // Borde superior con onda
+          ctx.moveTo(0,f.y0);
+          for(var x=0;x<=cW;x+=6){
+            var wave=Math.sin(x/cW*Math.PI*2.5+t)*(16*(x/cW));
+            ctx.lineTo(x,f.y0+wave);
           }
-          // Borde inferior ondulante
-          for(var x=W;x>=0;x-=4){
-            var wave=Math.sin(x/W*Math.PI*3+t)*12*(x/W);
-            ctx.lineTo(x,y1+wave);
+          for(var x=cW;x>=0;x-=6){
+            var wave=Math.sin(x/cW*Math.PI*2.5+t)*(16*(x/cW));
+            ctx.lineTo(x,f.y1+wave);
           }
           ctx.closePath();
-          ctx.fillStyle=cols[fi];
-          ctx.globalAlpha=0.9;
-          ctx.fill();
+          ctx.fillStyle=f.c;ctx.fill();
+        });
+        // Sol Inti en el centro
+        var cx=cW*0.5,cy=cH*0.5,sr=cH*0.14;
+        ctx.save();ctx.translate(cx,cy);
+        // Rayos
+        ctx.strokeStyle="#F6B40E";ctx.lineWidth=cH*0.025;
+        for(var i=0;i<16;i++){
+          var ang=i*Math.PI/8+t*0.5;
+          var r1=sr*1.3,r2=sr*(i%2===0?2.0:1.7);
+          ctx.beginPath();ctx.moveTo(Math.cos(ang)*r1,Math.sin(ang)*r1);
+          ctx.lineTo(Math.cos(ang)*r2,Math.sin(ang)*r2);ctx.stroke();
         }
-        // Sol dorado en el centro
-        ctx.globalAlpha=0.18;
-        ctx.font=(H*0.45)+"px serif";
-        ctx.textAlign="center";ctx.textBaseline="middle";
-        ctx.fillText("☀",W/2,H/2);
-        ctx.globalAlpha=1;
-        t+=0.04;
+        // Círculo del sol
+        ctx.beginPath();ctx.arc(0,0,sr,0,Math.PI*2);
+        ctx.fillStyle="#F6B40E";ctx.fill();
+        ctx.beginPath();ctx.arc(0,0,sr*0.7,0,Math.PI*2);
+        ctx.fillStyle="#F6B40E";ctx.fill();
+        ctx.restore();
+        t+=0.035;
         requestAnimationFrame(dibujar);
       }
       dibujar();
     });
   }
 
-  // Subir música del banner: lee el archivo, convierte a base64, guarda en Firebase
-  window.subirMusicaBanner=async function(input){
-    var file=input.files[0];if(!file)return;
-    if(file.size>4*1024*1024){showToast("El archivo es muy grande (máx 4MB). Usá un clip corto.");return;}
-    showToast("⏳ Subiendo música...");
-    var reader=new FileReader();
-    reader.onload=async function(e){
-      var dataUrl=e.target.result; // data:audio/mpeg;base64,...
-      var cfg=window._argBanner||{texto:"¡Vamos Argentina! 🇦🇷",activo:true};
-      // Forzar re-render limpio para que muestre el hint actualizado
-      var el=document.getElementById("arg-banner");if(el)el.innerHTML="";
-      await set(rArgBanner,Object.assign({},cfg,{audioData:dataUrl,audioNombre:file.name}));
-      showToast("🎵 Música guardada: "+file.name);
-    };
-    reader.onerror=function(){showToast("Error al leer el archivo");};
-    reader.readAsDataURL(file);
-    input.value=""; // limpiar input
+  // ── MODAL DE MÚSICA (fácil, sin descargar nada) ───────────────────────────
+  window.abrirMusicaModal=function(){
+    if(document.getElementById("arg-musica-modal"))return;
+    var cfg=window._argBanner||{};
+    var modal=document.createElement("div");
+    modal.id="arg-musica-modal";
+    modal.onclick=function(e){if(e.target===modal)cerrarMusicaModal();};
+    modal.style.cssText="position:fixed;inset:0;z-index:99998;background:rgba(0,0,0,0.5);"
+      +"display:flex;align-items:flex-end;justify-content:center;padding:16px";
+    modal.innerHTML="<div style='background:var(--sur);border-radius:20px;padding:20px;width:100%;max-width:380px;"
+      +"box-shadow:0 -8px 32px rgba(0,0,0,0.3)'>"
+      +"<div style='font-family:\"Bebas Neue\",sans-serif;font-size:1.1rem;color:var(--ink);letter-spacing:0.06em;margin-bottom:16px;text-align:center'>🎵 ELEGIR MÚSICA</div>"
+      // Opción 1: Grito de gol
+      +"<button onclick='elegirMusicaBanner(\"gol\")' style='width:100%;background:rgba(74,222,128,0.08);border:1.5px solid rgba(74,222,128,0.3);border-radius:12px;padding:14px;margin-bottom:8px;cursor:pointer;text-align:left;display:flex;align-items:center;gap:12px'>"
+        +"<span style='font-size:1.6rem'>🥅</span>"
+        +"<div><div style='font-size:0.8rem;font-weight:700;color:var(--ink)'>Grito de gol</div>"
+        +"<div style='font-size:0.62rem;color:var(--mut)'>Festejo de estadio, listo para usar</div></div></button>"
+      // Opción 2: Cumbia sintetizada
+      +"<button onclick='elegirMusicaBanner(\"cumbia\")' style='width:100%;background:rgba(116,172,223,0.08);border:1.5px solid rgba(116,172,223,0.3);border-radius:12px;padding:14px;margin-bottom:8px;cursor:pointer;text-align:left;display:flex;align-items:center;gap:12px'>"
+        +"<span style='font-size:1.6rem'>🎺</span>"
+        +"<div><div style='font-size:0.8rem;font-weight:700;color:var(--ink)'>Cumbia Argentina</div>"
+        +"<div style='font-size:0.62rem;color:var(--mut)'>Melodía sintetizada, sin descargar nada</div></div></button>"
+      // Opción 3: URL
+      +"<div style='background:rgba(246,180,14,0.06);border:1.5px solid rgba(246,180,14,0.25);border-radius:12px;padding:14px;margin-bottom:8px'>"
+        +"<div style='font-size:0.75rem;font-weight:700;color:var(--ink);margin-bottom:8px'>🔗 Pegar link directo a MP3</div>"
+        +"<input id='arg-url-input' type='url' placeholder='https://... .mp3' style='width:100%;background:var(--sur2);border:1px solid var(--brd);border-radius:8px;padding:8px 10px;font-size:0.7rem;color:var(--ink);box-sizing:border-box'>"
+        +"<button onclick='elegirMusicaBanner(\"url\")' style='width:100%;margin-top:8px;background:rgba(246,180,14,0.15);border:1px solid rgba(246,180,14,0.4);border-radius:8px;padding:8px;color:#a07800;font-size:0.7rem;font-weight:700;cursor:pointer'>Usar este link</button></div>"
+      // Opción 4: Archivo
+      +"<label style='display:block;background:rgba(168,85,247,0.06);border:1.5px dashed rgba(168,85,247,0.3);border-radius:12px;padding:14px;margin-bottom:12px;cursor:pointer;text-align:center'>"
+        +"<div style='font-size:1.2rem;margin-bottom:4px'>📁</div>"
+        +"<div style='font-size:0.75rem;font-weight:700;color:var(--ink)'>Subir archivo de mi celu</div>"
+        +"<div style='font-size:0.6rem;color:var(--mut);margin-top:2px'>MP3, WAV, M4A — máx 4MB</div>"
+        +"<input type='file' accept='audio/*' onchange='subirMusicaBanner(this);cerrarMusicaModal()' style='display:none'></label>"
+      +(cfg.audioData||cfg.audioTipo==="gol"?"<button onclick='elegirMusicaBanner(\"borrar\")' style='width:100%;background:none;border:none;color:var(--mut);font-size:0.65rem;cursor:pointer;padding:4px'>✕ Sacar música (solo sonido del festejo)</button>":"")
+      +"<button onclick='cerrarMusicaModal()' style='width:100%;background:var(--sur2);border:1px solid var(--brd);border-radius:10px;padding:10px;color:var(--mut);font-size:0.75rem;cursor:pointer;margin-top:4px'>Cancelar</button>"
+      +"</div>";
+    document.body.appendChild(modal);
+  };
+  window.cerrarMusicaModal=function(){var m=document.getElementById("arg-musica-modal");if(m)m.parentNode.removeChild(m);};
+  window.elegirMusicaBanner=async function(tipo){
+    var cfg=window._argBanner||{texto:"¡Vamos Argentina!",activo:true};
+    if(tipo==="url"){
+      var url=(document.getElementById("arg-url-input")||{}).value||"";
+      if(!url.trim()){showToast("Pegá un link válido");return;}
+      cfg=Object.assign({},cfg,{audioData:null,audioUrl:url.trim(),audioTipo:"url",audioNombre:url.split("/").pop().slice(0,20)});
+    } else if(tipo==="borrar"){
+      cfg=Object.assign({},cfg,{audioData:null,audioUrl:null,audioTipo:null,audioNombre:null});
+    } else {
+      cfg=Object.assign({},cfg,{audioData:null,audioUrl:null,audioTipo:tipo,audioNombre:null});
+    }
+    var el=document.getElementById("arg-banner");if(el)el.innerHTML="";
+    await set(rArgBanner,cfg);
+    cerrarMusicaModal();
+    showToast(tipo==="gol"?"🥅 ¡Grito de gol activado!":tipo==="cumbia"?"🎺 Cumbia lista!":tipo==="borrar"?"✓ Música sacada":"🔗 Link guardado!");
   };
 
-  // 🎶 Reproducir: audio real si existe, sintetizador como fallback
+  window.subirMusicaBanner=async function(input){
+    var file=input.files[0];if(!file)return;
+    if(file.size>4*1024*1024){showToast("Máx 4MB — usá un clip corto");return;}
+    showToast("⏳ Subiendo...");
+    var reader=new FileReader();
+    reader.onload=async function(e){
+      var cfg=window._argBanner||{texto:"¡Vamos Argentina!",activo:true};
+      var el=document.getElementById("arg-banner");if(el)el.innerHTML="";
+      await set(rArgBanner,Object.assign({},cfg,{audioData:e.target.result,audioUrl:null,audioTipo:"archivo",audioNombre:file.name}));
+      showToast("🎵 "+file.name+" guardado!");
+    };
+    reader.readAsDataURL(file);input.value="";
+  };
+
+  // 🔊 Reproducir según tipo elegido
   window.tocarLaT=function(){
     var cfg=window._argBanner||{};
+    // Audio archivo subido
     if(cfg.audioData){
-      // Reproducir audio subido
       try{
         if(window._argAudio){window._argAudio.pause();window._argAudio.currentTime=0;}
-        var audio=new Audio(cfg.audioData);
-        audio.volume=0.85;
-        window._argAudio=audio;
-        audio.play().then(function(){
-          if(navigator.vibrate)navigator.vibrate([100,50,100,50,200]);
-        }).catch(function(e){showToast("Tocá de nuevo para escuchar 🎵");});
-      }catch(e){showToast("Error de audio");}
+        var a=new Audio(cfg.audioData);a.volume=0.85;window._argAudio=a;
+        a.play().catch(function(){showToast("Tocá de nuevo 🎵");});
+        if(navigator.vibrate)navigator.vibrate([100,50,200]);
+      }catch(e){}
       return;
     }
-    // Fallback: sintetizador de cumbia
+    // URL externa
+    if(cfg.audioUrl){
+      try{
+        if(window._argAudio){window._argAudio.pause();window._argAudio.currentTime=0;}
+        var a=new Audio(cfg.audioUrl);a.volume=0.85;a.crossOrigin="anonymous";window._argAudio=a;
+        a.play().catch(function(){showToast("No se pudo cargar el link 🎵");});
+        if(navigator.vibrate)navigator.vibrate([100,50,200]);
+      }catch(e){}
+      return;
+    }
+    // Grito de gol sintetizado
+    if(cfg.audioTipo==="gol"||!cfg.audioTipo){
+      try{
+        var ac=new(window.AudioContext||window.webkitAudioContext)();
+        var dur=3.5,sr=ac.sampleRate;
+        var buf=ac.createBuffer(1,sr*dur,sr);
+        var d=buf.getChannelData(0);
+        // Ruido de multitud con crescendo
+        for(var i=0;i<d.length;i++){
+          var prog=i/d.length;
+          // Envolvente: sube rápido, se mantiene, baja al final
+          var env=prog<0.15?(prog/0.15):prog<0.7?1:(1-(prog-0.7)/0.3);
+          d[i]=(Math.random()*2-1)*env*0.5;
+        }
+        var src=ac.createBufferSource();src.buffer=buf;
+        // Filtro para sonar como estadio (bajar agudos, subir graves medios)
+        var filt=ac.createBiquadFilter();filt.type="bandpass";filt.frequency.value=800;filt.Q.value=0.4;
+        var g=ac.createGain();g.gain.setValueAtTime(0.9,ac.currentTime);
+        src.connect(filt);filt.connect(g);g.connect(ac.destination);
+        src.start(ac.currentTime);src.stop(ac.currentTime+dur);
+        // Bocinas / cornetas en el pico
+        [523,659,784].forEach(function(freq,i){
+          var osc=ac.createOscillator(),go=ac.createGain();
+          osc.connect(go);go.connect(ac.destination);
+          osc.type="sawtooth";osc.frequency.value=freq;
+          go.gain.setValueAtTime(0,ac.currentTime+0.2);
+          go.gain.linearRampToValueAtTime(0.18,ac.currentTime+0.5+i*0.05);
+          go.gain.exponentialRampToValueAtTime(0.001,ac.currentTime+1.8);
+          osc.start(ac.currentTime+0.2);osc.stop(ac.currentTime+1.8);
+        });
+        if(navigator.vibrate)navigator.vibrate([300,100,300,100,500]);
+        showToast("🥅 ¡¡¡GOOOOL!!!");
+      }catch(e){showToast("Tu browser no soporta audio");}
+      return;
+    }
+    // Cumbia sintetizada
     try{
       var ac=new(window.AudioContext||window.webkitAudioContext)();
       var BPM=125,B=60/BPM,B2=B/2,B4=B/4;
-
-      // ── CUMBIA RHYTHM (bombo + clave) ────────────────────────
-      function bombo(t,dur){
-        var osc=ac.createOscillator(),g=ac.createGain();
-        osc.connect(g);g.connect(ac.destination);
-        osc.type="sine";
-        osc.frequency.setValueAtTime(120,t);
-        osc.frequency.exponentialRampToValueAtTime(50,t+0.12);
-        g.gain.setValueAtTime(0.7,t);g.gain.exponentialRampToValueAtTime(0.001,t+dur);
-        osc.start(t);osc.stop(t+dur);
-      }
-      function clave(t){
-        var buf=ac.createBuffer(1,ac.sampleRate*0.05,ac.sampleRate);
-        var d=buf.getChannelData(0);for(var i=0;i<d.length;i++)d[i]=(Math.random()*2-1)*Math.exp(-i/800);
-        var src=ac.createBufferSource(),g=ac.createGain();
-        src.buffer=buf;src.connect(g);g.connect(ac.destination);
-        g.gain.setValueAtTime(0.4,t);src.start(t);
-      }
-
-      var start=ac.currentTime+0.05;
-      var measures=4;
-      for(var m=0;m<measures;m++){
-        var mt=start+m*B*4;
-        // Cumbia pattern: bombo en 1 y 3, clave en 2 y 4 y offbeats
-        bombo(mt,0.15);bombo(mt+B,0.1);bombo(mt+B*2,0.15);bombo(mt+B*3,0.1);
-        clave(mt+B2);clave(mt+B+B2);clave(mt+B*2+B2);clave(mt+B*3+B2);
-        clave(mt+B4*3);clave(mt+B4*7);clave(mt+B4*11);
-      }
-
-      // ── MELODÍA "Vamos vamos Argentina" ──────────────────────
-      // Notas: [freq, dur] — melodía de la tribuna sobre base cumbia
-      var notas=[
-        // "Va-mos va-mos Ar-gen-ti-na"
-        [392,B4],[392,B4],[392,B2],
-        [440,B4],[440,B4],[440,B2],
-        [523,B4],[494,B4],[440,B2],[392,B],
-        // "va-mos va-mos a ga-nar"
-        [440,B4],[440,B4],[440,B2],
-        [494,B4],[494,B4],[494,B2],
-        [523,B4],[494,B4],[440,B4],[392,B+B2],
-        // Repetición con más energía
-        [392,B4],[392,B4],[392,B2],
-        [440,B4],[440,B4],[523,B2],
-        [587,B4],[523,B4],[494,B4],[440,B],
-        [392,B2],[440,B2],[523,B+B2]
-      ];
-
-      function nota(freq,dur,t,vol){
-        vol=vol||0.28;
-        var osc=ac.createOscillator(),g=ac.createGain();
-        // Sawtooth + filtro para simular trompeta/acordeón
-        var filt=ac.createBiquadFilter();
-        filt.type="bandpass";filt.frequency.value=freq*2;filt.Q.value=1.5;
-        osc.connect(filt);filt.connect(g);g.connect(ac.destination);
-        osc.type="sawtooth";osc.frequency.setValueAtTime(freq,t);
-        g.gain.setValueAtTime(0,t);
-        g.gain.linearRampToValueAtTime(vol,t+0.03);
-        g.gain.setValueAtTime(vol,t+dur*0.7);
-        g.gain.exponentialRampToValueAtTime(0.001,t+dur);
-        osc.start(t);osc.stop(t+dur+0.05);
-      }
-
-      var nt=start+B4; // la melodía entra un compás después
-      notas.forEach(function(n){nota(n[0],n[1],nt);nt+=n[1];});
-
-      if(navigator.vibrate)navigator.vibrate([100,50,100,50,200]);
+      function bombo(t){var osc=ac.createOscillator(),g=ac.createGain();osc.connect(g);g.connect(ac.destination);osc.type="sine";osc.frequency.setValueAtTime(100,t);osc.frequency.exponentialRampToValueAtTime(45,t+0.1);g.gain.setValueAtTime(0.7,t);g.gain.exponentialRampToValueAtTime(0.001,t+0.2);osc.start(t);osc.stop(t+0.25);}
+      function clave(t){var buf=ac.createBuffer(1,ac.sampleRate*0.04,ac.sampleRate);var d=buf.getChannelData(0);for(var i=0;i<d.length;i++)d[i]=(Math.random()*2-1)*Math.exp(-i/600);var s=ac.createBufferSource(),g=ac.createGain();s.buffer=buf;s.connect(g);g.connect(ac.destination);g.gain.setValueAtTime(0.35,t);s.start(t);}
+      var st=ac.currentTime+0.05;
+      for(var m=0;m<4;m++){var mt=st+m*B*4;bombo(mt);bombo(mt+B);bombo(mt+B*2);bombo(mt+B*3);clave(mt+B2);clave(mt+B+B2);clave(mt+B*2+B2);clave(mt+B*3+B2);clave(mt+B4*3);clave(mt+B4*7);}
+      var notas=[[392,B4],[392,B4],[392,B2],[440,B4],[440,B4],[440,B2],[523,B4],[494,B4],[440,B2],[392,B],[440,B4],[440,B4],[440,B2],[494,B4],[494,B4],[494,B2],[523,B4],[494,B4],[440,B4],[392,B+B2]];
+      function nota(freq,dur,t){var osc=ac.createOscillator(),filt=ac.createBiquadFilter(),g=ac.createGain();osc.connect(filt);filt.connect(g);g.connect(ac.destination);filt.type="bandpass";filt.frequency.value=freq*2;filt.Q.value=1.5;osc.type="sawtooth";osc.frequency.value=freq;g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(0.25,t+0.03);g.gain.exponentialRampToValueAtTime(0.001,t+dur);osc.start(t);osc.stop(t+dur+0.05);}
+      var nt=st+B4;notas.forEach(function(n){nota(n[0],n[1],nt);nt+=n[1];});
+      if(navigator.vibrate)navigator.vibrate([80,40,80,40,80]);
       showToast("🎶 ¡Arriba Argentina! 🇦🇷");
-    }catch(e){showToast("El browser no soporta audio 🎺");}
+    }catch(e){showToast("Tu browser no soporta audio");}
   };
 
   window.toggleArgBanner=async function(activo){
@@ -5482,7 +5527,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.126";
+  var APP_VERSION="10.0.127";
 
   var STORED_VERSION=localStorage.getItem("app_version");
 
