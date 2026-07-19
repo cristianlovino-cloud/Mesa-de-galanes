@@ -831,9 +831,12 @@
     var msg=msgEl?msgEl.value.trim():"";
     var data={dia:dia,mes:mes};
     if(msg)data.msg=msg;
-    await set(ref(db,"config/cumples/"+me),data);
-    cumples[me]=data;closeModal("mcumple");
-    showToast("🎂 Cumpleaños guardado!");renderCumples();renderCumpleBanner();
+    // Admin puede cargar para otro galan
+    var target=window._cumpleParaGalan||me;
+    window._cumpleParaGalan=null;
+    await set(ref(db,"config/cumples/"+target),data);
+    cumples[target]=data;closeModal("mcumple");
+    showToast("🎂 Cumpleaños de "+target+" guardado!");renderCumples();renderCumpleBanner();
   };
   window.omitirCumple=function(){
     closeModal("mcumple");
@@ -897,9 +900,31 @@
 
   function renderCumples(){
     var panel=document.getElementById("cumples-panel");if(!panel)return;
-    var keys=Object.keys(cumples);
-    if(!keys.length){panel.innerHTML="<div class='es'>Nadie cargó su cumpleaños todavía 🎂</div>";return;}
     var now=new Date(),hm=now.getMonth()+1,hd=now.getDate();
+    var tieneCumple=me&&cumples[me];
+    var keys=Object.keys(cumples);
+
+    // Siempre mostrar el botón de acción para el usuario propio
+    var miBtn=me
+      ?("<div style='padding:0 0 12px'>"
+        +(tieneCumple
+          ?"<button onclick='editarMiCumple()' style='width:100%;background:var(--card);border:1px solid var(--brd);border-radius:12px;padding:12px;display:flex;align-items:center;gap:10px;cursor:pointer'>"
+            +"<span style='font-size:1.2rem'>✏️</span>"
+            +"<div style='text-align:left'><div style='font-size:0.72rem;font-weight:700;color:var(--ink)'>Mi cumpleaños</div>"
+            +"<div style='font-size:0.62rem;color:var(--mut)'>"+cumples[me].dia+" de "+MESES[cumples[me].mes-1]+(cumples[me].msg?" · "+cumples[me].msg:"")+"</div></div>"
+            +"</button>"
+          :"<button onclick='editarMiCumple()' style='width:100%;background:linear-gradient(135deg,rgba(245,158,11,0.1),rgba(245,158,11,0.05));border:1.5px dashed rgba(245,158,11,0.5);border-radius:12px;padding:14px;display:flex;align-items:center;gap:10px;cursor:pointer'>"
+            +"<span style='font-size:1.3rem'>🎂</span>"
+            +"<div style='text-align:left'><div style='font-size:0.75rem;font-weight:700;color:var(--gold)'>Agregar mi cumpleaños</div>"
+            +"<div style='font-size:0.62rem;color:var(--mut)'>¡Lo celebramos en el asado!</div></div>"
+            +"<span style='margin-left:auto;font-size:0.8rem;color:var(--gold)'>→</span>"
+            +"</button>")
+        +(isAdmin()?"<button onclick='adminAgregarCumple()' style='width:100%;background:none;border:none;color:var(--mut);font-size:0.62rem;cursor:pointer;padding:6px 0;text-decoration:underline'>+ Cargar cumpleaños de otro galan</button>":"")
+        +"</div>")
+      :"";
+
+    if(!keys.length){panel.innerHTML=miBtn+"<div class='es'>Nadie más cargó su cumpleaños todavía 🎂</div>";return;}
+
     var sorted=keys.map(function(n){var c=cumples[n];return{name:n,dia:c.dia,mes:c.mes};});
     sorted.sort(function(a,b){
       var am=(a.mes-hm+12)%12,bm=(b.mes-hm+12)%12;
@@ -909,7 +934,7 @@
     });
     var byMes={};sorted.forEach(function(c){if(!byMes[c.mes])byMes[c.mes]=[];byMes[c.mes].push(c);});
     var mesOrder=Object.keys(byMes).sort(function(a,b){return((parseInt(a)-hm+12)%12)-((parseInt(b)-hm+12)%12);});
-    var rows=[];
+    var rows=[miBtn];
     mesOrder.forEach(function(m){
       rows.push("<div class='cumple-mes-title'>"+MESES[parseInt(m)-1]+"</div>");
       byMes[m].forEach(function(c){
@@ -919,18 +944,34 @@
         var badge=esHoy?"<span class='cumple-hoy-tag'>🎉 HOY!</span>":df<=7?"<span class='cumple-pronto-tag'>en "+df+"d</span>":"<span class='cumple-fecha-tag'>"+c.dia+"/"+c.mes+"</span>";
         var row="<div class='cumple-row"+(esHoy?" cumple-row-hoy":"")+(esMio?" cumple-row-mio":"")+"'>";
         row+="<div class='lista-av' style='background:"+col(c.name)+"'>"+ini(c.name)+"</div>";
-        row+="<div class='cumple-info'><div class='cumple-name'>"+c.name+(esMio?" <span class='ytg'>vos</span>":"")+"</div>";
+        row+="<div class='cumple-info'><div class='cumple-name'>"+esc(c.name)+(esMio?" <span class='ytg'>vos</span>":"")+"</div>";
         row+="<div class='cumple-detalle'>"+c.dia+" de "+MESES[c.mes-1]+"</div></div>";
         row+=badge;
-        // Botones usando data-name para evitar problemas de comillas
         if(esMio)row+="<button class='lista-add-btn' style='background:var(--mut);font-size:0.68rem;padding:5px 8px' onclick='editarMiCumple()'>✏️</button>";
-        if(isAdmin()&&!esMio)row+="<button class='lista-add-btn' style='background:var(--red);font-size:0.68rem;padding:5px 8px' data-name='"+c.name+"' onclick='borrarCumpleEl(this)'>🗑️</button>";
+        if(isAdmin()&&!esMio)row+="<button class='lista-add-btn' style='background:var(--red);font-size:0.68rem;padding:5px 8px' data-name='"+esc(c.name)+"' onclick='borrarCumpleEl(this)'>🗑️</button>";
         row+="</div>";
         rows.push(row);
       });
     });
     panel.innerHTML=rows.join("");
   }
+
+  // Admin puede cargar cumpleaños de otro galan
+  window.adminAgregarCumple=function(){
+    if(!isAdmin())return;
+    var nombre=prompt("Nombre del galan:");
+    if(!nombre||!nombre.trim())return;
+    window._cumpleParaGalan=nombre.trim();
+    // Precargar si ya tiene
+    var c=cumples[nombre.trim()];
+    setTimeout(function(){
+      if(c){
+        var d=document.getElementById("cumple-dia"),m=document.getElementById("cumple-mes"),msg=document.getElementById("cumple-msg");
+        if(d)d.value=c.dia;if(m)m.value=c.mes;if(msg)msg.value=c.msg||"";
+      }
+      openModal("mcumple");
+    },100);
+  };
 
   // ── CERRAR MESA / HISTORIAL ───────────────────────────────
   window.togglePresente=async function(el){
@@ -2157,6 +2198,50 @@
   };
 
   // Config asado: admin puede setear fecha del próximo asado
+  window.guardarSaldoInicioMP=async function(){
+    var val=parseFloat(document.getElementById("mp-saldo-inicio").value)||0;
+    await set(ref(db,"config/mpSaldoInicio"),{valor:val,ts:Date.now()});
+    showToast("💚 Saldo de inicio guardado: $"+Math.round(val).toLocaleString("es-AR"));
+    calcularSaldoMP();
+  };
+
+  window.calcularSaldoMP=function(){
+    var res=document.getElementById("mp-saldo-resultado");if(!res)return;
+    var inicio=parseFloat((document.getElementById("mp-saldo-inicio")||{}).value)||0;
+    // Sumar todas las transferencias recibidas hoy
+    var transfers=Object.values(pagos).reduce(function(acc,p){return acc+(p.transfer||0);},0);
+    // Sumar todas las transferencias de propina
+    var propinaTransfer=0;
+    var esperado=inicio+transfers;
+    var html="<div style='display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:2px'>";
+    html+="<div style='text-align:center;background:var(--sur2);border-radius:10px;padding:10px'>"
+      +"<div style='font-size:0.55rem;color:var(--mut);margin-bottom:3px'>INICIO</div>"
+      +"<div style='font-family:\"Bebas Neue\",sans-serif;font-size:1.1rem;color:var(--ink)'>$"+Math.round(inicio).toLocaleString("es-AR")+"</div></div>";
+    html+="<div style='text-align:center;background:var(--sur2);border-radius:10px;padding:10px'>"
+      +"<div style='font-size:0.55rem;color:var(--mut);margin-bottom:3px'>TRANSFERS</div>"
+      +"<div style='font-family:\"Bebas Neue\",sans-serif;font-size:1.1rem;color:var(--grn)'>+$"+Math.round(transfers).toLocaleString("es-AR")+"</div></div>";
+    html+="<div style='text-align:center;background:var(--sur2);border-radius:10px;padding:10px'>"
+      +"<div style='font-size:0.55rem;color:var(--mut);margin-bottom:3px'>TOTAL ESP.</div>"
+      +"<div style='font-family:\"Bebas Neue\",sans-serif;font-size:1.1rem;color:var(--gold)'>$"+Math.round(esperado).toLocaleString("es-AR")+"</div></div>";
+    html+="</div>";
+    if(transfers>0){
+      html+="<div style='margin-top:8px;font-size:0.65rem;color:var(--mut);text-align:center'>"
+        +"Tu MP debería mostrar $"+Math.round(esperado).toLocaleString("es-AR")+" al cierre"
+        +"</div>";
+    }
+    res.innerHTML=html;
+  };
+
+  // Cargar saldo de inicio guardado al abrir la tab pagos
+  var _mpSaldoLoaded=false;
+  onValue(ref(db,"config/mpSaldoInicio"),function(s){
+    if(!s.exists())return;
+    var val=s.val().valor||0;
+    window._mpSaldoInicio=val;
+    var inp=document.getElementById("mp-saldo-inicio");
+    if(inp&&!_mpSaldoLoaded){inp.value=val;_mpSaldoLoaded=true;calcularSaldoMP();}
+  });
+
   const rAsadoConfig=ref(db,"config/asado");
   const rArgBanner=ref(db,"config/argBanner");
   // ── Kick all: cuando admin escribe timestamp, todos los no-admin son expulsados
@@ -5293,6 +5378,23 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
     <!-- Pagos -->
     <div id="vadmin-pagos" style="display:none">
       <div style="padding:12px 14px 80px">
+        <!-- Verificador saldo MP -->
+        <div id="mp-saldo-panel" class="surf" style="margin:0 0 12px;padding:14px 16px">
+          <div style="font-size:0.6rem;font-weight:700;color:var(--gold);letter-spacing:0.08em;margin-bottom:10px">💚 VERIFICADOR MERCADO PAGO</div>
+          <div style="display:flex;gap:8px;align-items:flex-end;margin-bottom:10px">
+            <div style="flex:1">
+              <div style="font-size:0.58rem;color:var(--mut);margin-bottom:4px">Saldo al inicio del sábado</div>
+              <div style="position:relative">
+                <span style="position:absolute;left:9px;top:50%;transform:translateY(-50%);font-size:0.75rem;color:var(--mut)">$</span>
+                <input type="number" id="mp-saldo-inicio" placeholder="0" step="100" min="0"
+                  style="width:100%;padding:9px 8px 9px 22px;font-family:'Bebas Neue',sans-serif;font-size:1rem;color:var(--ink);background:var(--sur2);border:1px solid var(--brd);border-radius:10px;box-sizing:border-box"
+                  oninput="calcularSaldoMP()">
+              </div>
+            </div>
+            <button onclick="guardarSaldoInicioMP()" style="background:var(--gold);color:#0a0805;border:none;border-radius:10px;padding:9px 14px;font-family:'Bebas Neue',sans-serif;font-size:0.75rem;cursor:pointer;font-weight:700;white-space:nowrap">Guardar</button>
+          </div>
+          <div id="mp-saldo-resultado"></div>
+        </div>
         <div id="propina-indicator" style="display:none;margin:0 0 10px;background:rgba(168,85,247,0.08);border:1px solid rgba(168,85,247,0.2);border-radius:12px;padding:10px 14px"></div>
         <div id="pago-resumen" class="surf" style="margin:0 0 12px;padding:14px 16px"></div>
         <div id="pagos-detail-panel"></div>
@@ -5527,7 +5629,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.127";
+  var APP_VERSION="10.0.128";
 
   var STORED_VERSION=localStorage.getItem("app_version");
 
