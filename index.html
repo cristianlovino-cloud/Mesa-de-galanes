@@ -256,7 +256,7 @@
     });
     onValue(rO,function(s){try{orders=s.exists()?s.val():{};renderDrinks();renderOrders();renderMesa();renderLista();renderConfirmBtn();maybeRenderStats();renderPagosDetail();renderPagosHeader();if(document.getElementById("mlive")&&document.getElementById("mlive").classList.contains("open"))renderLiveModal();}catch(e){console.error("rO",e);}});
     onValue(rC,function(s){try{confirmed=s.exists()?s.val():{};renderConfirmBtn();renderDrinks();renderMiSaldo();renderOrders();renderMesa();renderLista();}catch(e){console.error("rC",e);}});
-    onValue(rP,function(s){try{pagos=s.exists()?s.val():{};renderOrders();renderMesa();renderLista();renderPagosDetail();renderMiSaldo();renderConfirmBtn();}catch(e){console.error("rP",e);}});
+    onValue(rP,function(s){try{pagos=s.exists()?s.val():{};renderOrders();renderMesa();renderLista();renderPagosDetail();renderMiSaldo();renderConfirmBtn();if(typeof calcularSaldoMP==="function")calcularSaldoMP();}catch(e){console.error("rP",e);}});
 
     // ── NOTIFICACIONES IN-APP ──────────────────────────────────────────────────
     // Cada galan escucha su propio nodo. Cuando el admin escribe ahí, recibe un toast.
@@ -530,7 +530,12 @@
     window._adminStab=stab;
     if(stab==="galanes"){renderLista();renderPendientes();}
     if(stab==="pedidos")renderMesa();
-    if(stab==="pagos")renderPagosDetail();
+    if(stab==="pagos"){renderPagosDetail();
+      // Cargar saldo guardado en el input si no está ya
+      var mpInp=document.getElementById("mp-saldo-inicio");
+      if(mpInp&&window._mpSaldoInicio!==undefined&&!mpInp.value)mpInp.value=window._mpSaldoInicio;
+      if(typeof calcularSaldoMP==="function")calcularSaldoMP();
+    }
   };
 
   // ── TIMER ─────────────────────────────────────────────────
@@ -2233,13 +2238,13 @@
   };
 
   // Cargar saldo de inicio guardado al abrir la tab pagos
-  var _mpSaldoLoaded=false;
   onValue(ref(db,"config/mpSaldoInicio"),function(s){
     if(!s.exists())return;
     var val=s.val().valor||0;
     window._mpSaldoInicio=val;
     var inp=document.getElementById("mp-saldo-inicio");
-    if(inp&&!_mpSaldoLoaded){inp.value=val;_mpSaldoLoaded=true;calcularSaldoMP();}
+    if(inp)inp.value=val;
+    calcularSaldoMP();
   });
 
   const rAsadoConfig=ref(db,"config/asado");
@@ -5629,7 +5634,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.128";
+  var APP_VERSION="10.0.129";
 
   var STORED_VERSION=localStorage.getItem("app_version");
 
