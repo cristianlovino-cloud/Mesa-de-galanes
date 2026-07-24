@@ -471,11 +471,13 @@
     // Mostrar tabs según rol
     var adminBtn=document.querySelector("[data-tab='admin']");if(adminBtn)adminBtn.style.cssText=isAdmin()?"display:flex!important":"display:none!important";
     var esRegistrado=galanes.some(function(g){return normName(g)===normName(me);});
-    // Nuevo no registrado: solo ve PEDIR y ASADO
+    var mundialOn=window._mundialActivo!==false; // default ON si no hay config
     if(isAdmin()){
-      ["resumen","cumples","stats","mundial","asado"].forEach(function(t){var btn=document.querySelector("[data-tab='"+t+"']");if(btn)btn.style.cssText="display:flex!important";});
+      ["resumen","cumples","stats","asado"].forEach(function(t){var btn=document.querySelector("[data-tab='"+t+"']");if(btn)btn.style.cssText="display:flex!important";});
+      var mbtn=document.querySelector("[data-tab='mundial']");if(mbtn)mbtn.style.cssText=mundialOn?"display:flex!important":"display:none!important";
     } else if(esRegistrado){
-      ["resumen","cumples","stats","mundial","asado"].forEach(function(t){var btn=document.querySelector("[data-tab='"+t+"']");if(btn)btn.style.cssText="display:flex!important";});
+      ["resumen","cumples","stats","asado"].forEach(function(t){var btn=document.querySelector("[data-tab='"+t+"']");if(btn)btn.style.cssText="display:flex!important";});
+      var mbtn=document.querySelector("[data-tab='mundial']");if(mbtn)mbtn.style.cssText=mundialOn?"display:flex!important":"display:none!important";
       var aBtn=document.querySelector("[data-tab='admin']");if(aBtn)aBtn.style.cssText="display:none!important";
     } else {
       // No registrado: solo PEDIR y ASADO visibles
@@ -2249,6 +2251,24 @@
 
   const rAsadoConfig=ref(db,"config/asado");
   const rArgBanner=ref(db,"config/argBanner");
+  const rMundialActivo=ref(db,"config/mundialActivo");
+  onValue(rMundialActivo,function(s){
+    window._mundialActivo=s.exists()?s.val():true; // default ON
+    renderMyName(); // re-aplica la visibilidad del dock
+    var btn=document.getElementById("btn-mundial-toggle");
+    if(btn){
+      var on=window._mundialActivo!==false;
+      btn.style.background=on?"rgba(74,222,128,0.12)":"rgba(100,100,100,0.08)";
+      btn.style.color=on?"#4ade80":"var(--mut)";
+      btn.style.borderColor=on?"rgba(74,222,128,0.3)":"var(--brd)";
+      btn.textContent="🌍 Mundial "+(on?"ON":"OFF");
+    }
+  });
+  window.toggleMundial=async function(){
+    var actual=window._mundialActivo!==false;
+    await set(rMundialActivo,!actual);
+    showToast(!actual?"🌍 Mundial activado":"🌍 Mundial desactivado");
+  };
   // ── Kick all: cuando admin escribe timestamp, todos los no-admin son expulsados
   onValue(rKick,function(s){
     if(!s.exists())return;
@@ -5375,6 +5395,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
           <button class="admin-action-btn" style="background:rgba(239,68,68,0.12);color:#f87171;border-color:rgba(239,68,68,0.25)" onclick="cerrarMesa()">🔒 Cerrar</button>
           <button class="admin-action-btn" onclick="openLiveModal()" style="background:rgba(239,68,68,0.12);color:#f87171;border-color:rgba(239,68,68,0.25)">📺 Live</button>
           <button class="admin-action-btn" onclick="activarArgBanner()" style="background:rgba(116,172,223,0.15);color:#74ACDF;border-color:rgba(116,172,223,0.35)">🇦🇷 Banner</button>
+          <button class="admin-action-btn" onclick="toggleMundial()" id="btn-mundial-toggle" style="background:rgba(100,180,100,0.1);color:var(--mut);border-color:var(--brd)">🌍 Mundial</button>
         </div>
       </div>
       <div id="mesa-reserva-info" style="display:none"></div>
@@ -5634,7 +5655,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.129";
+  var APP_VERSION="10.0.130";
 
   var STORED_VERSION=localStorage.getItem("app_version");
 
