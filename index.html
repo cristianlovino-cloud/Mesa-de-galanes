@@ -312,7 +312,7 @@
     }
 
     suscribirNotif();
-    onValue(rB,function(s){try{totalBar=s.exists()?s.val():0;renderMesa();}catch(e){console.error("rB",e);}});
+    onValue(rB,function(s){try{totalBar=s.exists()?s.val():0;renderMesa();if(typeof calcularSaldoMP==="function")calcularSaldoMP();}catch(e){console.error("rB",e);}});
     onValue(rT,function(s){timerD=s.exists()?s.val():null;renderTimer();});
     onValue(rR,function(s){try{reservas=s.exists()?s.val():{};renderReserva();renderMesa();renderLista();if(document.getElementById("v-stats")&&document.getElementById("v-stats").style.display!=="none")renderStats();}catch(e){console.error("rR",e);}});
     onValue(rA,function(s){accesos=s.exists()?s.val():{};renderLista();});
@@ -2215,27 +2215,67 @@
   window.calcularSaldoMP=function(){
     var res=document.getElementById("mp-saldo-resultado");if(!res)return;
     var inicio=parseFloat((document.getElementById("mp-saldo-inicio")||{}).value)||0;
-    // Sumar todas las transferencias recibidas hoy
-    var transfers=Object.values(pagos).reduce(function(acc,p){return acc+(p.transfer||0);},0);
-    // Sumar todas las transferencias de propina
-    var propinaTransfer=0;
-    var esperado=inicio+transfers;
-    var html="<div style='display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:2px'>";
-    html+="<div style='text-align:center;background:var(--sur2);border-radius:10px;padding:10px'>"
-      +"<div style='font-size:0.55rem;color:var(--mut);margin-bottom:3px'>INICIO</div>"
-      +"<div style='font-family:\"Bebas Neue\",sans-serif;font-size:1.1rem;color:var(--ink)'>$"+Math.round(inicio).toLocaleString("es-AR")+"</div></div>";
-    html+="<div style='text-align:center;background:var(--sur2);border-radius:10px;padding:10px'>"
-      +"<div style='font-size:0.55rem;color:var(--mut);margin-bottom:3px'>TRANSFERS</div>"
-      +"<div style='font-family:\"Bebas Neue\",sans-serif;font-size:1.1rem;color:var(--grn)'>+$"+Math.round(transfers).toLocaleString("es-AR")+"</div></div>";
-    html+="<div style='text-align:center;background:var(--sur2);border-radius:10px;padding:10px'>"
-      +"<div style='font-size:0.55rem;color:var(--mut);margin-bottom:3px'>TOTAL ESP.</div>"
-      +"<div style='font-family:\"Bebas Neue\",sans-serif;font-size:1.1rem;color:var(--gold)'>$"+Math.round(esperado).toLocaleString("es-AR")+"</div></div>";
+    var pagueBarConMP=(document.getElementById("mp-pague-bar")||{}).checked;
+
+    // ── ENTRADAS: transfers de OTROS galanes (no las tuyas propias) ──────────
+    var transfersOtros=0,miTransfer=0;
+    Object.keys(pagos).forEach(function(k){
+      var t=(pagos[k]||{}).transfer||0;
+      if(!t)return;
+      if(me&&k.toUpperCase()===me.toUpperCase())miTransfer+=t; // tu propio "pago" no entra plata
+      else transfersOtros+=t;
+    });
+
+    // ── SALIDAS: pago al bar (si lo pagaste con MP) ─────────────────────────
+    var salidaBar=pagueBarConMP?totalBar:0;
+
+    var esperado=inicio+transfersOtros-salidaBar;
+
+    // Grid de movimientos
+    var html="<div style='display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:2px'>";
+    html+="<div style='text-align:center;background:var(--sur2);border-radius:10px;padding:9px'>"
+      +"<div style='font-size:0.52rem;color:var(--mut);margin-bottom:2px'>SALDO INICIO</div>"
+      +"<div style='font-family:\"Bebas Neue\",sans-serif;font-size:1rem;color:var(--ink)'>$"+Math.round(inicio).toLocaleString("es-AR")+"</div></div>";
+    html+="<div style='text-align:center;background:rgba(74,222,128,0.08);border-radius:10px;padding:9px'>"
+      +"<div style='font-size:0.52rem;color:var(--mut);margin-bottom:2px'>TE TRANSFIRIERON</div>"
+      +"<div style='font-family:\"Bebas Neue\",sans-serif;font-size:1rem;color:var(--grn)'>+$"+Math.round(transfersOtros).toLocaleString("es-AR")+"</div></div>";
     html+="</div>";
-    if(transfers>0){
-      html+="<div style='margin-top:8px;font-size:0.65rem;color:var(--mut);text-align:center'>"
-        +"Tu MP debería mostrar $"+Math.round(esperado).toLocaleString("es-AR")+" al cierre"
+
+    // Salida del bar
+    html+="<div style='margin-top:8px;background:var(--sur2);border-radius:10px;padding:10px 12px'>"
+      +"<label style='display:flex;align-items:center;gap:8px;cursor:pointer'>"
+      +"<input type='checkbox' id='mp-pague-bar' "+(pagueBarConMP?"checked":"")+" onchange='calcularSaldoMP()' style='width:16px;height:16px;accent-color:var(--gold)'>"
+      +"<span style='flex:1;font-size:0.66rem;color:var(--ink)'>Pagué el bar con Mercado Pago</span>"
+      +"<span style='font-family:\"Bebas Neue\",sans-serif;font-size:0.95rem;color:"+(pagueBarConMP?"#f87171":"var(--mut)")+"'>"
+      +(totalBar>0?(pagueBarConMP?"−$"+Math.round(totalBar).toLocaleString("es-AR"):"$"+Math.round(totalBar).toLocaleString("es-AR")):"sin cargar")+"</span>"
+      +"</label></div>";
+
+    // Resultado esperado — destacado
+    html+="<div style='margin-top:10px;background:linear-gradient(135deg,rgba(245,197,24,0.12),rgba(245,197,24,0.04));border:1.5px solid rgba(245,197,24,0.3);border-radius:12px;padding:12px;text-align:center'>"
+      +"<div style='font-size:0.55rem;color:var(--mut);letter-spacing:0.08em;margin-bottom:3px'>TU MP DEBERÍA TENER</div>"
+      +"<div style='font-family:\"Bebas Neue\",sans-serif;font-size:1.8rem;color:var(--gold);line-height:1'>$"+Math.round(esperado).toLocaleString("es-AR")+"</div>"
+      +"</div>";
+
+    // Verificación contra saldo real (el input vive en el HTML estático)
+    var realVal=(document.getElementById("mp-saldo-real")||{}).value;
+    if(realVal&&parseFloat(realVal)>0){
+      var real=parseFloat(realVal),dif=real-esperado;
+      var difColor=dif===0?"var(--grn)":Math.abs(dif)<100?"var(--gold)":"#f87171";
+      var difTxt=dif===0?"✓ Cuadra perfecto!":dif>0?"Sobran $"+Math.round(dif).toLocaleString("es-AR"):"Faltan $"+Math.round(Math.abs(dif)).toLocaleString("es-AR");
+      var difEl=document.getElementById("mp-dif-resultado");
+      if(difEl)difEl.innerHTML="<div style='margin-top:8px;text-align:center;font-size:0.8rem;font-weight:700;color:"+difColor+"'>"+difTxt+"</div>";
+    } else {
+      var difEl2=document.getElementById("mp-dif-resultado");
+      if(difEl2)difEl2.innerHTML="";
+    }
+
+    // Nota sobre tu propio consumo
+    if(miTransfer>0){
+      html+="<div style='margin-top:8px;font-size:0.58rem;color:var(--mut);text-align:center;font-style:italic'>"
+        +"ℹ️ Tu pago de $"+Math.round(miTransfer).toLocaleString("es-AR")+" no cuenta (no te transferís a vos mismo)"
         +"</div>";
     }
+
     res.innerHTML=html;
   };
 
@@ -5420,6 +5460,16 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
             <button onclick="guardarSaldoInicioMP()" style="background:var(--gold);color:#0a0805;border:none;border-radius:10px;padding:9px 14px;font-family:'Bebas Neue',sans-serif;font-size:0.75rem;cursor:pointer;font-weight:700;white-space:nowrap">Guardar</button>
           </div>
           <div id="mp-saldo-resultado"></div>
+          <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--brd)">
+            <div style="font-size:0.58rem;color:var(--mut);margin-bottom:4px">Saldo real de tu MP ahora (para chequear)</div>
+            <div style="position:relative">
+              <span style="position:absolute;left:9px;top:50%;transform:translateY(-50%);font-size:0.75rem;color:var(--mut)">$</span>
+              <input type="number" id="mp-saldo-real" placeholder="0" step="100"
+                style="width:100%;padding:9px 8px 9px 22px;font-family:'Bebas Neue',sans-serif;font-size:1rem;color:var(--ink);background:var(--sur2);border:1px solid var(--brd);border-radius:10px;box-sizing:border-box"
+                oninput="calcularSaldoMP()">
+            </div>
+            <div id="mp-dif-resultado"></div>
+          </div>
         </div>
         <div id="propina-indicator" style="display:none;margin:0 0 10px;background:rgba(168,85,247,0.08);border:1px solid rgba(168,85,247,0.2);border-radius:12px;padding:10px 14px"></div>
         <div id="pago-resumen" class="surf" style="margin:0 0 12px;padding:14px 16px"></div>
@@ -5655,7 +5705,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.130";
+  var APP_VERSION="10.0.131";
 
   var STORED_VERSION=localStorage.getItem("app_version");
 
