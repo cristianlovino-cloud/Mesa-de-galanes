@@ -463,13 +463,21 @@
     setTimeout(function(){showLoginScreen();},150);
   };
   function isAdmin(){return me&&ADMIN&&me.trim().toLowerCase()===ADMIN.trim().toLowerCase();}
+  // Modo vacaciones: cualquier galan registrado puede operar la mesa (no configurar)
+  function isMozo(){
+    if(!me||isAdmin())return false;
+    if(window._modoMozo!==true)return false;
+    return galanes.some(function(g){return normName(g)===normName(me);});
+  }
+  // Permiso de operación diaria (admin siempre, mozo si está el modo activo)
+  function puedeOperar(){return isAdmin()||isMozo();}
   function renderMyName(){
     window._me=me;window._isAdmin=isAdmin();
     var b=document.getElementById("badge");
     b.innerHTML=(isAdmin()?"⚙️ ":"")+me+"<span class='lx' onclick='logout(event)'>✕</span>";
     b.style.cssText="display:flex!important;align-items:center";document.getElementById("prompt").style.display="none";
     // Mostrar tabs según rol
-    var adminBtn=document.querySelector("[data-tab='admin']");if(adminBtn)adminBtn.style.cssText=isAdmin()?"display:flex!important":"display:none!important";
+    var adminBtn=document.querySelector("[data-tab='admin']");if(adminBtn)adminBtn.style.cssText=puedeOperar()?"display:flex!important":"display:none!important";
     var esRegistrado=galanes.some(function(g){return normName(g)===normName(me);});
     var mundialOn=window._mundialActivo!==false; // default ON si no hay config
     if(isAdmin()){
@@ -510,13 +518,13 @@
   // ── TABS ─────────────────────────────────────────────────
   window.switchTab=function(tab,force){
     if(!me&&!force){showLoginScreen();return;}
-    if(tab==="admin"&&!isAdmin()){showToast("Solo el admin puede ver esta sección");return;}
+    if(tab==="admin"&&!puedeOperar()){showToast("Solo el admin puede ver esta sección");return;}
     if(navigator.vibrate)navigator.vibrate(8);
     ["pedir","resumen","cumples","stats","mundial","admin"].forEach(function(t){
       var v=document.getElementById("v-"+t);if(v)v.style.display=t===tab?"block":"none";
       var b=document.querySelector("[data-tab='"+t+"']");if(b)b.classList.toggle("active",t===tab);
     });
-    if(tab==="admin"){window._ordenesEnAdmin=true;window._adminStab="galanes";renderLista();renderMesa();renderPendientes();checkNuevosAlert();if(!window._cleaned){window._cleaned=true;limpiarHuerfanos();}}
+    if(tab==="admin"){window._ordenesEnAdmin=true;window._adminStab=isAdmin()?"galanes":"pedidos";renderLista();renderMesa();renderPendientes();checkNuevosAlert();aplicarPermisosMozo();if(!isAdmin())switchAdminTab("pedidos");if(!window._cleaned){window._cleaned=true;limpiarHuerfanos();}}
     if(tab==="resumen"){window._ordenesEnAdmin=false;renderOrders();}
     if(tab==="pedir"){renderMiSaldo();setTimeout(renderEstuvoCerca,500);}
     if(tab==="cumples")renderCumples();
@@ -1492,7 +1500,7 @@
     }catch(e){console.error("sortearPropinaSilencioso error:",e);}
   }
   window.sortearPropina=async function(){
-    if(!isAdmin()){showToast("Solo el admin puede sortear");return;}
+    if(!puedeOperar()){showToast("Solo el admin puede sortear");return;}
     var hSnap=await get(rH);
     if(!hSnap.exists()){showToast("Sin historial todavia");return;}
     var hist=hSnap.val();
@@ -1657,7 +1665,7 @@
     }
   };
   window.removeOrder=async function(key){await remove(ref(db,"pedido/orders/"+key));};
-  window.clearAll=async function(){if(!isAdmin()){showToast("Solo el admin puede limpiar");return;}if(!confirm("Limpiar todos los pedidos?"))return;await set(rO,null);await set(rC,null);await set(rP,null);};
+  window.clearAll=async function(){if(!puedeOperar()){showToast("Solo el admin puede limpiar");return;}if(!confirm("Limpiar todos los pedidos?"))return;await set(rO,null);await set(rC,null);await set(rP,null);};
 
   window.repetirUltimo=async function(){
     if(!me)return;
@@ -2292,6 +2300,36 @@
   const rAsadoConfig=ref(db,"config/asado");
   const rArgBanner=ref(db,"config/argBanner");
   const rMundialActivo=ref(db,"config/mundialActivo");
+  const rModoMozo=ref(db,"config/modoMozo");
+  onValue(rModoMozo,function(s){
+    window._modoMozo=s.exists()?s.val()===true:false;
+    renderMyName();
+    aplicarPermisosMozo();
+    var btn=document.getElementById("btn-mozo-toggle");
+    if(btn){
+      var on=window._modoMozo===true;
+      btn.style.background=on?"rgba(74,222,128,0.15)":"rgba(100,100,100,0.08)";
+      btn.style.color=on?"#4ade80":"var(--mut)";
+      btn.style.borderColor=on?"rgba(74,222,128,0.35)":"var(--brd)";
+      btn.textContent="🏖️ Modo vacaciones "+(on?"ON":"OFF");
+    }
+  });
+  window.toggleModoMozo=async function(){
+    if(!isAdmin())return;
+    var actual=window._modoMozo===true;
+    if(!actual&&!confirm("Activar modo vacaciones?\n\nCualquier galan registrado va a poder cargar pedidos, marcar pagos, poner el total del bar y sortear la propina.\n\nNO van a poder: cerrar la mesa, cambiar precios, editar bebidas ni galanes."))return;
+    await set(rModoMozo,!actual);
+    showToast(!actual?"🏖️ Modo vacaciones activado":"🔒 Modo vacaciones desactivado");
+  };
+  // Oculta/muestra las secciones sensibles del panel admin para los mozos
+  function aplicarPermisosMozo(){
+    var soloAdmin=isAdmin();
+    document.querySelectorAll("[data-solo-admin]").forEach(function(el){
+      el.style.display=soloAdmin?"":"none";
+    });
+    var aviso=document.getElementById("mozo-aviso");
+    if(aviso)aviso.style.display=isMozo()?"block":"none";
+  }
   onValue(rMundialActivo,function(s){
     window._mundialActivo=s.exists()?s.val():true; // default ON
     renderMyName(); // re-aplica la visibilidad del dock
@@ -3220,7 +3258,7 @@
       row+="<span class='on"+(mine?" onm":"")+"'style='flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap'>"+pl+(mine?" <span class='ytg'>vos</span>":"")+(conf?" <span class='ctg'>✓</span>":"")+"</span>";
       row+="<div style='display:flex;align-items:center;gap:4px;flex-shrink:0'>";
       // Botones de pago solo en admin/pagos, no en resumen
-      if(isAdmin()&&window._adminStab==="pagos"){row+="<button class='pbtn pb-cash"+(cash>0?" pb-on":"")+"'onclick='openPago(\""+pl+"\",\"cash\")'>"+( cash>0?"💵 $"+Math.round(cash):"💵")+"</button>";row+="<button class='pbtn pb-tr"+(transfer>0?" pb-on":"")+"'onclick='openPago(\""+pl+"\",\"transfer\")'>"+( transfer>0?"📲 $"+Math.round(transfer):"📲")+"</button>";}
+      if(puedeOperar()&&window._adminStab==="pagos"){row+="<button class='pbtn pb-cash"+(cash>0?" pb-on":"")+"'onclick='openPago(\""+pl+"\",\"cash\")'>"+( cash>0?"💵 $"+Math.round(cash):"💵")+"</button>";row+="<button class='pbtn pb-tr"+(transfer>0?" pb-on":"")+"'onclick='openPago(\""+pl+"\",\"transfer\")'>"+( transfer>0?"📲 $"+Math.round(transfer):"📲")+"</button>";}
       else if((cash+transfer)>0)row+="<span class='pago-ok'>✓ $"+Math.round(cash+transfer)+"</span>";
       row+="<span class='oq'>"+items.length+"</span>";
       row+="</div></div><div class='pd'>";
@@ -3252,7 +3290,7 @@
     if(tk.length){var th="";tk.forEach(function(d){th+="<div class='tr'><span>"+tots[d].icon+" "+d+"</span><span class='tq'>x"+tots[d].count+"</span></div>";});tp.innerHTML=th;tp.style.display="block";if(cp)cp.style.display="block";}
     else{tp.style.display="none";if(cp)cp.style.display="none";}
     renderMesaStats();
-    var wb=document.getElementById("ws-btn");if(wb)wb.style.display=isAdmin()&&total>0?"inline-flex":"none";
+    var wb=document.getElementById("ws-btn");if(wb)wb.style.display=puedeOperar()&&total>0?"inline-flex":"none";
     var pb=document.getElementById("propina-ws-btn");
     if(pb)pb.style.display=isAdmin()&&total>0?"inline-flex":"none";
   }
@@ -3298,7 +3336,7 @@
       // Total recaudado vs total bar
       h+="<div style='display:flex;align-items:center;justify-content:space-between;padding:4px 0'>";
       h+="<span style='font-size:0.65rem;color:var(--mut)'>TOTAL RECAUDADO</span><span style='font-size:1rem;font-weight:800;color:var(--ink)'>$"+Math.round(rec)+"</span></div>";
-      if(isAdmin())h+="<div class='pres-row' style='margin-top:6px'><span class='pres-item' style='flex:1'>🧾 Total del bar:</span><button onclick='openTotalBar()' class='bar-total-btn'>"+(totalBar>0?"$"+Math.round(totalBar):"Ingresar →")+"</button></div>";
+      if(puedeOperar())h+="<div class='pres-row' style='margin-top:6px'><span class='pres-item' style='flex:1'>🧾 Total del bar:</span><button onclick='openTotalBar()' class='bar-total-btn'>"+(totalBar>0?"$"+Math.round(totalBar):"Ingresar →")+"</button></div>";
       if(totalBar>0)h+="<div class='pres-dif' style='color:"+difColor+"'>"+difStr+"</div>";
       h+=faltan>0?"<div class='pres-falta'>⚠️ "+faltan+" sin pagar</div>":"<div class='pres-ok'>✓ Todos pagaron</div>";
       pb.innerHTML=h;pb.style.display="block";
@@ -5406,8 +5444,9 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
   <div id="v-admin" style="display:none">
     <!-- Banner de nuevos usuarios no registrados -->
     <div id="nuevos-alert" style="display:none;background:rgba(239,68,68,0.08);border-bottom:1px solid rgba(239,68,68,0.2);margin-bottom:0"></div>
+    <div id="mozo-aviso" style="display:none;background:rgba(74,222,128,0.08);border-bottom:1px solid rgba(74,222,128,0.2);padding:10px 14px;font-size:0.68rem;color:var(--grn);text-align:center">🏖️ <b>Modo vacaciones</b> · Podés cargar pedidos, marcar pagos y sortear la propina</div>
     <div class="admin-subtabs">
-      <button class="admin-stab active" data-stab="galanes" onclick="switchAdminTab('galanes')">👥 Galanes</button>
+      <button class="admin-stab active" data-solo-admin data-stab="galanes" onclick="switchAdminTab('galanes')">👥 Galanes</button>
       <button class="admin-stab" data-stab="pedidos" onclick="switchAdminTab('pedidos')">☕ Pedidos</button>
       <button class="admin-stab" data-stab="pagos" onclick="switchAdminTab('pagos')">💰 Pagos</button>
     </div>
@@ -5425,17 +5464,18 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
       <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 14px 10px;flex-wrap:wrap;gap:8px">
         <span id="mesa-count" style="font-size:0.78rem;font-weight:700;color:var(--mut);background:var(--brd);padding:4px 12px;border-radius:100px;letter-spacing:0.06em">0 galanes</span>
         <div style="display:flex;gap:6px;flex-wrap:wrap">
-          <button class="admin-action-btn" onclick="abrirMergeMasivo()" style="background:rgba(99,102,241,0.12);color:#a5b4fc;border-color:rgba(99,102,241,0.3)">⇄ Fusionar</button>
+          <button class="admin-action-btn" data-solo-admin onclick="abrirMergeMasivo()" style="background:rgba(99,102,241,0.12);color:#a5b4fc;border-color:rgba(99,102,241,0.3)">⇄ Fusionar</button>
           <button class="admin-action-btn" id="import-res-btn" onclick="importarReservas()" style="display:none;background:rgba(34,197,94,0.15);color:#4ade80;border-color:rgba(34,197,94,0.3)">📋 Importar</button>
           <button class="admin-action-btn" onclick="openTimerModal()">⏱ Timer</button>
           <button class="admin-action-btn" id="ws-btn" onclick="enviarWS()" style="display:none;background:rgba(34,197,94,0.15);color:#4ade80;border-color:rgba(34,197,94,0.3)">💬 WS</button>
           <button class="admin-action-btn" id="propina-ws-btn" onclick="sortearPropina()" style="display:none;background:rgba(168,85,247,0.15);color:#c084fc;border-color:rgba(168,85,247,0.3)">🎲 Propina</button>
-          <button class="admin-action-btn" onclick="abrirPrecios()" style="background:rgba(245,197,24,0.12);color:var(--g2);border-color:rgba(245,197,24,0.3)">💲 Precios</button>
-          <button class="admin-action-btn" onclick="refreshDrinkIcons()" style="font-size:0.6rem">🔄 Emojis</button>
-          <button class="admin-action-btn" style="background:rgba(239,68,68,0.12);color:#f87171;border-color:rgba(239,68,68,0.25)" onclick="cerrarMesa()">🔒 Cerrar</button>
+          <button class="admin-action-btn" data-solo-admin onclick="abrirPrecios()" style="background:rgba(245,197,24,0.12);color:var(--g2);border-color:rgba(245,197,24,0.3)">💲 Precios</button>
+          <button class="admin-action-btn" data-solo-admin onclick="refreshDrinkIcons()" style="font-size:0.6rem">🔄 Emojis</button>
+          <button class="admin-action-btn" data-solo-admin style="background:rgba(239,68,68,0.12);color:#f87171;border-color:rgba(239,68,68,0.25)" onclick="cerrarMesa()">🔒 Cerrar</button>
           <button class="admin-action-btn" onclick="openLiveModal()" style="background:rgba(239,68,68,0.12);color:#f87171;border-color:rgba(239,68,68,0.25)">📺 Live</button>
-          <button class="admin-action-btn" onclick="activarArgBanner()" style="background:rgba(116,172,223,0.15);color:#74ACDF;border-color:rgba(116,172,223,0.35)">🇦🇷 Banner</button>
-          <button class="admin-action-btn" onclick="toggleMundial()" id="btn-mundial-toggle" style="background:rgba(100,180,100,0.1);color:var(--mut);border-color:var(--brd)">🌍 Mundial</button>
+          <button class="admin-action-btn" data-solo-admin onclick="activarArgBanner()" style="background:rgba(116,172,223,0.15);color:#74ACDF;border-color:rgba(116,172,223,0.35)">🇦🇷 Banner</button>
+          <button class="admin-action-btn" data-solo-admin onclick="toggleMundial()" id="btn-mundial-toggle" style="background:rgba(100,180,100,0.1);color:var(--mut);border-color:var(--brd)">🌍 Mundial</button>
+          <button class="admin-action-btn" data-solo-admin onclick="toggleModoMozo()" id="btn-mozo-toggle" style="background:rgba(100,100,100,0.08);color:var(--mut);border-color:var(--brd)">🏖️ Modo vacaciones</button>
         </div>
       </div>
       <div id="mesa-reserva-info" style="display:none"></div>
@@ -5445,7 +5485,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
     <div id="vadmin-pagos" style="display:none">
       <div style="padding:12px 14px 80px">
         <!-- Verificador saldo MP -->
-        <div id="mp-saldo-panel" class="surf" style="margin:0 0 12px;padding:14px 16px">
+        <div id="mp-saldo-panel" class="surf" data-solo-admin style="margin:0 0 12px;padding:14px 16px">
           <div style="font-size:0.6rem;font-weight:700;color:var(--gold);letter-spacing:0.08em;margin-bottom:10px">💚 VERIFICADOR MERCADO PAGO</div>
           <div style="display:flex;gap:8px;align-items:flex-end;margin-bottom:10px">
             <div style="flex:1">
@@ -5705,7 +5745,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.131";
+  var APP_VERSION="10.0.132";
 
   var STORED_VERSION=localStorage.getItem("app_version");
 
