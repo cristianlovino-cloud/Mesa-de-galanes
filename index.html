@@ -36,6 +36,20 @@
   function col(n){var h=0;for(var i=0;i<n.length;i++)h=(h*31+n.charCodeAt(i))&0xffffffff;return COLS[Math.abs(h)%COLS.length];}
   function ini(n){var p=n.trim().split(" ");return p.length>=2?(p[0][0]+p[1][0]).toUpperCase():n.slice(0,2).toUpperCase();}
   // Normalizar nombre: sin acentos, sin espacios extra, uppercase
+  // ¿El nombre está en la lista de galanes? Acepta match exacto o por nombre de pila
+  // (ej: "Edu" matchea con "Edu Contino") para no dejar afuera a quien se loguea corto
+  function estaEnLista(nombre){
+    if(!nombre)return false;
+    if(!galanes||!galanes.length)return true; // aún no cargó Firebase: no esconder nada
+    var n=normName(nombre);
+    return galanes.some(function(g){
+      var gn=normName(g);
+      if(gn===n)return true;
+      // match por primera palabra en cualquier dirección
+      var gp=gn.split(" ")[0],np=n.split(" ")[0];
+      return gn===np||n===gp||(gp===np&&gp.length>=3);
+    });
+  }
   function normName(n){
     return (n||"").trim().toUpperCase()
       .normalize("NFD").replace(/[̀-ͯ]/g,"")
@@ -467,7 +481,7 @@
   function isMozo(){
     if(!me||isAdmin())return false;
     if(window._modoMozo!==true)return false;
-    return galanes.some(function(g){return normName(g)===normName(me);});
+    return estaEnLista(me);
   }
   // Permiso de operación diaria (admin siempre, mozo si está el modo activo)
   function puedeOperar(){return isAdmin()||isMozo();}
@@ -478,7 +492,7 @@
     b.style.cssText="display:flex!important;align-items:center";document.getElementById("prompt").style.display="none";
     // Mostrar tabs según rol
     var adminBtn=document.querySelector("[data-tab='admin']");if(adminBtn)adminBtn.style.cssText=puedeOperar()?"display:flex!important":"display:none!important";
-    var esRegistrado=galanes.some(function(g){return normName(g)===normName(me);});
+    var esRegistrado=estaEnLista(me);
     var mundialOn=window._mundialActivo!==false; // default ON si no hay config
     if(isAdmin()){
       ["resumen","cumples","stats","asado"].forEach(function(t){var btn=document.querySelector("[data-tab='"+t+"']");if(btn)btn.style.cssText="display:flex!important";});
@@ -5745,7 +5759,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.132";
+  var APP_VERSION="10.0.133";
 
   var STORED_VERSION=localStorage.getItem("app_version");
 
