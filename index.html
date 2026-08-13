@@ -477,11 +477,12 @@
     setTimeout(function(){showLoginScreen();},150);
   };
   function isAdmin(){return me&&ADMIN&&me.trim().toLowerCase()===ADMIN.trim().toLowerCase();}
-  // Modo vacaciones: cualquier galan registrado puede operar la mesa (no configurar)
+  // Mozo = galan designado por el admin (solo si el modo vacaciones está activo)
   function isMozo(){
     if(!me||isAdmin())return false;
     if(window._modoMozo!==true)return false;
-    return estaEnLista(me);
+    var lista=window._mozosDesignados||[];
+    return lista.some(function(g){return normName(g)===normName(me);});
   }
   // Permiso de operación diaria (admin siempre, mozo si está el modo activo)
   function puedeOperar(){return isAdmin()||isMozo();}
@@ -500,7 +501,7 @@
     } else if(esRegistrado){
       ["resumen","cumples","stats","asado"].forEach(function(t){var btn=document.querySelector("[data-tab='"+t+"']");if(btn)btn.style.cssText="display:flex!important";});
       var mbtn=document.querySelector("[data-tab='mundial']");if(mbtn)mbtn.style.cssText=mundialOn?"display:flex!important":"display:none!important";
-      var aBtn=document.querySelector("[data-tab='admin']");if(aBtn)aBtn.style.cssText="display:none!important";
+      // NO tocar el botón admin acá: ya lo resolvió puedeOperar() arriba (mozo designado lo ve)
     } else {
       // No registrado: solo PEDIR y ASADO visibles
       ["resumen","cumples","stats","mundial","admin"].forEach(function(t){var btn=document.querySelector("[data-tab='"+t+"']");if(btn)btn.style.cssText="display:none!important";});
@@ -2315,6 +2316,49 @@
   const rArgBanner=ref(db,"config/argBanner");
   const rMundialActivo=ref(db,"config/mundialActivo");
   const rModoMozo=ref(db,"config/modoMozo");
+  const rMozos=ref(db,"config/mozos");
+  onValue(rMozos,function(s){
+    window._mozosDesignados=s.exists()?(s.val()||[]):[];
+    renderMyName();aplicarPermisosMozo();
+  });
+  // Modal para designar quiénes pueden operar durante las vacaciones
+  window.abrirMozosModal=function(){
+    if(!isAdmin())return;
+    if(document.getElementById("mozos-modal"))return;
+    var desig=window._mozosDesignados||[];
+    var lista=(galanes||[]).slice().sort();
+    var m=document.createElement("div");
+    m.id="mozos-modal";
+    m.onclick=function(e){if(e.target===m)cerrarMozosModal();};
+    m.style.cssText="position:fixed;inset:0;z-index:99998;background:rgba(0,0,0,0.5);display:flex;align-items:flex-end;justify-content:center;padding:16px";
+    var filas=lista.map(function(g){
+      var on=desig.some(function(d){return normName(d)===normName(g);});
+      return "<label style='display:flex;align-items:center;gap:10px;padding:10px 12px;border-bottom:1px solid var(--brd);cursor:pointer'>"
+        +"<input type='checkbox' class='mozo-check' data-nombre='"+esc(g)+"' "+(on?"checked":"")+" style='width:18px;height:18px;accent-color:var(--grn)'>"
+        +"<div style='width:28px;height:28px;border-radius:50%;background:"+col(g)+";display:flex;align-items:center;justify-content:center;font-family:\"Bebas Neue\",sans-serif;font-size:0.7rem;color:#fff;flex-shrink:0'>"+ini(g)+"</div>"
+        +"<span style='flex:1;font-size:0.78rem;color:var(--ink)'>"+esc(g)+"</span>"
+        +"</label>";
+    }).join("");
+    m.innerHTML="<div style='background:var(--sur);border-radius:20px;padding:18px;width:100%;max-width:400px;max-height:80vh;display:flex;flex-direction:column'>"
+      +"<div style='font-family:\"Bebas Neue\",sans-serif;font-size:1.15rem;color:var(--ink);letter-spacing:0.06em;text-align:center;margin-bottom:4px'>🏖️ ¿QUIÉN OPERA LA MESA?</div>"
+      +"<div style='font-size:0.62rem;color:var(--mut);text-align:center;margin-bottom:12px'>Solo los tildados van a poder cargar pedidos y marcar pagos</div>"
+      +"<div style='flex:1;overflow-y:auto;background:var(--sur2);border-radius:12px;margin-bottom:12px'>"+filas+"</div>"
+      +"<button onclick='guardarMozos()' style='width:100%;background:var(--gold);color:#0a0805;border:none;border-radius:12px;padding:12px;font-family:\"Bebas Neue\",sans-serif;font-size:0.95rem;letter-spacing:0.06em;cursor:pointer;margin-bottom:6px'>💾 Guardar</button>"
+      +"<button onclick='cerrarMozosModal()' style='width:100%;background:var(--sur2);border:1px solid var(--brd);border-radius:10px;padding:9px;color:var(--mut);font-size:0.72rem;cursor:pointer'>Cancelar</button>"
+      +"</div>";
+    document.body.appendChild(m);
+  };
+  window.cerrarMozosModal=function(){var m=document.getElementById("mozos-modal");if(m)m.parentNode.removeChild(m);};
+  window.guardarMozos=async function(){
+    if(!isAdmin())return;
+    var sel=[];
+    document.querySelectorAll(".mozo-check").forEach(function(c){
+      if(c.checked)sel.push(c.getAttribute("data-nombre"));
+    });
+    await set(rMozos,sel);
+    cerrarMozosModal();
+    showToast(sel.length?"✓ "+sel.length+" galan(es) habilitado(s)":"Nadie habilitado");
+  };
   onValue(rModoMozo,function(s){
     window._modoMozo=s.exists()?s.val()===true:false;
     renderMyName();
@@ -2327,13 +2371,27 @@
       btn.style.borderColor=on?"rgba(74,222,128,0.35)":"var(--brd)";
       btn.textContent="🏖️ Modo vacaciones "+(on?"ON":"OFF");
     }
+    var btnL=document.getElementById("btn-mozos-lista");
+    if(btnL){
+      var onL=window._modoMozo===true;
+      btnL.style.display=onL?"inline-flex":"none";
+      var cant=(window._mozosDesignados||[]).length;
+      btnL.textContent="👥 Designar"+(cant?" ("+cant+")":"");
+    }
   });
   window.toggleModoMozo=async function(){
     if(!isAdmin())return;
     var actual=window._modoMozo===true;
-    if(!actual&&!confirm("Activar modo vacaciones?\n\nCualquier galan registrado va a poder cargar pedidos, marcar pagos, poner el total del bar y sortear la propina.\n\nNO van a poder: cerrar la mesa, cambiar precios, editar bebidas ni galanes."))return;
-    await set(rModoMozo,!actual);
-    showToast(!actual?"🏖️ Modo vacaciones activado":"🔒 Modo vacaciones desactivado");
+    if(!actual){
+      // Al activar: abrir el modal para elegir quiénes operan
+      await set(rModoMozo,true);
+      showToast("🏖️ Modo vacaciones activado");
+      setTimeout(abrirMozosModal,250);
+    } else {
+      if(!confirm("Desactivar modo vacaciones?\n\nLos galanes designados dejan de tener acceso al panel."))return;
+      await set(rModoMozo,false);
+      showToast("🔒 Modo vacaciones desactivado");
+    }
   };
   // Oculta/muestra las secciones sensibles del panel admin para los mozos
   function aplicarPermisosMozo(){
@@ -5490,6 +5548,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
           <button class="admin-action-btn" data-solo-admin onclick="activarArgBanner()" style="background:rgba(116,172,223,0.15);color:#74ACDF;border-color:rgba(116,172,223,0.35)">🇦🇷 Banner</button>
           <button class="admin-action-btn" data-solo-admin onclick="toggleMundial()" id="btn-mundial-toggle" style="background:rgba(100,180,100,0.1);color:var(--mut);border-color:var(--brd)">🌍 Mundial</button>
           <button class="admin-action-btn" data-solo-admin onclick="toggleModoMozo()" id="btn-mozo-toggle" style="background:rgba(100,100,100,0.08);color:var(--mut);border-color:var(--brd)">🏖️ Modo vacaciones</button>
+          <button class="admin-action-btn" data-solo-admin onclick="abrirMozosModal()" id="btn-mozos-lista" style="display:none;background:rgba(74,222,128,0.1);color:#4ade80;border-color:rgba(74,222,128,0.3)">👥 Designar</button>
         </div>
       </div>
       <div id="mesa-reserva-info" style="display:none"></div>
@@ -5759,7 +5818,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.133";
+  var APP_VERSION="10.0.134";
 
   var STORED_VERSION=localStorage.getItem("app_version");
 
