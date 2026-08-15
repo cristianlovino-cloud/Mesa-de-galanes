@@ -2379,6 +2379,19 @@
       btnL.textContent="👥 Designar"+(cant?" ("+cant+")":"");
     }
   });
+  window.toggleAdminMas=function(){
+    var p=document.getElementById("admin-mas-panel");
+    var b=document.getElementById("btn-admin-mas");
+    if(!p)return;
+    var abierto=p.style.display!=="none";
+    p.style.display=abierto?"none":"block";
+    if(b){
+      b.textContent=abierto?"⋯ Más":"✕ Cerrar";
+      b.style.background=abierto?"var(--sur2)":"rgba(245,197,24,0.15)";
+      b.style.color=abierto?"var(--mut)":"var(--gold)";
+    }
+  };
+
   window.toggleModoMozo=async function(){
     if(!isAdmin())return;
     var actual=window._modoMozo===true;
@@ -5554,20 +5567,39 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
     <div id="vadmin-pedidos" style="display:none">
       <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 14px 10px;flex-wrap:wrap;gap:8px">
         <span id="mesa-count" style="font-size:0.78rem;font-weight:700;color:var(--mut);background:var(--brd);padding:4px 12px;border-radius:100px;letter-spacing:0.06em">0 galanes</span>
-        <div style="display:flex;gap:6px;flex-wrap:wrap">
-          <button class="admin-action-btn" data-solo-admin onclick="abrirMergeMasivo()" style="background:rgba(99,102,241,0.12);color:#a5b4fc;border-color:rgba(99,102,241,0.3)">⇄ Fusionar</button>
-          <button class="admin-action-btn" id="import-res-btn" onclick="importarReservas()" style="display:none;background:rgba(34,197,94,0.15);color:#4ade80;border-color:rgba(34,197,94,0.3)">📋 Importar</button>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
           <button class="admin-action-btn" onclick="openTimerModal()">⏱ Timer</button>
           <button class="admin-action-btn" id="ws-btn" onclick="enviarWS()" style="display:none;background:rgba(34,197,94,0.15);color:#4ade80;border-color:rgba(34,197,94,0.3)">💬 WS</button>
           <button class="admin-action-btn" id="propina-ws-btn" onclick="sortearPropina()" style="display:none;background:rgba(168,85,247,0.15);color:#c084fc;border-color:rgba(168,85,247,0.3)">🎲 Propina</button>
-          <button class="admin-action-btn" data-solo-admin onclick="abrirPrecios()" style="background:rgba(245,197,24,0.12);color:var(--g2);border-color:rgba(245,197,24,0.3)">💲 Precios</button>
-          <button class="admin-action-btn" data-solo-admin onclick="refreshDrinkIcons()" style="font-size:0.6rem">🔄 Emojis</button>
-          <button class="admin-action-btn" data-solo-admin style="background:rgba(239,68,68,0.12);color:#f87171;border-color:rgba(239,68,68,0.25)" onclick="cerrarMesa()">🔒 Cerrar</button>
-          <button class="admin-action-btn" onclick="openLiveModal()" style="background:rgba(239,68,68,0.12);color:#f87171;border-color:rgba(239,68,68,0.25)">📺 Live</button>
-          <button class="admin-action-btn" data-solo-admin onclick="activarArgBanner()" style="background:rgba(116,172,223,0.15);color:#74ACDF;border-color:rgba(116,172,223,0.35)">🇦🇷 Banner</button>
-          <button class="admin-action-btn" data-solo-admin onclick="toggleMundial()" id="btn-mundial-toggle" style="background:rgba(100,180,100,0.1);color:var(--mut);border-color:var(--brd)">🌍 Mundial</button>
-          <button class="admin-action-btn" data-solo-admin onclick="toggleModoMozo()" id="btn-mozo-toggle" style="background:rgba(100,100,100,0.08);color:var(--mut);border-color:var(--brd)">🏖️ Modo vacaciones</button>
-          <button class="admin-action-btn" data-solo-admin onclick="abrirMozosModal()" id="btn-mozos-lista" style="display:none;background:rgba(74,222,128,0.1);color:#4ade80;border-color:rgba(74,222,128,0.3)">👥 Designar</button>
+          <button class="admin-action-btn" id="import-res-btn" onclick="importarReservas()" style="display:none;background:rgba(34,197,94,0.15);color:#4ade80;border-color:rgba(34,197,94,0.3)">📋 Importar</button>
+          <button class="admin-action-btn" onclick="toggleAdminMas()" id="btn-admin-mas" style="background:var(--sur2);color:var(--mut);border-color:var(--brd)">⋯ Más</button>
+        </div>
+      </div>
+      <!-- Panel desplegable con el resto de acciones -->
+      <div id="admin-mas-panel" style="display:none;padding:0 14px 12px">
+        <div style="background:var(--sur2);border:1px solid var(--brd);border-radius:14px;padding:12px">
+          <div data-solo-admin>
+            <div style="font-size:0.55rem;color:var(--mut);letter-spacing:0.1em;margin-bottom:8px">MESA</div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">
+              <button class="admin-action-btn" onclick="abrirPrecios()" style="background:rgba(245,197,24,0.12);color:var(--g2);border-color:rgba(245,197,24,0.3)">💲 Precios</button>
+              <button class="admin-action-btn" onclick="abrirMergeMasivo()" style="background:rgba(99,102,241,0.12);color:#a5b4fc;border-color:rgba(99,102,241,0.3)">⇄ Fusionar</button>
+              <button class="admin-action-btn" onclick="refreshDrinkIcons()">🔄 Emojis</button>
+              <button class="admin-action-btn" onclick="cerrarMesa()" style="background:rgba(239,68,68,0.12);color:#f87171;border-color:rgba(239,68,68,0.25)">🔒 Cerrar mesa</button>
+            </div>
+          </div>
+          <div style="font-size:0.55rem;color:var(--mut);letter-spacing:0.1em;margin-bottom:8px">EXTRAS</div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">
+            <button class="admin-action-btn" onclick="openLiveModal()" style="background:rgba(239,68,68,0.12);color:#f87171;border-color:rgba(239,68,68,0.25)">📺 Live</button>
+            <button class="admin-action-btn" data-solo-admin onclick="activarArgBanner()" style="background:rgba(116,172,223,0.15);color:#74ACDF;border-color:rgba(116,172,223,0.35)">🇦🇷 Banner</button>
+            <button class="admin-action-btn" data-solo-admin onclick="toggleMundial()" id="btn-mundial-toggle" style="background:rgba(100,180,100,0.1);color:var(--mut);border-color:var(--brd)">🌍 Mundial</button>
+          </div>
+          <div data-solo-admin>
+            <div style="font-size:0.55rem;color:var(--mut);letter-spacing:0.1em;margin-bottom:8px">DELEGACIÓN</div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap">
+              <button class="admin-action-btn" onclick="toggleModoMozo()" id="btn-mozo-toggle" style="background:rgba(100,100,100,0.08);color:var(--mut);border-color:var(--brd)">🏖️ Modo vacaciones</button>
+              <button class="admin-action-btn" onclick="abrirMozosModal()" id="btn-mozos-lista" style="display:none;background:rgba(74,222,128,0.1);color:#4ade80;border-color:rgba(74,222,128,0.3)">👥 Designar</button>
+            </div>
+          </div>
         </div>
       </div>
       <div id="mesa-reserva-info" style="display:none"></div>
@@ -5837,7 +5869,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.136";
+  var APP_VERSION="10.0.137";
 
   var STORED_VERSION=localStorage.getItem("app_version");
 
