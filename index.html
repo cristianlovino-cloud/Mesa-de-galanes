@@ -835,19 +835,28 @@
     var pk=window._pagoPlayer||editPP;
     var pt=window._pagoTipo||editPT;
     if(!pk||!pt)return;
+    var btn=document.querySelector("#mpago .bp");
+    if(btn&&btn.disabled)return; // evita doble tap
+    if(btn){btn.disabled=true;btn.textContent="Guardando…";}
     var val=parseFloat(document.getElementById("pago-input").value)||0;
     var cur={cash:0,transfer:0};
     if(pagos[pk]){cur=Object.assign({},pagos[pk]);}
     cur[pt]=val;
     window._pagoPlayer=null;window._pagoTipo=null;editPP=null;editPT=null;
-    await set(ref(db,"pedido/pagos/"+pk),cur);
+    // Cerrar y actualizar de forma optimista: no esperar a Firebase para dar feedback
     pagos[pk]=cur;
     closeModal("mpago");
     showToast("✓ Pago guardado");
-    // Notificar al galan que se registró su pago
-    var monto=(cur.cash||0)+(cur.transfer||0);
-    await enviarNotif(pk,"💸 Tu pago fue registrado"+(monto>0?" ($"+Math.round(monto).toLocaleString("es-AR")+")":" ")+" · ¡Nos vemos el próximo sábado! ☕","pago");
     renderMesa();renderPagosDetail();
+    if(btn){btn.disabled=false;btn.textContent="Guardar";}
+    try{
+      await set(ref(db,"pedido/pagos/"+pk),cur);
+      var monto=(cur.cash||0)+(cur.transfer||0);
+      await enviarNotif(pk,"💸 Tu pago fue registrado"+(monto>0?" ($"+Math.round(monto).toLocaleString("es-AR")+")":" ")+" · ¡Nos vemos el próximo sábado! ☕","pago");
+    }catch(e){
+      console.error("savePago",e);
+      showToast("⚠ No se pudo sincronizar, revisá la conexión");
+    }
   };
   window.openTotalBar=function(){document.getElementById("total-bar-input").value=totalBar>0?totalBar:"";openModal("mtotalbar");};
   window.saveTotalBar=async function(){var val=parseFloat(document.getElementById("total-bar-input").value)||0;await set(rB,val);closeModal("mtotalbar");};
@@ -1648,35 +1657,49 @@
     document.getElementById("extras-title").textContent=d.icon+"  "+d.name+(pFor&&pFor!=="__multi__"?" para "+pFor:"");
     openModal("mextra");
   }
+  var _confirmandoOrder=false;
   window.confirmOrder=async function(el){
     if(!pDrink)return;
-    var extra=el.getAttribute("data-extra");
-    var label=extra==="Sin acompanamiento"?pDrink.name:pDrink.name+" + "+extra;
-    var exVal=extra==="Sin acompanamiento"?null:extra;
-    if(pFor==="__multi__"){
-      var ps=selPlayers.slice(),n=ps.length;
-      await Promise.all(ps.map(function(pl){return push(rO,{player:pl,drinkIdx:pDrink.idx,drink:label,icon:pDrink.icon,extra:exVal,loadedBy:"admin",ts:Date.now()});}));
-      selPlayers=[];pDrink=null;pFor=null;closeModal("mextra");
-      showToast("✅ "+n+" pedidos cargados!");speak(n+" pedidos cargados.");
-    } else {
-      var player=pFor||me;
-      var obj={player:player,drinkIdx:pDrink.idx,drink:label,icon:pDrink.icon,extra:exVal,ts:Date.now()};
-      if(player===me){var m2=await getClientMeta();obj.device=m2.device;obj.ip=m2.ip;}
-      if(isAdmin()&&pFor){obj.loadedBy="admin";}
-      else{var meta=await getClientMeta();obj.device=meta.device;obj.ip=meta.ip;}
-      await push(rO,obj);
-      // Guardar último pedido para repetir
-      if(player===me){localStorage.setItem("last_order_"+me,JSON.stringify({drinkIdx:pDrink.idx,drink:label,icon:pDrink.icon,extra:exVal}));}
-      speak("Perfecto! "+label+" agregado.");
-      pDrink=null;pFor=null;closeModal("mextra");
-      // Toast con precio si está configurado
-      var precioBase=drinks.find(function(d){return d.name===pDrink2||label.startsWith(d.name);})||{};
-      var precioTotal=0;
-      drinks.forEach(function(d){if(label.startsWith(d.name)){
-        precioTotal=d.precio||0;
-        if(exVal&&d.comboPrices){var ck=exVal.toLowerCase().replace(/\s+/g,"_");precioTotal+=(d.comboPrices[ck]||0);}
-      }});
-      showToast("✅ "+label+(precioTotal>0?" · $"+Math.round(precioTotal):"")+"!");
+    if(_confirmandoOrder)return; // evita duplicados por doble tap
+    _confirmandoOrder=true;
+    // Bloquear visualmente los botones de extras
+    var grid=document.getElementById("extras-grid");
+    if(grid)grid.querySelectorAll(".xbtn").forEach(function(b){b.disabled=true;b.style.opacity="0.5";});
+    try{
+      var extra=el.getAttribute("data-extra");
+      var label=extra==="Sin acompanamiento"?pDrink.name:pDrink.name+" + "+extra;
+      var exVal=extra==="Sin acompanamiento"?null:extra;
+      if(pFor==="__multi__"){
+        var ps=selPlayers.slice(),n=ps.length;
+        await Promise.all(ps.map(function(pl){return push(rO,{player:pl,drinkIdx:pDrink.idx,drink:label,icon:pDrink.icon,extra:exVal,loadedBy:"admin",ts:Date.now()});}));
+        selPlayers=[];pDrink=null;pFor=null;closeModal("mextra");
+        showToast("✅ "+n+" pedidos cargados!");speak(n+" pedidos cargados.");
+      } else {
+        var player=pFor||me;
+        var idxDrink=pDrink.idx,iconDrink=pDrink.icon; // guardar antes de cualquier await
+        var obj={player:player,drinkIdx:idxDrink,drink:label,icon:iconDrink,extra:exVal,ts:Date.now()};
+        if(player===me){var m2=await getClientMeta();obj.device=m2.device;obj.ip=m2.ip;}
+        if(isAdmin()&&pFor){obj.loadedBy="admin";}
+        else{var meta=await getClientMeta();obj.device=meta.device;obj.ip=meta.ip;}
+        await push(rO,obj);
+        if(player===me){localStorage.setItem("last_order_"+me,JSON.stringify({drinkIdx:idxDrink,drink:label,icon:iconDrink,extra:exVal}));}
+        speak("Perfecto! "+label+" agregado.");
+        pDrink=null;pFor=null;closeModal("mextra");
+        // Calcular precio para el toast (sin usar variables ya limpiadas)
+        var precioTotal=0;
+        drinks.forEach(function(d){if(label.startsWith(d.name)){
+          precioTotal=d.precio||0;
+          if(exVal&&d.comboPrices){var ck=exVal.toLowerCase().replace(/\s+/g,"_");precioTotal+=(d.comboPrices[ck]||0);}
+        }});
+        showToast("✅ "+label+(precioTotal>0?" · $"+Math.round(precioTotal):"")+"!");
+      }
+    }catch(e){
+      console.error("confirmOrder",e);
+      showToast("⚠ No se pudo cargar el pedido");
+      closeModal("mextra");
+    }finally{
+      _confirmandoOrder=false;
+      if(grid)grid.querySelectorAll(".xbtn").forEach(function(b){b.disabled=false;b.style.opacity="";});
     }
   };
   window.removeOrder=async function(key){await remove(ref(db,"pedido/orders/"+key));};
@@ -5869,7 +5892,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.137";
+  var APP_VERSION="10.0.138";
 
   var STORED_VERSION=localStorage.getItem("app_version");
 
