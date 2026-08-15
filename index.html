@@ -2264,16 +2264,22 @@
     var pagueBarConMP=(document.getElementById("mp-pague-bar")||{}).checked;
 
     // ── ENTRADAS: transfers de OTROS galanes (no las tuyas propias) ──────────
-    var transfersOtros=0,miTransfer=0;
+    var transfersOtros=0,miTransfer=0,efectivoJuntado=0;
     Object.keys(pagos).forEach(function(k){
-      var t=(pagos[k]||{}).transfer||0;
+      var p=pagos[k]||{};
+      var t=p.transfer||0;
+      efectivoJuntado+=(p.cash||0); // el efectivo lo tenés en la mano, no en MP
       if(!t)return;
       if(me&&k.toUpperCase()===me.toUpperCase())miTransfer+=t; // tu propio "pago" no entra plata
       else transfersOtros+=t;
     });
 
-    // ── SALIDAS: pago al bar (si lo pagaste con MP) ─────────────────────────
-    var salidaBar=pagueBarConMP?totalBar:0;
+    // ── SALIDAS: el efectivo que juntaste se usa primero, el resto sale de MP ──
+    var barCubiertoEnEfectivo=0,salidaBar=0;
+    if(pagueBarConMP&&totalBar>0){
+      barCubiertoEnEfectivo=Math.min(efectivoJuntado,totalBar);
+      salidaBar=totalBar-barCubiertoEnEfectivo;
+    }
 
     var esperado=inicio+transfersOtros-salidaBar;
 
@@ -2291,10 +2297,22 @@
     html+="<div style='margin-top:8px;background:var(--sur2);border-radius:10px;padding:10px 12px'>"
       +"<label style='display:flex;align-items:center;gap:8px;cursor:pointer'>"
       +"<input type='checkbox' id='mp-pague-bar' "+(pagueBarConMP?"checked":"")+" onchange='calcularSaldoMP()' style='width:16px;height:16px;accent-color:var(--gold)'>"
-      +"<span style='flex:1;font-size:0.66rem;color:var(--ink)'>Pagué el bar con Mercado Pago</span>"
+      +"<span style='flex:1;font-size:0.66rem;color:var(--ink)'>Ya pagué el bar</span>"
       +"<span style='font-family:\"Bebas Neue\",sans-serif;font-size:0.95rem;color:"+(pagueBarConMP?"#f87171":"var(--mut)")+"'>"
-      +(totalBar>0?(pagueBarConMP?"−$"+Math.round(totalBar).toLocaleString("es-AR"):"$"+Math.round(totalBar).toLocaleString("es-AR")):"sin cargar")+"</span>"
-      +"</label></div>";
+      +(totalBar>0?(pagueBarConMP?"−$"+Math.round(salidaBar).toLocaleString("es-AR"):"$"+Math.round(totalBar).toLocaleString("es-AR")):"sin cargar")+"</span>"
+      +"</label>";
+    // Desglose de cómo se cubrió el bar
+    if(pagueBarConMP&&totalBar>0){
+      html+="<div style='margin-top:8px;padding-top:8px;border-top:1px solid var(--brd);font-size:0.6rem;color:var(--mut);line-height:1.7'>"
+        +"Bar: <b style='color:var(--ink)'>$"+Math.round(totalBar).toLocaleString("es-AR")+"</b><br>"
+        +"💵 Con el efectivo juntado: <b style='color:var(--grn)'>$"+Math.round(barCubiertoEnEfectivo).toLocaleString("es-AR")+"</b><br>"
+        +"📲 Sale de tu MP: <b style='color:#f87171'>$"+Math.round(salidaBar).toLocaleString("es-AR")+"</b>";
+      if(efectivoJuntado>totalBar){
+        html+="<br>💰 Te sobra en efectivo: <b style='color:var(--gold)'>$"+Math.round(efectivoJuntado-totalBar).toLocaleString("es-AR")+"</b>";
+      }
+      html+="</div>";
+    }
+    html+="</div>";
 
     // Resultado esperado — destacado
     html+="<div style='margin-top:10px;background:linear-gradient(135deg,rgba(245,197,24,0.12),rgba(245,197,24,0.04));border:1.5px solid rgba(245,197,24,0.3);border-radius:12px;padding:12px;text-align:center'>"
@@ -5892,7 +5910,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.138";
+  var APP_VERSION="10.0.139";
 
   var STORED_VERSION=localStorage.getItem("app_version");
 
