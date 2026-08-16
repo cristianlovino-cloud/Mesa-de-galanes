@@ -3518,7 +3518,7 @@
       var hayReservas=Object.keys(reservas).length>0;
       importBtn.style.display=isAdmin()&&hayReservas?"inline-block":"none";
     }
-    var po={};Object.values(orders).forEach(function(o){if(!po[o.player])po[o.player]=[];po[o.player].push({drink:o.drink,icon:o.icon});});
+    var po={};Object.entries(orders).forEach(function(e){var k=e[0],o=e[1];if(!po[o.player])po[o.player]=[];po[o.player].push({drink:o.drink,icon:o.icon,key:k});});
     var players=Object.keys(po).sort();
     var mc=document.getElementById("mesa-count");if(mc)mc.textContent=players.length+(players.length===1?" galan":" galanes");
     var pb=document.getElementById("pago-resumen");if(!pb){pb={innerHTML:"",style:{display:"none"}};}
@@ -3573,7 +3573,15 @@
       if(!pago2)row2+=" <span class='falta'>⚠️</span>";
       var cumpl2=cumples[pl2];if(cumpl2){var ahora2=new Date();if(cumpl2.dia===ahora2.getDate()&&cumpl2.mes===ahora2.getMonth()+1)row2+=" <span>🎂</span>";}
       row2+="</div><div class='ao'>";
-      for(var k2=0;k2<items2.length;k2++)row2+="<span class='ait'>"+items2[k2].icon+" "+items2[k2].drink+"</span>";
+      for(var k2=0;k2<items2.length;k2++){
+        row2+="<div style='display:flex;align-items:center;gap:6px'>";
+        row2+="<span class='ait' style='flex:1;min-width:0'>"+items2[k2].icon+" "+items2[k2].drink+"</span>";
+        if(puedeOperar()&&items2[k2].key){
+          row2+="<span class='cedit' onclick='editarPedido(\""+items2[k2].key+"\")' title='Cambiar bebida'>✏️</span>";
+          row2+="<span class='cdel' onclick='removeOrder(\""+items2[k2].key+"\")' title='Borrar'>✕</span>";
+        }
+        row2+="</div>";
+      }
       if(pago2)row2+="<span class='ait pg-info'>"+(cash2>0?"💵 $"+Math.round(cash2)+" ":"")+(tr2>0?"📲 $"+Math.round(tr2):"")+"</span>";
       row2+="</div></div></div>";rows2.push(row2);
     }
@@ -5208,7 +5216,8 @@ button:not(.tab):not(.swipe-handle){transition:transform .1s ease,background-col
 .pd{margin-left:40px;display:flex;flex-direction:column;gap:5px;}
 .pdi{display:flex;align-items:center;justify-content:space-between;background:var(--sur2);border-radius:8px;padding:7px 12px;border:1px solid var(--brd);}
 .pdt{font-size:0.65rem;color:var(--mut);font-weight:500;letter-spacing:0.03em;}.cdel{cursor:pointer;opacity:0.3;font-size:0.88rem;padding:2px 4px;}.cdel:hover{opacity:1;color:var(--red);}
-.cedit{cursor:pointer;opacity:0.35;font-size:0.8rem;padding:2px 5px;margin-left:2px;}.cedit:hover{opacity:1;}
+.cedit{cursor:pointer;opacity:0.55;font-size:0.85rem;padding:3px 6px;margin-left:2px;flex-shrink:0;}.cedit:hover{opacity:1;}
+.ao .cdel,.ao .cedit{opacity:0.6;}.ao .cdel{font-size:0.9rem;color:var(--mut);}
 
 /* TOTALS */
 #totals-panel{margin:10px 12px 0;background:var(--card);border:1px solid var(--brd);backdrop-filter:blur(var(--blur));border-radius:20px;padding:14px 16px;display:none;box-shadow:var(--sh-card);}
@@ -6034,7 +6043,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.148";
+  var APP_VERSION="10.0.149";
 
   var STORED_VERSION=localStorage.getItem("app_version");
 
