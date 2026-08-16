@@ -3556,11 +3556,11 @@
       var cumpl2=cumples[pl2];if(cumpl2){var ahora2=new Date();if(cumpl2.dia===ahora2.getDate()&&cumpl2.mes===ahora2.getMonth()+1)row2+=" <span>🎂</span>";}
       row2+="</div><div class='ao'>";
       for(var k2=0;k2<items2.length;k2++){
-        row2+="<div style='display:flex;align-items:center;gap:6px'>";
+        row2+="<div style='display:flex;align-items:center;gap:8px;padding:6px 0"+(k2<items2.length-1?';border-bottom:1px solid var(--brd)':'')+"'>";
         row2+="<span class='ait' style='flex:1;min-width:0'>"+items2[k2].icon+" "+items2[k2].drink+"</span>";
         if(puedeOperar()&&items2[k2].key){
-          row2+="<span class='cedit' onclick='editarPedido(\""+items2[k2].key+"\")' title='Cambiar bebida'>✏️</span>";
-          row2+="<span class='cdel' onclick='removeOrder(\""+items2[k2].key+"\")' title='Borrar'>✕</span>";
+          row2+="<button class='ped-btn ped-edit' onclick='editarPedido(\""+items2[k2].key+"\")'>✏️ Cambiar</button>";
+          row2+="<button class='ped-btn ped-del' onclick='removeOrder(\""+items2[k2].key+"\")' title='Borrar pedido'>✕</button>";
         }
         row2+="</div>";
       }
@@ -5198,6 +5198,15 @@ button:not(.tab):not(.swipe-handle){transition:transform .1s ease,background-col
 .pd{margin-left:40px;display:flex;flex-direction:column;gap:5px;}
 .pdi{display:flex;align-items:center;justify-content:space-between;background:var(--sur2);border-radius:8px;padding:7px 12px;border:1px solid var(--brd);}
 .pdt{font-size:0.65rem;color:var(--mut);font-weight:500;letter-spacing:0.03em;}.cdel{cursor:pointer;opacity:0.3;font-size:0.88rem;padding:2px 4px;}.cdel:hover{opacity:1;color:var(--red);}
+/* Botones de accion sobre cada pedido (Admin > Pedidos) */
+.ped-btn{border-radius:100px;font-family:var(--font-body);font-size:0.62rem;font-weight:800;
+  cursor:pointer;flex-shrink:0;padding:6px 12px;letter-spacing:0.05em;text-transform:uppercase;
+  display:inline-flex;align-items:center;gap:4px;transition:all .15s;line-height:1;}
+.ped-edit{background:rgba(245,197,24,0.12);color:var(--gold);border:1.5px solid rgba(245,197,24,0.4);}
+.ped-edit:active{background:var(--gold);color:#0a0805;}
+.ped-del{background:rgba(239,68,68,0.1);color:#f87171;border:1.5px solid rgba(239,68,68,0.3);
+  padding:6px 10px;font-size:0.7rem;}
+.ped-del:active{background:#ef4444;color:#fff;}
 .cedit{cursor:pointer;opacity:0.55;font-size:0.85rem;padding:3px 6px;margin-left:2px;flex-shrink:0;}.cedit:hover{opacity:1;}
 .ao .cdel,.ao .cedit{opacity:0.6;}.ao .cdel{font-size:0.9rem;color:var(--mut);}
 
@@ -6026,7 +6035,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.151";
+  var APP_VERSION="10.0.152";
 
   var STORED_VERSION=localStorage.getItem("app_version");
 
