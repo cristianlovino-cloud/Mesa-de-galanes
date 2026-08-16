@@ -544,6 +544,8 @@
     if(tab==="pedir"){renderMiSaldo();setTimeout(renderEstuvoCerca,500);}
     if(tab==="cumples")renderCumples();
     if(tab==="stats")renderStats();
+    var spEl=document.getElementById("cafe-sponsors");
+    if(spEl)spEl.style.display=(tab==="pedir"&&window._sbSponsors&&window._sbSponsors.length)?"block":"none";
     if(tab==="mundial"&&!window._mundialLoaded)renderMundial();
   };
   window.switchAdminTab=function(stab){
@@ -1922,7 +1924,9 @@
   window.renderSponsorsCafe=function(){
     var el=document.getElementById("cafe-sponsors");if(!el)return;
     if(!window._sbSponsors.length){el.style.display="none";return;}
-    el.style.display="block";
+    // Solo visible en la pestana Pedir (esta anclado abajo)
+    var vp=document.getElementById("v-pedir");
+    el.style.display=(vp&&vp.style.display!=="none")?"block":"none";
     function spCard(sp){
       var logo=sp.logo_url?"<img src='"+sp.logo_url+"' style='width:26px;height:26px;object-fit:contain;border-radius:50%;flex-shrink:0' onerror='this.style.display=\"none\"'>":"<span style='font-size:14px;flex-shrink:0'>⭐</span>";
       return "<div style='padding:7px 12px;display:flex;align-items:center;gap:8px;background:var(--card);border:1px solid var(--brd);border-radius:100px"+(sp.url?";cursor:pointer":"")+"' "+(sp.url?"onclick=\"window.open('"+sp.url+"','_blank')\"":"")+">"
@@ -2808,7 +2812,7 @@
     if(!fecha&&window._asadoConfig&&window._asadoConfig.fecha)fecha=window._asadoConfig.fecha;
     // Ubicar debajo del último banner visible para no taparlos
     var refEl=document.querySelector("header");
-    ["votacion-banner","arg-banner","cafe-sponsors"].forEach(function(id){
+    ["votacion-banner","arg-banner"].forEach(function(id){
       var b=document.getElementById(id);
       if(b&&b.style.display!=="none"&&b.offsetHeight>0)refEl=b;
     });
@@ -3118,6 +3122,7 @@
       html+="<div class='cn'>"+d.name+"</div>";
       if(d.sub)html+="<div class='cs'>"+d.sub+"</div>";
       if(d.precio&&isEdit)html+="<div style='font-size:0.62rem;color:rgba(245,197,24,0.6);letter-spacing:0.04em'>$"+Math.round(d.precio)+"</div>";
+      if(d.precio&&!isEdit)html+="<div class='cp'>$"+Math.round(d.precio).toLocaleString("es-AR")+"</div>";
       if(isSel&&!isEdit)html+="<div class='ck"+(cnt>1?" ck-multi":"")+"'>"+(cnt>1?cnt:"✓")+"</div>";
       // REVISAR: solo en edit mode y solo si realmente tiene el flag
       if(isEdit&&d.pendingReview)html+="<div class='cx' onclick='aprobarBebida("+i+",event)' style='cursor:pointer'>✓ APROBAR</div>";
@@ -3130,6 +3135,7 @@
       html+="<div class='ac' onclick='openModal(\"mdrink\")'><div class='ap'>+</div><div class='rc'>Agregar bebida</div></div>";
     }
     grid.innerHTML=html;
+    grid.classList.toggle("dg-edit",!!isEdit);
     // Marcar la card favorita con un ⭐ (async, post-render)
     if(!isEdit&&me){
       get(rF()).then(function(favSnap){
@@ -5044,7 +5050,9 @@ header::after{
 .slabel::after{content:"";flex:1;height:1px;background:linear-gradient(to right,rgba(126,231,135,0.4),transparent);}
 
 /* DRINKS — lista compacta premium */
-.dg{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:0 12px;padding:2px 0;}
+.dg{display:flex;flex-direction:column;gap:5px;margin:0 12px;padding:2px 0 84px;}
+/* En modo edicion vuelve a grid para poder arrastrar comodo */
+.dg.dg-edit{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding-bottom:84px;}
 /* SISTEMA DE SUPERFICIES — modelo "GOOD": todo superficie clara.
    .surf = superficie clara estándar (TODO el contenido)
    Los estados se diferencian con CHIPS de color (fondo suave + borde + monto fuerte)
@@ -5074,12 +5082,22 @@ button:not(.tab):not(.swipe-handle){transition:transform .1s ease,background-col
 .surf-dark .mut2{color:var(--mut);}
 .surf-dark .gold2{color:#e5a93c;}
 
-.dc{background:var(--card);border:1px solid var(--brd);border-radius:16px;
+.dc{background:var(--card);border:1px solid var(--brd);border-radius:14px;
   backdrop-filter:blur(var(--blur));-webkit-backdrop-filter:blur(var(--blur));
-  cursor:pointer;transition:all 0.25s cubic-bezier(0.4,0,0.2,1);position:relative;overflow:hidden;
-  display:flex;flex-direction:column;align-items:center;justify-content:center;
-  padding:11px 8px;min-height:66px;text-align:center;gap:3px;
+  cursor:pointer;transition:all 0.18s cubic-bezier(0.4,0,0.2,1);position:relative;overflow:hidden;
+  display:flex;align-items:center;
+  padding:0 14px;min-height:52px;text-align:left;
   box-shadow:var(--sh-card);}
+/* Contenido de la fila: emoji · nombre · (precio a la derecha) */
+.dc .ci{flex-direction:row;align-items:center;gap:12px;width:100%;}
+.dc .ce{font-size:1.35rem;flex-shrink:0;width:26px;}
+.dc .cn{flex:1;text-align:left;font-size:0.88rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.dc .cp{font-family:var(--font-display);font-size:0.82rem;font-weight:700;color:var(--gold);flex-shrink:0;letter-spacing:0.02em;}
+.dc .ck{position:static;width:auto;min-width:22px;height:22px;border-radius:100px;padding:0 7px;flex-shrink:0;font-size:0.72rem;font-weight:800;color:#0a0805;}
+/* En modo edicion la card vuelve al formato tarjeta */
+.dc-edit{flex-direction:column!important;justify-content:center;padding:11px 8px!important;min-height:66px!important;text-align:center!important;}
+.dc-edit .ci{flex-direction:column!important;gap:3px!important;}
+.dc-edit .cn{text-align:center!important;}
 .dc:hover{border-color:rgba(229,169,60,0.3);background:var(--sur2);transform:translateY(-2px);box-shadow:var(--sh-card-hover);}
 .dc.sel{background:rgba(229,169,60,0.1);border-color:var(--gold);border-width:1.5px;}
 .dc.sel::after{content:"";position:absolute;top:8px;right:8px;width:8px;height:8px;
@@ -5101,7 +5119,7 @@ button:not(.tab):not(.swipe-handle){transition:transform .1s ease,background-col
 .ck-multi{font-family:var(--font-display);font-size:0.9rem;font-weight:700;}
 .ddel{position:absolute;top:50%;left:8px;transform:translateY(-50%);width:20px;height:20px;background:var(--red);color:white;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.6rem;font-weight:800;z-index:3;cursor:pointer;}
 .dhdl{position:absolute;right:10px;top:50%;transform:translateY(-50%);font-size:0.75rem;color:rgba(245,158,11,0.25);z-index:2;cursor:grab;user-select:none;background:none;border:none;padding:4px;line-height:1;}
-.ac{background:var(--sur);border:1.5px dashed var(--brd);border-radius:16px;display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;transition:all 0.15s;color:var(--mut);font-size:0.65rem;font-weight:600;padding:11px;min-height:66px;letter-spacing:0.04em;}
+.ac{background:var(--sur);border:1.5px dashed var(--brd);border-radius:14px;display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;transition:all 0.15s;color:var(--mut);font-size:0.65rem;font-weight:600;padding:11px;min-height:52px;letter-spacing:0.04em;}
 .ac:hover{color:var(--g2);background:var(--sur2);}
 .ap{font-size:1.4rem;line-height:1;font-weight:300;color:var(--acc);width:36px;text-align:center;}
 .rc{color:var(--mut);}
@@ -5545,12 +5563,13 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 <div id="cumple-banner" style="display:none"></div>
   <div id="votacion-banner" class="surf" style="display:none;margin:0 0 7px;overflow:hidden;border-radius:100px"></div>
   <div id="arg-banner" style="display:none;margin:0 0 8px"></div>
-  <div id="cafe-sponsors" style="display:none;margin:0 0 10px"></div>
+
 <div id="timer-bar" class="tbar">
   <span id="t-text">Cierra en</span><span id="t-count">—</span>
   <button class="tcx" id="tcx-btn" onclick="cancelTimer()" style="display:none">✕</button>
   <div class="tpw"><div id="t-prog" style="width:100%"></div></div>
 </div>
+<div id="cafe-sponsors" style="display:none;position:fixed;left:12px;right:12px;bottom:92px;z-index:90"></div>
 <div class="tabs">
   <button class="tab" data-tab="resumen" onclick="switchTab('resumen')"><span>📋</span>Mesa</button>
   <button class="tab" data-tab="cumples" onclick="switchTab('cumples')"><span>🎂</span>Cumple</button>
@@ -5942,7 +5961,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.142";
+  var APP_VERSION="10.0.143";
 
   var STORED_VERSION=localStorage.getItem("app_version");
 
