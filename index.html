@@ -4868,6 +4868,10 @@
   --grass-line:rgba(255,255,255,0);
   --watermark-op:0.04;
   --blur:18px;
+  /* M3: en oscuro las superficies son planas, la jerarquia la da el color */
+  --sh-card:none;
+  --sh-card-hover:none;
+  --sh-raised:0 2px 6px rgba(0,0,0,0.25);
   color-scheme:dark;
 }
 /* TEMA CLARO — marfil cálido, mismo dorado de acento */
@@ -4884,6 +4888,10 @@
   --grass-line:rgba(0,0,0,0);
   --watermark-op:0.03;
   --blur:18px;
+  /* En claro la sombra si aporta profundidad */
+  --sh-card:0 2px 8px rgba(0,0,0,0.07);
+  --sh-card-hover:0 6px 16px rgba(0,0,0,0.12);
+  --sh-raised:0 4px 12px rgba(0,0,0,0.10);
   color-scheme:light;
 }
 [data-theme="light"] body{box-shadow:none;}
@@ -5041,10 +5049,20 @@ header::after{
    .surf = superficie clara estándar (TODO el contenido)
    Los estados se diferencian con CHIPS de color (fondo suave + borde + monto fuerte)
    o con un border-left de color de acento, nunca con fondo oscuro. */
+/* ── M3: feedback tactil consistente en todo lo clickeable ── */
+button:not(.tab):not(.swipe-handle):active,.dc:active,.lista-row:active,.cumple-row:active,.hist-row:active{
+  transform:scale(0.97);
+}
+button:not(.tab):not(.swipe-handle){transition:transform .1s ease,background-color .2s ease,border-color .2s ease;}
+/* M3: jerarquia por peso medio, no por negrita extrema */
+.cn{font-weight:600!important;}
+.lista-name,.cumple-name{font-weight:600;}
+.slabel{font-weight:500;}
+
 .surf{
   background:var(--card);border:1px solid var(--brd);border-radius:20px;
   backdrop-filter:blur(var(--blur));-webkit-backdrop-filter:blur(var(--blur));
-  box-shadow:0 4px 12px rgba(0,0,0,0.08);
+  box-shadow:var(--sh-card);
 }
 .surf-dark{
   background:linear-gradient(135deg,#14110a,#1c1810);
@@ -5061,8 +5079,8 @@ header::after{
   cursor:pointer;transition:all 0.25s cubic-bezier(0.4,0,0.2,1);position:relative;overflow:hidden;
   display:flex;flex-direction:column;align-items:center;justify-content:center;
   padding:11px 8px;min-height:66px;text-align:center;gap:3px;
-  box-shadow:0 2px 8px rgba(0,0,0,0.07);}
-.dc:hover{border-color:rgba(229,169,60,0.3);background:var(--sur2);transform:translateY(-2px);box-shadow:0 8px 20px rgba(0,0,0,0.18);}
+  box-shadow:var(--sh-card);}
+.dc:hover{border-color:rgba(229,169,60,0.3);background:var(--sur2);transform:translateY(-2px);box-shadow:var(--sh-card-hover);}
 .dc.sel{background:rgba(229,169,60,0.1);border-color:var(--gold);border-width:1.5px;}
 .dc.sel::after{content:"";position:absolute;top:8px;right:8px;width:8px;height:8px;
   background:var(--gold);border-radius:50%;}
@@ -5109,7 +5127,7 @@ header::after{
 .pdt{font-size:0.65rem;color:var(--mut);font-weight:500;letter-spacing:0.03em;}.cdel{cursor:pointer;opacity:0.3;font-size:0.88rem;padding:2px 4px;}.cdel:hover{opacity:1;color:var(--red);}
 
 /* TOTALS */
-#totals-panel{margin:10px 12px 0;background:var(--card);border:1px solid var(--brd);backdrop-filter:blur(var(--blur));border-radius:20px;padding:14px 16px;display:none;box-shadow:0 4px 12px rgba(0,0,0,0.08);}
+#totals-panel{margin:10px 12px 0;background:var(--card);border:1px solid var(--brd);backdrop-filter:blur(var(--blur));border-radius:20px;padding:14px 16px;display:none;box-shadow:var(--sh-card);}
 .tt{font-family:var(--font-display);font-size:0.9rem;letter-spacing:0.12em;color:var(--gold);margin-bottom:10px;opacity:0.85;font-style:normal;}
 .tr{display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--brd);font-size:0.88rem;color:var(--ink);font-weight:500;letter-spacing:0.03em;}.tr:last-child{border-bottom:none;}
 .tq{font-family:var(--font-display);font-size:0.88rem;font-weight:700;color:var(--gold);}
@@ -5122,7 +5140,7 @@ header::after{
 .mabtn{background:rgba(26,21,16,0.8);color:var(--gl);border:1px solid rgba(245,158,11,0.2);border-radius:100px;padding:8px 14px;font-family:var(--font-body);font-size:0.88rem;font-weight:600;cursor:pointer;white-space:nowrap;letter-spacing:0.04em;transition:all 0.15s;}
 .mabtn:hover{background:rgba(245,158,11,0.1);border-color:rgba(245,158,11,0.4);}
 #ws-btn{display:none;background:linear-gradient(135deg,#16a34a,#15803d);color:white;border:none;border-radius:100px;padding:8px 16px;font-family:var(--font-body);font-size:0.88rem;font-weight:700;cursor:pointer;align-items:center;gap:6px;white-space:nowrap;letter-spacing:0.04em;}
-#pago-resumen{margin:0 12px 12px;background:var(--card);border:1px solid var(--brd);backdrop-filter:blur(var(--blur));border-radius:20px;padding:14px 16px;display:none;box-shadow:0 4px 12px rgba(0,0,0,0.08);}
+#pago-resumen{margin:0 12px 12px;background:var(--card);border:1px solid var(--brd);backdrop-filter:blur(var(--blur));border-radius:20px;padding:14px 16px;display:none;box-shadow:var(--sh-card);}
 .pres-row{display:flex;flex-wrap:wrap;gap:12px;margin-bottom:8px;}
 .pres-item{font-size:0.65rem;color:rgba(253,248,240,0.5);letter-spacing:0.03em;}.pres-item b{color:var(--gl);}
 .pres-total{font-size:0.9rem;font-weight:700;color:var(--gl);margin-left:auto;letter-spacing:0.03em;}
@@ -5151,7 +5169,7 @@ header::after{
 .lista-pidio{background:rgba(16,185,129,0.06);border-color:rgba(16,185,129,0.22);}
 .lista-pidio:hover{background:rgba(16,185,129,0.09);border-color:rgba(16,185,129,0.32);}
 .lista-fsel{border-color:var(--acc)!important;background:rgba(245,158,11,0.05)!important;}
-.lista-av{width:42px;height:42px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:var(--font-display);font-size:1rem;font-weight:700;color:white;flex-shrink:0;box-shadow:0 2px 8px rgba(0,0,0,0.3);}
+.lista-av{width:42px;height:42px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:var(--font-display);font-size:1rem;font-weight:700;color:white;flex-shrink:0;box-shadow:var(--sh-raised);}
 .lista-info{flex:1;min-width:0;}
 .lista-name{font-weight:700;font-size:0.72rem;color:#eeeef0;display:flex;align-items:center;gap:5px;flex-wrap:wrap;letter-spacing:0.04em;}
 .lista-drinks{font-size:0.63rem;color:var(--mut);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:3px;letter-spacing:0.02em;}
@@ -5924,7 +5942,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.141";
+  var APP_VERSION="10.0.142";
 
   var STORED_VERSION=localStorage.getItem("app_version");
 
