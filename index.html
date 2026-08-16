@@ -243,6 +243,7 @@
       }
       renderLoginGalanes();renderLista();
       if(me&&typeof renderMyName==="function")renderMyName();
+      if(typeof checkNuevosAlert==="function")checkNuevosAlert();
     });
     onValue(rD,function(s){
       drinks=s.exists()?s.val():DRINKS_DEF.slice();
@@ -334,39 +335,8 @@
     onValue(rPend,function(s){pendientes=s.exists()?s.val():{};renderPendientes();});
     onValue(rPres,function(s){presentes=s.exists()?s.val():{};renderLista();});
     onValue(rNuevos,function(s){
-      if(!isAdmin())return;
-      if(!s.exists()){
-        var b=document.getElementById("nuevos-alert");if(b)b.style.display="none";
-        var at=document.querySelector(".tab[data-tab='admin']");if(at)at.innerHTML="⚙️ Admin";
-        return;
-      }
-      var nuevos=s.val(),keys=Object.keys(nuevos||{});
-      if(!keys.length)return;
-      // Badge en tab admin
-      var adminTab=document.querySelector(".tab[data-tab='admin']");
-      if(adminTab)adminTab.innerHTML="⚙️ Admin <span style='background:var(--red);color:#fff;border-radius:100px;padding:1px 6px;font-size:0.5rem;vertical-align:middle'>"+keys.length+"</span>";
-      // Banner si hay nuevos que no están en la lista
-      var banner=document.getElementById("nuevos-alert");
-      if(banner){
-        banner.innerHTML=keys.map(function(k){
-          var enc=encodeURIComponent(k);
-          var nd=nuevos[k];
-          var peds=nd&&nd.pedidos?nd.pedidos.join(", "):"sin pedido aún";
-          var tienePed=nd&&nd.pedidos&&nd.pedidos.length>0;
-          return "<div style='padding:10px 12px;border-bottom:1px solid rgba(255,255,255,0.05)'>"
-            +"<div style='display:flex;align-items:center;justify-content:space-between;margin-bottom:"+(tienePed?"6":"0")+"px'>"
-            +"<span style='font-size:0.75rem;color:var(--ink);font-weight:700'>👤 "+k.toUpperCase()+" quiere unirse</span>"
-            +"<button data-nuevo='"+enc+"' onclick='window.descartarNuevo(decodeURIComponent(this.dataset.nuevo))' style='background:none;border:none;color:var(--mut);cursor:pointer;font-size:1rem;padding:4px 8px'>✕</button>"
-            +"</div>"
-            +(tienePed?"<div style='font-size:0.68rem;color:var(--mut);margin-bottom:8px'>☕ "+peds+"</div>":"")
-            +"<div style='display:flex;gap:6px'>"
-            +"<button data-nuevo='"+enc+"' onclick='aceptarNuevoEnBanner(decodeURIComponent(this.dataset.nuevo))' style='flex:1;background:rgba(34,197,94,0.15);border:1px solid rgba(34,197,94,0.3);border-radius:8px;color:#4ade80;font-size:0.68rem;padding:6px;cursor:pointer;font-weight:700'>✓ AGREGAR A LA LISTA</button>"
-            +"<button data-nuevo='"+enc+"' onclick='window.descartarNuevo(decodeURIComponent(this.dataset.nuevo))' style='background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.2);border-radius:8px;color:#f87171;font-size:0.68rem;padding:6px 10px;cursor:pointer'>✕</button>"
-            +"</div>"
-            +"</div>";
-        }).join("");
-        banner.style.display=keys.length?"block":"none";
-      }
+      // Fuente unica de verdad: checkNuevosAlert (filtra por estaEnLista y limpia el badge)
+      if(typeof checkNuevosAlert==="function")checkNuevosAlert();
     });
     // Chequeo de versión en background — se activa cuando admin publica
     onValue(rVer,function(s){
@@ -3005,6 +2975,18 @@
       }
     }).catch(function(){});
   }
+  // Limpia de config/nuevos a los que ya estan en galanes (registros viejos que dejan badge fantasma)
+  window.limpiarNuevosFantasma=async function(){
+    if(!isAdmin())return;
+    var s=await get(rNuevos);
+    if(!s.exists()){showToast("No hay registros pendientes");return;}
+    var nuevos=s.val()||{};
+    var yaEstan=Object.keys(nuevos).filter(function(k){return estaEnLista(k);});
+    if(!yaEstan.length){showToast("No hay registros para limpiar");return;}
+    await Promise.all(yaEstan.map(function(k){return set(ref(db,"config/nuevos/"+k),null);}));
+    showToast("🧹 "+yaEstan.length+" registro(s) limpiado(s)");
+    checkNuevosAlert();
+  };
   window.aceptarNuevoEnBanner=async function(nombre){
     if(!isAdmin())return;
     var lista=galanes.slice();
@@ -5758,6 +5740,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
               <button class="admin-action-btn" onclick="abrirPrecios()" style="background:rgba(245,197,24,0.12);color:var(--g2);border-color:rgba(245,197,24,0.3)">💲 Precios</button>
               <button class="admin-action-btn" onclick="abrirMergeMasivo()" style="background:rgba(99,102,241,0.12);color:#a5b4fc;border-color:rgba(99,102,241,0.3)">⇄ Fusionar</button>
               <button class="admin-action-btn" onclick="refreshDrinkIcons()">🔄 Emojis</button>
+              <button class="admin-action-btn" onclick="limpiarNuevosFantasma()">🧹 Limpiar avisos</button>
               <button class="admin-action-btn" onclick="cerrarMesa()" style="background:rgba(239,68,68,0.12);color:#f87171;border-color:rgba(239,68,68,0.25)">🔒 Cerrar mesa</button>
             </div>
           </div>
@@ -6043,7 +6026,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.150";
+  var APP_VERSION="10.0.151";
 
   var STORED_VERSION=localStorage.getItem("app_version");
 
