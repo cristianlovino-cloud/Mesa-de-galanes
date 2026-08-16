@@ -1747,7 +1747,7 @@
     if(!selPlayers.length){mc.style.display="none";return;}
     var info=selPlayers.length+" seleccionado"+(selPlayers.length>1?"s":"")+": <b>"+selPlayers.join(", ")+"</b>";
     var dh=drinks.map(function(d,i){return"<button class='odbtn' data-idx='"+i+"' onclick='selDrinkMulti(this)'>"+d.icon+" "+d.name+"</button>";}).join("");
-    mc.innerHTML="<div class='multi-info'>"+info+"</div><p class='dpt' style='margin-top:8px'>Que toman?</p><div class='odg'>"+dh+"</div>";
+    mc.innerHTML="<div class='multi-info'>"+info+"</div><p class='dpt' style='margin-top:8px'>Que toman? <span style='font-size:0.58rem;color:var(--mut);font-weight:400'>→ despues elegís el acompañamiento</span></p><div class='odg'>"+dh+"</div>";
     mc.style.display="block";
   }
   window.selDrinkMulti=function(el){if(!selPlayers.length)return;var idx=parseInt(el.getAttribute("data-idx"));pDrink=Object.assign({},drinks[idx],{idx:idx});pFor="__multi__";showExtras(drinks[idx]);};
@@ -1924,14 +1924,16 @@
     if(!window._sbSponsors.length){el.style.display="none";return;}
     el.style.display="block";
     function spCard(sp){
-      var logo=sp.logo_url?"<img src='"+sp.logo_url+"' style='width:26px;height:26px;object-fit:contain;border-radius:50%;flex-shrink:0' onerror='this.style.display=\"none\"'>":"<span style='font-size:14px;flex-shrink:0'>⭐</span>";
-      return "<div style='padding:7px 12px;display:flex;align-items:center;gap:8px;background:var(--card);border:1px solid var(--brd);border-radius:100px"+(sp.url?";cursor:pointer":"")+"' "+(sp.url?"onclick=\"window.open('"+sp.url+"','_blank')\"":"")+">"
+      var logo=sp.logo_url?"<img src='"+sp.logo_url+"' style='width:52px;height:52px;object-fit:contain;border-radius:50%;flex-shrink:0;border:2px solid rgba(245,197,24,0.35)' onerror='this.style.display=\"none\"'>":"<div style='width:52px;height:52px;border-radius:50%;background:var(--sur2);display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0'>⭐</div>";
+      return "<div style='padding:14px 16px;display:flex;align-items:center;gap:14px;background:var(--card);border:1.5px solid rgba(245,197,24,0.3);border-radius:18px;position:relative;overflow:hidden;box-shadow:var(--sh-card)"+(sp.url?";cursor:pointer":"")+"' "+(sp.url?"onclick=\"window.open('"+sp.url+"','_blank')\"":"")+">"
+        +"<div style='position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,transparent,var(--gold),transparent)'></div>"
         +logo
-        +"<div style='flex:1;min-width:0;display:flex;align-items:baseline;gap:6px;overflow:hidden'>"
-        +"<span style='font-size:0.48rem;color:var(--gold);font-weight:700;letter-spacing:0.08em;flex-shrink:0'>SPONSOR</span>"
-        +"<span style='font-size:0.7rem;font-weight:700;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis'>"+esc(sp.nombre)+"</span>"
+        +"<div style='flex:1;min-width:0'>"
+        +"<div style='font-size:0.55rem;color:var(--gold);font-weight:800;letter-spacing:0.12em;margin-bottom:3px'>⭐ SPONSOR OFICIAL</div>"
+        +"<div style='font-size:0.95rem;font-weight:800;color:var(--ink);line-height:1.15;overflow:hidden;text-overflow:ellipsis'>"+esc(sp.nombre)+"</div>"
+        +(sp.tagline?"<div style='font-size:0.68rem;color:var(--mut);margin-top:3px;line-height:1.3'>"+esc(sp.tagline)+"</div>":"")
         +"</div>"
-        +(sp.url?"<span style='font-size:0.6rem;color:var(--gold);flex-shrink:0'>↗</span>":"")
+        +(sp.url?"<div style='font-size:0.65rem;color:var(--gold);font-weight:800;flex-shrink:0;white-space:nowrap'>VER ↗</div>":"")
         +"</div>";
     }
     if(window._sbSponsors.length===1){el.innerHTML=spCard(window._sbSponsors[0]);return;}
@@ -2911,26 +2913,42 @@
   // (guardarPrecios reemplazado por guardarPreciosAuto — autoguardado, ver arriba)
 
   // Re-evaluar banner de nuevos (útil cuando admin abre tab admin)
+  function limpiarBadgeAdmin(){
+    var adminTab=document.querySelector(".tab[data-tab='admin']");
+    if(adminTab)adminTab.innerHTML="<span>⚙️</span>Admin";
+  }
   function checkNuevosAlert(){
+    var banner=document.getElementById("nuevos-alert");
+    if(!isAdmin()){if(banner)banner.style.display="none";limpiarBadgeAdmin();return;}
     get(rNuevos).then(function(s){
-      if(!s.exists()||!isAdmin())return;
-      var nuevos=s.val(),keys=Object.keys(nuevos||{}).filter(function(k){return !galanes.includes(k);});
-      if(!keys.length){var b=document.getElementById("nuevos-alert");if(b)b.style.display="none";return;}
+      // Sin nodo o sin pendientes: ocultar banner y limpiar el badge del tab
+      if(!s.exists()){if(banner)banner.style.display="none";limpiarBadgeAdmin();return;}
+      var nuevos=s.val(),keys=Object.keys(nuevos||{}).filter(function(k){return !estaEnLista(k);});
+      if(!keys.length){if(banner)banner.style.display="none";limpiarBadgeAdmin();return;}
       var adminTab=document.querySelector(".tab[data-tab='admin']");
-      if(adminTab&&!adminTab.innerHTML.includes("span"))adminTab.innerHTML="⚙️ Admin <span style='background:var(--red);color:#fff;border-radius:100px;padding:1px 6px;font-size:0.5rem;vertical-align:middle'>"+keys.length+"</span>";
-      var banner=document.getElementById("nuevos-alert");
+      if(adminTab)adminTab.innerHTML="<span>⚙️</span>Admin <span style='background:var(--red);color:#fff;border-radius:100px;padding:1px 6px;font-size:0.5rem;vertical-align:middle'>"+keys.length+"</span>";
       if(banner){
         banner.innerHTML=keys.map(function(k){
           var enc=encodeURIComponent(k);
           var nd=nuevos[k];
           var peds=nd&&nd.pedidos?nd.pedidos.join(", "):"";
           var tienePed=nd&&nd.pedidos&&nd.pedidos.length>0;
+          // ¿Se parece a alguien ya en la lista? (mismo nombre de pila)
+          var np=normName(k).split(" ")[0];
+          var parecidos=(galanes||[]).filter(function(g){
+            var gp=normName(g).split(" ")[0];
+            return gp===np&&normName(g)!==normName(k);
+          });
+          var avisoDup=parecidos.length
+            ?"<div style='font-size:0.62rem;color:var(--gold);background:rgba(245,197,24,0.1);border:1px solid rgba(245,197,24,0.25);border-radius:8px;padding:6px 9px;margin-bottom:8px'>⚠️ Ojo: ya existe <b>"+esc(parecidos.join(", "))+"</b> · ¿es el mismo?</div>"
+            :"";
           return "<div style='padding:10px 12px;border-bottom:1px solid rgba(255,255,255,0.05)'>"
             +"<div style='display:flex;align-items:center;justify-content:space-between;margin-bottom:"+(tienePed?"6":"0")+"px'>"
             +"<span style='font-size:0.75rem;color:var(--ink);font-weight:700'>👤 "+k.toUpperCase()+" quiere unirse</span>"
             +"<button data-nuevo='"+enc+"' onclick='window.descartarNuevo(decodeURIComponent(this.dataset.nuevo))' style='background:none;border:none;color:var(--mut);cursor:pointer;font-size:1rem;padding:4px 8px'>✕</button>"
             +"</div>"
             +(tienePed?"<div style='font-size:0.68rem;color:var(--mut);margin-bottom:8px'>☕ "+peds+"</div>":"")
+            +avisoDup
             +"<div style='display:flex;gap:6px'>"
             +"<button data-nuevo='"+enc+"' onclick='aceptarNuevoEnBanner(decodeURIComponent(this.dataset.nuevo))' style='flex:1;background:rgba(34,197,94,0.15);border:1px solid rgba(34,197,94,0.3);border-radius:8px;color:#4ade80;font-size:0.68rem;padding:6px;cursor:pointer;font-weight:700'>✓ AGREGAR A LA LISTA</button>"
             +"<button data-nuevo='"+enc+"' onclick='window.descartarNuevo(decodeURIComponent(this.dataset.nuevo))' style='background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.2);border-radius:8px;color:#f87171;font-size:0.68rem;padding:6px 10px;cursor:pointer'>✕</button>"
@@ -5248,12 +5266,19 @@ button:not(.tab):not(.swipe-handle){transition:transform .1s ease,background-col
 
 /* SWIPE TO CONFIRM */
 .swipe-container{
-  position:relative;background:var(--sur);backdrop-filter:blur(var(--blur));
-  border:1px solid var(--brd);height:58px;border-radius:100px;
+  position:relative;background:linear-gradient(90deg,rgba(56,239,125,0.10),rgba(229,169,60,0.10));
+  backdrop-filter:blur(var(--blur));
+  border:2px solid var(--gold);height:60px;border-radius:100px;
   padding:4px;display:flex;align-items:center;justify-content:center;
   overflow:hidden;width:100%;
+  box-shadow:0 4px 20px rgba(229,169,60,0.28);
+  animation:swipeGlow 2.4s ease-in-out infinite;
 }
-.swipe-text{font-size:0.82rem;font-weight:700;color:var(--mut);letter-spacing:0.04em;pointer-events:none;z-index:1;}
+@keyframes swipeGlow{
+  0%,100%{box-shadow:0 4px 20px rgba(229,169,60,0.28);}
+  50%{box-shadow:0 4px 28px rgba(229,169,60,0.5);}
+}
+.swipe-text{font-size:0.85rem;font-weight:800;color:var(--ink);letter-spacing:0.05em;pointer-events:none;z-index:1;opacity:0.85;}
 .swipe-handle{
   position:absolute;left:4px;width:50px;height:50px;
   background:linear-gradient(135deg,var(--club-cel),var(--gold));
@@ -5555,8 +5580,8 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
   </div>
 </header>
 <div id="cumple-banner" style="display:none"></div>
-  <div id="votacion-banner" class="surf" style="display:none;margin:0 0 7px;overflow:hidden;border-radius:100px"></div>
-  <div id="arg-banner" style="display:none;margin:0 0 8px"></div>
+  <div id="votacion-banner" class="surf" style="display:none;margin:10px 0 7px;overflow:hidden;border-radius:100px"></div>
+  <div id="arg-banner" style="display:none;margin:10px 0 8px"></div>
 
 <div id="timer-bar" class="tbar">
   <span id="t-text">Cierra en</span><span id="t-count">—</span>
@@ -5802,10 +5827,10 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
   </div>
 </div>
 <div class="modal-overlay" id="motro" onclick="if(event.target===this)closeModal('motro')">
-  <div class="modal"><div class="mh2"></div><h3>Cargar pedido</h3><p class="msub">Selecciona uno o varios → elegí que toman</p>
+  <div class="modal"><div class="mh2"></div><h3>Cargar pedido</h3><p class="msub">1. Elegí galanes · 2. Bebida · 3. Acompañamiento</p>
     <div class="ppl" id="player-list"></div>
     <div id="multi-confirm" style="display:none"></div>
-    <div class="ma" style="margin-top:12px"><button class="bs" style="flex:0.5" onclick="closeModal('motro')">Cancelar</button><button class="bp" onclick="closeModal('motro')">Listo ✓</button></div>
+    <div class="ma" style="margin-top:12px"><button class="bs" onclick="closeModal('motro')">Cerrar</button></div>
   </div>
 </div>
 <div class="modal-overlay mc" id="mpago" onclick="if(event.target===this)closeModal('mpago')">
@@ -5955,7 +5980,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.144";
+  var APP_VERSION="10.0.146";
 
   var STORED_VERSION=localStorage.getItem("app_version");
 
