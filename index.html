@@ -1669,7 +1669,24 @@
       var extra=el.getAttribute("data-extra");
       var label=extra==="Sin acompanamiento"?pDrink.name:pDrink.name+" + "+extra;
       var exVal=extra==="Sin acompanamiento"?null:extra;
-      if(pFor==="__multi__"){
+      if(pFor==="__edit__"){
+        // Reemplazar el pedido existente conservando player y quién lo cargó
+        var ekey=window._editandoPedidoKey;
+        var orig=orders[ekey];
+        if(!ekey||!orig){showToast("Ese pedido ya no existe");closeModal("mextra");closeModal("motro");return;}
+        var upd=Object.assign({},orig,{
+          drinkIdx:pDrink.idx,drink:label,icon:pDrink.icon,extra:exVal,editadoTs:Date.now()
+        });
+        await set(ref(db,"pedido/orders/"+ekey),upd);
+        window._editandoPedidoKey=null;pDrink=null;pFor=null;
+        closeModal("mextra");closeModal("motro");
+        // Restaurar el modal a su estado normal para la próxima carga
+        var pl2=document.getElementById("player-list");if(pl2)pl2.style.display="";
+        var sub2=document.querySelector("#motro .msub");
+        if(sub2)sub2.textContent="1. Elegí galanes · 2. Bebida · 3. Acompañamiento";
+        showToast("✏️ Pedido de "+orig.player+" actualizado");
+        await enviarNotif(orig.player,"☕ Tu pedido cambió a: "+label,"info");
+      } else if(pFor==="__multi__"){
         var ps=selPlayers.slice(),n=ps.length;
         await Promise.all(ps.map(function(pl){return push(rO,{player:pl,drinkIdx:pDrink.idx,drink:label,icon:pDrink.icon,extra:exVal,loadedBy:"admin",ts:Date.now()});}));
         selPlayers=[];pDrink=null;pFor=null;closeModal("mextra");closeModal("motro");
@@ -1702,6 +1719,35 @@
       if(grid)grid.querySelectorAll(".xbtn").forEach(function(b){b.disabled=false;b.style.opacity="";});
     }
   };
+  // Editar un pedido ya cargado: elegir otra bebida + acompañamiento y reemplazarlo
+  window.editarPedido=function(key){
+    if(!puedeOperar()){showToast("Solo el admin puede editar pedidos");return;}
+    var o=orders[key];
+    if(!o){showToast("Ese pedido ya no existe");return;}
+    window._editandoPedidoKey=key;
+    var mc=document.getElementById("multi-confirm");
+    var dh=drinks.map(function(d,i){
+      var actual=(i===o.drinkIdx)?" style='border-color:var(--gold);color:var(--gold)'":"";
+      return "<button class='odbtn'"+actual+" data-idx='"+i+"' onclick='selDrinkEdit(this)'>"+d.icon+" "+d.name+"</button>";
+    }).join("");
+    mc.innerHTML="<div class='multi-info'>✏️ Cambiando el pedido de <b>"+esc(o.player)+"</b>"
+      +"<div style='font-size:0.62rem;color:var(--mut);margin-top:3px'>Ahora tiene: "+esc(o.drink)+"</div></div>"
+      +"<p class='dpt' style='margin-top:8px'>Nueva bebida?</p><div class='odg'>"+dh+"</div>";
+    mc.style.display="block";
+    // Ocultar la lista de galanes: acá el galan ya está definido
+    var pl=document.getElementById("player-list");
+    if(pl)pl.style.display="none";
+    var sub=document.querySelector("#motro .msub");
+    if(sub)sub.textContent="1. Nueva bebida · 2. Acompañamiento";
+    openModal("motro");
+  };
+  window.selDrinkEdit=function(el){
+    var idx=parseInt(el.getAttribute("data-idx"));
+    pDrink=Object.assign({},drinks[idx],{idx:idx});
+    pFor="__edit__";
+    showExtras(drinks[idx]);
+  };
+
   window.removeOrder=async function(key){await remove(ref(db,"pedido/orders/"+key));};
   window.clearAll=async function(){if(!puedeOperar()){showToast("Solo el admin puede limpiar");return;}if(!confirm("Limpiar todos los pedidos?"))return;await set(rO,null);await set(rC,null);await set(rP,null);};
 
@@ -3445,6 +3491,7 @@
         var adminTag=it.loadedBy==="admin"?" <span style='font-size:0.48rem;background:rgba(245,197,24,0.15);color:var(--g2);padding:1px 5px;border-radius:4px;font-weight:700'>ADM</span>":"";
         row+="<span class='pdt'>"+it.icon+" "+it.drink+pedHora+adminTag+"</span>";
         if(hora||meta)row+="<span style='font-size:0.58rem;color:var(--mut);margin-left:6px;white-space:nowrap;font-family:var(--font-display)'>"+hora+meta+"</span>";
+        if(canDel)row+="<span class='cedit' onclick='editarPedido(\""+it.key+"\")' title='Cambiar bebida'>✏️</span>";
         if(canDel)row+="<span class='cdel' onclick='removeOrder(\""+it.key+"\")'>✕</span>";
         row+="</div>";
       }
@@ -4841,7 +4888,13 @@
     panel.innerHTML=h;
   }
 
-  window.closeModal=function(id){var el=document.getElementById(id);if(el)el.classList.remove("open");if(id==="mextra"){pDrink=null;pFor=null;}};
+  window.closeModal=function(id){
+    if(id==="motro"){
+      window._editandoPedidoKey=null;
+      var _pl=document.getElementById("player-list");if(_pl)_pl.style.display="";
+      var _sub=document.querySelector("#motro .msub");
+      if(_sub)_sub.textContent="1. Elegí galanes · 2. Bebida · 3. Acompañamiento";
+    }var el=document.getElementById(id);if(el)el.classList.remove("open");if(id==="mextra"){pDrink=null;pFor=null;}};
   document.addEventListener("solicitarModificarPedido",async function(){
     if(!me||!confirmado())return;
     try{
@@ -5155,6 +5208,7 @@ button:not(.tab):not(.swipe-handle){transition:transform .1s ease,background-col
 .pd{margin-left:40px;display:flex;flex-direction:column;gap:5px;}
 .pdi{display:flex;align-items:center;justify-content:space-between;background:var(--sur2);border-radius:8px;padding:7px 12px;border:1px solid var(--brd);}
 .pdt{font-size:0.65rem;color:var(--mut);font-weight:500;letter-spacing:0.03em;}.cdel{cursor:pointer;opacity:0.3;font-size:0.88rem;padding:2px 4px;}.cdel:hover{opacity:1;color:var(--red);}
+.cedit{cursor:pointer;opacity:0.35;font-size:0.8rem;padding:2px 5px;margin-left:2px;}.cedit:hover{opacity:1;}
 
 /* TOTALS */
 #totals-panel{margin:10px 12px 0;background:var(--card);border:1px solid var(--brd);backdrop-filter:blur(var(--blur));border-radius:20px;padding:14px 16px;display:none;box-shadow:var(--sh-card);}
@@ -5980,7 +6034,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.147";
+  var APP_VERSION="10.0.148";
 
   var STORED_VERSION=localStorage.getItem("app_version");
 
