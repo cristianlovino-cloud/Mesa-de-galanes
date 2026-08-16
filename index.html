@@ -1672,8 +1672,8 @@
       if(pFor==="__multi__"){
         var ps=selPlayers.slice(),n=ps.length;
         await Promise.all(ps.map(function(pl){return push(rO,{player:pl,drinkIdx:pDrink.idx,drink:label,icon:pDrink.icon,extra:exVal,loadedBy:"admin",ts:Date.now()});}));
-        selPlayers=[];pDrink=null;pFor=null;closeModal("mextra");
-        showToast("✅ "+n+" pedidos cargados!");speak(n+" pedidos cargados.");
+        selPlayers=[];pDrink=null;pFor=null;closeModal("mextra");closeModal("motro");
+        showToast("✅ "+n+" pedido"+(n>1?"s":"")+" cargado"+(n>1?"s":"")+"!");speak(n+" pedidos cargados.");
       } else {
         var player=pFor||me;
         var idxDrink=pDrink.idx,iconDrink=pDrink.icon; // guardar antes de cualquier await
@@ -5798,7 +5798,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
     <div class="ma"><button class="bs" style="flex:0.6" onclick="omitirCumple()">Ahora no</button><button class="bp" onclick="guardarCumple()">Guardar 🎂</button></div>
   </div>
 </div>
-<div class="modal-overlay" id="mextra" onclick="if(event.target===this)closeModal('mextra')">
+<div class="modal-overlay" id="mextra" style="z-index:260" onclick="if(event.target===this)closeModal('mextra')">
   <div class="modal"><div class="mh2"></div><h3 id="extras-title">Bebida</h3><p class="msub">Con que acompañamiento?</p><div class="xg" id="extras-grid"></div><div class="ma" style="margin-top:12px"><button class="bs" onclick="closeModal('mextra')">Cancelar</button></div></div>
 </div>
 <div class="modal-overlay mc" id="mdup" onclick="if(event.target===this)closeModal('mdup')">
@@ -5980,7 +5980,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.146";
+  var APP_VERSION="10.0.147";
 
   var STORED_VERSION=localStorage.getItem("app_version");
 
