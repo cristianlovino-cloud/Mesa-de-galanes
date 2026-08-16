@@ -617,8 +617,15 @@
   // ── CONFIRMAR ─────────────────────────────────────────────
   function tengo(){return me&&Object.values(orders).some(function(o){return o.player===me;});}
   function confirmado(){return me&&confirmed[me]&&(confirmed[me]===true||confirmed[me].ok)&&Object.values(orders).some(function(o){return o.player===me;});}
+  // Mantiene el espaciador del final sincronizado con el swipe fijo
+  function syncEspacioPedir(){
+    var w=document.getElementById("confirm-wrap");
+    var sp=document.getElementById("pedir-bottom-space");
+    if(sp)sp.style.height=(w&&w.style.display!=="none")?"96px":"20px";
+  }
   function renderConfirmBtn(){
     var w=document.getElementById("confirm-wrap");if(!w)return;
+    setTimeout(syncEspacioPedir,0);
     var banner=document.getElementById("pedido-status-banner");
     var misPed=me?Object.values(orders).filter(function(o){return o.player===me;}):[]; // fix
     var last=me?localStorage.getItem("last_order_"+me):null;
@@ -5337,13 +5344,17 @@ button:not(.tab):not(.swipe-handle){transition:transform .1s ease,background-col
 
 /* SWIPE TO CONFIRM */
 .swipe-container{
-  position:relative;background:linear-gradient(90deg,rgba(56,239,125,0.10),rgba(229,169,60,0.10));
-  backdrop-filter:blur(var(--blur));
+  position:relative;background:var(--sur);
   border:2px solid var(--gold);height:60px;border-radius:100px;
   padding:4px;display:flex;align-items:center;justify-content:center;
   overflow:hidden;width:100%;
-  box-shadow:0 4px 20px rgba(229,169,60,0.28);
+  box-shadow:0 6px 24px rgba(229,169,60,0.3),0 2px 12px rgba(0,0,0,0.12);
   animation:swipeGlow 2.4s ease-in-out infinite;
+}
+.swipe-container::before{
+  content:"";position:absolute;inset:0;border-radius:100px;
+  background:linear-gradient(90deg,rgba(56,239,125,0.12),rgba(229,169,60,0.12));
+  pointer-events:none;
 }
 @keyframes swipeGlow{
   0%,100%{box-shadow:0 4px 20px rgba(229,169,60,0.28);}
@@ -5676,7 +5687,8 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
     <div id="estuvo-cerca-banner" style="display:none;margin:8px 0 0"></div>
     <div class="slabel"><span class="ld"></span> Que tomas?</div>
     <div class="dg" id="drinks-grid"><div class="es" style="padding:40px 0;opacity:0.5">Conectando... ☕</div></div>
-    <div id="cafe-sponsors" style="display:none;margin:14px 12px 90px"></div>
+    <div id="cafe-sponsors" style="display:none;margin:14px 12px 0"></div>
+    <div id="pedir-bottom-space" style="height:96px"></div>
   </div>
   <div id="v-mundial" style="display:none;padding:0 0 80px">
     <div id="mundial-content" style="padding:12px 14px">
@@ -6052,7 +6064,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.153";
+  var APP_VERSION="10.0.154";
 
   var STORED_VERSION=localStorage.getItem("app_version");
 
