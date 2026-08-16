@@ -4938,22 +4938,24 @@
 }
 /* TEMA CLARO — marfil cálido, mismo dorado de acento */
 [data-theme="light"]{
-  --bg:#f4f1ea;--sur:rgba(255,255,255,0.75);--sur2:rgba(255,255,255,0.9);--hbg:rgba(255,255,255,0.85);
-  --club-cel:#15803d;--club-ama:#b8762a;
-  --gold:#b8762a;--g2:#b8762a;--gl:#c98f2e;--gd:#8f5e1f;
-  --ink:#1c1810;--mut:#7a7363;--brd:rgba(28,24,16,0.1);--b2:rgba(28,24,16,0.18);
-  --grn:#15803d;--red:#dc2626;--sh:rgba(184,118,42,0.08);
-  --acc:#b8762a;--acc2:#96601f;--acc-ama:#b8762a;
-  --card:rgba(255,255,255,0.75);--font-hd:'Bebas Neue',sans-serif;
+  /* Fondo gris claro para que las cards BLANCAS PURAS resalten (no translucidas) */
+  --bg:#eef0f3;--sur:#ffffff;--sur2:#f6f8fa;--hbg:#ffffff;
+  --club-cel:#15803d;--club-ama:#a86a22;
+  --gold:#a86a22;--g2:#a86a22;--gl:#c98f2e;--gd:#8f5e1f;
+  /* Texto principal mas contrastado, secundario gris neutro */
+  --ink:#14243a;--mut:#6b7a8d;--brd:rgba(20,36,58,0.09);--b2:rgba(20,36,58,0.16);
+  --grn:#15803d;--red:#dc2626;--sh:rgba(20,36,58,0.08);
+  --acc:#a86a22;--acc2:#8f5518;--acc-ama:#a86a22;
+  --card:#ffffff;--font-hd:'Bebas Neue',sans-serif;
   --font-display:'JetBrains Mono',monospace;
   --font-body:'Plus Jakarta Sans',sans-serif;
   --grass-line:rgba(0,0,0,0);
-  --watermark-op:0.03;
-  --blur:18px;
-  /* En claro la sombra si aporta profundidad */
-  --sh-card:0 2px 8px rgba(0,0,0,0.07);
-  --sh-card-hover:0 6px 16px rgba(0,0,0,0.12);
-  --sh-raised:0 4px 12px rgba(0,0,0,0.10);
+  --watermark-op:0.025;
+  /* Sombra suave y difusa, estilo card flotante sobre gris */
+  --sh-card:0 2px 10px rgba(20,36,58,0.07);
+  --sh-card-hover:0 8px 22px rgba(20,36,58,0.13);
+  --sh-raised:0 4px 14px rgba(20,36,58,0.10);
+  --blur:0px;
   color-scheme:light;
 }
 [data-theme="light"] body{box-shadow:none;}
@@ -5199,6 +5201,21 @@ button:not(.tab):not(.swipe-handle){transition:transform .1s ease,background-col
 .pdi{display:flex;align-items:center;justify-content:space-between;background:var(--sur2);border-radius:8px;padding:7px 12px;border:1px solid var(--brd);}
 .pdt{font-size:0.65rem;color:var(--mut);font-weight:500;letter-spacing:0.03em;}.cdel{cursor:pointer;opacity:0.3;font-size:0.88rem;padding:2px 4px;}.cdel:hover{opacity:1;color:var(--red);}
 /* Botones de accion sobre cada pedido (Admin > Pedidos) */
+/* ── ESTILO CLARO: emoji en circulo con degradado (como la referencia) ── */
+[data-theme="light"] .dc .ce{
+  background:linear-gradient(160deg,#dff1fb,#eef7fd);
+  border-radius:50%;width:30px;height:30px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:1.05rem;flex-shrink:0;
+}
+[data-theme="light"] .dc{border:1px solid rgba(20,36,58,0.06);}
+[data-theme="light"] .dc.sel{border-color:var(--gold);background:#fffdf7;}
+/* Header y dock: blancos solidos con separacion nitida */
+[data-theme="light"] header{border-bottom:1px solid rgba(20,36,58,0.08);}
+[data-theme="light"] .tabs{background:#ffffff;border:1px solid rgba(20,36,58,0.07);box-shadow:0 -2px 16px rgba(20,36,58,0.08);}
+/* Subtabs de admin con la pildora activa marcada */
+[data-theme="light"] .admin-stab.active{background:rgba(168,106,34,0.1);border-radius:100px;}
+
 .ped-btn{border-radius:100px;font-family:var(--font-body);font-size:0.62rem;font-weight:800;
   cursor:pointer;flex-shrink:0;padding:6px 12px;letter-spacing:0.05em;text-transform:uppercase;
   display:inline-flex;align-items:center;gap:4px;transition:all .15s;line-height:1;}
@@ -6035,7 +6052,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.152";
+  var APP_VERSION="10.0.153";
 
   var STORED_VERSION=localStorage.getItem("app_version");
 
