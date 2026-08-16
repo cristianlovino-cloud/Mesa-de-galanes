@@ -544,8 +544,6 @@
     if(tab==="pedir"){renderMiSaldo();setTimeout(renderEstuvoCerca,500);}
     if(tab==="cumples")renderCumples();
     if(tab==="stats")renderStats();
-    var spEl=document.getElementById("cafe-sponsors");
-    if(spEl)spEl.style.display=(tab==="pedir"&&window._sbSponsors&&window._sbSponsors.length)?"block":"none";
     if(tab==="mundial"&&!window._mundialLoaded)renderMundial();
   };
   window.switchAdminTab=function(stab){
@@ -1924,9 +1922,7 @@
   window.renderSponsorsCafe=function(){
     var el=document.getElementById("cafe-sponsors");if(!el)return;
     if(!window._sbSponsors.length){el.style.display="none";return;}
-    // Solo visible en la pestana Pedir (esta anclado abajo)
-    var vp=document.getElementById("v-pedir");
-    el.style.display=(vp&&vp.style.display!=="none")?"block":"none";
+    el.style.display="block";
     function spCard(sp){
       var logo=sp.logo_url?"<img src='"+sp.logo_url+"' style='width:26px;height:26px;object-fit:contain;border-radius:50%;flex-shrink:0' onerror='this.style.display=\"none\"'>":"<span style='font-size:14px;flex-shrink:0'>⭐</span>";
       return "<div style='padding:7px 12px;display:flex;align-items:center;gap:8px;background:var(--card);border:1px solid var(--brd);border-radius:100px"+(sp.url?";cursor:pointer":"")+"' "+(sp.url?"onclick=\"window.open('"+sp.url+"','_blank')\"":"")+">"
@@ -3122,7 +3118,6 @@
       html+="<div class='cn'>"+d.name+"</div>";
       if(d.sub)html+="<div class='cs'>"+d.sub+"</div>";
       if(d.precio&&isEdit)html+="<div style='font-size:0.62rem;color:rgba(245,197,24,0.6);letter-spacing:0.04em'>$"+Math.round(d.precio)+"</div>";
-      if(d.precio&&!isEdit)html+="<div class='cp'>$"+Math.round(d.precio).toLocaleString("es-AR")+"</div>";
       if(isSel&&!isEdit)html+="<div class='ck"+(cnt>1?" ck-multi":"")+"'>"+(cnt>1?cnt:"✓")+"</div>";
       // REVISAR: solo en edit mode y solo si realmente tiene el flag
       if(isEdit&&d.pendingReview)html+="<div class='cx' onclick='aprobarBebida("+i+",event)' style='cursor:pointer'>✓ APROBAR</div>";
@@ -5050,9 +5045,8 @@ header::after{
 .slabel::after{content:"";flex:1;height:1px;background:linear-gradient(to right,rgba(126,231,135,0.4),transparent);}
 
 /* DRINKS — lista compacta premium */
-.dg{display:flex;flex-direction:column;gap:5px;margin:0 12px;padding:2px 0 84px;}
-/* En modo edicion vuelve a grid para poder arrastrar comodo */
-.dg.dg-edit{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding-bottom:84px;}
+.dg{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:0 12px;padding:2px 0 12px;}
+.dg.dg-edit{gap:8px;}
 /* SISTEMA DE SUPERFICIES — modelo "GOOD": todo superficie clara.
    .surf = superficie clara estándar (TODO el contenido)
    Los estados se diferencian con CHIPS de color (fondo suave + borde + monto fuerte)
@@ -5086,13 +5080,13 @@ button:not(.tab):not(.swipe-handle){transition:transform .1s ease,background-col
   backdrop-filter:blur(var(--blur));-webkit-backdrop-filter:blur(var(--blur));
   cursor:pointer;transition:all 0.18s cubic-bezier(0.4,0,0.2,1);position:relative;overflow:hidden;
   display:flex;align-items:center;
-  padding:0 14px;min-height:52px;text-align:left;
+  padding:0 10px;min-height:52px;text-align:left;
   box-shadow:var(--sh-card);}
 /* Contenido de la fila: emoji · nombre · (precio a la derecha) */
-.dc .ci{flex-direction:row;align-items:center;gap:12px;width:100%;}
-.dc .ce{font-size:1.35rem;flex-shrink:0;width:26px;}
-.dc .cn{flex:1;text-align:left;font-size:0.88rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.dc .cp{font-family:var(--font-display);font-size:0.82rem;font-weight:700;color:var(--gold);flex-shrink:0;letter-spacing:0.02em;}
+.dc .ci{flex-direction:row;align-items:center;gap:8px;width:100%;}
+.dc .ce{font-size:1.2rem;flex-shrink:0;width:22px;}
+.dc .cn{flex:1;text-align:left;font-size:0.76rem;line-height:1.15;overflow:hidden;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;}
 .dc .ck{position:static;width:auto;min-width:22px;height:22px;border-radius:100px;padding:0 7px;flex-shrink:0;font-size:0.72rem;font-weight:800;color:#0a0805;}
 /* En modo edicion la card vuelve al formato tarjeta */
 .dc-edit{flex-direction:column!important;justify-content:center;padding:11px 8px!important;min-height:66px!important;text-align:center!important;}
@@ -5569,7 +5563,6 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
   <button class="tcx" id="tcx-btn" onclick="cancelTimer()" style="display:none">✕</button>
   <div class="tpw"><div id="t-prog" style="width:100%"></div></div>
 </div>
-<div id="cafe-sponsors" style="display:none;position:fixed;left:12px;right:12px;bottom:92px;z-index:90"></div>
 <div class="tabs">
   <button class="tab" data-tab="resumen" onclick="switchTab('resumen')"><span>📋</span>Mesa</button>
   <button class="tab" data-tab="cumples" onclick="switchTab('cumples')"><span>🎂</span>Cumple</button>
@@ -5587,6 +5580,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
     <div id="estuvo-cerca-banner" style="display:none;margin:8px 0 0"></div>
     <div class="slabel"><span class="ld"></span> Que tomas?</div>
     <div class="dg" id="drinks-grid"><div class="es" style="padding:40px 0;opacity:0.5">Conectando... ☕</div></div>
+    <div id="cafe-sponsors" style="display:none;margin:14px 12px 90px"></div>
   </div>
   <div id="v-mundial" style="display:none;padding:0 0 80px">
     <div id="mundial-content" style="padding:12px 14px">
@@ -5961,7 +5955,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.143";
+  var APP_VERSION="10.0.144";
 
   var STORED_VERSION=localStorage.getItem("app_version");
 
