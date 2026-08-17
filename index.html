@@ -1946,17 +1946,39 @@
     var el=document.getElementById("cafe-sponsors");if(!el)return;
     if(!window._sbSponsors.length){el.style.display="none";return;}
     el.style.display="block";
+    // Color de acento por sponsor: usa sp.color de la base si existe,
+    // si no lo deriva del nombre para que cada logo tenga su tono propio
+    function spColor(sp){
+      // Devuelve {solid, soft, softer} para usar en borde, texto y fondo
+      if(sp.color&&/^#[0-9a-f]{6}$/i.test(sp.color)){
+        return {solid:sp.color,soft:sp.color+"1f",softer:sp.color+"0d"};
+      }
+      var s=(sp.nombre||"")+"";var h=0;
+      for(var i=0;i<s.length;i++)h=(h*31+s.charCodeAt(i))|0;
+      var hue=Math.abs(h)%360;
+      return {
+        solid:"hsl("+hue+",58%,45%)",
+        soft:"hsla("+hue+",58%,50%,0.12)",
+        softer:"hsla("+hue+",58%,50%,0.04)"
+      };
+    }
     function spCard(sp){
-      var logo=sp.logo_url?"<img src='"+sp.logo_url+"' style='width:52px;height:52px;object-fit:contain;border-radius:50%;flex-shrink:0;border:2px solid rgba(245,197,24,0.35)' onerror='this.style.display=\"none\"'>":"<div style='width:52px;height:52px;border-radius:50%;background:var(--sur2);display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0'>⭐</div>";
-      return "<div style='padding:14px 16px;display:flex;align-items:center;gap:14px;background:var(--card);border:1.5px solid rgba(245,197,24,0.3);border-radius:18px;position:relative;overflow:hidden;box-shadow:var(--sh-card)"+(sp.url?";cursor:pointer":"")+"' "+(sp.url?"onclick=\"window.open('"+sp.url+"','_blank')\"":"")+">"
-        +"<div style='position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,transparent,var(--gold),transparent)'></div>"
+      var C=spColor(sp),col=C.solid;
+      var logo=sp.logo_url
+        ?"<div style='width:54px;height:54px;border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 2px 8px rgba(0,0,0,0.12);overflow:hidden'><img src='"+sp.logo_url+"' style='width:46px;height:46px;object-fit:contain' onerror='this.style.display=\"none\"'></div>"
+        :"<div style='width:54px;height:54px;border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0;box-shadow:0 2px 8px rgba(0,0,0,0.12)'>⭐</div>";
+      return "<div style='padding:13px 15px;display:flex;align-items:center;gap:13px;"
+        +"background:linear-gradient(135deg,"+C.soft+","+C.softer+");"
+        +"border:1px solid var(--brd);border-left:3px solid "+col+";"
+        +"border-radius:14px;position:relative;overflow:hidden;box-shadow:var(--sh-card)"+(sp.url?";cursor:pointer":"")+"' "
+        +(sp.url?"onclick=\"window.open('"+sp.url+"','_blank')\"":"")+">"
         +logo
         +"<div style='flex:1;min-width:0'>"
-        +"<div style='font-size:0.55rem;color:var(--gold);font-weight:800;letter-spacing:0.12em;margin-bottom:3px'>⭐ SPONSOR OFICIAL</div>"
-        +"<div style='font-size:0.95rem;font-weight:800;color:var(--ink);line-height:1.15;overflow:hidden;text-overflow:ellipsis'>"+esc(sp.nombre)+"</div>"
-        +(sp.tagline?"<div style='font-size:0.68rem;color:var(--mut);margin-top:3px;line-height:1.3'>"+esc(sp.tagline)+"</div>":"")
+        +"<div style='font-size:0.5rem;color:"+col+";font-weight:800;letter-spacing:0.1em;margin-bottom:2px'>⭐ SPONSOR OFICIAL</div>"
+        +"<div style='font-size:0.88rem;font-weight:800;color:var(--ink);line-height:1.15;overflow:hidden;text-overflow:ellipsis'>"+esc(sp.nombre)+"</div>"
+        +(sp.tagline?"<div style='font-size:0.66rem;color:var(--mut);margin-top:2px;line-height:1.3'>"+esc(sp.tagline)+"</div>":"")
         +"</div>"
-        +(sp.url?"<div style='font-size:0.65rem;color:var(--gold);font-weight:800;flex-shrink:0;white-space:nowrap'>VER ↗</div>":"")
+        +(sp.url?"<div style='font-size:0.62rem;color:"+col+";font-weight:800;flex-shrink:0;white-space:nowrap'>VER ↗</div>":"")
         +"</div>";
     }
     if(window._sbSponsors.length===1){el.innerHTML=spCard(window._sbSponsors[0]);return;}
@@ -1987,13 +2009,13 @@
     var v=vigentes[0];
     var plural=vigentes.length>1?" ("+vigentes.length+")":"";
     el.style.display="block";
-    el.innerHTML="<div onclick='abrirVotaciones()' style='cursor:pointer;display:flex;align-items:center;gap:9px;padding:8px 12px;border-left:3px solid #a855f7;border-radius:100px'>"
-      +"<span style='font-size:1.1rem;flex-shrink:0'>🗳️</span>"
-      +"<div style='flex:1;min-width:0;display:flex;align-items:baseline;gap:6px;overflow:hidden'>"
-      +"<span style='font-size:0.48rem;color:#a855f7;font-weight:800;letter-spacing:0.08em;flex-shrink:0'>VOTACIÓN"+plural+"</span>"
-      +"<span style='font-size:0.72rem;font-weight:700;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis'>"+esc(v.titulo)+"</span>"
+    el.innerHTML="<div onclick='abrirVotaciones()' style='cursor:pointer;display:flex;align-items:center;gap:11px;padding:11px 14px'>"
+      +"<div style='width:34px;height:34px;border-radius:50%;background:linear-gradient(160deg,rgba(168,85,247,0.18),rgba(168,85,247,0.06));display:flex;align-items:center;justify-content:center;font-size:1.05rem;flex-shrink:0'>🗳️</div>"
+      +"<div style='flex:1;min-width:0'>"
+      +"<div style='font-size:0.5rem;color:#a855f7;font-weight:800;letter-spacing:0.1em;margin-bottom:2px'>VOTACIÓN ABIERTA"+plural+"</div>"
+      +"<div style='font-size:0.8rem;font-weight:700;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis'>"+esc(v.titulo)+"</div>"
       +"</div>"
-      +"<span style='background:rgba(168,85,247,0.15);border:1px solid rgba(168,85,247,0.4);border-radius:100px;padding:4px 11px;font-size:0.62rem;font-weight:800;color:#a855f7;white-space:nowrap;flex-shrink:0'>VOTAR</span>"
+      +"<span style='background:rgba(168,85,247,0.12);border:1.5px solid rgba(168,85,247,0.4);border-radius:100px;padding:6px 13px;font-size:0.62rem;font-weight:800;color:#a855f7;white-space:nowrap;flex-shrink:0;letter-spacing:0.05em'>VOTAR</span>"
       +"</div>";
   };
 
@@ -5662,7 +5684,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
   </div>
 </header>
 <div id="cumple-banner" style="display:none"></div>
-  <div id="votacion-banner" class="surf" style="display:none;margin:10px 0 7px;overflow:hidden;border-radius:100px"></div>
+  <div id="votacion-banner" class="surf" style="display:none;margin:10px 12px 8px;overflow:hidden;border-radius:14px;border-left:3px solid #a855f7"></div>
   <div id="arg-banner" style="display:none;margin:10px 0 8px"></div>
 
 <div id="timer-bar" class="tbar">
@@ -6064,7 +6086,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.154";
+  var APP_VERSION="10.0.155";
 
   var STORED_VERSION=localStorage.getItem("app_version");
 
