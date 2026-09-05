@@ -3427,14 +3427,36 @@
 
   // ══ PAGOS VÍA MERCADO PAGO ════════════════════════════════════════════
   var MP_ALIAS="crilovino.mp";
+  var _pagoTipo="transfer";
   window.abrirPagoModal=function(monto){
     var m=document.getElementById("mpago-monto-val");if(m)m.value=monto;
     var t=document.getElementById("mpago-monto");if(t)t.textContent="$"+Math.round(monto).toLocaleString("es-AR");
     var n=document.getElementById("mpago-nota");if(n)n.value="";
-    var e=document.getElementById("mpago-efectivo");if(e)e.value="";
+    var e=document.getElementById("mpago-efectivo");if(e)e.value=monto;
     var a=document.getElementById("mpago-alias");if(a)a.textContent=MP_ALIAS;
+    setPagoTipo("transfer");
     openModal("mpagomp");
   };
+  // Selector de forma de pago: cambia panel visible y el boton de confirmar
+  window.setPagoTipo=function(tipo){
+    _pagoTipo=tipo;
+    var esTr=tipo==="transfer";
+    var tabT=document.getElementById("mpago-tab-transfer"),tabC=document.getElementById("mpago-tab-cash");
+    var onSty="border:2px solid var(--gold);background:rgba(245,197,24,0.12);color:var(--gold);";
+    var offSty="border:1.5px solid var(--brd);background:var(--sur2);color:var(--mut);";
+    if(tabT)tabT.style.cssText="padding:12px 8px;border-radius:12px;cursor:pointer;font-size:0.75rem;font-weight:800;display:flex;flex-direction:column;align-items:center;gap:4px;"+(esTr?onSty:offSty);
+    if(tabC)tabC.style.cssText="padding:12px 8px;border-radius:12px;cursor:pointer;font-size:0.75rem;font-weight:800;display:flex;flex-direction:column;align-items:center;gap:4px;"+(esTr?offSty:onSty);
+    var pT=document.getElementById("mpago-panel-transfer"),pC=document.getElementById("mpago-panel-cash");
+    if(pT)pT.style.display=esTr?"block":"none";
+    if(pC)pC.style.display=esTr?"none":"block";
+    var btn=document.getElementById("mpago-confirmar");
+    if(btn){
+      btn.textContent=esTr?"📲 YA TRANSFERÍ — AVISAR AL ADMIN":"💵 PAGUÉ EN EFECTIVO — AVISAR";
+      btn.style.background=esTr?"linear-gradient(135deg,var(--gold),#e5a93c)":"linear-gradient(135deg,#16a34a,#22c55e)";
+      btn.style.color=esTr?"#0a0805":"#fff";
+    }
+  };
+  window.confirmarAvisoPago=function(){avisarPague(_pagoTipo);};
   window.copiarMP=function(txt,label){
     navigator.clipboard.writeText(txt).then(function(){showToast("✓ "+label+" copiado");})
       .catch(function(){showToast("No se pudo copiar");});
@@ -3472,7 +3494,13 @@
         +"<div class='lista-av' style='width:34px;height:34px;font-size:0.72rem;background:"+col(r.player)+"'>"+ini(r.player)+"</div>"
         +"<div style='flex:1;min-width:0'>"
         +"<div style='font-size:0.75rem;font-weight:700;color:var(--ink);text-transform:uppercase;letter-spacing:0.04em'>"+esc(r.player)+"</div>"
-        +"<div style='font-size:0.64rem;color:var(--mut)'>"+(r.tipo==="cash"?"💵 Efectivo":"📲 Transfer")+" · $"+Math.round(r.monto).toLocaleString("es-AR")+(r.nota?" · "+esc(r.nota):"")+"</div>"
+        +"<div style='display:flex;align-items:center;gap:6px;margin-top:2px;flex-wrap:wrap'>"
+        +"<span style='font-size:0.58rem;font-weight:800;padding:2px 8px;border-radius:100px;letter-spacing:0.05em;"
+        +(r.tipo==="cash"?"background:rgba(74,222,128,0.15);color:#16a34a;border:1px solid rgba(74,222,128,0.4)":"background:rgba(99,102,241,0.15);color:#4f46e5;border:1px solid rgba(99,102,241,0.4)")
+        +"'>"+(r.tipo==="cash"?"💵 EFECTIVO":"📲 TRANSFER")+"</span>"
+        +"<span style='font-family:\"Bebas Neue\",sans-serif;font-size:0.95rem;color:var(--ink)'>$"+Math.round(r.monto).toLocaleString("es-AR")+"</span>"
+        +(r.nota?"<span style='font-size:0.6rem;color:var(--mut)'>· "+esc(r.nota)+"</span>":"")
+        +"</div>"
         +"</div>"
         +"<button class='ped-btn' style='background:rgba(74,222,128,0.15);color:#16a34a;border:1.5px solid rgba(74,222,128,0.4)' onclick='validarPagoReq(\""+r.key+"\",true)'>✓</button>"
         +"<button class='ped-btn ped-del' onclick='validarPagoReq(\""+r.key+"\",false)'>✕</button>"
@@ -6050,9 +6078,18 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
       <button onclick="closeModal('mpagomp')" style="background:none;border:none;color:var(--mut);font-size:1.1rem;cursor:pointer">✕</button>
     </div>
     <input type="hidden" id="mpago-monto-val">
-    <!-- Transferencia -->
-    <div style="background:var(--sur2);border:1px solid var(--brd);border-radius:14px;padding:13px;margin-bottom:10px">
-      <div style="font-size:0.55rem;color:var(--mut);letter-spacing:0.1em;font-weight:800;margin-bottom:9px">📲 TRANSFERENCIA</div>
+    <!-- Selector de forma de pago -->
+    <div style="font-size:0.55rem;color:var(--mut);letter-spacing:0.1em;font-weight:800;margin-bottom:8px">¿CÓMO PAGÁS?</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px">
+      <button id="mpago-tab-transfer" onclick="setPagoTipo('transfer')" style="padding:12px 8px;border-radius:12px;cursor:pointer;font-size:0.75rem;font-weight:800;display:flex;flex-direction:column;align-items:center;gap:4px">
+        <span style="font-size:1.3rem">📲</span>Transferencia
+      </button>
+      <button id="mpago-tab-cash" onclick="setPagoTipo('cash')" style="padding:12px 8px;border-radius:12px;cursor:pointer;font-size:0.75rem;font-weight:800;display:flex;flex-direction:column;align-items:center;gap:4px">
+        <span style="font-size:1.3rem">💵</span>Efectivo
+      </button>
+    </div>
+    <!-- Panel TRANSFERENCIA -->
+    <div id="mpago-panel-transfer" style="background:var(--sur2);border:1px solid var(--brd);border-radius:14px;padding:13px;margin-bottom:12px">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
         <span style="font-size:0.7rem;color:var(--mut)">Alias</span>
         <div style="display:flex;align-items:center;gap:7px">
@@ -6069,19 +6106,16 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
       </div>
       <button onclick="abrirMercadoPago()" style="width:100%;padding:11px;border-radius:10px;border:none;background:#009EE3;color:#fff;font-size:0.75rem;font-weight:800;cursor:pointer;letter-spacing:0.04em">🔵 ABRIR MERCADO PAGO</button>
     </div>
-    <!-- Efectivo -->
-    <div style="background:var(--sur2);border:1px solid var(--brd);border-radius:14px;padding:13px;margin-bottom:10px">
-      <div style="font-size:0.55rem;color:var(--mut);letter-spacing:0.1em;font-weight:800;margin-bottom:9px">💵 PAGUÉ EN EFECTIVO</div>
-      <div style="display:flex;gap:8px;align-items:center">
-        <div style="position:relative;flex:1">
-          <span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:0.75rem;color:var(--mut)">$</span>
-          <input id="mpago-efectivo" type="number" placeholder="Monto..." style="width:100%;padding:10px 10px 10px 22px;border-radius:10px;border:1px solid var(--brd);background:var(--sur);color:var(--ink);font-size:0.8rem;box-sizing:border-box;margin:0">
-        </div>
-        <button onclick="avisarPague('cash')" style="padding:10px 15px;border-radius:10px;border:none;background:var(--grn);color:#fff;font-size:0.72rem;font-weight:800;cursor:pointer;flex-shrink:0">✓ AVISAR</button>
+    <!-- Panel EFECTIVO -->
+    <div id="mpago-panel-cash" style="display:none;background:var(--sur2);border:1px solid var(--brd);border-radius:14px;padding:13px;margin-bottom:12px">
+      <div style="font-size:0.68rem;color:var(--mut);margin-bottom:8px">¿Cuánto le diste en mano al admin?</div>
+      <div style="position:relative">
+        <span style="position:absolute;left:11px;top:50%;transform:translateY(-50%);font-size:0.85rem;color:var(--mut)">$</span>
+        <input id="mpago-efectivo" type="number" placeholder="0" style="width:100%;padding:12px 12px 12px 24px;border-radius:10px;border:1px solid var(--brd);background:var(--sur);color:var(--ink);font-family:'Bebas Neue',sans-serif;font-size:1.1rem;box-sizing:border-box;margin:0">
       </div>
     </div>
-    <input id="mpago-nota" placeholder="Nota (ej: transferí a las 8hs)" style="width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--brd);background:var(--sur2);color:var(--ink);font-size:0.75rem;box-sizing:border-box;margin-bottom:10px;text-transform:none">
-    <button onclick="avisarPague('transfer')" style="width:100%;padding:13px;border-radius:12px;border:none;background:linear-gradient(135deg,var(--gold),#e5a93c);color:#0a0805;font-size:0.8rem;font-weight:800;cursor:pointer;letter-spacing:0.04em">📲 YA TRANSFERÍ — AVISAR AL ADMIN</button>
+    <input id="mpago-nota" placeholder="Nota (opcional)" style="width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--brd);background:var(--sur2);color:var(--ink);font-size:0.75rem;box-sizing:border-box;margin-bottom:12px;text-transform:none">
+    <button id="mpago-confirmar" onclick="confirmarAvisoPago()" style="width:100%;padding:14px;border-radius:12px;border:none;background:linear-gradient(135deg,var(--gold),#e5a93c);color:#0a0805;font-size:0.82rem;font-weight:800;cursor:pointer;letter-spacing:0.04em">📲 YA TRANSFERÍ — AVISAR AL ADMIN</button>
     <button onclick="closeModal('mpagomp')" style="width:100%;margin-top:8px;padding:10px;border-radius:10px;border:1px solid var(--brd);background:transparent;color:var(--mut);font-size:0.75rem;cursor:pointer">Cancelar</button>
   </div>
 </div>
@@ -6232,7 +6266,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.156";
+  var APP_VERSION="10.0.157";
 
   var STORED_VERSION=localStorage.getItem("app_version");
 
