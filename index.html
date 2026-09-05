@@ -140,6 +140,8 @@
   const rG=ref(db,"config/galanes"),rR=ref(db,"reserva"),rH=ref(db,"historial");
   const rA=ref(db,"config/accesos"),rCump=ref(db,"config/cumples"),rPend=ref(db,"config/pendientes"),rPres=ref(db,"pedido/presentes");
   const rNuevos=ref(db,"config/nuevos");
+  const rPagoReq=ref(db,"pedido/pagoRequests");
+  var pagoReqs={};
   const rKick=ref(db,"config/kickAll");
   window._rKick=rKick;
   window._setKick=async function(ts){ await set(rKick,ts); };
@@ -334,6 +336,9 @@
     onValue(rCump,function(s){cumples=s.exists()?s.val():{};renderCumples();renderCumpleBanner();});
     onValue(rPend,function(s){pendientes=s.exists()?s.val():{};renderPendientes();});
     onValue(rPres,function(s){presentes=s.exists()?s.val():{};renderLista();});
+    onValue(rPagoReq,function(s){
+      try{pagoReqs=s.exists()?s.val():{};renderMiSaldo();renderPagosPendientes();}catch(e){console.error("rPagoReq",e);}
+    });
     onValue(rNuevos,function(s){
       // Fuente unica de verdad: checkNuevosAlert (filtra por estaEnLista y limpia el badge)
       if(typeof checkNuevosAlert==="function")checkNuevosAlert();
@@ -525,7 +530,7 @@
     window._adminStab=stab;
     if(stab==="galanes"){renderLista();renderPendientes();}
     if(stab==="pedidos")renderMesa();
-    if(stab==="pagos"){renderPagosDetail();
+    if(stab==="pagos"){renderPagosDetail();renderPagosPendientes();
       // Cargar saldo guardado en el input si no está ya
       var mpInp=document.getElementById("mp-saldo-inicio");
       if(mpInp&&window._mpSaldoInicio!==undefined&&!mpInp.value)mpInp.value=window._mpSaldoInicio;
@@ -3392,9 +3397,106 @@
           +"<div style='font-size:0.58rem;color:var(--mut);margin-top:2px'>Admin carga valor</div>";
       }
     }
-    html+="</div></div></div>";
+    html+="</div></div>";
+    // ── Botón PAGAR / estado de la solicitud ──────────────────────────────
+    var miReq=null;
+    Object.keys(pagoReqs||{}).forEach(function(k){
+      var r=pagoReqs[k];
+      if(r&&r.player===me&&r.estado==="pendiente")miReq=Object.assign({},r,{key:k});
+    });
+    var faltaPagar=deuda>0&&pagado<deuda-0.5;
+    if(miReq){
+      html+="<div style='margin-top:12px;padding:10px 12px;background:rgba(245,197,24,0.1);border:1.5px solid rgba(245,197,24,0.35);border-radius:12px;display:flex;align-items:center;gap:9px'>"
+        +"<span style='font-size:1.1rem'>⏳</span>"
+        +"<div style='flex:1;min-width:0'>"
+        +"<div style='font-size:0.72rem;font-weight:700;color:var(--gold)'>Esperando confirmación</div>"
+        +"<div style='font-size:0.62rem;color:var(--mut)'>Avisaste "+(miReq.tipo==="cash"?"💵 efectivo":"📲 transferencia")+" de $"+Math.round(miReq.monto).toLocaleString("es-AR")+"</div>"
+        +"</div>"
+        +"<button onclick='cancelarMiPago(\""+miReq.key+"\")' style='background:none;border:none;color:var(--mut);font-size:0.62rem;cursor:pointer;text-decoration:underline;flex-shrink:0'>cancelar</button>"
+        +"</div>";
+    } else if(faltaPagar){
+      html+="<button onclick='abrirPagoModal("+Math.round(deuda-pagado)+")' style='width:100%;margin-top:12px;padding:13px;border-radius:12px;border:none;"
+        +"background:#009EE3;color:#fff;font-family:var(--font-body);font-size:0.8rem;font-weight:800;letter-spacing:0.05em;cursor:pointer;"
+        +"box-shadow:0 4px 14px rgba(0,158,227,0.35);display:flex;align-items:center;justify-content:center;gap:8px'>"
+        +"💳 PAGAR $"+Math.round(deuda-pagado).toLocaleString("es-AR")
+        +"</button>";
+    }
+    html+="</div>";
     card.innerHTML=html;
   }
+
+  // ══ PAGOS VÍA MERCADO PAGO ════════════════════════════════════════════
+  var MP_ALIAS="crilovino.mp";
+  window.abrirPagoModal=function(monto){
+    var m=document.getElementById("mpago-monto-val");if(m)m.value=monto;
+    var t=document.getElementById("mpago-monto");if(t)t.textContent="$"+Math.round(monto).toLocaleString("es-AR");
+    var n=document.getElementById("mpago-nota");if(n)n.value="";
+    var e=document.getElementById("mpago-efectivo");if(e)e.value="";
+    var a=document.getElementById("mpago-alias");if(a)a.textContent=MP_ALIAS;
+    openModal("mpagomp");
+  };
+  window.copiarMP=function(txt,label){
+    navigator.clipboard.writeText(txt).then(function(){showToast("✓ "+label+" copiado");})
+      .catch(function(){showToast("No se pudo copiar");});
+  };
+  window.abrirMercadoPago=function(){window.open("https://mpago.la/","_blank");};
+  // El galan avisa que ya transfirió
+  window.avisarPague=async function(tipo){
+    if(!me)return;
+    var monto=tipo==="cash"
+      ? (parseFloat((document.getElementById("mpago-efectivo")||{}).value)||0)
+      : (parseFloat((document.getElementById("mpago-monto-val")||{}).value)||0);
+    if(!monto||monto<=0){showToast(tipo==="cash"?"Ingresá el monto en efectivo":"Monto inválido");return;}
+    var nota=((document.getElementById("mpago-nota")||{}).value||"").trim();
+    await push(rPagoReq,{player:me,monto:monto,tipo:tipo,nota:nota||null,estado:"pendiente",ts:Date.now()});
+    closeModal("mpagomp");
+    showToast(tipo==="cash"?"💵 Avisaste que pagaste en efectivo":"📲 ¡Aviso enviado! El admin lo confirma");
+  };
+  window.cancelarMiPago=async function(key){
+    if(!confirm("Cancelar el aviso de pago?"))return;
+    await set(ref(db,"pedido/pagoRequests/"+key),null);
+    showToast("Aviso cancelado");
+  };
+  // ── Admin: validar los avisos ─────────────────────────────────────────
+  window.renderPagosPendientes=function(){
+    var el=document.getElementById("pagos-pendientes");if(!el)return;
+    if(!puedeOperar()){el.style.display="none";return;}
+    var pend=Object.keys(pagoReqs||{}).map(function(k){return Object.assign({},pagoReqs[k],{key:k});})
+      .filter(function(r){return r.estado==="pendiente";})
+      .sort(function(a,b){return (a.ts||0)-(b.ts||0);});
+    if(!pend.length){el.style.display="none";return;}
+    el.style.display="block";
+    var h="<div style='font-size:0.6rem;font-weight:800;color:var(--gold);letter-spacing:0.1em;margin-bottom:10px'>⏳ AVISOS DE PAGO A VALIDAR ("+pend.length+")</div>";
+    pend.forEach(function(r){
+      h+="<div style='display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--brd)'>"
+        +"<div class='lista-av' style='width:34px;height:34px;font-size:0.72rem;background:"+col(r.player)+"'>"+ini(r.player)+"</div>"
+        +"<div style='flex:1;min-width:0'>"
+        +"<div style='font-size:0.75rem;font-weight:700;color:var(--ink);text-transform:uppercase;letter-spacing:0.04em'>"+esc(r.player)+"</div>"
+        +"<div style='font-size:0.64rem;color:var(--mut)'>"+(r.tipo==="cash"?"💵 Efectivo":"📲 Transfer")+" · $"+Math.round(r.monto).toLocaleString("es-AR")+(r.nota?" · "+esc(r.nota):"")+"</div>"
+        +"</div>"
+        +"<button class='ped-btn' style='background:rgba(74,222,128,0.15);color:#16a34a;border:1.5px solid rgba(74,222,128,0.4)' onclick='validarPagoReq(\""+r.key+"\",true)'>✓</button>"
+        +"<button class='ped-btn ped-del' onclick='validarPagoReq(\""+r.key+"\",false)'>✕</button>"
+        +"</div>";
+    });
+    el.innerHTML=h;
+  };
+  window.validarPagoReq=async function(key,aprobar){
+    if(!puedeOperar())return;
+    var r=pagoReqs[key];if(!r)return;
+    if(aprobar){
+      // Registrar el pago en el nodo real de pagos
+      var cur=Object.assign({cash:0,transfer:0},pagos[r.player]||{});
+      var campo=r.tipo==="cash"?"cash":"transfer";
+      cur[campo]=(cur[campo]||0)+r.monto;
+      await set(ref(db,"pedido/pagos/"+r.player),cur);
+      await enviarNotif(r.player,"✅ Tu pago de $"+Math.round(r.monto).toLocaleString("es-AR")+" fue confirmado. ¡Gracias!","pago");
+      showToast("✓ Pago de "+r.player+" confirmado");
+    } else {
+      await enviarNotif(r.player,"⚠️ Tu aviso de pago fue rechazado. Hablá con el admin.","info");
+      showToast("Aviso rechazado");
+    }
+    await set(ref(db,"pedido/pagoRequests/"+key),null);
+  };
 
   function renderMesaStats(){
    try{
@@ -5826,6 +5928,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
     <div id="vadmin-pagos" style="display:none">
       <div style="padding:12px 14px 80px">
         <!-- Verificador saldo MP -->
+        <div id="pagos-pendientes" class="surf" style="display:none;margin:0 0 12px;padding:14px 16px;border-left:3px solid var(--gold)"></div>
         <div id="mp-saldo-panel" class="surf" data-solo-admin style="margin:0 0 12px;padding:14px 16px">
           <div style="font-size:0.6rem;font-weight:700;color:var(--gold);letter-spacing:0.08em;margin-bottom:10px">💚 VERIFICADOR MERCADO PAGO</div>
           <div style="display:flex;gap:8px;align-items:flex-end;margin-bottom:10px">
@@ -5937,6 +6040,49 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
     <div class="ppl" id="player-list"></div>
     <div id="multi-confirm" style="display:none"></div>
     <div class="ma" style="margin-top:12px"><button class="bs" onclick="closeModal('motro')">Cerrar</button></div>
+  </div>
+</div>
+<div class="modal-overlay mc" id="mpagomp" onclick="if(event.target===this)closeModal('mpagomp')">
+  <div class="modal-card">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+      <span style="font-size:1.5rem">💳</span>
+      <h3 style="margin:0;font-size:1.2rem;flex:1">Pagar tu café</h3>
+      <button onclick="closeModal('mpagomp')" style="background:none;border:none;color:var(--mut);font-size:1.1rem;cursor:pointer">✕</button>
+    </div>
+    <input type="hidden" id="mpago-monto-val">
+    <!-- Transferencia -->
+    <div style="background:var(--sur2);border:1px solid var(--brd);border-radius:14px;padding:13px;margin-bottom:10px">
+      <div style="font-size:0.55rem;color:var(--mut);letter-spacing:0.1em;font-weight:800;margin-bottom:9px">📲 TRANSFERENCIA</div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <span style="font-size:0.7rem;color:var(--mut)">Alias</span>
+        <div style="display:flex;align-items:center;gap:7px">
+          <span id="mpago-alias" style="font-size:0.82rem;font-weight:800;color:var(--gold)">crilovino.mp</span>
+          <button onclick="copiarMP(document.getElementById('mpago-alias').textContent,'Alias')" style="padding:4px 9px;border-radius:7px;border:1px solid var(--brd);background:var(--sur);color:var(--mut);font-size:0.65rem;cursor:pointer">📋</button>
+        </div>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:11px">
+        <span style="font-size:0.7rem;color:var(--mut)">Monto</span>
+        <div style="display:flex;align-items:center;gap:7px">
+          <span id="mpago-monto" style="font-size:0.9rem;font-weight:800;color:var(--grn)"></span>
+          <button onclick="copiarMP(document.getElementById('mpago-monto-val').value,'Monto')" style="padding:4px 9px;border-radius:7px;border:1px solid var(--brd);background:var(--sur);color:var(--mut);font-size:0.65rem;cursor:pointer">📋</button>
+        </div>
+      </div>
+      <button onclick="abrirMercadoPago()" style="width:100%;padding:11px;border-radius:10px;border:none;background:#009EE3;color:#fff;font-size:0.75rem;font-weight:800;cursor:pointer;letter-spacing:0.04em">🔵 ABRIR MERCADO PAGO</button>
+    </div>
+    <!-- Efectivo -->
+    <div style="background:var(--sur2);border:1px solid var(--brd);border-radius:14px;padding:13px;margin-bottom:10px">
+      <div style="font-size:0.55rem;color:var(--mut);letter-spacing:0.1em;font-weight:800;margin-bottom:9px">💵 PAGUÉ EN EFECTIVO</div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <div style="position:relative;flex:1">
+          <span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:0.75rem;color:var(--mut)">$</span>
+          <input id="mpago-efectivo" type="number" placeholder="Monto..." style="width:100%;padding:10px 10px 10px 22px;border-radius:10px;border:1px solid var(--brd);background:var(--sur);color:var(--ink);font-size:0.8rem;box-sizing:border-box;margin:0">
+        </div>
+        <button onclick="avisarPague('cash')" style="padding:10px 15px;border-radius:10px;border:none;background:var(--grn);color:#fff;font-size:0.72rem;font-weight:800;cursor:pointer;flex-shrink:0">✓ AVISAR</button>
+      </div>
+    </div>
+    <input id="mpago-nota" placeholder="Nota (ej: transferí a las 8hs)" style="width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--brd);background:var(--sur2);color:var(--ink);font-size:0.75rem;box-sizing:border-box;margin-bottom:10px;text-transform:none">
+    <button onclick="avisarPague('transfer')" style="width:100%;padding:13px;border-radius:12px;border:none;background:linear-gradient(135deg,var(--gold),#e5a93c);color:#0a0805;font-size:0.8rem;font-weight:800;cursor:pointer;letter-spacing:0.04em">📲 YA TRANSFERÍ — AVISAR AL ADMIN</button>
+    <button onclick="closeModal('mpagomp')" style="width:100%;margin-top:8px;padding:10px;border-radius:10px;border:1px solid var(--brd);background:transparent;color:var(--mut);font-size:0.75rem;cursor:pointer">Cancelar</button>
   </div>
 </div>
 <div class="modal-overlay mc" id="mpago" onclick="if(event.target===this)closeModal('mpago')">
@@ -6086,7 +6232,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.155";
+  var APP_VERSION="10.0.156";
 
   var STORED_VERSION=localStorage.getItem("app_version");
 
