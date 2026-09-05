@@ -869,7 +869,7 @@
   window.borrarCumpleEl=async function(el){
     if(!isAdmin())return;
     var name=el.getAttribute("data-name");if(!name)return;
-    if(!confirm("¿Borrar el cumpleaños de "+name+"?"))return;
+    if(!await confirmar("Se va a borrar el cumpleaños de "+name+".",{titulo:"Borrar cumpleaños",icono:"🎂",okTxt:"Borrar",peligro:true}))return;
     await set(ref(db,"config/cumples/"+name),null);
     delete cumples[name];
     showToast("🗑️ Borrado el cumple de "+name);
@@ -978,9 +978,9 @@
   }
 
   // Admin puede cargar cumpleaños de otro galan
-  window.adminAgregarCumple=function(){
+  window.adminAgregarCumple=async function(){
     if(!isAdmin())return;
-    var nombre=prompt("Nombre del galan:");
+    var nombre=await pedirTexto("Escribí el nombre del galan","",{titulo:"Cargar cumpleaños",icono:"🎂",placeholder:"Ej: Jorge Rinaldi"});
     if(!nombre||!nombre.trim())return;
     window._cumpleParaGalan=nombre.trim();
     // Precargar si ya tiene
@@ -1137,7 +1137,7 @@
   window.eliminarDeListaBase=async function(el){
     if(!isAdmin())return;
     var nombre=el.getAttribute("data-name");if(!nombre)return;
-    if(!confirm("¿Eliminar "+nombre+" de la lista base? Sus pedidos de hoy no se borran."))return;
+    if(!await confirmar("Sus pedidos de hoy no se borran.",{titulo:"Eliminar a "+nombre+"?",icono:"👤",okTxt:"Eliminar",peligro:true}))return;
     var idx=galanes.indexOf(nombre);
     if(idx!==-1){var nl=galanes.slice();nl.splice(idx,1);await set(rG,nl);}
     showToast("✓ "+nombre+" eliminado de la lista");
@@ -1290,7 +1290,7 @@
     var sinPedido=keys.filter(function(pl){return yaConPedido.indexOf(pl)===-1&&!(reservas[pl].pedidos||[]).length;});
     if(!nuevos.length&&!sinPedido.length){showToast("Todos ya tienen pedido cargado");return;}
     var msg="Importar "+nuevos.length+" con pedido pre-cargado"+(sinPedido.length?" ("+sinPedido.length+" solo asistencia, sin bebida)":"")+". ¿Continuar?";
-    if(!confirm(msg))return;
+    if(!await confirmar(msg,{titulo:"Confirmar",okTxt:"Sí, dale"}))return;
     for(var i=0;i<nuevos.length;i++){
       var pl=nuevos[i],peds=reservas[pl].pedidos||[];
       for(var j=0;j<peds.length;j++){
@@ -1308,7 +1308,7 @@
   };
 
   window.publicarVersion=async function(){
-    if(!confirm("Publicar v"+APP_VERSION+" para todos? Cada celu va a recargar automáticamente."))return;
+    if(!await confirmar("Cada celu va a recargar automáticamente.",{titulo:"Publicar v"+APP_VERSION+"?",icono:"📡",okTxt:"Publicar"}))return;
     try{
       await set(rVer,APP_VERSION);
       showToast("📡 v"+APP_VERSION+" publicada!");
@@ -1317,7 +1317,7 @@
 
   window.cerrarMesa=async function(){
     if(!Object.keys(orders).length){showToast("No hay pedidos para cerrar");return;}
-    if(!confirm("Cerrar y archivar la mesa de hoy?"))return;
+    if(!await confirmar("Se archiva el día y se limpian los pedidos.",{titulo:"Cerrar la mesa?",icono:"🔒",okTxt:"Cerrar mesa",peligro:true}))return;
     var now=new Date(),fecha=now.toISOString().slice(0,10),hora=now.toLocaleTimeString("es-AR",{hour:"2-digit",minute:"2-digit"});
     var sumC=0,sumT=0;Object.values(pagos).forEach(function(pg){sumC+=(pg.cash||0);sumT+=(pg.transfer||0);});
     var precios={};drinks.forEach(function(d){if(d.precio)precios[d.id||d.name]=d.precio;});
@@ -1423,13 +1423,13 @@
   };
   window.resetRondaPropina=async function(){
     if(!isAdmin())return;
-    if(!confirm("Resetear la ronda de propina? Se recalculará con los últimos 3 sábados."))return;
+    if(!await confirmar("Se recalcula con los últimos 3 sábados.",{titulo:"Resetear la ronda?",icono:"🎲",okTxt:"Resetear",peligro:true}))return;
     await set(ref(db,"config/propina/ronda"),null);
     showToast("↺ Ronda reseteada — el próximo sorteo arranca fresh");
   };
   window.borrarHistorialPropina=async function(nombre){
     if(!isAdmin())return;
-    if(!confirm("Borrar todas las entradas de "+nombre+" del historial de propinas?"))return;
+    if(!await confirmar("Se borran todas sus entradas del historial de propinas.",{titulo:"Borrar a "+nombre+"?",icono:"🎲",okTxt:"Borrar",peligro:true}))return;
     var pSnap=await get(rPropina);
     if(!pSnap.exists())return;
     var pd=pSnap.val();
@@ -1446,7 +1446,7 @@
     var hh=(pd.historial||[]).slice();
     if(!hh.length)return;
     var ult=hh[hh.length-1];
-    var nuevo=prompt("Corregir nombre del último sorteo (era: "+ult.nombre+")", ult.nombre);
+    var nuevo=await pedirTexto("Era: "+ult.nombre,ult.nombre,{titulo:"Corregir ganador",icono:"🎲"});
     if(!nuevo||!nuevo.trim())return;
     hh[hh.length-1]=Object.assign({},ult,{nombre:nuevo.trim()});
     await set(rPropina,Object.assign({},pd,{historial:hh}));
@@ -1463,7 +1463,7 @@
   };
   window.limpiarPropina=async function(){
     if(!isAdmin())return;
-    if(!confirm("Borrar la propina activa?"))return;
+    if(!await confirmar("Se borra el sorteo actual.",{titulo:"Borrar propina activa?",icono:"🎲",okTxt:"Borrar",peligro:true}))return;
     await set(ref(db,"pedido/propina"),null);
     var pind=document.getElementById("propina-indicator");if(pind)pind.style.display="none";
     showToast("✓ Propina limpiada");
@@ -1614,14 +1614,14 @@
   };
 
   // ── PEDIDOS ───────────────────────────────────────────────
-  window.selectDrink=function(idx){
+  window.selectDrink=async function(idx){
     if(!me){showLoginScreen();return;}
     if(navigator.vibrate)navigator.vibrate(8);
     // Si ya confirmó, solo avisar pero dejar continuar (puede querer cambiar)
     // El bloqueo total solo aplica si el admin cerró la mesa
     var myOrders=Object.entries(orders).filter(function(e){return e[1].player===me&&e[1].drinkIdx===idx;});
     if(myOrders.length>0){document.getElementById("dup-title").textContent=drinks[idx].icon+" "+drinks[idx].name;window._dupIdx=idx;openModal("mdup");return;}
-    if(!isAdmin()){var al=Object.values(orders).filter(function(o){return o.player===me&&o.loadedBy==="admin";});if(al.length>0&&!confirm("El admin ya te cargó un pedido. ¿Querés agregar otro?"))return;}
+    if(!isAdmin()){var al=Object.values(orders).filter(function(o){return o.player===me&&o.loadedBy==="admin";});if(al.length>0&&!await confirmar("El admin ya te cargó un pedido.",{titulo:"¿Agregar otro?",icono:"☕",okTxt:"Sí, agregar"}))return;}
     pDrink=Object.assign({},drinks[idx],{idx:idx});pFor=null;
     if(drinks[idx].tipo==="comida"&&(!drinks[idx].extras||!drinks[idx].extras.length)){
       // Comida sin extras configurados: confirmar directo sin acompañamiento
@@ -1731,7 +1731,7 @@
   };
 
   window.removeOrder=async function(key){await remove(ref(db,"pedido/orders/"+key));};
-  window.clearAll=async function(){if(!puedeOperar()){showToast("Solo el admin puede limpiar");return;}if(!confirm("Limpiar todos los pedidos?"))return;await set(rO,null);await set(rC,null);await set(rP,null);};
+  window.clearAll=async function(){if(!puedeOperar()){showToast("Solo el admin puede limpiar");return;}if(!await confirmar("Se borran todos los pedidos y pagos del día.",{titulo:"Limpiar la mesa?",icono:"🧹",okTxt:"Limpiar",peligro:true}))return;await set(rO,null);await set(rC,null);await set(rP,null);};
 
   window.repetirUltimo=async function(){
     if(!me)return;
@@ -1806,7 +1806,7 @@
     // fallback
     return;
   };
-  window.delDrinkIdx=async function(idx,e){e.stopPropagation();if(!isAdmin())return;if(!confirm("Eliminar "+drinks[idx].name+"?"))return;await set(rD,drinks.filter(function(_,i){return i!==idx;}));}
+  window.delDrinkIdx=async function(idx,e){e.stopPropagation();if(!isAdmin())return;if(!await confirmar("Se saca del menú.",{titulo:"Eliminar "+drinks[idx].name+"?",icono:"☕",okTxt:"Eliminar",peligro:true}))return;await set(rD,drinks.filter(function(_,i){return i!==idx;}));}
   window.editarExtras=async function(idx){
     if(!isAdmin())return;
     window._editExtrasIdx=idx;
@@ -2171,10 +2171,10 @@
   }
 
   window.votarCafe=async function(vacId,opcionId){
-    if(!me){alert("Ingresá tu nombre primero");return;}
+    if(!me){await avisar("Primero identificate con tu nombre.",{titulo:"Falta tu nombre"});return;}
     var sb=window._sb;if(!sb)return;
     var r=await sb.from("votacion_votos").insert({votacion_id:vacId,opcion_id:opcionId,participant_name:me}).select().single();
-    if(r.error){alert("Error: "+r.error.message);return;}
+    if(r.error){await avisar(r.error.message,{titulo:"No se pudo guardar",icono:"⚠️"});return;}
     renderModalVotaciones();
   };
 
@@ -2187,13 +2187,13 @@
   };
 
   window.cerrarVotacionCafe=async function(id){
-    if(!confirm("¿Cerrar esta votación?"))return;
+    if(!await confirmar("No se van a poder cargar más votos.",{titulo:"Cerrar la votación?",icono:"🗳️",okTxt:"Cerrar"}))return;
     await window._sb.from("votaciones").update({activa:false}).eq("id",id);
     renderModalVotaciones();renderVotacionBanner();
   };
 
   window.eliminarVotacionCafe=async function(id){
-    if(!confirm("¿Eliminar esta votación y todos sus votos?"))return;
+    if(!await confirmar("Se borran también todos los votos cargados.",{titulo:"Eliminar votación?",icono:"🗳️",okTxt:"Eliminar",peligro:true}))return;
     var sb=window._sb;
     await sb.from("votacion_votos").delete().eq("votacion_id",id);
     await sb.from("votacion_opciones").delete().eq("votacion_id",id);
@@ -2277,8 +2277,8 @@
     var tipo=document.getElementById("nvc-tipo").value;
     var desdeRaw=document.getElementById("nvc-desde").value;
     var hastaRaw=document.getElementById("nvc-hasta").value;
-    if(!titulo){alert("Ingresá un título");return;}
-    if(!_nvCafeOpciones.length){alert("Agregá al menos una opción");return;}
+    if(!titulo){await avisar("La votación necesita un título.",{titulo:"Falta el título"});return;}
+    if(!_nvCafeOpciones.length){await avisar("Agregá al menos una opción para votar.",{titulo:"Faltan opciones"});return;}
     var sb=window._sb;if(!sb)return;
     // Convertir YYYY-MM-DD a DD/MM/YYYY
     var toDD=function(s){if(!s)return"";var p=s.split("-");return p[2]+"/"+p[1]+"/"+p[0];};
@@ -2290,7 +2290,7 @@
       await sb.from("votacion_opciones").delete().eq("votacion_id",vacId);
     }else{
       var r=await sb.from("votaciones").insert(payload).select().single();
-      if(r.error){alert("Error: "+r.error.message);return;}
+      if(r.error){await avisar(r.error.message,{titulo:"No se pudo guardar",icono:"⚠️"});return;}
       vacId=r.data.id;
     }
     var ops=_nvCafeOpciones.map(function(op,i){return{votacion_id:vacId,nombre:op.nombre,emoji:op.emoji,orden:i};});
@@ -2501,7 +2501,7 @@
       showToast("🏖️ Modo vacaciones activado");
       setTimeout(abrirMozosModal,250);
     } else {
-      if(!confirm("Desactivar modo vacaciones?\n\nLos galanes designados dejan de tener acceso al panel."))return;
+      if(!await confirmar("Los galanes designados dejan de tener acceso al panel.",{titulo:"Desactivar modo vacaciones?",icono:"🏖️",okTxt:"Desactivar"}))return;
       await set(rModoMozo,false);
       showToast("🔒 Modo vacaciones desactivado");
     }
@@ -2815,10 +2815,10 @@
     await set(rArgBanner,Object.assign({},cfg,{activo:!!activo}));
   };
 
-  window.editarArgBanner=function(){
+  window.editarArgBanner=async function(){
     if(!isAdmin())return;
     var cfg=window._argBanner||{};
-    var nuevo=prompt("Texto del banner:",cfg.texto||"¡Vamos Argentina! 🇦🇷");
+    var nuevo=await pedirTexto("Lo que van a leer todos",cfg.texto||"¡Vamos Argentina! 🇦🇷",{titulo:"Texto del banner",icono:"🇦🇷"});
     if(nuevo===null)return;
     // Forzar re-render completo borrando el inner
     var el=document.getElementById("arg-banner");
@@ -2931,7 +2931,7 @@
     showToast("🔥 Asado configurado!");
   };
   window.borrarConfigAsado=async function(){
-    if(!confirm("Borrar el asado configurado?"))return;
+    if(!await confirmar("Se saca la fecha del próximo asado.",{titulo:"Borrar el asado?",icono:"🔥",okTxt:"Borrar",peligro:true}))return;
     await set(rAsadoConfig,null);
     closeModal("masado");
     showToast("✓ Asado borrado");
@@ -3030,7 +3030,7 @@
     checkNuevosAlert();
   };
   window.descartarNuevo=async function(nombre){
-    if(!confirm("Rechazar a "+nombre+"? Se borrará su pedido."))return;
+    if(!await confirmar("También se borra su pedido.",{titulo:"Rechazar a "+nombre+"?",icono:"👤",okTxt:"Rechazar",peligro:true}))return;
     // Borrar pedidos del usuario
     var keysToDelete=Object.keys(orders).filter(function(k){return orders[k].player===nombre;});
     await Promise.all(keysToDelete.map(function(k){return set(ref(db,"pedido/orders/"+k),null);}));
@@ -3042,7 +3042,7 @@
     checkNuevosAlert();
   };
 
-  window.resetDrinks=async function(){if(!confirm("Restaurar 4 categorias originales?"))return;await set(rD,DRINKS_DEF);};
+  window.resetDrinks=async function(){if(!await confirmar("Se reemplaza el menú actual por el original.",{titulo:"Restaurar bebidas?",icono:"☕",okTxt:"Restaurar",peligro:true}))return;await set(rD,DRINKS_DEF);};
   window.dragStart=function(e,idx){dragIdx=idx;setTimeout(function(){e.target.classList.add("dragging");},0);};
   window.dragOver=function(e){e.preventDefault();};
   window.drop=async function(e,toIdx){e.preventDefault();if(dragIdx===null||dragIdx===toIdx)return;var nd=drinks.slice(),moved=nd.splice(dragIdx,1)[0];nd.splice(toIdx,0,moved);dragIdx=null;await set(rD,nd);};
@@ -3133,7 +3133,7 @@
 
 
 
-  window.noEstoy=function(){if(confirm("¿Seguro que no venís el "+satLabel()+"?")){speak("Nos vemos otro sábado!");showToast("😔 Hasta la próxima!");setTimeout(function(){window.close();},1500);}};
+  window.noEstoy=async function(){if(await confirmar("Te sacamos de la lista de este sábado.",{titulo:"¿No venís el "+satLabel()+"?",icono:"😔",okTxt:"No voy"})){speak("Nos vemos otro sábado!");showToast("😔 Hasta la próxima!");setTimeout(function(){window.close();},1500);}};
 
   window.guardarPedidoComoReserva=async function(){
     var myOrders=Object.values(orders).filter(function(o){return o.player===me;});
@@ -3475,7 +3475,7 @@
     showToast(tipo==="cash"?"💵 Avisaste que pagaste en efectivo":"📲 ¡Aviso enviado! El admin lo confirma");
   };
   window.cancelarMiPago=async function(key){
-    if(!confirm("Cancelar el aviso de pago?"))return;
+    if(!await confirmar("Vas a poder avisar de nuevo cuando quieras.",{titulo:"Cancelar el aviso?",icono:"💳",okTxt:"Cancelar aviso"}))return;
     await set(ref(db,"pedido/pagoRequests/"+key),null);
     showToast("Aviso cancelado");
   };
@@ -3870,7 +3870,7 @@
   }
 
   window.resetPago=async function(pl){
-    if(!confirm("¿Borrar pago de "+pl+"?"))return;
+    if(!await confirmar("Se borra lo cargado para "+pl+".",{titulo:"Borrar pago?",icono:"💰",okTxt:"Borrar",peligro:true}))return;
     await set(ref(db,"pedido/pagos/"+pl),null);
     showToast("Pago de "+pl+" reseteado");
   };
@@ -4920,6 +4920,61 @@
     if(hh)hh.textContent=now.toLocaleTimeString("es-AR",{hour:"2-digit",minute:"2-digit"});
 
   }
+  // ══ DIÁLOGOS PROPIOS (reemplazan confirm/alert/prompt nativos) ══════════
+  function _dlgClose(){
+    var d=document.getElementById("dlg-overlay");
+    if(d){d.classList.remove("open");setTimeout(function(){if(d.parentNode)d.parentNode.removeChild(d);},180);}
+  }
+  // opts: {titulo, msg, icono, okTxt, cancelTxt, peligro, input, placeholder, valor}
+  function mostrarDialogo(opts,cb){
+    _dlgClose();
+    var o=opts||{};
+    var esInput=!!o.input;
+    var ov=document.createElement("div");
+    ov.id="dlg-overlay";ov.className="modal-overlay mc";
+    ov.style.zIndex="99999";
+    ov.onclick=function(e){if(e.target===ov){_dlgClose();cb&&cb(esInput?null:false);}};
+    var accent=o.peligro?"#ef4444":"var(--gold)";
+    ov.innerHTML="<div class='modal-card' style='max-width:330px'>"
+      +"<div style='text-align:center;margin-bottom:14px'>"
+      +"<div style='font-size:2.2rem;line-height:1;margin-bottom:8px'>"+(o.icono||(o.peligro?"⚠️":"❓"))+"</div>"
+      +"<div style='font-family:\"Bebas Neue\",sans-serif;font-size:1.15rem;color:var(--ink);letter-spacing:0.05em'>"+esc(o.titulo||"Confirmar")+"</div>"
+      +(o.msg?"<div style='font-size:0.74rem;color:var(--mut);margin-top:6px;line-height:1.45'>"+esc(o.msg)+"</div>":"")
+      +"</div>"
+      +(esInput?"<input id='dlg-input' placeholder='"+esc(o.placeholder||"")+"' value='"+esc(o.valor||"")+"' style='width:100%;padding:12px;border-radius:11px;border:1.5px solid var(--brd);background:var(--sur2);color:var(--ink);font-size:0.85rem;box-sizing:border-box;margin-bottom:14px;text-transform:none'>":"")
+      +"<div style='display:flex;gap:8px'>"
+      +(o.soloOk?"":"<button id='dlg-no' style='flex:1;padding:12px;border-radius:11px;border:1.5px solid var(--brd);background:var(--sur2);color:var(--mut);font-size:0.78rem;font-weight:700;cursor:pointer'>"+esc(o.cancelTxt||"Cancelar")+"</button>")
+      +"<button id='dlg-si' style='flex:1.3;padding:12px;border-radius:11px;border:none;background:"+accent+";color:"+(o.peligro?"#fff":"#0a0805")+";font-size:0.78rem;font-weight:800;cursor:pointer;letter-spacing:0.03em'>"+esc(o.okTxt||"Aceptar")+"</button>"
+      +"</div></div>";
+    document.body.appendChild(ov);
+    requestAnimationFrame(function(){ov.classList.add("open");});
+    var inp=ov.querySelector("#dlg-input");
+    if(inp){setTimeout(function(){inp.focus();inp.select();},120);
+      inp.addEventListener("keydown",function(e){if(e.key==="Enter")ov.querySelector("#dlg-si").click();});}
+    var no=ov.querySelector("#dlg-no");
+    if(no)no.onclick=function(){_dlgClose();cb&&cb(esInput?null:false);};
+    ov.querySelector("#dlg-si").onclick=function(){
+      var val=inp?inp.value:true;
+      _dlgClose();cb&&cb(val);
+    };
+  }
+  // Versiones con Promise para usar con await, misma firma que las nativas
+  window.confirmar=function(msg,opts){
+    return new Promise(function(res){
+      mostrarDialogo(Object.assign({msg:msg},opts||{}),function(r){res(!!r);});
+    });
+  };
+  window.avisar=function(msg,opts){
+    return new Promise(function(res){
+      mostrarDialogo(Object.assign({msg:msg,soloOk:true,okTxt:"Entendido",icono:"ℹ️"},opts||{}),function(){res(true);});
+    });
+  };
+  window.pedirTexto=function(msg,valor,opts){
+    return new Promise(function(res){
+      mostrarDialogo(Object.assign({msg:msg,input:true,valor:valor||"",icono:"✏️",okTxt:"Guardar"},opts||{}),function(r){res(r);});
+    });
+  };
+
   window.openModal=function(id){
     if(id==="mpedirreserva"){
       window._reservaSeleccion=[];
@@ -5375,6 +5430,10 @@ button:not(.tab):not(.swipe-handle){transition:transform .1s ease,background-col
 /* Subtabs de admin con la pildora activa marcada */
 [data-theme="light"] .admin-stab.active{background:rgba(168,106,34,0.1);border-radius:100px;}
 
+/* Dialogos propios: entrada suave */
+#dlg-overlay .modal-card{animation:dlgIn .22s cubic-bezier(0.34,1.3,0.64,1);}
+@keyframes dlgIn{from{opacity:0;transform:scale(0.92) translateY(10px)}to{opacity:1;transform:scale(1) translateY(0)}}
+#dlg-overlay button:active{transform:scale(0.96);}
 .ped-btn{border-radius:100px;font-family:var(--font-body);font-size:0.62rem;font-weight:800;
   cursor:pointer;flex-shrink:0;padding:6px 12px;letter-spacing:0.05em;text-transform:uppercase;
   display:inline-flex;align-items:center;gap:4px;transition:all .15s;line-height:1;}
@@ -6266,7 +6325,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.157";
+  var APP_VERSION="10.0.158";
 
   var STORED_VERSION=localStorage.getItem("app_version");
 
@@ -6343,7 +6402,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 <script>
 window.kickAllUsers=async function(){
   if(!isAdmin())return;
-  if(!confirm("¿Cerrar sesión de TODOS los usuarios? Tendrán que volver a identificarse."))return;
+  if(!await confirmar("Todos van a tener que volver a identificarse.",{titulo:"Cerrar sesión de todos?",icono:"🚪",okTxt:"Cerrar sesiones",peligro:true}))return;
   var ts=Date.now();
   await window._setKick(ts);
   // Admin actualiza su propio kick_ts para no ser afectado en futuras recargas
