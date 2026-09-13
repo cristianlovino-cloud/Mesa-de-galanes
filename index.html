@@ -141,6 +141,9 @@
   const rA=ref(db,"config/accesos"),rCump=ref(db,"config/cumples"),rPend=ref(db,"config/pendientes"),rPres=ref(db,"pedido/presentes");
   const rNuevos=ref(db,"config/nuevos");
   const rPagoReq=ref(db,"pedido/pagoRequests");
+  const rFondoCfg=ref(db,"config/fondo");      // {monto, alias, saldoInversion}
+  const rPozos=ref(db,"fondo/pozos");          // {id:{cumpleanero,fechaCumple,monto,estado,aportes:{}}}
+  var fondoCfg={},pozos={};
   var pagoReqs={};
   const rKick=ref(db,"config/kickAll");
   window._rKick=rKick;
@@ -336,6 +339,12 @@
     onValue(rCump,function(s){cumples=s.exists()?s.val():{};renderCumples();renderCumpleBanner();});
     onValue(rPend,function(s){pendientes=s.exists()?s.val():{};renderPendientes();});
     onValue(rPres,function(s){presentes=s.exists()?s.val():{};renderLista();});
+    onValue(rFondoCfg,function(s){
+      try{fondoCfg=s.exists()?s.val():{};renderFondo();}catch(e){console.error("rFondoCfg",e);}
+    });
+    onValue(rPozos,function(s){
+      try{pozos=s.exists()?s.val():{};renderFondo();}catch(e){console.error("rPozos",e);}
+    });
     onValue(rPagoReq,function(s){
       try{pagoReqs=s.exists()?s.val():{};renderMiSaldo();renderPagosPendientes();}catch(e){console.error("rPagoReq",e);}
     });
@@ -517,7 +526,7 @@
     if(tab==="admin"){window._ordenesEnAdmin=true;window._adminStab=isAdmin()?"galanes":"pedidos";renderLista();renderMesa();renderPendientes();checkNuevosAlert();aplicarPermisosMozo();if(!isAdmin())switchAdminTab("pedidos");if(!window._cleaned){window._cleaned=true;limpiarHuerfanos();}}
     if(tab==="resumen"){window._ordenesEnAdmin=false;renderOrders();}
     if(tab==="pedir"){renderMiSaldo();setTimeout(renderEstuvoCerca,500);}
-    if(tab==="cumples")renderCumples();
+    if(tab==="cumples"){renderCumples();renderFondo();}
     if(tab==="stats")renderStats();
     if(tab==="mundial"&&!window._mundialLoaded)renderMundial();
   };
@@ -3526,6 +3535,268 @@
     await set(ref(db,"pedido/pagoRequests/"+key),null);
   };
 
+  // ══ FONDO DE CUMPLEAÑOS ═══════════════════════════════════════════════
+  window.switchCumpleTab=function(t){
+    document.querySelectorAll(".cst").forEach(function(b){b.classList.toggle("active",b.getAttribute("data-cst")===t);});
+    var l=document.getElementById("vcumple-lista"),f=document.getElementById("vcumple-fondo");
+    if(l)l.style.display=t==="lista"?"block":"none";
+    if(f)f.style.display=t==="fondo"?"block":"none";
+    if(t==="fondo")renderFondo();
+  };
+  function pozoActivo(){
+    var act=null;
+    Object.keys(pozos||{}).forEach(function(k){
+      var p=pozos[k];
+      if(p&&p.estado==="abierto")act=Object.assign({},p,{key:k});
+    });
+    return act;
+  }
+  function fmt$(n){return "$"+Math.round(n||0).toLocaleString("es-AR");}
+
+  window.renderFondo=function(){
+    var el=document.getElementById("fondo-panel");if(!el)return;
+    var monto=fondoCfg.monto||0;
+    var alias=fondoCfg.alias||"";
+    var saldo=fondoCfg.saldoInversion||0;
+    var act=pozoActivo();
+    var h="";
+
+    // ── Saldo del fondo ──
+    h+="<div class='surf' style='padding:16px;margin-bottom:12px;text-align:center;border-left:3px solid var(--grn)'>"
+      +"<div style='font-size:0.55rem;color:var(--mut);letter-spacing:0.1em;font-weight:800;margin-bottom:5px'>💰 FONDO ACUMULADO</div>"
+      +"<div style='font-family:\"Bebas Neue\",sans-serif;font-size:2.4rem;color:var(--grn);line-height:1'>"+fmt$(saldo)+"</div>"
+      +(isAdmin()?"<button onclick='editarSaldoFondo()' style='margin-top:8px;background:none;border:none;color:var(--mut);font-size:0.62rem;cursor:pointer;text-decoration:underline'>✏️ actualizar saldo</button>":"")
+      +"</div>";
+
+    // ── Pozo activo ──
+    if(act){
+      var aportes=act.aportes||{};
+      var deben=(galanes||[]).filter(function(g){return normName(g)!==normName(act.cumpleanero);});
+      var pagaron=deben.filter(function(g){var a=aportes[normName(g)];return a&&a.validado;});
+      var avisaron=deben.filter(function(g){var a=aportes[normName(g)];return a&&!a.validado;});
+      var juntado=pagaron.length*(act.monto||0);
+      var objetivo=deben.length*(act.monto||0);
+      var pct=objetivo?Math.round(juntado/objetivo*100):0;
+      var yoDebo=me&&normName(me)!==normName(act.cumpleanero);
+      var miAporte=me?aportes[normName(me)]:null;
+
+      h+="<div class='surf' style='padding:16px;margin-bottom:12px;border-left:3px solid var(--gold)'>"
+        +"<div style='font-size:0.55rem;color:var(--gold);letter-spacing:0.1em;font-weight:800;margin-bottom:8px'>🎉 POZO ABIERTO</div>"
+        +"<div style='display:flex;align-items:center;gap:11px;margin-bottom:13px'>"
+        +"<div class='lista-av' style='background:"+col(act.cumpleanero)+"'>"+ini(act.cumpleanero)+"</div>"
+        +"<div style='flex:1;min-width:0'>"
+        +"<div style='font-size:0.85rem;font-weight:700;color:var(--ink);text-transform:uppercase;letter-spacing:0.04em'>"+esc(act.cumpleanero)+"</div>"
+        +"<div style='font-size:0.66rem;color:var(--mut)'>"+esc(act.fechaCumple||"")+" · "+fmt$(act.monto)+" cada uno</div>"
+        +"</div></div>"
+        // Barra de progreso
+        +"<div style='display:flex;justify-content:space-between;font-size:0.66rem;margin-bottom:5px'>"
+        +"<span style='color:var(--mut)'>"+pagaron.length+" de "+deben.length+" pagaron</span>"
+        +"<span style='font-family:\"Bebas Neue\",sans-serif;font-size:0.95rem;color:var(--grn)'>"+fmt$(juntado)+" / "+fmt$(objetivo)+"</span>"
+        +"</div>"
+        +"<div style='height:8px;background:var(--sur2);border-radius:100px;overflow:hidden;margin-bottom:12px'>"
+        +"<div style='height:100%;width:"+pct+"%;background:linear-gradient(90deg,#38ef7d,var(--gold));border-radius:100px;transition:width .4s'></div></div>";
+
+      // Mi estado
+      if(yoDebo){
+        if(miAporte&&miAporte.validado){
+          h+="<div style='background:rgba(74,222,128,0.1);border:1.5px solid rgba(74,222,128,0.35);border-radius:11px;padding:11px;text-align:center;font-size:0.75rem;font-weight:700;color:var(--grn)'>✓ Ya pusiste tu parte</div>";
+        } else if(miAporte){
+          h+="<div style='background:rgba(245,197,24,0.1);border:1.5px solid rgba(245,197,24,0.35);border-radius:11px;padding:11px;display:flex;align-items:center;gap:9px'>"
+            +"<span style='font-size:1.1rem'>⏳</span>"
+            +"<div style='flex:1;font-size:0.72rem;font-weight:700;color:var(--gold)'>Esperando que el admin lo confirme</div>"
+            +"<button onclick='cancelarAporte()' style='background:none;border:none;color:var(--mut);font-size:0.62rem;cursor:pointer;text-decoration:underline'>cancelar</button>"
+            +"</div>";
+        } else {
+          h+="<button onclick='abrirAporteModal()' style='width:100%;padding:13px;border-radius:12px;border:none;background:#009EE3;color:#fff;font-size:0.8rem;font-weight:800;cursor:pointer;letter-spacing:0.04em;box-shadow:0 4px 14px rgba(0,158,227,0.35)'>💳 PONER MI PARTE — "+fmt$(act.monto)+"</button>";
+        }
+      } else if(me&&normName(me)===normName(act.cumpleanero)){
+        h+="<div style='background:rgba(245,197,24,0.1);border:1.5px solid rgba(245,197,24,0.3);border-radius:11px;padding:11px;text-align:center;font-size:0.75rem;color:var(--gold)'>🎂 ¡Es tu cumple! No ponés nada</div>";
+      }
+
+      // Admin: validar avisos y cerrar pozo
+      if(puedeOperar()){
+        if(avisaron.length){
+          h+="<div style='margin-top:12px;padding-top:12px;border-top:1px solid var(--brd)'>"
+            +"<div style='font-size:0.55rem;color:var(--gold);letter-spacing:0.09em;font-weight:800;margin-bottom:8px'>⏳ AVISARON ("+avisaron.length+")</div>";
+          avisaron.forEach(function(g){
+            var a=aportes[normName(g)];
+            h+="<div style='display:flex;align-items:center;gap:9px;padding:7px 0;border-bottom:1px solid var(--brd)'>"
+              +"<div class='lista-av' style='width:30px;height:30px;font-size:0.66rem;background:"+col(g)+"'>"+ini(g)+"</div>"
+              +"<div style='flex:1;min-width:0'><div style='font-size:0.72rem;font-weight:700;color:var(--ink);text-transform:uppercase'>"+esc(g)+"</div>"
+              +"<div style='font-size:0.6rem;color:var(--mut)'>"+(a.tipo==="cash"?"💵 Efectivo":"📲 Transfer")+(a.nota?" · "+esc(a.nota):"")+"</div></div>"
+              +"<button class='ped-btn' style='background:rgba(74,222,128,0.15);color:#16a34a;border:1.5px solid rgba(74,222,128,0.4)' onclick='validarAporte(\""+esc(g)+"\",true)'>✓</button>"
+              +"<button class='ped-btn ped-del' onclick='validarAporte(\""+esc(g)+"\",false)'>✕</button>"
+              +"</div>";
+          });
+          h+="</div>";
+        }
+        h+="<div style='display:flex;gap:7px;margin-top:12px'>"
+          +"<button onclick='marcarTodosAportes()' class='admin-action-btn' style='flex:1'>✓ Todos pagaron</button>"
+          +"<button onclick='cerrarPozo()' class='admin-action-btn' style='flex:1;background:rgba(74,222,128,0.12);color:var(--grn);border-color:rgba(74,222,128,0.35)'>🔒 Cerrar pozo</button>"
+          +"</div>";
+      }
+
+      // Detalle de quienes faltan
+      var faltan=deben.filter(function(g){return !aportes[normName(g)];});
+      if(faltan.length){
+        h+="<div style='margin-top:12px;padding-top:10px;border-top:1px solid var(--brd);font-size:0.62rem;color:var(--mut);line-height:1.6'>"
+          +"<b style='color:var(--ink)'>Faltan ("+faltan.length+"):</b> "+esc(faltan.join(", "))+"</div>";
+      }
+      h+="</div>";
+    } else {
+      h+="<div class='surf' style='padding:20px;margin-bottom:12px;text-align:center'>"
+        +"<div style='font-size:2rem;margin-bottom:6px;opacity:0.5'>🎁</div>"
+        +"<div style='font-size:0.75rem;color:var(--mut)'>No hay ningún pozo abierto</div>"
+        +(isAdmin()?"<button onclick='abrirPozoModal()' style='margin-top:12px;padding:11px 20px;border-radius:11px;border:none;background:var(--gold);color:#0a0805;font-size:0.75rem;font-weight:800;cursor:pointer'>+ ABRIR POZO</button>":"")
+        +"</div>";
+    }
+
+    // ── Configuración (admin) ──
+    if(isAdmin()){
+      h+="<div class='surf' style='padding:14px;margin-bottom:12px'>"
+        +"<div style='font-size:0.55rem;color:var(--mut);letter-spacing:0.1em;font-weight:800;margin-bottom:10px'>⚙️ CONFIGURACIÓN</div>"
+        +"<div style='display:flex;justify-content:space-between;align-items:center;padding:6px 0'>"
+        +"<span style='font-size:0.7rem;color:var(--mut)'>Aporte por cumple</span>"
+        +"<button onclick='editarMontoFondo()' style='background:var(--sur2);border:1px solid var(--brd);border-radius:8px;padding:5px 11px;color:var(--gold);font-family:\"Bebas Neue\",sans-serif;font-size:0.92rem;cursor:pointer'>"+(monto?fmt$(monto):"definir")+"</button></div>"
+        +"<div style='display:flex;justify-content:space-between;align-items:center;padding:6px 0'>"
+        +"<span style='font-size:0.7rem;color:var(--mut)'>Alias del fondo</span>"
+        +"<button onclick='editarAliasFondo()' style='background:var(--sur2);border:1px solid var(--brd);border-radius:8px;padding:5px 11px;color:var(--gold);font-size:0.72rem;font-weight:700;cursor:pointer'>"+(alias?esc(alias):"definir")+"</button></div>"
+        +"</div>";
+    }
+
+    // ── Historial de pozos cerrados ──
+    var cerrados=Object.keys(pozos||{}).map(function(k){return Object.assign({},pozos[k],{key:k});})
+      .filter(function(p){return p.estado==="cerrado";}).sort(function(a,b){return (b.ts||0)-(a.ts||0);});
+    if(cerrados.length){
+      h+="<div class='surf' style='padding:14px'>"
+        +"<div style='font-size:0.55rem;color:var(--mut);letter-spacing:0.1em;font-weight:800;margin-bottom:10px'>📅 POZOS ANTERIORES</div>";
+      cerrados.slice(0,8).forEach(function(p){
+        var ap=p.aportes||{};
+        var cant=Object.keys(ap).filter(function(k){return ap[k].validado;}).length;
+        h+="<div style='display:flex;align-items:center;gap:9px;padding:7px 0;border-bottom:1px solid var(--brd)'>"
+          +"<div class='lista-av' style='width:28px;height:28px;font-size:0.62rem;background:"+col(p.cumpleanero)+"'>"+ini(p.cumpleanero)+"</div>"
+          +"<div style='flex:1;min-width:0'><div style='font-size:0.7rem;font-weight:700;color:var(--ink);text-transform:uppercase'>"+esc(p.cumpleanero)+"</div>"
+          +"<div style='font-size:0.58rem;color:var(--mut)'>"+esc(p.fechaCumple||"")+" · "+cant+" aportes</div></div>"
+          +"<span style='font-family:\"Bebas Neue\",sans-serif;font-size:0.95rem;color:var(--grn)'>"+fmt$(cant*(p.monto||0))+"</span>"
+          +"</div>";
+      });
+      h+="</div>";
+    }
+    el.innerHTML=h;
+  };
+
+  // ── Acciones admin ──
+  window.editarMontoFondo=async function(){
+    if(!isAdmin())return;
+    var v=await pedirTexto("Cuánto pone cada galan por cumple",String(fondoCfg.monto||""),{titulo:"Aporte por cumple",icono:"💰"});
+    if(v===null)return;
+    var n=parseFloat(v)||0;
+    await set(rFondoCfg,Object.assign({},fondoCfg,{monto:n}));
+    showToast("✓ Aporte: "+fmt$(n));
+  };
+  window.editarAliasFondo=async function(){
+    if(!isAdmin())return;
+    var v=await pedirTexto("Alias donde transfieren al fondo",fondoCfg.alias||"",{titulo:"Alias del fondo",icono:"🏦"});
+    if(v===null)return;
+    await set(rFondoCfg,Object.assign({},fondoCfg,{alias:v.trim()}));
+    showToast("✓ Alias guardado");
+  };
+  window.editarSaldoFondo=async function(){
+    if(!isAdmin())return;
+    var v=await pedirTexto("Saldo actual de la cuenta de inversión",String(fondoCfg.saldoInversion||""),{titulo:"Saldo del fondo",icono:"💰"});
+    if(v===null)return;
+    await set(rFondoCfg,Object.assign({},fondoCfg,{saldoInversion:parseFloat(v)||0}));
+    showToast("✓ Saldo actualizado");
+  };
+  window.abrirPozoModal=async function(){
+    if(!isAdmin())return;
+    if(!fondoCfg.monto){await avisar("Primero definí cuánto pone cada uno por cumple.",{titulo:"Falta el monto"});return;}
+    var nom=await pedirTexto("¿De quién es el cumple?","",{titulo:"Abrir pozo",icono:"🎉",placeholder:"Ej: Jorge Rinaldi"});
+    if(!nom||!nom.trim())return;
+    var hoy=new Date();
+    var fecha=hoy.getDate()+"/"+(hoy.getMonth()+1);
+    await push(rPozos,{cumpleanero:nom.trim(),fechaCumple:fecha,monto:fondoCfg.monto,estado:"abierto",aportes:{},ts:Date.now()});
+    showToast("🎉 Pozo abierto para "+nom.trim());
+  };
+  window.cerrarPozo=async function(){
+    var act=pozoActivo();if(!act||!puedeOperar())return;
+    var ap=act.aportes||{};
+    var cant=Object.keys(ap).filter(function(k){return ap[k].validado;}).length;
+    var total=cant*(act.monto||0);
+    if(!await confirmar("Se juntaron "+fmt$(total)+" de "+cant+" galanes. Se suma al fondo.",{titulo:"Cerrar el pozo?",icono:"🔒",okTxt:"Cerrar y sumar"}))return;
+    await set(ref(db,"fondo/pozos/"+act.key),Object.assign({},act,{estado:"cerrado",key:null,total:total}));
+    await set(rFondoCfg,Object.assign({},fondoCfg,{saldoInversion:(fondoCfg.saldoInversion||0)+total}));
+    showToast("✓ Pozo cerrado · "+fmt$(total)+" al fondo");
+  };
+  window.marcarTodosAportes=async function(){
+    var act=pozoActivo();if(!act||!puedeOperar())return;
+    if(!await confirmar("Marca a todos los galanes como que ya pusieron.",{titulo:"Todos pagaron?",icono:"✓",okTxt:"Sí, marcar"}))return;
+    var ap=Object.assign({},act.aportes||{});
+    (galanes||[]).forEach(function(g){
+      if(normName(g)===normName(act.cumpleanero))return;
+      ap[normName(g)]={nombre:g,tipo:"transfer",validado:true,ts:Date.now()};
+    });
+    await set(ref(db,"fondo/pozos/"+act.key+"/aportes"),ap);
+    showToast("✓ Todos marcados");
+  };
+  window.validarAporte=async function(galan,ok){
+    var act=pozoActivo();if(!act||!puedeOperar())return;
+    var k=normName(galan);
+    if(ok){
+      await set(ref(db,"fondo/pozos/"+act.key+"/aportes/"+k+"/validado"),true);
+      await enviarNotif(galan,"✅ Tu aporte al fondo de "+act.cumpleanero+" fue confirmado. ¡Gracias!","pago");
+      showToast("✓ Aporte de "+galan+" confirmado");
+    } else {
+      await set(ref(db,"fondo/pozos/"+act.key+"/aportes/"+k),null);
+      await enviarNotif(galan,"⚠️ Tu aviso de aporte al fondo fue rechazado. Hablá con el admin.","info");
+      showToast("Aporte rechazado");
+    }
+  };
+  // ── Acciones del galan ──
+  window.abrirAporteModal=function(){
+    var act=pozoActivo();if(!act)return;
+    var a=document.getElementById("aporte-alias");if(a)a.textContent=fondoCfg.alias||MP_ALIAS;
+    var m=document.getElementById("aporte-monto");if(m)m.textContent=fmt$(act.monto);
+    var mv=document.getElementById("aporte-monto-val");if(mv)mv.value=act.monto;
+    var q=document.getElementById("aporte-quien");if(q)q.textContent=act.cumpleanero;
+    var n=document.getElementById("aporte-nota");if(n)n.value="";
+    setAporteTipo("transfer");
+    openModal("maporte");
+  };
+  var _aporteTipo="transfer";
+  window.setAporteTipo=function(t){
+    _aporteTipo=t;var esTr=t==="transfer";
+    var on="border:2px solid var(--gold);background:rgba(245,197,24,0.12);color:var(--gold);";
+    var off="border:1.5px solid var(--brd);background:var(--sur2);color:var(--mut);";
+    var base="padding:11px 8px;border-radius:12px;cursor:pointer;font-size:0.72rem;font-weight:800;display:flex;flex-direction:column;align-items:center;gap:3px;";
+    var tT=document.getElementById("aporte-tab-tr"),tC=document.getElementById("aporte-tab-cash");
+    if(tT)tT.style.cssText=base+(esTr?on:off);
+    if(tC)tC.style.cssText=base+(esTr?off:on);
+    var pT=document.getElementById("aporte-panel-tr");
+    if(pT)pT.style.display=esTr?"block":"none";
+    var b=document.getElementById("aporte-confirmar");
+    if(b){
+      b.textContent=esTr?"📲 YA TRANSFERÍ":"💵 SE LO DI EN MANO";
+      b.style.background=esTr?"linear-gradient(135deg,var(--gold),#e5a93c)":"linear-gradient(135deg,#16a34a,#22c55e)";
+      b.style.color=esTr?"#0a0805":"#fff";
+    }
+  };
+  window.confirmarAporte=async function(){
+    var act=pozoActivo();if(!act||!me)return;
+    var nota=((document.getElementById("aporte-nota")||{}).value||"").trim();
+    await set(ref(db,"fondo/pozos/"+act.key+"/aportes/"+normName(me)),{
+      nombre:me,tipo:_aporteTipo,nota:nota||null,validado:false,ts:Date.now()
+    });
+    closeModal("maporte");
+    showToast("✓ Aviso enviado, el admin lo confirma");
+  };
+  window.cancelarAporte=async function(){
+    var act=pozoActivo();if(!act||!me)return;
+    if(!await confirmar("Vas a poder avisar de nuevo cuando quieras.",{titulo:"Cancelar el aviso?",icono:"💳",okTxt:"Cancelar aviso"}))return;
+    await set(ref(db,"fondo/pozos/"+act.key+"/aportes/"+normName(me)),null);
+    showToast("Aviso cancelado");
+  };
+
   function renderMesaStats(){
    try{
     var bp=document.getElementById("mesa-bebidas-panel"),sp=document.getElementById("mesa-sabado-panel"),rp=document.getElementById("stats-tardones-panel");
@@ -5434,6 +5705,11 @@ button:not(.tab):not(.swipe-handle){transition:transform .1s ease,background-col
 #dlg-overlay .modal-card{animation:dlgIn .22s cubic-bezier(0.34,1.3,0.64,1);}
 @keyframes dlgIn{from{opacity:0;transform:scale(0.92) translateY(10px)}to{opacity:1;transform:scale(1) translateY(0)}}
 #dlg-overlay button:active{transform:scale(0.96);}
+/* Subtabs del tab Cumple */
+.cst{flex:1;padding:9px;border-radius:100px;border:1.5px solid var(--brd);background:var(--sur2);
+  color:var(--mut);font-family:var(--font-body);font-size:0.7rem;font-weight:800;cursor:pointer;
+  letter-spacing:0.04em;transition:all .15s;}
+.cst.active{border-color:var(--gold);background:rgba(245,197,24,0.12);color:var(--gold);}
 .ped-btn{border-radius:100px;font-family:var(--font-body);font-size:0.62rem;font-weight:800;
   cursor:pointer;flex-shrink:0;padding:6px 12px;letter-spacing:0.05em;text-transform:uppercase;
   display:inline-flex;align-items:center;gap:4px;transition:all .15s;line-height:1;}
@@ -5946,8 +6222,16 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
     </div>
   </div>
   <div id="v-cumples" style="display:none">
-    <div class="slabel">🎂 Cumpleaños</div>
-    <div id="cumples-panel" style="padding:0 12px"></div>
+    <div class="cumple-subtabs" style="display:flex;gap:6px;padding:10px 12px 4px">
+      <button class="cst active" data-cst="lista" onclick="switchCumpleTab('lista')">🎂 Cumpleaños</button>
+      <button class="cst" data-cst="fondo" onclick="switchCumpleTab('fondo')">💰 Fondo</button>
+    </div>
+    <div id="vcumple-lista">
+      <div id="cumples-panel" style="padding:0 12px"></div>
+    </div>
+    <div id="vcumple-fondo" style="display:none;padding:0 12px 90px">
+      <div id="fondo-panel"></div>
+    </div>
   </div>
   <!-- ADMIN v9 -->
   <div id="v-admin" style="display:none">
@@ -6127,6 +6411,40 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
     <div class="ppl" id="player-list"></div>
     <div id="multi-confirm" style="display:none"></div>
     <div class="ma" style="margin-top:12px"><button class="bs" onclick="closeModal('motro')">Cerrar</button></div>
+  </div>
+</div>
+<div class="modal-overlay mc" id="maporte" onclick="if(event.target===this)closeModal('maporte')">
+  <div class="modal-card">
+    <div style="text-align:center;margin-bottom:14px">
+      <div style="font-size:2rem;line-height:1;margin-bottom:6px">🎁</div>
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:1.2rem;color:var(--ink);letter-spacing:0.05em">Poner al pozo</div>
+      <div style="font-size:0.7rem;color:var(--mut);margin-top:4px">Cumple de <b id="aporte-quien" style="color:var(--gold)"></b></div>
+    </div>
+    <input type="hidden" id="aporte-monto-val">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:13px">
+      <button id="aporte-tab-tr" onclick="setAporteTipo('transfer')"><span style="font-size:1.2rem">📲</span>Transferencia</button>
+      <button id="aporte-tab-cash" onclick="setAporteTipo('cash')"><span style="font-size:1.2rem">💵</span>En mano</button>
+    </div>
+    <div id="aporte-panel-tr" style="background:var(--sur2);border:1px solid var(--brd);border-radius:14px;padding:13px;margin-bottom:12px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <span style="font-size:0.7rem;color:var(--mut)">Alias del fondo</span>
+        <div style="display:flex;align-items:center;gap:7px">
+          <span id="aporte-alias" style="font-size:0.8rem;font-weight:800;color:var(--gold)"></span>
+          <button onclick="copiarMP(document.getElementById('aporte-alias').textContent,'Alias')" style="padding:4px 9px;border-radius:7px;border:1px solid var(--brd);background:var(--sur);color:var(--mut);font-size:0.65rem;cursor:pointer">📋</button>
+        </div>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:11px">
+        <span style="font-size:0.7rem;color:var(--mut)">Monto</span>
+        <div style="display:flex;align-items:center;gap:7px">
+          <span id="aporte-monto" style="font-size:0.95rem;font-weight:800;color:var(--grn)"></span>
+          <button onclick="copiarMP(document.getElementById('aporte-monto-val').value,'Monto')" style="padding:4px 9px;border-radius:7px;border:1px solid var(--brd);background:var(--sur);color:var(--mut);font-size:0.65rem;cursor:pointer">📋</button>
+        </div>
+      </div>
+      <button onclick="abrirMercadoPago()" style="width:100%;padding:11px;border-radius:10px;border:none;background:#009EE3;color:#fff;font-size:0.75rem;font-weight:800;cursor:pointer">🔵 ABRIR MERCADO PAGO</button>
+    </div>
+    <input id="aporte-nota" placeholder="Nota (opcional)" style="width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--brd);background:var(--sur2);color:var(--ink);font-size:0.75rem;box-sizing:border-box;margin-bottom:12px;text-transform:none">
+    <button id="aporte-confirmar" onclick="confirmarAporte()" style="width:100%;padding:14px;border-radius:12px;border:none;font-size:0.82rem;font-weight:800;cursor:pointer;letter-spacing:0.04em">📲 YA TRANSFERÍ</button>
+    <button onclick="closeModal('maporte')" style="width:100%;margin-top:8px;padding:10px;border-radius:10px;border:1px solid var(--brd);background:transparent;color:var(--mut);font-size:0.75rem;cursor:pointer">Cancelar</button>
   </div>
 </div>
 <div class="modal-overlay mc" id="mpagomp" onclick="if(event.target===this)closeModal('mpagomp')">
@@ -6325,7 +6643,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.158";
+  var APP_VERSION="10.0.159";
 
   var STORED_VERSION=localStorage.getItem("app_version");
 
