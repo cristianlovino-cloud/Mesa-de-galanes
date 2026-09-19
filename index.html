@@ -3497,7 +3497,9 @@
     var sinPagar=players.filter(function(pl){
       var p=pagos[pl]||{};return ((p.cash||0)+(p.transfer||0))<=0;
     });
+    var sinEnviar=players.filter(function(pl){return !confirmed[pl];});
     var avisos=[];
+    if(sinEnviar.length)avisos.push("📤 <b style='color:#fb923c'>"+sinEnviar.length+" sin enviar</b>");
     if(sinPagar.length)avisos.push("⚠️ <b style='color:#fb923c'>"+sinPagar.length+" sin pagar</b>");
     if(!totalBar)avisos.push("⚠️ <b style='color:#fb923c'>Falta el total del bar</b>");
     var pend=Object.keys(pagoReqs||{}).filter(function(k){return pagoReqs[k].estado==="pendiente";}).length;
@@ -3999,7 +4001,8 @@
     for(var p2=0;p2<players.length;p2++){
       var pl2=players[p2],isMe2=pl2===me,items2=po[pl2],conf2=confirmed[pl2];
       var pg2=pagos[pl2]||{},cash2=pg2.cash||0,tr2=pg2.transfer||0,pago2=(cash2+tr2)>0;
-      var row2="<div class='att"+(isMe2?" attme":"")+(conf2?" attok":"")+"'><div class='av' style='background:"+col(pl2)+"'>"+ini(pl2)+"</div><div class='ai'><div class='an'>"+pl2+(isMe2?" <span class='ytg'>vos</span>":"")+(conf2?" <span class='ctg'>✓</span>":"");
+      var row2="<div class='att"+(isMe2?" attme":"")+(conf2?" attok":"")+(conf2?"":" att-sinenviar")+"'><div class='av' style='background:"+col(pl2)+"'>"+ini(pl2)+"</div><div class='ai'><div class='an'>"+pl2+(isMe2?" <span class='ytg'>vos</span>":"")
+        +(conf2?" <span class='ctg'>✓</span>":" <span class='sintg'>SIN ENVIAR</span>");
       if(!pago2)row2+=" <span class='falta'>⚠️</span>";
       var cumpl2=cumples[pl2];if(cumpl2){var ahora2=new Date();if(cumpl2.dia===ahora2.getDate()&&cumpl2.mes===ahora2.getMonth()+1)row2+=" <span>🎂</span>";}
       row2+="</div><div class='ao'>";
@@ -5728,6 +5731,10 @@ button:not(.tab):not(.swipe-handle){transition:transform .1s ease,background-col
   color:var(--mut);font-family:var(--font-body);font-size:0.7rem;font-weight:800;cursor:pointer;
   letter-spacing:0.04em;transition:all .15s;}
 .cst.active{border-color:var(--gold);background:rgba(245,197,24,0.12);color:var(--gold);}
+/* Galan que cargó pedido pero no lo envió (no deslizó) */
+.sintg{font-size:0.5rem;font-weight:800;letter-spacing:0.07em;padding:2px 7px;border-radius:100px;
+  background:rgba(251,146,60,0.14);color:#fb923c;border:1px solid rgba(251,146,60,0.35);white-space:nowrap;}
+.att-sinenviar{border-left:3px solid rgba(251,146,60,0.5)!important;}
 .ped-btn{border-radius:100px;font-family:var(--font-body);font-size:0.62rem;font-weight:800;
   cursor:pointer;flex-shrink:0;padding:6px 12px;letter-spacing:0.05em;text-transform:uppercase;
   display:inline-flex;align-items:center;gap:4px;transition:all .15s;line-height:1;}
@@ -6669,7 +6676,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.160";
+  var APP_VERSION="10.0.161";
 
   var STORED_VERSION=localStorage.getItem("app_version");
 
