@@ -276,7 +276,7 @@
     });
     onValue(rO,function(s){try{orders=s.exists()?s.val():{};renderDrinks();renderOrders();renderMesa();renderLista();renderConfirmBtn();maybeRenderStats();renderPagosDetail();renderPagosHeader();if(document.getElementById("mlive")&&document.getElementById("mlive").classList.contains("open"))renderLiveModal();}catch(e){console.error("rO",e);}});
     onValue(rC,function(s){try{confirmed=s.exists()?s.val():{};renderConfirmBtn();renderDrinks();renderMiSaldo();renderOrders();renderMesa();renderLista();}catch(e){console.error("rC",e);}});
-    onValue(rP,function(s){try{pagos=s.exists()?s.val():{};renderOrders();renderMesa();renderLista();renderPagosDetail();renderMiSaldo();renderConfirmBtn();if(typeof calcularSaldoMP==="function")calcularSaldoMP();}catch(e){console.error("rP",e);}});
+    onValue(rP,function(s){try{pagos=s.exists()?s.val():{};renderOrders();renderMesa();renderLista();renderPagosDetail();renderMiSaldo();renderConfirmBtn();if(typeof calcularSaldoMP==="function")calcularSaldoMP();if(typeof renderCierreResumen==="function")renderCierreResumen();}catch(e){console.error("rP",e);}});
 
     // ── NOTIFICACIONES IN-APP ──────────────────────────────────────────────────
     // Cada galan escucha su propio nodo. Cuando el admin escribe ahí, recibe un toast.
@@ -539,7 +539,7 @@
     window._adminStab=stab;
     if(stab==="galanes"){renderLista();renderPendientes();}
     if(stab==="pedidos")renderMesa();
-    if(stab==="pagos"){renderPagosDetail();renderPagosPendientes();
+    if(stab==="pagos"){renderPagosDetail();renderPagosPendientes();renderCierreResumen();
       // Cargar saldo guardado en el input si no está ya
       var mpInp=document.getElementById("mp-saldo-inicio");
       if(mpInp&&window._mpSaldoInicio!==undefined&&!mpInp.value)mpInp.value=window._mpSaldoInicio;
@@ -3489,6 +3489,24 @@
     showToast("Aviso cancelado");
   };
   // ── Admin: validar los avisos ─────────────────────────────────────────
+  // Resumen previo al cierre: avisa si falta cobrar o cargar el bar
+  window.renderCierreResumen=function(){
+    var el=document.getElementById("cierre-resumen");if(!el)return;
+    var players=Object.keys(Object.values(orders).reduce(function(a,o){if(o.player)a[o.player]=1;return a;},{}));
+    if(!players.length){el.innerHTML="<span style='opacity:0.6'>No hay pedidos para archivar</span>";return;}
+    var sinPagar=players.filter(function(pl){
+      var p=pagos[pl]||{};return ((p.cash||0)+(p.transfer||0))<=0;
+    });
+    var avisos=[];
+    if(sinPagar.length)avisos.push("⚠️ <b style='color:#fb923c'>"+sinPagar.length+" sin pagar</b>");
+    if(!totalBar)avisos.push("⚠️ <b style='color:#fb923c'>Falta el total del bar</b>");
+    var pend=Object.keys(pagoReqs||{}).filter(function(k){return pagoReqs[k].estado==="pendiente";}).length;
+    if(pend)avisos.push("⏳ <b style='color:var(--gold)'>"+pend+" aviso(s) sin validar</b>");
+    el.innerHTML=avisos.length
+      ? avisos.join(" · ")+"<br><span style='opacity:0.7'>Se archivan "+players.length+" pedidos igual</span>"
+      : "✓ Todo cerrado · se archivan "+players.length+" pedidos";
+  };
+
   window.renderPagosPendientes=function(){
     var el=document.getElementById("pagos-pendientes");if(!el)return;
     if(!puedeOperar()){el.style.display="none";return;}
@@ -6274,7 +6292,6 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
               <button class="admin-action-btn" onclick="abrirMergeMasivo()" style="background:rgba(99,102,241,0.12);color:#a5b4fc;border-color:rgba(99,102,241,0.3)">⇄ Fusionar</button>
               <button class="admin-action-btn" onclick="refreshDrinkIcons()">🔄 Emojis</button>
               <button class="admin-action-btn" onclick="limpiarNuevosFantasma()">🧹 Limpiar avisos</button>
-              <button class="admin-action-btn" onclick="cerrarMesa()" style="background:rgba(239,68,68,0.12);color:#f87171;border-color:rgba(239,68,68,0.25)">🔒 Cerrar mesa</button>
             </div>
           </div>
           <div style="font-size:0.55rem;color:var(--mut);letter-spacing:0.1em;margin-bottom:8px">EXTRAS</div>
@@ -6338,6 +6355,15 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
             <button onclick="limpiarPropina();togglePropResets()" style="display:block;width:100%;background:none;border:none;color:#f87171;font-size:0.68rem;padding:6px 10px;cursor:pointer;text-align:left">✕ Reset propina activa</button>
             <button onclick="resetRondaPropina();togglePropResets()" style="display:block;width:100%;background:none;border:none;color:#fca5a5;font-size:0.68rem;padding:6px 10px;cursor:pointer;text-align:left">↺ Reset ronda entera</button>
           </div>
+        </div>
+        <!-- Cierre de la mesa: final natural del flujo de pagos -->
+        <div data-solo-admin style="margin-top:20px;padding-top:16px;border-top:1px solid var(--brd)">
+          <div id="cierre-resumen" style="font-size:0.64rem;color:var(--mut);text-align:center;margin-bottom:10px;line-height:1.5"></div>
+          <button onclick="cerrarMesa()" style="width:100%;padding:14px;border-radius:13px;border:1.5px solid rgba(239,68,68,0.35);
+            background:rgba(239,68,68,0.1);color:#f87171;font-family:var(--font-body);font-size:0.82rem;font-weight:800;
+            letter-spacing:0.05em;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px">
+            🔒 CERRAR Y ARCHIVAR LA MESA
+          </button>
         </div>
       </div>
     </div>
@@ -6643,7 +6669,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.159";
+  var APP_VERSION="10.0.160";
 
   var STORED_VERSION=localStorage.getItem("app_version");
 
