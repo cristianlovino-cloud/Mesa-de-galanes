@@ -143,7 +143,7 @@
   const rPagoReq=ref(db,"pedido/pagoRequests");
   const rFondoCfg=ref(db,"config/fondo");      // {monto, alias, saldoInversion}
   const rPozos=ref(db,"fondo/pozos");          // {id:{cumpleanero,fechaCumple,monto,estado,aportes:{}}}
-  var fondoCfg={},pozos={};
+  var fondoCfg={},pozos={},mesaState={};
   var pagoReqs={};
   const rKick=ref(db,"config/kickAll");
   window._rKick=rKick;
@@ -339,6 +339,13 @@
     onValue(rCump,function(s){cumples=s.exists()?s.val():{};renderCumples();renderCumpleBanner();});
     onValue(rPend,function(s){pendientes=s.exists()?s.val():{};renderPendientes();});
     onValue(rPres,function(s){presentes=s.exists()?s.val():{};renderLista();});
+    onValue(rS,function(s){
+      try{
+        mesaState=s.exists()?s.val():{};
+        autoAbrirMesa();
+        renderEstadoMesa();renderDrinks();renderConfirmBtn();
+      }catch(e){console.error("rS",e);}
+    });
     onValue(rFondoCfg,function(s){
       try{fondoCfg=s.exists()?s.val():{};renderFondo();}catch(e){console.error("rFondoCfg",e);}
     });
@@ -525,7 +532,7 @@
     });
     if(tab==="admin"){window._ordenesEnAdmin=true;window._adminStab=isAdmin()?"galanes":"pedidos";renderLista();renderMesa();renderPendientes();checkNuevosAlert();aplicarPermisosMozo();if(!isAdmin())switchAdminTab("pedidos");if(!window._cleaned){window._cleaned=true;limpiarHuerfanos();}}
     if(tab==="resumen"){window._ordenesEnAdmin=false;renderOrders();}
-    if(tab==="pedir"){renderMiSaldo();setTimeout(renderEstuvoCerca,500);}
+    if(tab==="pedir"){renderMiSaldo();renderEstadoMesa();setTimeout(renderEstuvoCerca,500);}
     if(tab==="cumples"){renderCumples();renderFondo();}
     if(tab==="stats")renderStats();
     if(tab==="mundial"&&!window._mundialLoaded)renderMundial();
@@ -539,7 +546,7 @@
     window._adminStab=stab;
     if(stab==="galanes"){renderLista();renderPendientes();}
     if(stab==="pedidos")renderMesa();
-    if(stab==="pagos"){renderPagosDetail();renderPagosPendientes();renderCierreResumen();
+    if(stab==="pagos"){renderPagosDetail();renderPagosPendientes();renderCierreResumen();renderEstadoMesa();
       // Cargar saldo guardado en el input si no está ya
       var mpInp=document.getElementById("mp-saldo-inicio");
       if(mpInp&&window._mpSaldoInicio!==undefined&&!mpInp.value)mpInp.value=window._mpSaldoInicio;
@@ -1346,7 +1353,8 @@
       }
     }
     await Promise.all([set(rO,null),set(rC,null),set(rP,null),set(rT,null),set(rB,0),set(rPres,null),set(rR,null),
-      set(ref(db,"pedido/propina"),null),set(ref(db,"config/nuevos"),null)]);
+      set(ref(db,"pedido/propina"),null),set(ref(db,"config/nuevos"),null),
+      set(rS,Object.assign({},mesaState,{cerradaTs:Date.now()}))]);
     // Notificar a todos los que tenían pedido hoy
     var galansCierre=Object.values(orders).map(function(o){return o.player;}).filter(function(p,i,a){return p&&a.indexOf(p)===i;});
     var fechaLabel=new Date().toLocaleDateString("es-AR",{weekday:"long",day:"numeric",month:"long"});
@@ -1625,6 +1633,10 @@
   // ── PEDIDOS ───────────────────────────────────────────────
   window.selectDrink=async function(idx){
     if(!me){showLoginScreen();return;}
+    if(!mesaAbierta()&&!puedeOperar()){
+      await avisar("La mesa abre sola el viernes a las 7:00.",{titulo:"Mesa cerrada",icono:"🔒"});
+      return;
+    }
     if(navigator.vibrate)navigator.vibrate(8);
     // Si ya confirmó, solo avisar pero dejar continuar (puede querer cambiar)
     // El bloqueo total solo aplica si el admin cerró la mesa
@@ -3553,6 +3565,89 @@
       showToast("Aviso rechazado");
     }
     await set(ref(db,"pedido/pagoRequests/"+key),null);
+  };
+
+  // ══ ESTADO DE LA MESA (abierta / cerrada) ════════════════════════════
+  // Ciclo semanal: abre sola el viernes 7:00 AR y queda abierta hasta que
+  // el admin la cierre o archive la mesa del sábado.
+  function ahoraAR(){return new Date(Date.now()-3*3600000);} // UTC-3
+  // Devuelve el timestamp del viernes 7:00 AR de la semana en curso
+  function ultimoViernes7(){
+    var ar=ahoraAR();
+    var d=new Date(Date.UTC(ar.getUTCFullYear(),ar.getUTCMonth(),ar.getUTCDate(),7,0,0));
+    // Retroceder hasta el viernes (getUTCDay: 5 = viernes)
+    var diff=(d.getUTCDay()-5+7)%7;
+    d.setUTCDate(d.getUTCDate()-diff);
+    // Si todavía no llegaron las 7 de ese viernes, tomar el de la semana anterior
+    if(d.getTime()>ar.getTime())d.setUTCDate(d.getUTCDate()-7);
+    return d.getTime()+3*3600000; // volver a epoch real
+  }
+  // La mesa está abierta si el último viernes 7:00 es POSTERIOR al último cierre.
+  // Así cada viernes reabre sola, y una vez cerrada queda cerrada hasta el próximo.
+  function mesaAbierta(){
+    var v7=ultimoViernes7();
+    var cerrada=mesaState.cerradaTs||0;
+    var abierta=mesaState.abiertaTs||0;
+    // Reapertura manual posterior al cierre: manda la manual
+    if(abierta>cerrada)return true;
+    // Sin cierres, o el cierre fue antes del viernes → el viernes ya la reabrió
+    return cerrada<v7;
+  }
+  // Registra la reapertura automática del viernes (una sola vez por semana)
+  var _autoChecked=false;
+  async function autoAbrirMesa(){
+    if(_autoChecked||!isAdmin())return;
+    _autoChecked=true;
+    var v7=ultimoViernes7();
+    var cerrada=mesaState.cerradaTs||0;
+    if(cerrada<v7&&(mesaState.abiertaTs||0)<v7){
+      await set(rS,Object.assign({},mesaState,{abiertaTs:v7}));
+    }
+  }
+  window.toggleMesa=async function(){
+    if(!isAdmin())return;
+    var abierta=mesaAbierta();
+    if(abierta){
+      if(!await confirmar("Los galanes no van a poder cargar más pedidos hasta que la abras.",
+        {titulo:"Cerrar la mesa?",icono:"🔒",okTxt:"Cerrar mesa"}))return;
+      await set(rS,Object.assign({},mesaState,{cerradaTs:Date.now()}));
+      showToast("🔒 Mesa cerrada — no se toman más pedidos");
+    } else {
+      await set(rS,Object.assign({},mesaState,{abiertaTs:Date.now()}));
+      showToast("✅ Mesa abierta — ya pueden pedir");
+    }
+  };
+  // Aviso visible arriba de la pantalla Pedir cuando está cerrada
+  window.renderEstadoMesa=function(){
+    var el=document.getElementById("estado-mesa");
+    var abierta=mesaAbierta();
+    if(el){
+      if(abierta){el.style.display="none";}
+      else{
+        el.style.display="block";
+        el.innerHTML="<div style='background:rgba(239,68,68,0.1);border:1.5px solid rgba(239,68,68,0.3);"
+          +"border-radius:14px;padding:13px 15px;display:flex;align-items:center;gap:11px'>"
+          +"<span style='font-size:1.4rem'>🔒</span>"
+          +"<div style='flex:1'>"
+          +"<div style='font-size:0.78rem;font-weight:800;color:#f87171'>MESA CERRADA</div>"
+          +"<div style='font-size:0.64rem;color:var(--mut);margin-top:2px'>Abre sola el viernes a las 7:00</div>"
+          +"</div></div>";
+      }
+    }
+    // Botón del panel admin
+    var btn=document.getElementById("btn-mesa-toggle");
+    if(btn){
+      btn.textContent=abierta?"🔒 Cerrar mesa":"✅ Abrir mesa";
+      btn.style.background=abierta?"rgba(239,68,68,0.1)":"rgba(74,222,128,0.12)";
+      btn.style.color=abierta?"#f87171":"var(--grn)";
+      btn.style.borderColor=abierta?"rgba(239,68,68,0.3)":"rgba(74,222,128,0.35)";
+    }
+    var lbl=document.getElementById("estado-mesa-label");
+    if(lbl){
+      lbl.innerHTML=abierta
+        ? "<span style='color:var(--grn);font-weight:800'>● ABIERTA</span> <span style='color:var(--mut)'>— se toman pedidos</span>"
+        : "<span style='color:#f87171;font-weight:800'>● CERRADA</span> <span style='color:var(--mut)'>— abre el viernes 7:00</span>";
+    }
   };
 
   // ══ FONDO DE CUMPLEAÑOS ═══════════════════════════════════════════════
@@ -6194,6 +6289,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 <div class="main">
   <div id="v-pedir">
     <div id="asado-pill" style="display:none"></div>
+    <div id="estado-mesa" style="display:none;margin:10px 12px 8px"></div>
     <div id="pedido-status-banner" style="display:none"></div>
     <div id="mi-saldo-card"></div>
     <div id="estuvo-cerca-banner" style="display:none;margin:8px 0 0"></div>
@@ -6363,14 +6459,31 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
             <button onclick="resetRondaPropina();togglePropResets()" style="display:block;width:100%;background:none;border:none;color:#fca5a5;font-size:0.68rem;padding:6px 10px;cursor:pointer;text-align:left">↺ Reset ronda entera</button>
           </div>
         </div>
-        <!-- Cierre de la mesa: final natural del flujo de pagos -->
+        <!-- Control de la mesa: estado + cierre del día -->
         <div data-solo-admin style="margin-top:20px;padding-top:16px;border-top:1px solid var(--brd)">
+          <div style="font-size:0.55rem;color:var(--mut);letter-spacing:0.1em;font-weight:800;margin-bottom:10px">🎛️ CONTROL DE LA MESA</div>
+          <!-- Paso 1: tomar pedidos o no -->
+          <div class="surf" style="padding:13px 15px;margin-bottom:10px">
+            <div style="display:flex;align-items:center;gap:10px">
+              <div style="flex:1;min-width:0">
+                <div style="font-size:0.7rem;font-weight:700;color:var(--ink);margin-bottom:3px">Estado</div>
+                <div id="estado-mesa-label" style="font-size:0.62rem"></div>
+              </div>
+              <button id="btn-mesa-toggle" onclick="toggleMesa()" style="border:1.5px solid var(--brd);border-radius:11px;
+                padding:9px 15px;font-family:var(--font-body);font-size:0.72rem;font-weight:800;cursor:pointer;
+                white-space:nowrap;flex-shrink:0"></button>
+            </div>
+          </div>
+          <!-- Paso 2: archivar el día -->
           <div id="cierre-resumen" style="font-size:0.64rem;color:var(--mut);text-align:center;margin-bottom:10px;line-height:1.5"></div>
           <button onclick="cerrarMesa()" style="width:100%;padding:14px;border-radius:13px;border:1.5px solid rgba(239,68,68,0.35);
             background:rgba(239,68,68,0.1);color:#f87171;font-family:var(--font-body);font-size:0.82rem;font-weight:800;
             letter-spacing:0.05em;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px">
-            🔒 CERRAR Y ARCHIVAR LA MESA
+            📦 CERRAR CUENTAS Y ARCHIVAR
           </button>
+          <div style="font-size:0.58rem;color:var(--mut);text-align:center;margin-top:7px;opacity:0.8">
+            Guarda el historial, limpia los pedidos y deja la mesa cerrada hasta el viernes
+          </div>
         </div>
       </div>
     </div>
@@ -6676,7 +6789,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.162";
+  var APP_VERSION="10.0.163";
 
   var STORED_VERSION=localStorage.getItem("app_version");
 
