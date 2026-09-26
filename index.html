@@ -1915,7 +1915,7 @@
         +"<div style='position:relative;width:104px;flex-shrink:0'>"
         +"<span style='position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:0.75rem;color:var(--mut);pointer-events:none'>$</span>"
         +"<input type='number' "+attrs+" placeholder='0' min='0' step='100' value='"+(val||"")+"' "
-        +"style='width:100%;background:var(--sur2);border:1px solid "+(destacado?"var(--gold)":"var(--brd)")+";border-radius:9px;padding:8px 10px 8px 21px;"
+        +"style='width:100%;box-sizing:border-box;background:var(--sur2);border:1px solid "+(destacado?"var(--gold)":"var(--brd)")+";border-radius:9px;padding:8px 10px 8px 21px;"
         +"font-family:\"Bebas Neue\",sans-serif;font-size:1rem;color:"+(destacado?"var(--gold)":"var(--ink)")+";text-align:right;outline:none;letter-spacing:0.03em'>"
         +"</div></div>";
     }
@@ -6747,7 +6747,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <div class="modal-overlay mc" id="mprecios" onclick="if(event.target===this)closeModal('mprecios')">
-  <div class="modal" style="max-height:88vh;overflow-y:auto;width:calc(100vw - 24px);max-width:480px">
+  <div class="modal" style="max-height:88vh;overflow-y:auto;overflow-x:hidden;width:calc(100% - 32px);max-width:480px;margin:0 16px;box-sizing:border-box">
     <div class="mh2"></div>
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
       <div style="display:flex;align-items:center;gap:10px">
@@ -6815,7 +6815,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.167";
+  var APP_VERSION="10.0.168";
 
   var STORED_VERSION=localStorage.getItem("app_version");
 
