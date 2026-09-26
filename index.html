@@ -1376,18 +1376,36 @@
   // ── PROPINA ALEATORIA ─────────────────────────────────────────────────────
   const rPropina=ref(db,"config/propina");
 
+  // ── PRECIOS: resolución única de bebida y precio de un pedido ─────────────
+  function ckey(x){return String(x||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/\s+/g,"_");}
+  // Devuelve la bebida del pedido. Prioridad: drinkIdx guardado > nombre más largo que matchea.
+  function bebidaDe(o){
+    if(!o)return null;
+    if(typeof o.drinkIdx==="number"&&drinks[o.drinkIdx]&&drinks[o.drinkIdx].name){
+      var dd=drinks[o.drinkIdx];
+      if(!o.drink||ckey(o.drink).indexOf(ckey(dd.name))===0)return dd;
+    }
+    if(!o.drink)return null;
+    var od=ckey(o.drink),best=null;
+    drinks.forEach(function(dr){
+      if(!dr||!dr.name)return;
+      if(od.indexOf(ckey(dr.name))!==0)return;
+      if(!best||dr.name.length>best.name.length)best=dr;   // "Cafe con Leche" gana a "Cafe"
+    });
+    return best;
+  }
+  // Precio total de un pedido = base de la bebida + acompañamiento
+  function precioPedido(o){
+    var d=bebidaDe(o);
+    if(!d)return 0;
+    var base=d.precio||0,add=0;
+    if(o.extra&&o.extra!=="Sin acompanamiento"&&d.comboPrices)add=d.comboPrices[ckey(o.extra)]||0;
+    return base+add;
+  }
+
   function calcularTotalMesa(){
     var total=0;
-    Object.values(orders).forEach(function(o){
-      var d=drinks.find(function(dr){return o.drink&&o.drink.startsWith(dr.name);});
-      if(!d||!d.precio)return;
-      var extra=0;
-      if(o.extra&&d.comboPrices){
-        var ck=o.extra.toLowerCase().replace(/\s+/g,"_");
-        extra=d.comboPrices[ck]||0;
-      }
-      total+=d.precio+extra;
-    });
+    Object.values(orders).forEach(function(o){total+=precioPedido(o);});
     return total;
   }
 
@@ -1706,11 +1724,7 @@
         speak("Perfecto! "+label+" agregado.");
         pDrink=null;pFor=null;closeModal("mextra");
         // Calcular precio para el toast (sin usar variables ya limpiadas)
-        var precioTotal=0;
-        drinks.forEach(function(d){if(label.startsWith(d.name)){
-          precioTotal=d.precio||0;
-          if(exVal&&d.comboPrices){var ck=exVal.toLowerCase().replace(/\s+/g,"_");precioTotal+=(d.comboPrices[ck]||0);}
-        }});
+        var precioTotal=precioPedido({drinkIdx:idxDrink,drink:label,extra:exVal});
         showToast("✅ "+label+(precioTotal>0?" · $"+Math.round(precioTotal):"")+"!");
       }
     }catch(e){
@@ -1864,48 +1878,83 @@
 
   window.abrirPrecios=function(){
     if(!isAdmin())return;
-    // Valor global por acompañamiento: si ya tiene precio en OTRA bebida, se usa ese (compartido por nombre)
-    var globalCombo={};
+    // Precio global por acompañamiento (el mismo en todas las bebidas)
+    var globalCombo={},ordenExtras=[];
     drinks.forEach(function(d){
-      if(!d||!d.name||!d.comboPrices)return;
-      Object.keys(d.comboPrices).forEach(function(k){if(d.comboPrices[k]>0&&!globalCombo[k])globalCombo[k]=d.comboPrices[k];});
+      if(!d||!d.name)return;
+      extrasFor(d).forEach(function(ex){
+        var k=comboKeyOf(ex);
+        if(ordenExtras.indexOf(ex)===-1&&!ordenExtras.some(function(e){return comboKeyOf(e)===k;}))ordenExtras.push(ex);
+        var v=(d.comboPrices||{})[k];
+        if(v>0&&!globalCombo[k])globalCombo[k]=v;
+      });
     });
-    var html="";
-    drinks.forEach(function(d,i){
-      if(!d||!d.name)return; // salta bebidas fantasma (sin nombre/icono)
-      var comboPrices=d.comboPrices||{};
-      var extras=extrasFor(d);
-      html+="<div class='surf' data-precio-card='"+i+"' style='padding:14px;margin-bottom:10px'>";
-      html+="<div style='display:flex;align-items:center;gap:8px'>"
-        +"<span style='font-size:1.3rem'>"+d.icon+"</span>"
-        +"<span style='flex:1;font-size:0.82rem;font-weight:700;color:var(--ink);letter-spacing:0.03em'>"+d.name+"</span>"
-        +"<div style='position:relative;width:104px;flex-shrink:0'>"
-        +"<span style='position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:0.8rem;color:var(--mut);pointer-events:none'>$</span>"
-        +"<input type='number' data-idx='"+i+"' data-combo='' placeholder='0' min='0' step='100' value='"+(d.precio||"")+"' "
-        +"style='width:100%;background:var(--sur2);border:1px solid var(--gold);border-radius:10px;padding:9px 10px 9px 22px;"
-        +"font-family:\"Bebas Neue\",sans-serif;font-size:1.1rem;color:var(--gold);text-align:right;outline:none;letter-spacing:0.03em'>"
+
+    function fila(label,icon,attrs,val,destacado){
+      return "<div style='display:flex;align-items:center;gap:10px;padding:9px 12px;border-bottom:1px solid var(--brd)'>"
+        +(icon?"<span style='font-size:1.1rem;width:20px;text-align:center;flex-shrink:0'>"+icon+"</span>":"")
+        +"<span style='flex:1;font-size:"+(destacado?"0.8rem;font-weight:700":"0.75rem;font-weight:500")+";color:var(--ink);letter-spacing:0.02em'>"+esc(label)+"</span>"
+        +"<div style='position:relative;width:98px;flex-shrink:0'>"
+        +"<span style='position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:0.75rem;color:var(--mut);pointer-events:none'>$</span>"
+        +"<input type='number' "+attrs+" placeholder='0' min='0' step='100' value='"+(val||"")+"' "
+        +"style='width:100%;background:var(--sur2);border:1px solid "+(destacado?"var(--gold)":"var(--brd)")+";border-radius:9px;padding:8px 10px 8px 21px;"
+        +"font-family:\"Bebas Neue\",sans-serif;font-size:1rem;color:"+(destacado?"var(--gold)":"var(--ink)")+";text-align:right;outline:none;letter-spacing:0.03em'>"
         +"</div></div>";
-      if(extras.length){
-        html+="<div style='display:flex;flex-direction:column;gap:7px;margin-top:10px;padding-top:10px;border-top:1px solid var(--brd)'>";
-        extras.forEach(function(ex){
-          var comboKey=comboKeyOf(ex);
-          var val=comboPrices[comboKey]>0?comboPrices[comboKey]:(globalCombo[comboKey]||"");
-          html+="<div style='display:flex;align-items:center;gap:8px'>"
-            +"<span style='flex:1;font-size:0.7rem;color:var(--mut)'>+ "+ex+"</span>"
-            +"<div style='position:relative;width:92px;flex-shrink:0'>"
-            +"<span style='position:absolute;left:9px;top:50%;transform:translateY(-50%);font-size:0.7rem;color:var(--mut);pointer-events:none'>$</span>"
-            +"<input type='number' data-idx='"+i+"' data-combo='"+comboKey+"' placeholder='0' min='0' step='100' value='"+val+"' "
-            +"style='width:100%;background:var(--sur2);border:1px solid var(--brd);border-radius:8px;padding:7px 8px 7px 19px;"
-            +"font-family:\"Bebas Neue\",sans-serif;font-size:0.85rem;color:var(--ink);text-align:right;outline:none'>"
-            +"</div></div>";
-        });
-        html+="</div>";
-      }
-      html+="</div>";
+    }
+
+    var html="";
+    // BLOQUE 1 — bebidas
+    html+="<div style='font-size:0.58rem;color:var(--mut);letter-spacing:0.12em;font-weight:700;margin:0 2px 6px'>☕ BEBIDAS</div>";
+    html+="<div class='surf' style='padding:0;overflow:hidden;margin-bottom:16px'>";
+    drinks.forEach(function(d,i){
+      if(!d||!d.name)return;
+      html+=fila(d.name,d.icon,"data-idx='"+i+"' data-combo=''",d.precio,true);
     });
+    html+="</div>";
+    // BLOQUE 2 — acompañamientos (precio único, vale para todas)
+    if(ordenExtras.length){
+      html+="<div style='font-size:0.58rem;color:var(--mut);letter-spacing:0.12em;font-weight:700;margin:0 2px 6px'>🥐 ACOMPAÑAMIENTOS <span style='font-weight:400;letter-spacing:0.04em;text-transform:none'>· mismo precio en todas</span></div>";
+      html+="<div class='surf' style='padding:0;overflow:hidden'>";
+      ordenExtras.forEach(function(ex){
+        var k=comboKeyOf(ex);
+        html+=fila(ex,"","data-combo='"+k+"'",globalCombo[k],false);
+      });
+      html+="</div>";
+    }
     document.getElementById("precios-grid").innerHTML=html;
+    renderPreciosPreview();
     setupPreciosAutoSave();
     openModal("mprecios");
+  };
+
+  // Vista previa: cómo queda el combo más caro y el más barato, para chequear de un vistazo
+  window.renderPreciosPreview=function(){
+    var el=document.getElementById("precios-preview");if(!el)return;
+    var grid=document.getElementById("precios-grid");if(!grid)return;
+    var extrasVals={};
+    grid.querySelectorAll("input[data-combo]:not([data-combo=''])").forEach(function(i){
+      extrasVals[i.getAttribute("data-combo")]=parseFloat(i.value)||0;
+    });
+    var keys=Object.keys(extrasVals).filter(function(k){return extrasVals[k]>0;});
+    var maxK=null;keys.forEach(function(k){if(!maxK||extrasVals[k]>extrasVals[maxK])maxK=k;});
+    var lineas=[];
+    grid.querySelectorAll("input[data-combo='']").forEach(function(i){
+      var d=drinks[parseInt(i.getAttribute("data-idx"))];
+      var base=parseFloat(i.value)||0;
+      if(!d||!d.name||!base)return;
+      lineas.push({n:d.name,solo:base,combo:maxK?base+extrasVals[maxK]:null});
+    });
+    if(!lineas.length){el.innerHTML="";return;}
+    var maxLabel="";
+    var lab=maxK?grid.querySelector("input[data-combo='"+maxK+"']"):null;
+    if(lab&&lab.parentElement&&lab.parentElement.previousElementSibling)maxLabel=lab.parentElement.previousElementSibling.textContent;
+    el.innerHTML="<div style='font-size:0.58rem;color:var(--mut);letter-spacing:0.1em;margin-bottom:5px'>VISTA PREVIA</div>"
+      +lineas.map(function(l){
+        return "<div style='display:flex;justify-content:space-between;gap:10px;font-size:0.68rem;padding:2px 0'>"
+          +"<span style='color:var(--mut);overflow:hidden;text-overflow:ellipsis;white-space:nowrap'>"+esc(l.n)+"</span>"
+          +"<span style='font-family:\"Bebas Neue\",sans-serif;color:var(--ink);white-space:nowrap;letter-spacing:0.04em'>$"+Math.round(l.solo)
+          +(l.combo?" <span style='color:var(--mut)'>/ con "+esc(maxLabel)+" $"+Math.round(l.combo)+"</span>":"")+"</span></div>";
+      }).join("");
   };
 
   function setupPreciosAutoSave(){
@@ -1916,13 +1965,7 @@
     grid.addEventListener("input",function(e){
       var inp=e.target;
       if(!inp||inp.tagName!=="INPUT")return;
-      var combo=inp.getAttribute("data-combo");
-      if(combo){
-        // Reflejar en vivo en las demás cards que comparten este acompañamiento
-        grid.querySelectorAll("input[data-combo='"+combo+"']").forEach(function(other){
-          if(other!==inp)other.value=inp.value;
-        });
-      }
+      renderPreciosPreview();
       var ind=document.getElementById("precios-save-ind");
       if(ind){ind.textContent="Guardando…";ind.style.opacity="1";}
       clearTimeout(saveTimer);
@@ -1931,24 +1974,25 @@
   }
 
   window.guardarPreciosAuto=async function(){
-    var inputs=document.querySelectorAll("#precios-grid input");
+    var grid=document.getElementById("precios-grid");if(!grid)return;
     var nd=drinks.map(function(d){return Object.assign({},d);});
-    inputs.forEach(function(inp){
+    // 1) precios base
+    grid.querySelectorAll("input[data-combo='']").forEach(function(inp){
       var idx=parseInt(inp.getAttribute("data-idx"));
       if(!nd[idx])return;
+      var val=parseFloat(inp.value)||0;
+      if(val>0)nd[idx].precio=val;else delete nd[idx].precio;
+    });
+    // 2) acompañamientos: el mismo valor se replica en toda bebida que lo ofrezca
+    grid.querySelectorAll("input[data-combo]:not([data-combo=''])").forEach(function(inp){
       var combo=inp.getAttribute("data-combo");
       var val=parseFloat(inp.value)||0;
-      if(combo===""){
-        if(val>0)nd[idx].precio=val;else delete nd[idx].precio;
-      } else {
-        // Mismo acompañamiento → mismo precio en TODAS las bebidas que lo tengan
-        nd.forEach(function(d2,i2){
-          if(!d2||!d2.name)return;
-          if(keysFor(d2).indexOf(combo)===-1)return;
-          if(!nd[i2].comboPrices)nd[i2].comboPrices={};
-          if(val>0)nd[i2].comboPrices[combo]=val;else delete nd[i2].comboPrices[combo];
-        });
-      }
+      nd.forEach(function(d2,i2){
+        if(!d2||!d2.name)return;
+        if(keysFor(d2).indexOf(combo)===-1)return;
+        if(!nd[i2].comboPrices)nd[i2].comboPrices={};
+        if(val>0)nd[i2].comboPrices[combo]=val;else delete nd[i2].comboPrices[combo];
+      });
     });
     drinks=nd;
     await set(rD,nd);
@@ -3363,28 +3407,7 @@
     if(!misPed.length&&!pagado){card.innerHTML="";return;}
     // Calcular lo que debe según precio base + combo
     var deuda=0;
-    misPed.forEach(function(o){
-      var d=drinks.find(function(dr){return o.drink&&o.drink.startsWith(dr.name);});
-      if(!d)return;
-      var base=d.precio||0;
-      var extra=o.extra;
-      var comboAdd=0;
-      if(extra&&d.comboPrices){
-        var comboKey=extra.toLowerCase().replace(/\s+/g,"_");
-        comboAdd=d.comboPrices[comboKey]||0;
-        // fallback: buscar sin tildes
-        if(!comboAdd){
-          var ck2=extra.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/\s+/g,"_");
-          comboAdd=d.comboPrices[ck2]||0;
-        }
-        // fallback2: primer key disponible si solo hay uno
-        if(!comboAdd){
-          var ckeys=Object.keys(d.comboPrices);
-          if(ckeys.length===1)comboAdd=d.comboPrices[ckeys[0]]||0;
-        }
-      }
-      deuda+=base+comboAdd;
-    });
+    misPed.forEach(function(o){deuda+=precioPedido(o);});
     var html="<div class='surf' style='margin:14px 12px 0;padding:16px 18px'>";
     html+="<div style='font-size:0.65rem;color:var(--mut);letter-spacing:0.1em;margin-bottom:12px;font-family:\"JetBrains Mono\",monospace'>TU CUENTA</div>";
     html+="<div style='display:flex;align-items:stretch;gap:12px'>";
@@ -3511,13 +3534,13 @@
     });
     var sinEnviar=players.filter(function(pl){return !confirmed[pl];});
     var avisos=[];
-    if(sinEnviar.length)avisos.push("📤 <b style='color:#fb923c'>"+sinEnviar.length+" sin enviar</b>");
-    if(sinPagar.length)avisos.push("⚠️ <b style='color:#fb923c'>"+sinPagar.length+" sin pagar</b>");
+    if(sinEnviar.length)avisos.push("📤 <b style='color:#fb923c'>"+sinEnviar.length+" sin enviar</b>: <span style='opacity:0.85'>"+esc(sinEnviar.join(", "))+"</span>");
+    if(sinPagar.length)avisos.push("⚠️ <b style='color:#fb923c'>"+sinPagar.length+" sin pagar</b>: <span style='opacity:0.85'>"+esc(sinPagar.join(", "))+"</span>");
     if(!totalBar)avisos.push("⚠️ <b style='color:#fb923c'>Falta el total del bar</b>");
     var pend=Object.keys(pagoReqs||{}).filter(function(k){return pagoReqs[k].estado==="pendiente";}).length;
     if(pend)avisos.push("⏳ <b style='color:var(--gold)'>"+pend+" aviso(s) sin validar</b>");
     el.innerHTML=avisos.length
-      ? avisos.join(" · ")+"<br><span style='opacity:0.7'>Se archivan "+players.length+" pedidos igual</span>"
+      ? avisos.join("<br>")+"<br><span style='opacity:0.7'>Se archivan "+players.length+" pedidos igual</span>"
       : "✓ Todo cerrado · se archivan "+players.length+" pedidos";
   };
 
@@ -4198,19 +4221,7 @@
       // Calcular lo que debe según pedidos y precios
       var misPed=Object.values(orders).filter(function(o){return o.player===pl;});
       var deuda=0;
-      misPed.forEach(function(o){
-        var d=drinks.find(function(dr){return o.drink&&o.drink.startsWith(dr.name);});
-        if(!d)return;
-        var base=d.precio||0;
-        var comboAdd=0;
-        if(o.extra&&d.comboPrices){
-          var ck=o.extra.toLowerCase().replace(/\s+/g,"_");
-          comboAdd=d.comboPrices[ck]||0;
-          if(!comboAdd){var ck2=o.extra.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/\s+/g,"_");comboAdd=d.comboPrices[ck2]||0;}
-          if(!comboAdd){var ckeys=Object.keys(d.comboPrices);if(ckeys.length===1)comboAdd=d.comboPrices[ckeys[0]]||0;}
-        }
-        deuda+=base+comboAdd;
-      });
+      misPed.forEach(function(o){deuda+=precioPedido(o);});
       var saldo=deuda>0?total-deuda:null;
 
       var row="<div class='lista-row lista-pagado' style='cursor:default'>";
@@ -5391,19 +5402,7 @@
 
     // Calcular total automático desde precios
     var totalMesa=0;
-    Object.values(orders).forEach(function(o){
-      var d=drinks.find(function(dr){return o.drink&&o.drink.startsWith(dr.name);});
-      if(!d)return;
-      var base=d.precio||0;
-      var comboAdd=0;
-      if(o.extra&&d.comboPrices){
-        var ck=o.extra.toLowerCase().replace(/\s+/g,"_");
-        comboAdd=d.comboPrices[ck]||0;
-        if(!comboAdd){var ck2=o.extra.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/\s+/g,"_");comboAdd=d.comboPrices[ck2]||0;}
-        if(!comboAdd){var ckeys=Object.keys(d.comboPrices);if(ckeys.length===1)comboAdd=d.comboPrices[ckeys[0]]||0;}
-      }
-      totalMesa+=base+comboAdd;
-    });
+    Object.values(orders).forEach(function(o){totalMesa+=precioPedido(o);});
 
     // Bebidas consolidadas
     var bebMap={};
@@ -6736,10 +6735,11 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
     <input type="file" id="ticket-input" accept="image/*" capture="environment" style="display:none" onchange="procesarTicket(this)">
     <div id="ticket-status" style="display:none;background:rgba(79,179,255,0.08);border:1px solid rgba(79,179,255,0.2);border-radius:10px;padding:10px 12px;margin-bottom:12px;font-size:0.68rem;color:#4fb3ff;text-align:center"></div>
     <div style="display:flex;align-items:center;justify-content:space-between;padding:0 2px;margin-bottom:10px">
-      <span style="font-size:0.6rem;color:var(--mut);letter-spacing:0.08em">Mismo acompañamiento = mismo precio en todas</span>
+      <span style="font-size:0.6rem;color:var(--mut);letter-spacing:0.08em">Cargá una vez cada precio · se guarda solo</span>
       <span id="precios-save-ind" style="font-size:0.62rem;color:var(--g2);font-weight:700;opacity:0;transition:opacity .3s;white-space:nowrap">✓ Guardado</span>
     </div>
     <div id="precios-grid"></div>
+    <div id="precios-preview" style="margin-top:14px;padding:10px 12px;background:var(--sur2);border:1px solid var(--brd);border-radius:12px"></div>
     <div class="ma" style="margin-top:14px">
       <button class="bp" style="flex:1" onclick="closeModal('mprecios')">Listo ✓</button>
     </div>
@@ -6789,7 +6789,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.163";
+  var APP_VERSION="10.0.165";
 
   var STORED_VERSION=localStorage.getItem("app_version");
 
