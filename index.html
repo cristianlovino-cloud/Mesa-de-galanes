@@ -1395,12 +1395,30 @@
     return best;
   }
   // Precio total de un pedido = base de la bebida + acompañamiento
-  function precioPedido(o){
+  function precioDetalle(o){
     var d=bebidaDe(o);
-    if(!d)return 0;
-    var base=d.precio||0,add=0;
-    if(o.extra&&o.extra!=="Sin acompanamiento"&&d.comboPrices)add=d.comboPrices[ckey(o.extra)]||0;
-    return base+add;
+    if(!d)return {ok:false,d:null,base:0,add:0,total:0,nombre:(o&&o.drink)||"?",extra:null,faltaBase:true,faltaAdd:false};
+    var base=d.precio||0,add=0,tieneExtra=!!(o.extra&&o.extra!=="Sin acompanamiento");
+    if(tieneExtra&&d.comboPrices)add=d.comboPrices[ckey(o.extra)]||0;
+    return {ok:true,d:d,base:base,add:add,total:base+add,nombre:d.name,extra:tieneExtra?o.extra:null,
+            faltaBase:!base,faltaAdd:tieneExtra&&!add};
+  }
+  function precioPedido(o){return precioDetalle(o).total;}
+  // Desglose legible: de dónde sale cada peso, y avisa si falta cargar un precio
+  function desgloseHtml(peds){
+    if(!peds||!peds.length)return "";
+    var out="",falta=false;
+    peds.forEach(function(o){
+      var x=precioDetalle(o);
+      if(!x.ok){falta=true;out+="<div class='dsg-l dsg-w'>⚠ "+esc(x.nombre)+" — bebida no encontrada en la lista</div>";return;}
+      out+="<div class='dsg-l'>"+esc(x.nombre)+" <b>$"+Math.round(x.base)+"</b>"
+        +(x.faltaBase?" <span class='dsg-w'>⚠ sin precio</span>":"")
+        +(x.extra?" · + "+esc(x.extra)+" <b>$"+Math.round(x.add)+"</b>"+(x.faltaAdd?" <span class='dsg-w'>⚠ sin precio</span>":""):"")
+        +"</div>";
+      if(x.faltaBase||x.faltaAdd)falta=true;
+    });
+    if(falta&&isAdmin())out+="<div class='dsg-l' style='margin-top:3px'><a href='#' onclick='event.preventDefault();abrirPrecios()' style='color:var(--gold);font-weight:700;text-decoration:none'>→ Cargar precios</a></div>";
+    return "<div class='dsg'>"+out+"</div>";
   }
 
   function calcularTotalMesa(){
@@ -1894,7 +1912,7 @@
       return "<div style='display:flex;align-items:center;gap:10px;padding:9px 12px;border-bottom:1px solid var(--brd)'>"
         +(icon?"<span style='font-size:1.1rem;width:20px;text-align:center;flex-shrink:0'>"+icon+"</span>":"")
         +"<span style='flex:1;font-size:"+(destacado?"0.8rem;font-weight:700":"0.75rem;font-weight:500")+";color:var(--ink);letter-spacing:0.02em'>"+esc(label)+"</span>"
-        +"<div style='position:relative;width:98px;flex-shrink:0'>"
+        +"<div style='position:relative;width:104px;flex-shrink:0'>"
         +"<span style='position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:0.75rem;color:var(--mut);pointer-events:none'>$</span>"
         +"<input type='number' "+attrs+" placeholder='0' min='0' step='100' value='"+(val||"")+"' "
         +"style='width:100%;background:var(--sur2);border:1px solid "+(destacado?"var(--gold)":"var(--brd)")+";border-radius:9px;padding:8px 10px 8px 21px;"
@@ -1905,7 +1923,7 @@
     var html="";
     // BLOQUE 1 — bebidas
     html+="<div style='font-size:0.58rem;color:var(--mut);letter-spacing:0.12em;font-weight:700;margin:0 2px 6px'>☕ BEBIDAS</div>";
-    html+="<div class='surf' style='padding:0;overflow:hidden;margin-bottom:16px'>";
+    html+="<div class='surf' style='padding:0;overflow:hidden;margin-bottom:16px;max-width:100%'>";
     drinks.forEach(function(d,i){
       if(!d||!d.name)return;
       html+=fila(d.name,d.icon,"data-idx='"+i+"' data-combo=''",d.precio,true);
@@ -1931,29 +1949,33 @@
   window.renderPreciosPreview=function(){
     var el=document.getElementById("precios-preview");if(!el)return;
     var grid=document.getElementById("precios-grid");if(!grid)return;
-    var extrasVals={};
+    var extrasVals={},extrasLbl={};
     grid.querySelectorAll("input[data-combo]:not([data-combo=''])").forEach(function(i){
-      extrasVals[i.getAttribute("data-combo")]=parseFloat(i.value)||0;
+      var k=i.getAttribute("data-combo");
+      extrasVals[k]=parseFloat(i.value)||0;
+      var lb=i.parentElement&&i.parentElement.previousElementSibling;
+      extrasLbl[k]=lb?lb.textContent:k;
     });
-    var keys=Object.keys(extrasVals).filter(function(k){return extrasVals[k]>0;});
-    var maxK=null;keys.forEach(function(k){if(!maxK||extrasVals[k]>extrasVals[maxK])maxK=k;});
+    var maxK=null;
+    Object.keys(extrasVals).forEach(function(k){if(extrasVals[k]>0&&(!maxK||extrasVals[k]>extrasVals[maxK]))maxK=k;});
     var lineas=[];
     grid.querySelectorAll("input[data-combo='']").forEach(function(i){
       var d=drinks[parseInt(i.getAttribute("data-idx"))];
       var base=parseFloat(i.value)||0;
       if(!d||!d.name||!base)return;
-      lineas.push({n:d.name,solo:base,combo:maxK?base+extrasVals[maxK]:null});
+      lineas.push({n:d.name,solo:base,combo:maxK?base+extrasVals[maxK]:0});
     });
     if(!lineas.length){el.innerHTML="";return;}
-    var maxLabel="";
-    var lab=maxK?grid.querySelector("input[data-combo='"+maxK+"']"):null;
-    if(lab&&lab.parentElement&&lab.parentElement.previousElementSibling)maxLabel=lab.parentElement.previousElementSibling.textContent;
-    el.innerHTML="<div style='font-size:0.58rem;color:var(--mut);letter-spacing:0.1em;margin-bottom:5px'>VISTA PREVIA</div>"
+    el.innerHTML="<div style='display:flex;justify-content:space-between;gap:8px;font-size:0.55rem;color:var(--mut);letter-spacing:0.08em;padding-bottom:5px;margin-bottom:4px;border-bottom:1px solid var(--brd)'>"
+        +"<span style='flex:1;min-width:0'>VISTA PREVIA</span>"
+        +"<span style='width:52px;text-align:right;flex-shrink:0'>SOLA</span>"
+        +"<span style='width:62px;text-align:right;flex-shrink:0'>"+(maxK?"+ "+esc(String(extrasLbl[maxK]).split(" ")[0].toUpperCase()):"")+"</span></div>"
       +lineas.map(function(l){
-        return "<div style='display:flex;justify-content:space-between;gap:10px;font-size:0.68rem;padding:2px 0'>"
-          +"<span style='color:var(--mut);overflow:hidden;text-overflow:ellipsis;white-space:nowrap'>"+esc(l.n)+"</span>"
-          +"<span style='font-family:\"Bebas Neue\",sans-serif;color:var(--ink);white-space:nowrap;letter-spacing:0.04em'>$"+Math.round(l.solo)
-          +(l.combo?" <span style='color:var(--mut)'>/ con "+esc(maxLabel)+" $"+Math.round(l.combo)+"</span>":"")+"</span></div>";
+        return "<div style='display:flex;justify-content:space-between;gap:8px;font-size:0.67rem;padding:2px 0;align-items:baseline'>"
+          +"<span style='flex:1;min-width:0;color:var(--mut);overflow:hidden;text-overflow:ellipsis;white-space:nowrap'>"+esc(l.n)+"</span>"
+          +"<span style='width:52px;text-align:right;flex-shrink:0;font-family:\"Bebas Neue\",sans-serif;color:var(--ink);letter-spacing:0.03em'>$"+Math.round(l.solo)+"</span>"
+          +"<span style='width:62px;text-align:right;flex-shrink:0;font-family:\"Bebas Neue\",sans-serif;color:var(--mut);letter-spacing:0.03em'>"+(l.combo?"$"+Math.round(l.combo):"—")+"</span>"
+          +"</div>";
       }).join("");
   };
 
@@ -3417,6 +3439,7 @@
         +"<div style='font-size:0.6rem;color:var(--mut);letter-spacing:0.06em;margin-bottom:4px'>PEDISTE</div>"
         +"<div style='font-size:0.8rem;font-weight:600;color:var(--ink);line-height:1.3'>"+misPed[0].icon+" "+misPed[0].drink+"</div>"
         +(deuda>0?"<div style='font-family:\"Bebas Neue\",sans-serif;font-size:1rem;color:var(--gold);margin-top:4px;letter-spacing:0.04em'>Precio: $"+Math.round(deuda)+"</div>":"")
+        +desgloseHtml(misPed)
         +"</div>";
     }
     // Saldo
@@ -5826,6 +5849,9 @@ button:not(.tab):not(.swipe-handle){transition:transform .1s ease,background-col
   letter-spacing:0.04em;transition:all .15s;}
 .cst.active{border-color:var(--gold);background:rgba(245,197,24,0.12);color:var(--gold);}
 /* Galan que cargó pedido pero no lo envió (no deslizó) */
+.dsg{margin-top:6px;font-size:0.6rem;color:var(--mut);line-height:1.5}
+.dsg-l b{color:var(--ink);font-weight:700}
+.dsg-w{color:#fb923c;font-weight:700}
 .sintg{font-size:0.5rem;font-weight:800;letter-spacing:0.07em;padding:2px 7px;border-radius:100px;
   background:rgba(251,146,60,0.14);color:#fb923c;border:1px solid rgba(251,146,60,0.35);white-space:nowrap;}
 .att-sinenviar{border-left:3px solid rgba(251,146,60,0.5)!important;}
@@ -6738,7 +6764,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
       <span style="font-size:0.6rem;color:var(--mut);letter-spacing:0.08em">Cargá una vez cada precio · se guarda solo</span>
       <span id="precios-save-ind" style="font-size:0.62rem;color:var(--g2);font-weight:700;opacity:0;transition:opacity .3s;white-space:nowrap">✓ Guardado</span>
     </div>
-    <div id="precios-grid"></div>
+    <div id="precios-grid" style="max-width:100%;overflow-x:hidden"></div>
     <div id="precios-preview" style="margin-top:14px;padding:10px 12px;background:var(--sur2);border:1px solid var(--brd);border-radius:12px"></div>
     <div class="ma" style="margin-top:14px">
       <button class="bp" style="flex:1" onclick="closeModal('mprecios')">Listo ✓</button>
@@ -6789,7 +6815,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.165";
+  var APP_VERSION="10.0.167";
 
   var STORED_VERSION=localStorage.getItem("app_version");
 
