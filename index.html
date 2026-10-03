@@ -374,7 +374,7 @@
       try{fondoCfg=s.exists()?s.val():{};renderFondo();}catch(e){console.error("rFondoCfg",e);}
     });
     onValue(rPozos,function(s){
-      try{pozos=s.exists()?s.val():{};renderFondo();}catch(e){console.error("rPozos",e);}
+      try{pozos=s.exists()?s.val():{};renderFondo();renderAvisoFondo();}catch(e){console.error("rPozos",e);}
     });
     onValue(rMovs,function(s){
       try{movs=s.exists()?s.val():{};renderFondo();}catch(e){console.error("rMovs",e);}
@@ -560,7 +560,7 @@
     if(tab==="admin"){window._ordenesEnAdmin=true;window._adminStab=isAdmin()?"galanes":"pedidos";renderLista();renderMesa();renderPendientes();checkNuevosAlert();aplicarPermisosMozo();if(!isAdmin())switchAdminTab("pedidos");if(!window._cleaned){window._cleaned=true;limpiarHuerfanos();}}
     if(tab==="resumen"){window._ordenesEnAdmin=false;renderOrders();}
     if(tab==="pedir"){renderMiSaldo();renderEstadoMesa();setTimeout(renderEstuvoCerca,500);}
-    if(tab==="cumples"){renderCumples();renderFondo();}
+    if(tab==="cumples"){renderCumples();renderFondo();renderAvisoFondo();}
     if(tab==="stats")renderStats();
     if(tab==="mundial"&&!window._mundialLoaded)renderMundial();
   };
@@ -3797,6 +3797,50 @@
       +"</div></div>";
   }
 
+  // Pozos abiertos donde todavía no puse mi parte
+  window.pozosQueDebo=function(){
+    if(!me)return 0;
+    return Object.values(pozos||{}).filter(function(pz){
+      if(!pz||pz.estado!=="abierto")return false;
+      if(normName(pz.cumpleanero||"")===normName(me))return false;
+      var a=(pz.aportes||{})[normName(me)];
+      return !a;
+    }).length;
+  };
+
+  // Punto de aviso en el tab Cumple y en la pestaña Fondo
+  window.renderAvisoFondo=function(){
+    var n=pozosQueDebo();
+    var tab=document.querySelector("[data-tab='cumples']");
+    if(tab){
+      var old=tab.querySelector(".tab-dot");
+      if(old)old.remove();
+      if(n){
+        var d=document.createElement("span");
+        d.className="tab-dot";d.textContent=n>1?n:"";
+        tab.appendChild(d);
+      }
+    }
+    var bf=document.querySelector("[data-cst='fondo']");
+    if(bf){
+      bf.innerHTML=n?("💰 Fondo <span class='cst-badge'>"+n+"</span>"):"💰 Fondo";
+      bf.classList.toggle("cst-alerta",!!n);
+    }
+    var ban=document.getElementById("fondo-aviso");
+    if(ban){
+      if(n){
+        ban.style.display="block";
+        ban.innerHTML="<div style='display:flex;align-items:center;gap:10px'>"
+          +"<span style='font-size:1.3rem'>🎁</span>"
+          +"<div style='flex:1;min-width:0'>"
+          +"<div style='font-size:0.74rem;font-weight:800;color:var(--gold)'>Tenés "+n+" pozo"+(n>1?"s":"")+" sin poner tu parte</div>"
+          +"<div style='font-size:0.62rem;color:var(--mut);margin-top:1px'>Entrá a Fondo y ponés la tuya</div></div>"
+          +"<button onclick=\"switchCumpleTab('fondo')\" style='background:var(--gold);color:#0a0805;border:none;border-radius:9px;padding:8px 13px;font-size:0.68rem;font-weight:800;cursor:pointer;flex-shrink:0'>Ver</button>"
+          +"</div>";
+      } else ban.style.display="none";
+    }
+  };
+
   window.renderFondo=function(){
     var el=document.getElementById("fondo-panel");if(!el)return;
     var monto=fondoCfg.monto||0;
@@ -6016,7 +6060,7 @@ header::after{
   display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
   padding:8px 2px;border-radius:16px;
   transition:all 0.25s cubic-bezier(0.4,0,0.2,1);
-  min-width:0;
+  min-width:0;position:relative;
 }
 .tab.active:not(.tab-center){
   color:var(--gold);
@@ -6177,6 +6221,10 @@ button:not(.tab):not(.swipe-handle){transition:transform .1s ease,background-col
 .dsg{margin-top:6px;font-size:0.6rem;color:var(--mut);line-height:1.5}
 .dsg-l b{color:var(--ink);font-weight:700}
 .dsg-w{color:#fb923c;font-weight:700}
+.tab-dot{position:absolute;top:4px;right:calc(50% - 18px);min-width:9px;height:9px;padding:0 3px;border-radius:100px;background:#ef4444;color:#fff;font-size:0.5rem;font-weight:800;display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 2px var(--hbg);animation:dotPulse 2s ease-in-out infinite;}
+@keyframes dotPulse{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.18);opacity:0.85}}
+.cst-badge{display:inline-flex;align-items:center;justify-content:center;min-width:16px;height:16px;padding:0 4px;border-radius:100px;background:#ef4444;color:#fff;font-size:0.56rem;font-weight:800;margin-left:4px;}
+.cst.cst-alerta{border-color:var(--gold)!important;background:rgba(245,197,24,0.12)!important;color:var(--gold)!important;}
 .sintg{font-size:0.5rem;font-weight:800;letter-spacing:0.07em;padding:2px 7px;border-radius:100px;
   background:rgba(251,146,60,0.14);color:#fb923c;border:1px solid rgba(251,146,60,0.35);white-space:nowrap;}
 .att-sinenviar{border-left:3px solid rgba(251,146,60,0.5)!important;}
@@ -6699,6 +6747,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
       <button class="cst" data-cst="fondo" onclick="switchCumpleTab('fondo')">💰 Fondo</button>
     </div>
     <div id="vcumple-lista">
+      <div id="fondo-aviso" style="display:none;margin:6px 12px 10px;padding:12px 14px;background:rgba(245,197,24,0.1);border:1.5px solid rgba(245,197,24,0.4);border-radius:14px"></div>
       <div id="cumples-panel" style="padding:0 12px"></div>
     </div>
     <div id="vcumple-fondo" style="display:none;padding:0 12px 90px">
@@ -7141,7 +7190,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.180";
+  var APP_VERSION="10.0.181";
 
   var STORED_VERSION=localStorage.getItem("app_version");
 
