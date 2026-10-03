@@ -3913,7 +3913,7 @@
   // ── Acciones admin ──
   window.editarMontoFondo=async function(){
     if(!isAdmin())return;
-    var v=await pedirTexto("Cuánto pone cada galan por cumple",String(fondoCfg.monto||""),{titulo:"Aporte por cumple",icono:"💰"});
+    var v=await pedirTexto("Cuánto pone cada galan por cumple",String(fondoCfg.monto||""),{titulo:"Aporte por cumple",icono:"💰",numero:true,placeholder:"Ej: 9000"});
     if(v===null)return;
     var n=parseFloat(v)||0;
     await set(rFondoCfg,Object.assign({},fondoCfg,{monto:n}));
@@ -3928,7 +3928,7 @@
   };
   window.editarSaldoFondo=async function(){
     if(!isAdmin())return;
-    var v=await pedirTexto("Saldo de arranque, antes de los movimientos registrados acá",String(fondoCfg.saldoInversion||""),{titulo:"Saldo inicial",icono:"💰"});
+    var v=await pedirTexto("Saldo de arranque, antes de los movimientos registrados acá",String(fondoCfg.saldoInversion||""),{titulo:"Saldo inicial",icono:"💰",numero:true,placeholder:"Ej: 78000"});
     if(v===null)return;
     await set(rFondoCfg,Object.assign({},fondoCfg,{saldoInversion:parseFloat(v)||0}));
     showToast("✓ Saldo actualizado");
@@ -3956,7 +3956,7 @@
 
   window.registrarRetiro=async function(){
     if(!isAdmin())return;
-    var v=await pedirTexto("¿Cuánto se retiró del fondo?","",{titulo:"Registrar retiro",icono:"↓",placeholder:"Ej: 45000"});
+    var v=await pedirTexto("¿Cuánto se retiró del fondo?","",{titulo:"Registrar retiro",icono:"↓",placeholder:"Ej: 45000",numero:true});
     var monto=parseFloat(v)||0;
     if(!monto)return;
     var con=await pedirTexto("¿En qué se usó?","",{titulo:"Concepto",icono:"🎁",placeholder:"Ej: Regalo de Jorge"});
@@ -4021,13 +4021,21 @@
       var nom=await pedirTexto("¿De quién es el cumple?","",{titulo:"Abrir pozo",icono:"🎉",placeholder:"Nombre del galán"});
       if(nom&&nom.trim())await crearPozo(nom.trim(),null,null);
     };
-    ov.querySelectorAll("[data-pozo-i]").forEach(function(b){
-      b.onclick=function(){
-        var c=lista[parseInt(b.getAttribute("data-pozo-i"))];
-        if(!c||c.yaTiene)return;
-        cerrar();crearPozo(c.nombre,c.dia,c.mes);
-      };
-    });
+    var _yaElegido=false;
+    function elegir(e){
+      var b=e.target&&e.target.closest?e.target.closest("[data-pozo-i]"):null;
+      if(!b||_yaElegido)return;
+      var c=lista[parseInt(b.getAttribute("data-pozo-i"))];
+      if(!c||c.yaTiene)return;
+      _yaElegido=true;
+      e.preventDefault();e.stopPropagation();
+      cerrar();
+      crearPozo(c.nombre,c.dia,c.mes).catch(function(err){
+        console.error("crearPozo",err);showToast("⚠ No se pudo abrir el pozo");
+      });
+    }
+    ov.addEventListener("click",elegir);
+    ov.addEventListener("touchend",elegir);
   };
 
   async function crearPozo(nombre,dia,mes){
@@ -5520,7 +5528,7 @@
       +"<div style='font-family:\"Bebas Neue\",sans-serif;font-size:1.15rem;color:var(--ink);letter-spacing:0.05em'>"+esc(o.titulo||"Confirmar")+"</div>"
       +(o.msg?"<div style='font-size:0.74rem;color:var(--mut);margin-top:6px;line-height:1.45'>"+esc(o.msg)+"</div>":"")
       +"</div>"
-      +(esInput?"<input id='dlg-input' placeholder='"+esc(o.placeholder||"")+"' value='"+esc(o.valor||"")+"' style='width:100%;padding:12px;border-radius:11px;border:1.5px solid var(--brd);background:var(--sur2);color:var(--ink);font-size:0.85rem;box-sizing:border-box;margin-bottom:14px;text-transform:none'>":"")
+      +(esInput?"<input id='dlg-input' "+(o.numero?"type='number' inputmode='numeric' min='0' step='1'":"")+" placeholder='"+esc(o.placeholder||"")+"' value='"+esc(o.valor||"")+"' style='width:100%;padding:12px;border-radius:11px;border:1.5px solid var(--brd);background:var(--sur2);color:var(--ink);font-size:0.85rem;box-sizing:border-box;margin-bottom:14px;text-transform:none'>":"")
       +"<div style='display:flex;gap:8px'>"
       +(o.soloOk?"":"<button id='dlg-no' style='flex:1;padding:12px;border-radius:11px;border:1.5px solid var(--brd);background:var(--sur2);color:var(--mut);font-size:0.78rem;font-weight:700;cursor:pointer'>"+esc(o.cancelTxt||"Cancelar")+"</button>")
       +"<button id='dlg-si' style='flex:1.3;padding:12px;border-radius:11px;border:none;background:"+accent+";color:"+(o.peligro?"#fff":"#0a0805")+";font-size:0.78rem;font-weight:800;cursor:pointer;letter-spacing:0.03em'>"+esc(o.okTxt||"Aceptar")+"</button>"
@@ -6973,7 +6981,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.170";
+  var APP_VERSION="10.0.171";
 
   var STORED_VERSION=localStorage.getItem("app_version");
 
