@@ -3945,6 +3945,7 @@
           +"<div style='flex:1;min-width:0'><div style='font-size:0.7rem;font-weight:700;color:var(--ink);text-transform:uppercase'>"+esc(p.cumpleanero)+"</div>"
           +"<div style='font-size:0.58rem;color:var(--mut)'>"+esc(p.fechaCumple||"")+" · "+cant+" aportes</div></div>"
           +"<span style='font-family:\"Bebas Neue\",sans-serif;font-size:0.95rem;color:var(--grn)'>"+fmt$(cant*(p.monto||0))+"</span>"
+          +(isAdmin()&&!cant?"<button onclick='borrarPozo(\""+p.key+"\")' style='background:none;border:none;color:var(--mut);font-size:0.75rem;cursor:pointer;padding:0 2px;opacity:0.5'>✕</button>":"")
           +"</div>";
       });
       h+="</div>";
@@ -3990,11 +3991,25 @@
       var dias=c.mes===hm?c.dia-hd:(c.dia+31-hd);
       out.push({nombre:real,dia:c.dia,mes:c.mes,orden:orden,dias:dias,
                 yaTiene:Object.values(pozos||{}).some(function(pz){
-                  return pz&&normName(pz.cumpleanero||"")===normName(real)&&(Date.now()-(pz.ts||0))<90*864e5;
+                  return pz&&pz.estado==="abierto"&&normName(pz.cumpleanero||"")===normName(real);
                 })});
     });
     return out.sort(function(a,b){return a.orden-b.orden;});
   }
+
+  window.borrarPozo=async function(k){
+    if(!isAdmin())return;
+    var p=pozos&&pozos[k];if(!p)return;
+    var ap=p.aportes||{};
+    var conAportes=Object.keys(ap).filter(function(x){return ap[x]&&ap[x].validado;}).length;
+    if(conAportes){
+      await avisar("Ese pozo tiene "+conAportes+" aportes cobrados, no se puede borrar.",{titulo:"No se puede borrar",icono:"🔒"});
+      return;
+    }
+    if(!await confirmar("Se borra el pozo de "+p.cumpleanero+" (sin aportes).",{titulo:"Borrar pozo",icono:"🗑️",okTxt:"Borrar",peligro:true}))return;
+    await set(ref(db,"config/fondoData/pozos/"+k),null);
+    showToast("🗑️ Pozo borrado");
+  };
 
   window.registrarRetiro=async function(){
     if(!isAdmin())return;
@@ -4020,6 +4035,7 @@
     var lista=cumplesProximos();
     var hoy=new Date(Date.now()-3*3600000);
     var hm=hoy.getUTCMonth()+1,m1=hm===12?1:hm+1;
+    var sel={};
 
     var ov=document.createElement("div");
     ov.id="pozo-picker";ov.className="modal-overlay mc";ov.style.zIndex="99999";
@@ -4033,55 +4049,87 @@
         var tag=c.dias===0?"<span style='background:rgba(34,197,94,0.15);color:var(--grn);padding:2px 7px;border-radius:7px;font-size:0.55rem;font-weight:800'>HOY</span>"
           :c.dias<0?"<span style='color:var(--mut);font-size:0.58rem'>ya pasó</span>"
           :"<span style='color:var(--mut);font-size:0.58rem'>en "+c.dias+" días</span>";
-        filas+="<button data-pozo-i='"+i+"' "+(c.yaTiene?"disabled":"")+" style='width:100%;display:flex;align-items:center;gap:10px;"
-          +"background:var(--sur2);border:1px solid var(--brd);border-radius:12px;padding:10px 12px;margin-bottom:7px;cursor:"+(c.yaTiene?"default":"pointer")+";"
-          +"opacity:"+(c.yaTiene?"0.45":"1")+";text-align:left'>"
-          +"<span style='width:32px;height:32px;border-radius:50%;background:"+col(c.nombre)+";color:#fff;display:flex;align-items:center;justify-content:center;font-size:0.68rem;font-weight:800;flex-shrink:0'>"+esc(ini(c.nombre))+"</span>"
+        filas+="<div data-pozo-i='"+i+"' style='width:100%;display:flex;align-items:center;gap:10px;"
+          +"background:var(--sur2);border:1.5px solid var(--brd);border-radius:12px;padding:10px 12px;margin-bottom:7px;"
+          +"cursor:"+(c.yaTiene?"default":"pointer")+";opacity:"+(c.yaTiene?"0.45":"1")+"'>"
+          +"<span class='pz-check' style='width:20px;height:20px;border-radius:6px;flex-shrink:0;border:2px solid var(--brd);"
+          +"display:flex;align-items:center;justify-content:center;font-size:0.7rem;color:#fff'>"+(c.yaTiene?"🔒":"")+"</span>"
+          +"<span style='width:30px;height:30px;border-radius:50%;background:"+col(c.nombre)+";color:#fff;display:flex;align-items:center;justify-content:center;font-size:0.64rem;font-weight:800;flex-shrink:0'>"+esc(ini(c.nombre))+"</span>"
           +"<span style='flex:1;min-width:0'>"
           +"<span style='display:block;font-size:0.76rem;font-weight:700;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap'>"+esc(c.nombre)+"</span>"
-          +"<span style='display:block;font-size:0.62rem;color:var(--mut);margin-top:1px'>"+c.dia+" de "+MESES[c.mes-1]+(c.yaTiene?" · ya tuvo pozo":"")+"</span>"
-          +"</span>"+tag+"</button>";
+          +"<span style='display:block;font-size:0.62rem;color:var(--mut);margin-top:1px'>"+c.dia+" de "+MESES[c.mes-1]+(c.yaTiene?" · ya tiene pozo abierto":"")+"</span>"
+          +"</span>"+tag+"</div>";
       });
     }
     ov.innerHTML="<div class='modal' style='max-width:340px;max-height:80vh;overflow-y:auto;box-sizing:border-box'>"
       +"<div style='text-align:center;margin-bottom:14px'>"
       +"<div style='font-size:2.2rem;line-height:1;margin-bottom:8px'>🎉</div>"
-      +"<div style='font-family:\"Bebas Neue\",sans-serif;font-size:1.15rem;color:var(--ink);letter-spacing:0.05em'>ABRIR POZO</div>"
-      +"<div style='font-size:0.68rem;color:var(--mut);margin-top:5px'>Cumples de "+MESES[hm-1]+" y "+MESES[m1-1]+"</div></div>"
+      +"<div style='font-family:\"Bebas Neue\",sans-serif;font-size:1.15rem;color:var(--ink);letter-spacing:0.05em'>ABRIR POZOS</div>"
+      +"<div style='font-size:0.68rem;color:var(--mut);margin-top:5px'>Marcá los que quieras · "+MESES[hm-1]+" y "+MESES[m1-1]+"</div></div>"
       +filas
       +"<div style='display:flex;gap:8px;margin-top:12px'>"
-      +"<button id='pozo-cancel' style='flex:1;padding:12px;border-radius:11px;border:1.5px solid var(--brd);background:var(--sur2);color:var(--mut);font-size:0.78rem;font-weight:700;cursor:pointer'>Cancelar</button>"
-      +"<button id='pozo-otro' style='flex:1;padding:12px;border-radius:11px;border:1.5px solid var(--brd);background:var(--sur2);color:var(--gold);font-size:0.78rem;font-weight:700;cursor:pointer'>Otro…</button>"
-      +"</div></div>";
+      +"<button id='pozo-cancel' style='flex:1;padding:12px;border-radius:11px;border:1.5px solid var(--brd);background:var(--sur2);color:var(--mut);font-size:0.76rem;font-weight:700;cursor:pointer'>Cancelar</button>"
+      +"<button id='pozo-otro' style='flex:0.8;padding:12px;border-radius:11px;border:1.5px solid var(--brd);background:var(--sur2);color:var(--gold);font-size:0.76rem;font-weight:700;cursor:pointer'>Otro…</button>"
+      +"</div>"
+      +"<button id='pozo-ok' disabled style='width:100%;margin-top:8px;padding:13px;border-radius:12px;border:none;background:var(--brd);color:var(--mut);font-size:0.8rem;font-weight:800;cursor:default;letter-spacing:0.03em'>Elegí al menos uno</button>"
+      +"</div>";
     document.body.appendChild(ov);
     requestAnimationFrame(function(){ov.classList.add("open");});
     function cerrar(){if(ov&&ov.parentNode)ov.parentNode.removeChild(ov);}
     ov.onclick=function(e){if(e.target===ov)cerrar();};
+
+    var btnOk=ov.querySelector("#pozo-ok");
+    function refrescar(){
+      var n=Object.keys(sel).length;
+      btnOk.disabled=!n;
+      btnOk.textContent=n?("🎉 ABRIR "+n+" POZO"+(n>1?"S":"")+" · "+fmt$(n*(fondoCfg.monto||0))+" c/u"):"Elegí al menos uno";
+      btnOk.style.background=n?"var(--gold)":"var(--brd)";
+      btnOk.style.color=n?"#0a0805":"var(--mut)";
+      btnOk.style.cursor=n?"pointer":"default";
+    }
+    var _creando=false;
+    function toggle(e){
+      var row=e.target&&e.target.closest?e.target.closest("[data-pozo-i]"):null;
+      if(!row)return;
+      var i=parseInt(row.getAttribute("data-pozo-i")),c=lista[i];
+      if(!c||c.yaTiene)return;
+      e.preventDefault();e.stopPropagation();
+      var chk=row.querySelector(".pz-check");
+      if(sel[i]){
+        delete sel[i];
+        row.style.borderColor="var(--brd)";row.style.background="var(--sur2)";
+        if(chk){chk.style.background="";chk.style.borderColor="var(--brd)";chk.textContent="";}
+      } else {
+        sel[i]=c;
+        row.style.borderColor="var(--gold)";row.style.background="rgba(245,197,24,0.08)";
+        if(chk){chk.style.background="var(--gold)";chk.style.borderColor="var(--gold)";chk.textContent="✓";chk.style.color="#0a0805";}
+      }
+      refrescar();
+    }
+    ov.addEventListener("click",toggle);
     ov.querySelector("#pozo-cancel").onclick=cerrar;
     ov.querySelector("#pozo-otro").onclick=async function(){
       cerrar();
       var nom=await pedirTexto("¿De quién es el cumple?","",{titulo:"Abrir pozo",icono:"🎉",placeholder:"Nombre del galán"});
       if(nom&&nom.trim())await crearPozo(nom.trim(),null,null);
     };
-    var _yaElegido=false;
-    function elegir(e){
-      var b=e.target&&e.target.closest?e.target.closest("[data-pozo-i]"):null;
-      if(!b||_yaElegido)return;
-      var c=lista[parseInt(b.getAttribute("data-pozo-i"))];
-      if(!c||c.yaTiene)return;
-      _yaElegido=true;
-      e.preventDefault();e.stopPropagation();
-      cerrar();
-      crearPozo(c.nombre,c.dia,c.mes).catch(function(err){
+    btnOk.onclick=async function(){
+      var elegidos=Object.keys(sel).map(function(k){return sel[k];});
+      if(!elegidos.length||_creando)return;
+      _creando=true;cerrar();
+      try{
+        for(var i=0;i<elegidos.length;i++){
+          await crearPozo(elegidos[i].nombre,elegidos[i].dia,elegidos[i].mes,true);
+        }
+        showToast("🎉 "+elegidos.length+" pozo"+(elegidos.length>1?"s":"")+" abierto"+(elegidos.length>1?"s":""));
+      }catch(err){
         console.error("crearPozo",err);
-        avisar(String((err&&(err.message||err.code))||err),{titulo:"No se pudo abrir el pozo",icono:"⚠️"});
-      });
-    }
-    ov.addEventListener("click",elegir);
-    ov.addEventListener("touchend",elegir);
+        avisar(String((err&&(err.message||err.code))||err),{titulo:"No se pudieron abrir",icono:"⚠️"});
+      }
+    };
   };
 
-  async function crearPozo(nombre,dia,mes){
+  async function crearPozo(nombre,dia,mes,silencioso){
     var hoy=new Date(Date.now()-3*3600000);
     var fecha=(dia||hoy.getUTCDate())+"/"+(mes||(hoy.getUTCMonth()+1));
     var monto=parseFloat(fondoCfg.monto)||0;
@@ -4093,7 +4141,7 @@
       estado:"abierto",
       ts:Date.now()
     });
-    showToast("🎉 Pozo abierto para "+nombre);
+    if(!silencioso)showToast("🎉 Pozo abierto para "+nombre);
   }
   window.cerrarPozo=async function(key){
     var act=key?pozoPorKey(key):pozoActivo();if(!act||!puedeOperar())return;
@@ -4102,8 +4150,10 @@
     var total=cant*(act.monto||0);
     if(!await confirmar("Se juntaron "+fmt$(total)+" de "+cant+" galanes. Se suma al fondo.",{titulo:"Cerrar el pozo?",icono:"🔒",okTxt:"Cerrar y sumar"}))return;
     await set(ref(db,"config/fondoData/pozos/"+act.key),Object.assign({},act,{estado:"cerrado",key:null,total:total}));
-    await push(rMovs,{tipo:"ingreso",monto:total,concepto:"Pozo de "+act.cumpleanero+" · "+cant+" aportes",
-                      por:me||"admin",pozoKey:act.key,ts:Date.now()});
+    if(total>0){
+      await push(rMovs,{tipo:"ingreso",monto:total,concepto:"Pozo de "+act.cumpleanero+" · "+cant+" aportes",
+                        por:me||"admin",pozoKey:act.key,ts:Date.now()});
+    }
     showToast("✓ Pozo cerrado · "+fmt$(total)+" al fondo");
   };
   window.marcarTodosAportes=async function(key){
@@ -7034,7 +7084,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.175";
+  var APP_VERSION="10.0.176";
 
   var STORED_VERSION=localStorage.getItem("app_version");
 
