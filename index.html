@@ -3731,6 +3731,15 @@
     if(f)f.style.display=t==="fondo"?"block":"none";
     if(t==="fondo")renderFondo();
   };
+  function pozosAbiertos(){
+    return Object.keys(pozos||{}).map(function(k){return Object.assign({},pozos[k],{key:k});})
+      .filter(function(p){return p.estado==="abierto";})
+      .sort(function(a,b){return (a.ts||0)-(b.ts||0);});
+  }
+  function pozoPorKey(k){
+    var p=pozos&&pozos[k];
+    return p?Object.assign({},p,{key:k}):null;
+  }
   function pozoActivo(){
     var act=null;
     Object.keys(pozos||{}).forEach(function(k){
@@ -3787,8 +3796,15 @@
         +"</div>":"")
       +"</div>";
 
-    // ── Pozo activo ──
-    if(act){
+    // ── Pozos abiertos (puede haber varios cumples en el mes) ──
+    var abiertos=pozosAbiertos();
+    if(abiertos.length>1){
+      h+="<div style='display:flex;align-items:center;justify-content:space-between;margin:0 2px 8px'>"
+        +"<span style='font-size:0.55rem;color:var(--mut);letter-spacing:0.1em;font-weight:800'>🎉 "+abiertos.length+" POZOS ABIERTOS</span>"
+        +(isAdmin()?"<button onclick='abrirPozoModal()' style='background:none;border:none;color:var(--gold);font-size:0.62rem;font-weight:800;cursor:pointer'>+ otro</button>":"")
+        +"</div>";
+    }
+    abiertos.forEach(function(act){
       var aportes=act.aportes||{};
       var deben=(galanes||[]).filter(function(g){return normName(g)!==normName(act.cumpleanero);});
       var pagaron=deben.filter(function(g){var a=aportes[normName(g)];return a&&a.validado;});
@@ -3823,10 +3839,10 @@
           h+="<div style='background:rgba(245,197,24,0.1);border:1.5px solid rgba(245,197,24,0.35);border-radius:11px;padding:11px;display:flex;align-items:center;gap:9px'>"
             +"<span style='font-size:1.1rem'>⏳</span>"
             +"<div style='flex:1;font-size:0.72rem;font-weight:700;color:var(--gold)'>Esperando que el admin lo confirme</div>"
-            +"<button onclick='cancelarAporte()' style='background:none;border:none;color:var(--mut);font-size:0.62rem;cursor:pointer;text-decoration:underline'>cancelar</button>"
+            +"<button onclick='cancelarAporte(\""+act.key+"\")' style='background:none;border:none;color:var(--mut);font-size:0.62rem;cursor:pointer;text-decoration:underline'>cancelar</button>"
             +"</div>";
         } else {
-          h+="<button onclick='abrirAporteModal()' style='width:100%;padding:13px;border-radius:12px;border:none;background:#009EE3;color:#fff;font-size:0.8rem;font-weight:800;cursor:pointer;letter-spacing:0.04em;box-shadow:0 4px 14px rgba(0,158,227,0.35)'>💳 PONER MI PARTE — "+fmt$(act.monto)+"</button>";
+          h+="<button onclick='abrirAporteModal(\""+act.key+"\")' style='width:100%;padding:13px;border-radius:12px;border:none;background:#009EE3;color:#fff;font-size:0.8rem;font-weight:800;cursor:pointer;letter-spacing:0.04em;box-shadow:0 4px 14px rgba(0,158,227,0.35)'>💳 PONER MI PARTE — "+fmt$(act.monto)+"</button>";
         }
       } else if(me&&normName(me)===normName(act.cumpleanero)){
         h+="<div style='background:rgba(245,197,24,0.1);border:1.5px solid rgba(245,197,24,0.3);border-radius:11px;padding:11px;text-align:center;font-size:0.75rem;color:var(--gold)'>🎂 ¡Es tu cumple! No ponés nada</div>";
@@ -3843,15 +3859,15 @@
               +"<div class='lista-av' style='width:30px;height:30px;font-size:0.66rem;background:"+col(g)+"'>"+ini(g)+"</div>"
               +"<div style='flex:1;min-width:0'><div style='font-size:0.72rem;font-weight:700;color:var(--ink);text-transform:uppercase'>"+esc(g)+"</div>"
               +"<div style='font-size:0.6rem;color:var(--mut)'>"+(a.tipo==="cash"?"💵 Efectivo":"📲 Transfer")+(a.nota?" · "+esc(a.nota):"")+"</div></div>"
-              +"<button class='ped-btn' style='background:rgba(74,222,128,0.15);color:#16a34a;border:1.5px solid rgba(74,222,128,0.4)' onclick='validarAporte(\""+esc(g)+"\",true)'>✓</button>"
-              +"<button class='ped-btn ped-del' onclick='validarAporte(\""+esc(g)+"\",false)'>✕</button>"
+              +"<button class='ped-btn' style='background:rgba(74,222,128,0.15);color:#16a34a;border:1.5px solid rgba(74,222,128,0.4)' onclick='validarAporte(\""+esc(g)+"\",true,\""+act.key+"\")'>✓</button>"
+              +"<button class='ped-btn ped-del' onclick='validarAporte(\""+esc(g)+"\",false,\""+act.key+"\")'>✕</button>"
               +"</div>";
           });
           h+="</div>";
         }
         h+="<div style='display:flex;gap:7px;margin-top:12px'>"
-          +"<button onclick='marcarTodosAportes()' class='admin-action-btn' style='flex:1'>✓ Todos pagaron</button>"
-          +"<button onclick='cerrarPozo()' class='admin-action-btn' style='flex:1;background:rgba(74,222,128,0.12);color:var(--grn);border-color:rgba(74,222,128,0.35)'>🔒 Cerrar pozo</button>"
+          +"<button onclick='marcarTodosAportes(\""+act.key+"\")' class='admin-action-btn' style='flex:1'>✓ Todos pagaron</button>"
+          +"<button onclick='cerrarPozo(\""+act.key+"\")' class='admin-action-btn' style='flex:1;background:rgba(74,222,128,0.12);color:var(--grn);border-color:rgba(74,222,128,0.35)'>🔒 Cerrar pozo</button>"
           +"</div>";
       }
 
@@ -3862,12 +3878,15 @@
           +"<b style='color:var(--ink)'>Faltan ("+faltan.length+"):</b> "+esc(faltan.join(", "))+"</div>";
       }
       h+="</div>";
-    } else {
+    });
+    if(!abiertos.length){
       h+="<div class='surf' style='padding:20px;margin-bottom:12px;text-align:center'>"
         +"<div style='font-size:2rem;margin-bottom:6px;opacity:0.5'>🎁</div>"
         +"<div style='font-size:0.75rem;color:var(--mut)'>No hay ningún pozo abierto</div>"
         +(isAdmin()?"<button onclick='abrirPozoModal()' style='margin-top:12px;padding:11px 20px;border-radius:11px;border:none;background:var(--gold);color:#0a0805;font-size:0.75rem;font-weight:800;cursor:pointer'>+ ABRIR POZO</button>":"")
         +"</div>";
+    } else if(isAdmin()&&abiertos.length===1){
+      h+="<div style='text-align:center;margin:-4px 0 12px'><button onclick='abrirPozoModal()' style='background:none;border:none;color:var(--gold);font-size:0.66rem;font-weight:800;cursor:pointer;text-decoration:underline'>+ abrir otro pozo</button></div>";
     }
 
     // ── Configuración (admin) ──
@@ -4076,8 +4095,8 @@
     });
     showToast("🎉 Pozo abierto para "+nombre);
   }
-  window.cerrarPozo=async function(){
-    var act=pozoActivo();if(!act||!puedeOperar())return;
+  window.cerrarPozo=async function(key){
+    var act=key?pozoPorKey(key):pozoActivo();if(!act||!puedeOperar())return;
     var ap=act.aportes||{};
     var cant=Object.keys(ap).filter(function(k){return ap[k].validado;}).length;
     var total=cant*(act.monto||0);
@@ -4087,8 +4106,8 @@
                       por:me||"admin",pozoKey:act.key,ts:Date.now()});
     showToast("✓ Pozo cerrado · "+fmt$(total)+" al fondo");
   };
-  window.marcarTodosAportes=async function(){
-    var act=pozoActivo();if(!act||!puedeOperar())return;
+  window.marcarTodosAportes=async function(key){
+    var act=key?pozoPorKey(key):pozoActivo();if(!act||!puedeOperar())return;
     if(!await confirmar("Marca a todos los galanes como que ya pusieron.",{titulo:"Todos pagaron?",icono:"✓",okTxt:"Sí, marcar"}))return;
     var ap=Object.assign({},act.aportes||{});
     (galanes||[]).forEach(function(g){
@@ -4098,8 +4117,8 @@
     await set(ref(db,"config/fondoData/pozos/"+act.key+"/aportes"),ap);
     showToast("✓ Todos marcados");
   };
-  window.validarAporte=async function(galan,ok){
-    var act=pozoActivo();if(!act||!puedeOperar())return;
+  window.validarAporte=async function(galan,ok,key){
+    var act=key?pozoPorKey(key):pozoActivo();if(!act||!puedeOperar())return;
     var k=normName(galan);
     if(ok){
       await set(ref(db,"config/fondoData/pozos/"+act.key+"/aportes/"+k+"/validado"),true);
@@ -4112,8 +4131,9 @@
     }
   };
   // ── Acciones del galan ──
-  window.abrirAporteModal=function(){
-    var act=pozoActivo();if(!act)return;
+  window.abrirAporteModal=function(key){
+    var act=key?pozoPorKey(key):pozoActivo();if(!act)return;
+    window._aportePozoKey=act.key;
     var a=document.getElementById("aporte-alias");if(a)a.textContent=fondoCfg.alias||MP_ALIAS;
     var m=document.getElementById("aporte-monto");if(m)m.textContent=fmt$(act.monto);
     var mv=document.getElementById("aporte-monto-val");if(mv)mv.value=act.monto;
@@ -4141,7 +4161,7 @@
     }
   };
   window.confirmarAporte=async function(){
-    var act=pozoActivo();if(!act||!me)return;
+    var act=pozoPorKey(window._aportePozoKey)||pozoActivo();if(!act||!me)return;
     var nota=((document.getElementById("aporte-nota")||{}).value||"").trim();
     await set(ref(db,"config/fondoData/pozos/"+act.key+"/aportes/"+normName(me)),{
       nombre:me,tipo:_aporteTipo,nota:nota||null,validado:false,ts:Date.now()
@@ -4149,8 +4169,8 @@
     closeModal("maporte");
     showToast("✓ Aviso enviado, el admin lo confirma");
   };
-  window.cancelarAporte=async function(){
-    var act=pozoActivo();if(!act||!me)return;
+  window.cancelarAporte=async function(key){
+    var act=key?pozoPorKey(key):pozoActivo();if(!act||!me)return;
     if(!await confirmar("Vas a poder avisar de nuevo cuando quieras.",{titulo:"Cancelar el aviso?",icono:"💳",okTxt:"Cancelar aviso"}))return;
     await set(ref(db,"config/fondoData/pozos/"+act.key+"/aportes/"+normName(me)),null);
     showToast("Aviso cancelado");
@@ -7014,7 +7034,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.174";
+  var APP_VERSION="10.0.175";
 
   var STORED_VERSION=localStorage.getItem("app_version");
 
