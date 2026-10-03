@@ -3803,6 +3803,12 @@
     var alias=fondoCfg.alias||"";
     var saldo=saldoFondo();
     var act=pozoActivo();
+    var enPozos=0;
+    Object.values(pozos||{}).forEach(function(pz){
+      if(!pz||pz.estado!=="abierto")return;
+      var ap=pz.aportes||{};
+      enPozos+=Object.keys(ap).filter(function(k){return ap[k]&&ap[k].validado;}).length*(pz.monto||0);
+    });
     var totIn=0,totOut=0;
     Object.values(movs||{}).forEach(function(m){
       if(!m)return;
@@ -3818,6 +3824,9 @@
       +"<span style='color:var(--mut)'>↑ entró <b style='color:var(--grn)'>"+fmt$(totIn)+"</b></span>"
       +"<span style='color:var(--mut)'>↓ salió <b style='color:#ef4444'>"+fmt$(totOut)+"</b></span>"
       +"</div>"
+      +(enPozos>0?"<div style='margin-top:10px;padding:8px 10px;background:rgba(245,197,24,0.1);border:1px solid rgba(245,197,24,0.3);border-radius:10px;font-size:0.64rem;color:var(--mut);line-height:1.45'>"
+        +"🎉 <b style='color:var(--gold)'>"+fmt$(enPozos)+"</b> juntados en pozos abiertos<br>"
+        +"<span style='font-size:0.58rem;opacity:0.8'>Entran al fondo cuando cerrás el pozo</span></div>":"")
       +(isAdmin()?"<div style='display:flex;gap:7px;margin-top:11px'>"
         +"<button onclick='registrarRetiro()' style='flex:1;padding:9px;border-radius:10px;border:1.5px solid rgba(239,68,68,0.35);background:rgba(239,68,68,0.1);color:#ef4444;font-size:0.68rem;font-weight:800;cursor:pointer'>↓ Registrar retiro</button>"
         +"<button onclick='editarSaldoFondo()' style='flex:1;padding:9px;border-radius:10px;border:1.5px solid var(--brd);background:var(--sur2);color:var(--mut);font-size:0.68rem;font-weight:700;cursor:pointer'>⚙️ Saldo inicial</button>"
@@ -7120,7 +7129,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.178";
+  var APP_VERSION="10.0.179";
 
   var STORED_VERSION=localStorage.getItem("app_version");
 
