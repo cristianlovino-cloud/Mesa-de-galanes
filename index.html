@@ -22,6 +22,8 @@
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
   import { getDatabase, ref, set, onValue, remove, push, get }
     from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+  import { getAuth, signInAnonymously, onAuthStateChanged }
+    from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
   const FC={apiKey:"AIzaSyCmFMOjuGfCAtMaexe_c-wwGaV5RJBHJgk",authDomain:"mesa-galanes.firebaseapp.com",databaseURL:"https://mesa-galanes-default-rtdb.firebaseio.com",projectId:"mesa-galanes",storageBucket:"mesa-galanes.firebasestorage.app",messagingSenderId:"501258939600",appId:"1:501258939600:web:148124c66cfd41741e82d5"};
   const ADMIN="Cris";
@@ -125,6 +127,24 @@
   function fmtAcceso(ts){var d=new Date(ts);return DIAS[d.getDay()]+" "+d.getDate()+" "+MESES_C[d.getMonth()]+" "+d.getHours()+":"+String(d.getMinutes()).padStart(2,"0");}
 
   const app=initializeApp(FC),db=getDatabase(app);
+  // ── Sesión anónima: la base solo acepta lectura/escritura con sesión válida ──
+  const auth=getAuth(app);
+  var authReady=new Promise(function(resolve){
+    var listo=false;
+    onAuthStateChanged(auth,function(u){
+      if(u&&!listo){listo=true;resolve(u);}
+    });
+    signInAnonymously(auth).catch(function(err){
+      console.error("auth",err);
+      var m=document.getElementById("auth-error");
+      if(m){
+        m.style.display="block";
+        m.innerHTML="<b>No se pudo conectar a la base</b><br><span style='opacity:0.8;font-size:0.68rem'>"+String(err.code||err.message||err)+"</span>";
+      }
+    });
+    // Si en 8s no hay sesión, seguimos igual para no dejar la app colgada
+    setTimeout(function(){if(!listo){listo=true;resolve(null);}},8000);
+  });
   const rO=ref(db,"pedido/orders"),rD=ref(db,"pedido/drinks"),rS=ref(db,"pedido/session");
   const rNotif=ref(db,"config/notif"); // nodo de notificaciones por galan
   const rT=ref(db,"pedido/timer"),rC=ref(db,"pedido/confirmed");
@@ -142,8 +162,8 @@
   const rNuevos=ref(db,"config/nuevos");
   const rPagoReq=ref(db,"pedido/pagoRequests");
   const rFondoCfg=ref(db,"config/fondo");      // {monto, alias, saldoInversion}
-  const rPozos=ref(db,"fondo/pozos");
-  const rMovs=ref(db,"fondo/movimientos");    // {id:{tipo:"ingreso"|"retiro",monto,concepto,por,ts,pozoKey}}          // {id:{cumpleanero,fechaCumple,monto,estado,aportes:{}}}
+  const rPozos=ref(db,"config/fondoData/pozos");
+  const rMovs=ref(db,"config/fondoData/movimientos");    // {id:{tipo:"ingreso"|"retiro",monto,concepto,por,ts,pozoKey}}          // {id:{cumpleanero,fechaCumple,monto,estado,aportes:{}}}
   var fondoCfg={},pozos={},movs={},mesaState={};
   var pagoReqs={};
   const rKick=ref(db,"config/kickAll");
@@ -238,6 +258,9 @@
   window.addEventListener("DOMContentLoaded",function(){
     updateClock();setInterval(updateClock,30000);
     switchTab("pedir",true);
+    authReady.then(iniciarFirebase);
+  });
+  function iniciarFirebase(){
     onValue(rG,function(s){
       galanes=s.exists()?s.val():KNOWN_DEF.slice();
       if(!s.exists())set(rG,galanes);
@@ -396,7 +419,7 @@
     } else {
       setTimeout(function(){showLoginScreen();},400);
     }
-  });
+  }
 
 
   // ── AUTO-LOGOUT ───────────────────────────────────────────
@@ -3968,7 +3991,7 @@
     if(!isAdmin()||!movs[k])return;
     var m=movs[k];
     if(!await confirmar(esc(m.concepto||"")+" · "+fmt$(m.monto),{titulo:"Borrar movimiento",icono:"🗑️",okTxt:"Borrar",peligro:true}))return;
-    await set(ref(db,"fondo/movimientos/"+k),null);
+    await set(ref(db,"config/fondoData/movimientos/"+k),null);
     showToast("🗑️ Movimiento borrado");
   };
 
@@ -4059,7 +4082,7 @@
     var cant=Object.keys(ap).filter(function(k){return ap[k].validado;}).length;
     var total=cant*(act.monto||0);
     if(!await confirmar("Se juntaron "+fmt$(total)+" de "+cant+" galanes. Se suma al fondo.",{titulo:"Cerrar el pozo?",icono:"🔒",okTxt:"Cerrar y sumar"}))return;
-    await set(ref(db,"fondo/pozos/"+act.key),Object.assign({},act,{estado:"cerrado",key:null,total:total}));
+    await set(ref(db,"config/fondoData/pozos/"+act.key),Object.assign({},act,{estado:"cerrado",key:null,total:total}));
     await push(rMovs,{tipo:"ingreso",monto:total,concepto:"Pozo de "+act.cumpleanero+" · "+cant+" aportes",
                       por:me||"admin",pozoKey:act.key,ts:Date.now()});
     showToast("✓ Pozo cerrado · "+fmt$(total)+" al fondo");
@@ -4072,18 +4095,18 @@
       if(normName(g)===normName(act.cumpleanero))return;
       ap[normName(g)]={nombre:g,tipo:"transfer",validado:true,ts:Date.now()};
     });
-    await set(ref(db,"fondo/pozos/"+act.key+"/aportes"),ap);
+    await set(ref(db,"config/fondoData/pozos/"+act.key+"/aportes"),ap);
     showToast("✓ Todos marcados");
   };
   window.validarAporte=async function(galan,ok){
     var act=pozoActivo();if(!act||!puedeOperar())return;
     var k=normName(galan);
     if(ok){
-      await set(ref(db,"fondo/pozos/"+act.key+"/aportes/"+k+"/validado"),true);
+      await set(ref(db,"config/fondoData/pozos/"+act.key+"/aportes/"+k+"/validado"),true);
       await enviarNotif(galan,"✅ Tu aporte al fondo de "+act.cumpleanero+" fue confirmado. ¡Gracias!","pago");
       showToast("✓ Aporte de "+galan+" confirmado");
     } else {
-      await set(ref(db,"fondo/pozos/"+act.key+"/aportes/"+k),null);
+      await set(ref(db,"config/fondoData/pozos/"+act.key+"/aportes/"+k),null);
       await enviarNotif(galan,"⚠️ Tu aviso de aporte al fondo fue rechazado. Hablá con el admin.","info");
       showToast("Aporte rechazado");
     }
@@ -4120,7 +4143,7 @@
   window.confirmarAporte=async function(){
     var act=pozoActivo();if(!act||!me)return;
     var nota=((document.getElementById("aporte-nota")||{}).value||"").trim();
-    await set(ref(db,"fondo/pozos/"+act.key+"/aportes/"+normName(me)),{
+    await set(ref(db,"config/fondoData/pozos/"+act.key+"/aportes/"+normName(me)),{
       nombre:me,tipo:_aporteTipo,nota:nota||null,validado:false,ts:Date.now()
     });
     closeModal("maporte");
@@ -4129,7 +4152,7 @@
   window.cancelarAporte=async function(){
     var act=pozoActivo();if(!act||!me)return;
     if(!await confirmar("Vas a poder avisar de nuevo cuando quieras.",{titulo:"Cancelar el aviso?",icono:"💳",okTxt:"Cancelar aviso"}))return;
-    await set(ref(db,"fondo/pozos/"+act.key+"/aportes/"+normName(me)),null);
+    await set(ref(db,"config/fondoData/pozos/"+act.key+"/aportes/"+normName(me)),null);
     showToast("Aviso cancelado");
   };
 
@@ -6433,6 +6456,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </script>
 </head>
 <body>
+<div id="auth-error" style="display:none;position:fixed;top:0;left:0;right:0;z-index:99998;background:#ef4444;color:#fff;padding:12px 16px;font-size:0.75rem;line-height:1.45;text-align:center"></div>
 <div id="login-screen">
   <img id="login-logo-img" src="icon-transparent.png" class="login-logo" onerror="this.style.display='none';document.getElementById('login-logo-fallback').style.display='block'">
   <div id="login-logo-fallback" style="display:none;font-size:5rem;margin-bottom:20px;filter:drop-shadow(0 0 24px rgba(126,231,135,0.5))">☕</div>
@@ -6990,7 +7014,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.172";
+  var APP_VERSION="10.0.174";
 
   var STORED_VERSION=localStorage.getItem("app_version");
 
