@@ -3806,6 +3806,8 @@
     var enPozos=0;
     Object.values(pozos||{}).forEach(function(pz){
       if(!pz||pz.estado!=="abierto")return;
+      // El festejado no ve lo que se junta para él
+      if(me&&!isAdmin()&&normName(pz.cumpleanero||"")===normName(me))return;
       var ap=pz.aportes||{};
       enPozos+=Object.keys(ap).filter(function(k){return ap[k]&&ap[k].validado;}).length*(pz.monto||0);
     });
@@ -3842,6 +3844,16 @@
         +"</div>";
     }
     abiertos.forEach(function(act){
+      var esMiCumple=me&&normName(me)===normName(act.cumpleanero);
+      if(esMiCumple&&!isAdmin()){
+        h+="<div class='surf' style='padding:18px;margin-bottom:12px;border-left:3px solid var(--gold);text-align:center'>"
+          +"<div style='font-size:2rem;line-height:1;margin-bottom:8px'>🎁</div>"
+          +"<div style='font-size:0.8rem;font-weight:800;color:var(--gold);letter-spacing:0.03em'>LOS GALANES ESTÁN EN ALGO</div>"
+          +"<div style='font-size:0.68rem;color:var(--mut);margin-top:6px;line-height:1.5'>Hay un pozo abierto por tu cumple del "+esc(act.fechaCumple||"")+".<br>"
+          +"<span style='opacity:0.75'>No vas a ver cuánto juntaron ni quiénes pusieron 🤫</span></div>"
+          +"</div>";
+        return;
+      }
       var aportes=act.aportes||{};
       var deben=(galanes||[]).filter(function(g){return normName(g)!==normName(act.cumpleanero);});
       var pagaron=deben.filter(function(g){var a=aportes[normName(g)];return a&&a.validado;});
@@ -7129,7 +7141,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.179";
+  var APP_VERSION="10.0.180";
 
   var STORED_VERSION=localStorage.getItem("app_version");
 
