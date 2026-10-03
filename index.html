@@ -4247,11 +4247,13 @@
   window.confirmarAporte=async function(){
     var act=pozoPorKey(window._aportePozoKey)||pozoActivo();if(!act||!me)return;
     var nota=((document.getElementById("aporte-nota")||{}).value||"").trim();
+    // El admin recibe la plata: su propio aporte no necesita que nadie lo confirme
+    var auto=puedeOperar();
     await set(ref(db,"config/fondoData/pozos/"+act.key+"/aportes/"+normName(me)),{
-      nombre:me,tipo:_aporteTipo,nota:nota||null,validado:false,ts:Date.now()
+      nombre:me,tipo:_aporteTipo,nota:nota||null,validado:auto,ts:Date.now()
     });
     closeModal("maporte");
-    showToast("✓ Aviso enviado, el admin lo confirma");
+    showToast(auto?"✓ Tu aporte quedó registrado":"✓ Aviso enviado, el admin lo confirma");
   };
   window.cancelarAporte=async function(key){
     var act=key?pozoPorKey(key):pozoActivo();if(!act||!me)return;
@@ -7118,7 +7120,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.177";
+  var APP_VERSION="10.0.178";
 
   var STORED_VERSION=localStorage.getItem("app_version");
 
