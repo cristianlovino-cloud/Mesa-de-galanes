@@ -3869,16 +3869,91 @@
     await set(rFondoCfg,Object.assign({},fondoCfg,{saldoInversion:parseFloat(v)||0}));
     showToast("✓ Saldo actualizado");
   };
+  // Cumples del mes actual y del que viene, ordenados por fecha
+  function cumplesProximos(){
+    var hoy=new Date(Date.now()-3*3600000);
+    var hm=hoy.getUTCMonth()+1,hd=hoy.getUTCDate();
+    var m1=hm===12?1:hm+1;
+    var out=[];
+    Object.keys(cumples||{}).forEach(function(n){
+      var c=cumples[n];if(!c||!c.mes||!c.dia)return;
+      if(c.mes!==hm&&c.mes!==m1)return;
+      // nombre real de la lista de galanes (evita variantes mal tipeadas)
+      var real=(galanes||[]).find(function(g){return normName(g)===normName(n);})||n;
+      var orden=(c.mes===hm?0:1)*100+c.dia;
+      var dias=c.mes===hm?c.dia-hd:(c.dia+31-hd);
+      out.push({nombre:real,dia:c.dia,mes:c.mes,orden:orden,dias:dias,
+                yaTiene:Object.values(pozos||{}).some(function(pz){
+                  return pz&&normName(pz.cumpleanero||"")===normName(real)&&(Date.now()-(pz.ts||0))<90*864e5;
+                })});
+    });
+    return out.sort(function(a,b){return a.orden-b.orden;});
+  }
+
   window.abrirPozoModal=async function(){
     if(!isAdmin())return;
     if(!fondoCfg.monto){await avisar("Primero definí cuánto pone cada uno por cumple.",{titulo:"Falta el monto"});return;}
-    var nom=await pedirTexto("¿De quién es el cumple?","",{titulo:"Abrir pozo",icono:"🎉",placeholder:"Ej: Jorge Rinaldi"});
-    if(!nom||!nom.trim())return;
-    var hoy=new Date();
-    var fecha=hoy.getDate()+"/"+(hoy.getMonth()+1);
-    await push(rPozos,{cumpleanero:nom.trim(),fechaCumple:fecha,monto:fondoCfg.monto,estado:"abierto",aportes:{},ts:Date.now()});
-    showToast("🎉 Pozo abierto para "+nom.trim());
+    var lista=cumplesProximos();
+    var hoy=new Date(Date.now()-3*3600000);
+    var hm=hoy.getUTCMonth()+1,m1=hm===12?1:hm+1;
+
+    var ov=document.createElement("div");
+    ov.id="pozo-picker";ov.className="modal-overlay mc";ov.style.zIndex="99999";
+    var filas="";
+    if(!lista.length){
+      filas="<div style='text-align:center;padding:18px 10px;font-size:0.72rem;color:var(--mut);line-height:1.5'>"
+        +"No hay cumpleaños cargados en "+MESES[hm-1]+" ni "+MESES[m1-1]+".<br>"
+        +"<span style='opacity:0.8'>Cargalos en el tab Cumple y aparecen acá.</span></div>";
+    } else {
+      lista.forEach(function(c,i){
+        var tag=c.dias===0?"<span style='background:rgba(34,197,94,0.15);color:var(--grn);padding:2px 7px;border-radius:7px;font-size:0.55rem;font-weight:800'>HOY</span>"
+          :c.dias<0?"<span style='color:var(--mut);font-size:0.58rem'>ya pasó</span>"
+          :"<span style='color:var(--mut);font-size:0.58rem'>en "+c.dias+" días</span>";
+        filas+="<button data-pozo-i='"+i+"' "+(c.yaTiene?"disabled":"")+" style='width:100%;display:flex;align-items:center;gap:10px;"
+          +"background:var(--sur2);border:1px solid var(--brd);border-radius:12px;padding:10px 12px;margin-bottom:7px;cursor:"+(c.yaTiene?"default":"pointer")+";"
+          +"opacity:"+(c.yaTiene?"0.45":"1")+";text-align:left'>"
+          +"<span style='width:32px;height:32px;border-radius:50%;background:"+col(c.nombre)+";color:#fff;display:flex;align-items:center;justify-content:center;font-size:0.68rem;font-weight:800;flex-shrink:0'>"+esc(ini(c.nombre))+"</span>"
+          +"<span style='flex:1;min-width:0'>"
+          +"<span style='display:block;font-size:0.76rem;font-weight:700;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap'>"+esc(c.nombre)+"</span>"
+          +"<span style='display:block;font-size:0.62rem;color:var(--mut);margin-top:1px'>"+c.dia+" de "+MESES[c.mes-1]+(c.yaTiene?" · ya tuvo pozo":"")+"</span>"
+          +"</span>"+tag+"</button>";
+      });
+    }
+    ov.innerHTML="<div class='modal' style='max-width:340px;max-height:80vh;overflow-y:auto;box-sizing:border-box'>"
+      +"<div style='text-align:center;margin-bottom:14px'>"
+      +"<div style='font-size:2.2rem;line-height:1;margin-bottom:8px'>🎉</div>"
+      +"<div style='font-family:\"Bebas Neue\",sans-serif;font-size:1.15rem;color:var(--ink);letter-spacing:0.05em'>ABRIR POZO</div>"
+      +"<div style='font-size:0.68rem;color:var(--mut);margin-top:5px'>Cumples de "+MESES[hm-1]+" y "+MESES[m1-1]+"</div></div>"
+      +filas
+      +"<div style='display:flex;gap:8px;margin-top:12px'>"
+      +"<button id='pozo-cancel' style='flex:1;padding:12px;border-radius:11px;border:1.5px solid var(--brd);background:var(--sur2);color:var(--mut);font-size:0.78rem;font-weight:700;cursor:pointer'>Cancelar</button>"
+      +"<button id='pozo-otro' style='flex:1;padding:12px;border-radius:11px;border:1.5px solid var(--brd);background:var(--sur2);color:var(--gold);font-size:0.78rem;font-weight:700;cursor:pointer'>Otro…</button>"
+      +"</div></div>";
+    document.body.appendChild(ov);
+    requestAnimationFrame(function(){ov.classList.add("open");});
+    function cerrar(){if(ov&&ov.parentNode)ov.parentNode.removeChild(ov);}
+    ov.onclick=function(e){if(e.target===ov)cerrar();};
+    ov.querySelector("#pozo-cancel").onclick=cerrar;
+    ov.querySelector("#pozo-otro").onclick=async function(){
+      cerrar();
+      var nom=await pedirTexto("¿De quién es el cumple?","",{titulo:"Abrir pozo",icono:"🎉",placeholder:"Nombre del galán"});
+      if(nom&&nom.trim())await crearPozo(nom.trim(),null,null);
+    };
+    ov.querySelectorAll("[data-pozo-i]").forEach(function(b){
+      b.onclick=function(){
+        var c=lista[parseInt(b.getAttribute("data-pozo-i"))];
+        if(!c||c.yaTiene)return;
+        cerrar();crearPozo(c.nombre,c.dia,c.mes);
+      };
+    });
   };
+
+  async function crearPozo(nombre,dia,mes){
+    var hoy=new Date(Date.now()-3*3600000);
+    var fecha=(dia||hoy.getUTCDate())+"/"+(mes||(hoy.getUTCMonth()+1));
+    await push(rPozos,{cumpleanero:nombre,fechaCumple:fecha,monto:fondoCfg.monto,estado:"abierto",aportes:{},ts:Date.now()});
+    showToast("🎉 Pozo abierto para "+nombre);
+  }
   window.cerrarPozo=async function(){
     var act=pozoActivo();if(!act||!puedeOperar())return;
     var ap=act.aportes||{};
@@ -6815,7 +6890,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.168";
+  var APP_VERSION="10.0.169";
 
   var STORED_VERSION=localStorage.getItem("app_version");
 
