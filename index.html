@@ -3769,6 +3769,34 @@
     return d.getUTCDate()+" "+MESES_C[d.getUTCMonth()];
   }
 
+  // Lista auditable de un pozo: la ve cualquier galan, no solo el admin
+  function detalleAportes(pagaron,avisaron,faltan,aportes){
+    function grupo(titulo,color,nombres,icono,detalle){
+      if(!nombres.length)return "";
+      return "<div style='margin-top:10px'>"
+        +"<div style='font-size:0.55rem;letter-spacing:0.09em;font-weight:800;color:"+color+";margin-bottom:5px'>"+icono+" "+titulo+" ("+nombres.length+")</div>"
+        +nombres.map(function(g){
+          var a=aportes[normName(g)]||{};
+          var extra=detalle&&a.tipo?("<span style='color:var(--mut);font-weight:400'> · "+(a.tipo==="cash"?"efectivo":"transfer")+"</span>"):"";
+          return "<div style='display:flex;align-items:center;gap:7px;padding:3px 0;font-size:0.65rem;color:var(--ink)'>"
+            +"<span style='width:18px;height:18px;border-radius:50%;background:"+col(g)+";color:#fff;display:flex;align-items:center;justify-content:center;font-size:0.45rem;font-weight:800;flex-shrink:0'>"+esc(ini(g))+"</span>"
+            +"<span style='flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap'>"+esc(g)+extra+"</span></div>";
+        }).join("")
+        +"</div>";
+    }
+    var id="det"+Math.random().toString(36).slice(2,8);
+    return "<div style='margin-top:12px;padding-top:10px;border-top:1px solid var(--brd)'>"
+      +"<button onclick=\"var e=document.getElementById('"+id+"');e.style.display=e.style.display==='none'?'block':'none';this.querySelector('span').textContent=e.style.display==='none'?'ver detalle ▾':'ocultar ▴'\" "
+      +"style='width:100%;display:flex;align-items:center;justify-content:space-between;background:none;border:none;padding:0;cursor:pointer;font-size:0.62rem;color:var(--mut)'>"
+      +"<span style='font-weight:700'>✓ "+pagaron.length+" pusieron · ⏳ "+avisaron.length+" avisaron · ○ "+faltan.length+" faltan</span>"
+      +"<span style='color:var(--gold);font-weight:700'>ver detalle ▾</span></button>"
+      +"<div id='"+id+"' style='display:none'>"
+      +grupo("PUSIERON","var(--grn)",pagaron,"✓",true)
+      +grupo("AVISARON, FALTA CONFIRMAR","var(--gold)",avisaron,"⏳",true)
+      +grupo("FALTAN","var(--mut)",faltan,"○",false)
+      +"</div></div>";
+  }
+
   window.renderFondo=function(){
     var el=document.getElementById("fondo-panel");if(!el)return;
     var monto=fondoCfg.monto||0;
@@ -3871,12 +3899,9 @@
           +"</div>";
       }
 
-      // Detalle de quienes faltan
+      // Detalle auditable: quién puso, quién avisó y quién falta — visible para todos
       var faltan=deben.filter(function(g){return !aportes[normName(g)];});
-      if(faltan.length){
-        h+="<div style='margin-top:12px;padding-top:10px;border-top:1px solid var(--brd);font-size:0.62rem;color:var(--mut);line-height:1.6'>"
-          +"<b style='color:var(--ink)'>Faltan ("+faltan.length+"):</b> "+esc(faltan.join(", "))+"</div>";
-      }
+      h+=detalleAportes(pagaron,avisaron,faltan,aportes);
       h+="</div>";
     });
     if(!abiertos.length){
@@ -3940,13 +3965,22 @@
       cerrados.slice(0,8).forEach(function(p){
         var ap=p.aportes||{};
         var cant=Object.keys(ap).filter(function(k){return ap[k].validado;}).length;
-        h+="<div style='display:flex;align-items:center;gap:9px;padding:7px 0;border-bottom:1px solid var(--brd)'>"
+        var debieron=(galanes||[]).filter(function(g){return normName(g)!==normName(p.cumpleanero);});
+        var pus=debieron.filter(function(g){var a=ap[normName(g)];return a&&a.validado;});
+        var nop=debieron.filter(function(g){var a=ap[normName(g)];return !a||!a.validado;});
+        var pid="pz"+p.key.replace(/[^a-zA-Z0-9]/g,"");
+        h+="<div style='border-bottom:1px solid var(--brd)'>"
+          +"<div onclick=\"var e=document.getElementById('"+pid+"');e.style.display=e.style.display==='none'?'block':'none'\" style='display:flex;align-items:center;gap:9px;padding:8px 0;cursor:pointer'>"
           +"<div class='lista-av' style='width:28px;height:28px;font-size:0.62rem;background:"+col(p.cumpleanero)+"'>"+ini(p.cumpleanero)+"</div>"
           +"<div style='flex:1;min-width:0'><div style='font-size:0.7rem;font-weight:700;color:var(--ink);text-transform:uppercase'>"+esc(p.cumpleanero)+"</div>"
-          +"<div style='font-size:0.58rem;color:var(--mut)'>"+esc(p.fechaCumple||"")+" · "+cant+" aportes</div></div>"
+          +"<div style='font-size:0.58rem;color:var(--mut)'>"+esc(p.fechaCumple||"")+" · "+cant+" de "+debieron.length+" aportes · ver quiénes ▾</div></div>"
           +"<span style='font-family:\"Bebas Neue\",sans-serif;font-size:0.95rem;color:var(--grn)'>"+fmt$(cant*(p.monto||0))+"</span>"
-          +(isAdmin()&&!cant?"<button onclick='borrarPozo(\""+p.key+"\")' style='background:none;border:none;color:var(--mut);font-size:0.75rem;cursor:pointer;padding:0 2px;opacity:0.5'>✕</button>":"")
-          +"</div>";
+          +(isAdmin()&&!cant?"<button onclick='event.stopPropagation();borrarPozo(\""+p.key+"\")' style='background:none;border:none;color:var(--mut);font-size:0.75rem;cursor:pointer;padding:0 2px;opacity:0.5'>✕</button>":"")
+          +"</div>"
+          +"<div id='"+pid+"' style='display:none;padding:0 0 10px 37px;font-size:0.62rem;line-height:1.6'>"
+          +(pus.length?"<div style='color:var(--grn)'><b>✓ Pusieron:</b> <span style='color:var(--mut)'>"+esc(pus.join(", "))+"</span></div>":"")
+          +(nop.length?"<div style='color:#fb923c;margin-top:3px'><b>○ No pusieron:</b> <span style='color:var(--mut)'>"+esc(nop.join(", "))+"</span></div>":"")
+          +"</div></div>";
       });
       h+="</div>";
     }
@@ -7084,7 +7118,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.176";
+  var APP_VERSION="10.0.177";
 
   var STORED_VERSION=localStorage.getItem("app_version");
 
