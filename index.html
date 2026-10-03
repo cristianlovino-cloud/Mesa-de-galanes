@@ -4031,7 +4031,8 @@
       e.preventDefault();e.stopPropagation();
       cerrar();
       crearPozo(c.nombre,c.dia,c.mes).catch(function(err){
-        console.error("crearPozo",err);showToast("⚠ No se pudo abrir el pozo");
+        console.error("crearPozo",err);
+        avisar(String((err&&(err.message||err.code))||err),{titulo:"No se pudo abrir el pozo",icono:"⚠️"});
       });
     }
     ov.addEventListener("click",elegir);
@@ -4041,7 +4042,15 @@
   async function crearPozo(nombre,dia,mes){
     var hoy=new Date(Date.now()-3*3600000);
     var fecha=(dia||hoy.getUTCDate())+"/"+(mes||(hoy.getUTCMonth()+1));
-    await push(rPozos,{cumpleanero:nombre,fechaCumple:fecha,monto:fondoCfg.monto,estado:"abierto",aportes:{},ts:Date.now()});
+    var monto=parseFloat(fondoCfg.monto)||0;
+    if(!nombre||!monto){await avisar("Falta el nombre o el aporte por cumple.",{titulo:"No se pudo abrir el pozo",icono:"⚠️"});return;}
+    await push(rPozos,{
+      cumpleanero:String(nombre),
+      fechaCumple:String(fecha),
+      monto:monto,
+      estado:"abierto",
+      ts:Date.now()
+    });
     showToast("🎉 Pozo abierto para "+nombre);
   }
   window.cerrarPozo=async function(){
@@ -6981,7 +6990,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.171";
+  var APP_VERSION="10.0.172";
 
   var STORED_VERSION=localStorage.getItem("app_version");
 
