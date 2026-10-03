@@ -142,8 +142,9 @@
   const rNuevos=ref(db,"config/nuevos");
   const rPagoReq=ref(db,"pedido/pagoRequests");
   const rFondoCfg=ref(db,"config/fondo");      // {monto, alias, saldoInversion}
-  const rPozos=ref(db,"fondo/pozos");          // {id:{cumpleanero,fechaCumple,monto,estado,aportes:{}}}
-  var fondoCfg={},pozos={},mesaState={};
+  const rPozos=ref(db,"fondo/pozos");
+  const rMovs=ref(db,"fondo/movimientos");    // {id:{tipo:"ingreso"|"retiro",monto,concepto,por,ts,pozoKey}}          // {id:{cumpleanero,fechaCumple,monto,estado,aportes:{}}}
+  var fondoCfg={},pozos={},movs={},mesaState={};
   var pagoReqs={};
   const rKick=ref(db,"config/kickAll");
   window._rKick=rKick;
@@ -351,6 +352,9 @@
     });
     onValue(rPozos,function(s){
       try{pozos=s.exists()?s.val():{};renderFondo();}catch(e){console.error("rPozos",e);}
+    });
+    onValue(rMovs,function(s){
+      try{movs=s.exists()?s.val():{};renderFondo();}catch(e){console.error("rMovs",e);}
     });
     onValue(rPagoReq,function(s){
       try{pagoReqs=s.exists()?s.val():{};renderMiSaldo();renderPagosPendientes();}catch(e){console.error("rPagoReq",e);}
@@ -3714,19 +3718,50 @@
   }
   function fmt$(n){return "$"+Math.round(n||0).toLocaleString("es-AR");}
 
+  // El saldo NO se escribe a mano: sale del saldo inicial + todos los movimientos
+  function movsOrdenados(){
+    return Object.keys(movs||{}).map(function(k){return Object.assign({},movs[k],{key:k});})
+      .sort(function(a,b){return (b.ts||0)-(a.ts||0);});
+  }
+  function saldoFondo(){
+    var t=fondoCfg.saldoInversion||0;
+    Object.values(movs||{}).forEach(function(m){
+      if(!m)return;
+      t+=(m.tipo==="retiro"?-1:1)*(parseFloat(m.monto)||0);
+    });
+    return t;
+  }
+  function fechaCorta(ts){
+    if(!ts)return "";
+    var d=new Date(ts-3*3600000);
+    return d.getUTCDate()+" "+MESES_C[d.getUTCMonth()];
+  }
+
   window.renderFondo=function(){
     var el=document.getElementById("fondo-panel");if(!el)return;
     var monto=fondoCfg.monto||0;
     var alias=fondoCfg.alias||"";
-    var saldo=fondoCfg.saldoInversion||0;
+    var saldo=saldoFondo();
     var act=pozoActivo();
+    var totIn=0,totOut=0;
+    Object.values(movs||{}).forEach(function(m){
+      if(!m)return;
+      if(m.tipo==="retiro")totOut+=parseFloat(m.monto)||0;else totIn+=parseFloat(m.monto)||0;
+    });
     var h="";
 
     // ── Saldo del fondo ──
     h+="<div class='surf' style='padding:16px;margin-bottom:12px;text-align:center;border-left:3px solid var(--grn)'>"
       +"<div style='font-size:0.55rem;color:var(--mut);letter-spacing:0.1em;font-weight:800;margin-bottom:5px'>💰 FONDO ACUMULADO</div>"
       +"<div style='font-family:\"Bebas Neue\",sans-serif;font-size:2.4rem;color:var(--grn);line-height:1'>"+fmt$(saldo)+"</div>"
-      +(isAdmin()?"<button onclick='editarSaldoFondo()' style='margin-top:8px;background:none;border:none;color:var(--mut);font-size:0.62rem;cursor:pointer;text-decoration:underline'>✏️ actualizar saldo</button>":"")
+      +"<div style='display:flex;justify-content:center;gap:16px;margin-top:9px;font-size:0.62rem'>"
+      +"<span style='color:var(--mut)'>↑ entró <b style='color:var(--grn)'>"+fmt$(totIn)+"</b></span>"
+      +"<span style='color:var(--mut)'>↓ salió <b style='color:#ef4444'>"+fmt$(totOut)+"</b></span>"
+      +"</div>"
+      +(isAdmin()?"<div style='display:flex;gap:7px;margin-top:11px'>"
+        +"<button onclick='registrarRetiro()' style='flex:1;padding:9px;border-radius:10px;border:1.5px solid rgba(239,68,68,0.35);background:rgba(239,68,68,0.1);color:#ef4444;font-size:0.68rem;font-weight:800;cursor:pointer'>↓ Registrar retiro</button>"
+        +"<button onclick='editarSaldoFondo()' style='flex:1;padding:9px;border-radius:10px;border:1.5px solid var(--brd);background:var(--sur2);color:var(--mut);font-size:0.68rem;font-weight:700;cursor:pointer'>⚙️ Saldo inicial</button>"
+        +"</div>":"")
       +"</div>";
 
     // ── Pozo activo ──
@@ -3825,6 +3860,35 @@
         +"</div>";
     }
 
+    // ── Libro de movimientos: lo ve todo el mundo ──
+    var lista=movsOrdenados();
+    h+="<div class='surf' style='padding:14px;margin-bottom:12px'>"
+      +"<div style='display:flex;align-items:center;justify-content:space-between;margin-bottom:10px'>"
+      +"<span style='font-size:0.55rem;color:var(--mut);letter-spacing:0.1em;font-weight:800'>📒 MOVIMIENTOS DEL FONDO</span>"
+      +(lista.length>6?"<button onclick='window._verTodosMovs=!window._verTodosMovs;renderFondo()' style='background:none;border:none;color:var(--gold);font-size:0.6rem;font-weight:700;cursor:pointer'>"+(window._verTodosMovs?"ver menos":"ver todos ("+lista.length+")")+"</button>":"")
+      +"</div>";
+    if(!lista.length){
+      h+="<div style='font-size:0.66rem;color:var(--mut);text-align:center;padding:10px 0;line-height:1.5'>Todavía no hay movimientos.<br><span style='opacity:0.75'>Cada pozo que se cierra y cada retiro quedan anotados acá.</span></div>";
+    } else {
+      (window._verTodosMovs?lista:lista.slice(0,6)).forEach(function(m){
+        var esOut=m.tipo==="retiro";
+        h+="<div style='display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--brd)'>"
+          +"<span style='width:26px;height:26px;border-radius:8px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:0.8rem;"
+          +"background:"+(esOut?"rgba(239,68,68,0.12)":"rgba(74,222,128,0.12)")+"'>"+(esOut?"↓":"↑")+"</span>"
+          +"<div style='flex:1;min-width:0'>"
+          +"<div style='font-size:0.71rem;font-weight:700;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap'>"+esc(m.concepto||(esOut?"Retiro":"Ingreso"))+"</div>"
+          +"<div style='font-size:0.58rem;color:var(--mut)'>"+fechaCorta(m.ts)+(m.por?" · "+esc(m.por):"")+"</div>"
+          +"</div>"
+          +"<span style='font-family:\"Bebas Neue\",sans-serif;font-size:1rem;letter-spacing:0.03em;color:"+(esOut?"#ef4444":"var(--grn)")+"'>"+(esOut?"−":"+")+fmt$(m.monto)+"</span>"
+          +(isAdmin()?"<button onclick='borrarMovimiento(\""+m.key+"\")' style='background:none;border:none;color:var(--mut);font-size:0.75rem;cursor:pointer;padding:0 2px;opacity:0.5'>✕</button>":"")
+          +"</div>";
+      });
+      h+="<div style='display:flex;justify-content:space-between;padding-top:9px;font-size:0.64rem'>"
+        +"<span style='color:var(--mut)'>Saldo inicial "+fmt$(fondoCfg.saldoInversion||0)+"</span>"
+        +"<span style='font-weight:800;color:var(--ink)'>Saldo hoy "+fmt$(saldo)+"</span></div>";
+    }
+    h+="</div>";
+
     // ── Historial de pozos cerrados ──
     var cerrados=Object.keys(pozos||{}).map(function(k){return Object.assign({},pozos[k],{key:k});})
       .filter(function(p){return p.estado==="cerrado";}).sort(function(a,b){return (b.ts||0)-(a.ts||0);});
@@ -3864,7 +3928,7 @@
   };
   window.editarSaldoFondo=async function(){
     if(!isAdmin())return;
-    var v=await pedirTexto("Saldo actual de la cuenta de inversión",String(fondoCfg.saldoInversion||""),{titulo:"Saldo del fondo",icono:"💰"});
+    var v=await pedirTexto("Saldo de arranque, antes de los movimientos registrados acá",String(fondoCfg.saldoInversion||""),{titulo:"Saldo inicial",icono:"💰"});
     if(v===null)return;
     await set(rFondoCfg,Object.assign({},fondoCfg,{saldoInversion:parseFloat(v)||0}));
     showToast("✓ Saldo actualizado");
@@ -3889,6 +3953,24 @@
     });
     return out.sort(function(a,b){return a.orden-b.orden;});
   }
+
+  window.registrarRetiro=async function(){
+    if(!isAdmin())return;
+    var v=await pedirTexto("¿Cuánto se retiró del fondo?","",{titulo:"Registrar retiro",icono:"↓",placeholder:"Ej: 45000"});
+    var monto=parseFloat(v)||0;
+    if(!monto)return;
+    var con=await pedirTexto("¿En qué se usó?","",{titulo:"Concepto",icono:"🎁",placeholder:"Ej: Regalo de Jorge"});
+    if(con===null)return;
+    await push(rMovs,{tipo:"retiro",monto:monto,concepto:con.trim()||"Retiro",por:me||"admin",ts:Date.now()});
+    showToast("↓ Retiro registrado · "+fmt$(monto));
+  };
+  window.borrarMovimiento=async function(k){
+    if(!isAdmin()||!movs[k])return;
+    var m=movs[k];
+    if(!await confirmar(esc(m.concepto||"")+" · "+fmt$(m.monto),{titulo:"Borrar movimiento",icono:"🗑️",okTxt:"Borrar",peligro:true}))return;
+    await set(ref(db,"fondo/movimientos/"+k),null);
+    showToast("🗑️ Movimiento borrado");
+  };
 
   window.abrirPozoModal=async function(){
     if(!isAdmin())return;
@@ -3961,7 +4043,8 @@
     var total=cant*(act.monto||0);
     if(!await confirmar("Se juntaron "+fmt$(total)+" de "+cant+" galanes. Se suma al fondo.",{titulo:"Cerrar el pozo?",icono:"🔒",okTxt:"Cerrar y sumar"}))return;
     await set(ref(db,"fondo/pozos/"+act.key),Object.assign({},act,{estado:"cerrado",key:null,total:total}));
-    await set(rFondoCfg,Object.assign({},fondoCfg,{saldoInversion:(fondoCfg.saldoInversion||0)+total}));
+    await push(rMovs,{tipo:"ingreso",monto:total,concepto:"Pozo de "+act.cumpleanero+" · "+cant+" aportes",
+                      por:me||"admin",pozoKey:act.key,ts:Date.now()});
     showToast("✓ Pozo cerrado · "+fmt$(total)+" al fondo");
   };
   window.marcarTodosAportes=async function(){
@@ -6890,7 +6973,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.169";
+  var APP_VERSION="10.0.170";
 
   var STORED_VERSION=localStorage.getItem("app_version");
 
