@@ -3981,6 +3981,11 @@
 
     // ── Configuración (admin) ──
     if(isAdmin()){
+      h+="<div class='surf' style='padding:12px 14px;margin-bottom:12px;border:1px solid rgba(239,68,68,0.3)'>"
+        +"<div style='font-size:0.55rem;color:#ef4444;letter-spacing:0.1em;font-weight:800;margin-bottom:7px'>⚠️ ZONA PELIGROSA</div>"
+        +"<div style='font-size:0.64rem;color:var(--mut);line-height:1.45;margin-bottom:9px'>Borra todos los pozos, los movimientos y el saldo. No se puede deshacer.</div>"
+        +"<button onclick='vaciarFondo()' style='width:100%;padding:10px;border-radius:10px;border:1.5px solid rgba(239,68,68,0.4);background:rgba(239,68,68,0.1);color:#ef4444;font-size:0.7rem;font-weight:800;cursor:pointer'>🗑️ Borrar todo el historial del fondo</button>"
+        +"</div>";
       h+="<div class='surf' style='padding:14px;margin-bottom:12px'>"
         +"<div style='font-size:0.55rem;color:var(--mut);letter-spacing:0.1em;font-weight:800;margin-bottom:10px'>⚙️ CONFIGURACIÓN</div>"
         +"<div style='display:flex;justify-content:space-between;align-items:center;padding:6px 0'>"
@@ -4108,6 +4113,30 @@
     if(!await confirmar("Se borra el pozo de "+p.cumpleanero+" (sin aportes).",{titulo:"Borrar pozo",icono:"🗑️",okTxt:"Borrar",peligro:true}))return;
     await set(ref(db,"config/fondoData/pozos/"+k),null);
     showToast("🗑️ Pozo borrado");
+  };
+
+  window.vaciarFondo=async function(){
+    if(!isAdmin())return;
+    var nPozos=Object.keys(pozos||{}).length;
+    var nMovs=Object.keys(movs||{}).length;
+    var aportesTot=0;
+    Object.values(pozos||{}).forEach(function(pz){
+      var ap=(pz&&pz.aportes)||{};
+      aportesTot+=Object.keys(ap).filter(function(k){return ap[k]&&ap[k].validado;}).length;
+    });
+    if(!nPozos&&!nMovs&&!(fondoCfg.saldoInversion||0)){
+      await avisar("El fondo ya está vacío.",{titulo:"Nada que borrar",icono:"📒"});
+      return;
+    }
+    if(!await confirmar(
+      "Se borran "+nPozos+" pozo(s), "+nMovs+" movimiento(s) y "+aportesTot+" aporte(s) registrados. El saldo vuelve a $0.\n\nEsto no se puede deshacer.",
+      {titulo:"Borrar todo el fondo",icono:"🗑️",okTxt:"Sí, borrar todo",peligro:true}))return;
+    var txt=await pedirTexto("Escribí BORRAR para confirmar","",{titulo:"Última confirmación",icono:"⚠️",placeholder:"BORRAR",okTxt:"Confirmar"});
+    if(!txt||txt.trim().toUpperCase()!=="BORRAR"){showToast("Cancelado, no se borró nada");return;}
+    await set(ref(db,"config/fondoData/pozos"),null);
+    await set(ref(db,"config/fondoData/movimientos"),null);
+    await set(rFondoCfg,Object.assign({},fondoCfg,{saldoInversion:0}));
+    showToast("🗑️ Fondo borrado por completo");
   };
 
   window.registrarRetiro=async function(){
@@ -7190,7 +7219,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.181";
+  var APP_VERSION="10.0.182";
 
   var STORED_VERSION=localStorage.getItem("app_version");
 
