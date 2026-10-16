@@ -1459,6 +1459,7 @@
     if(!s.exists()||!me)return;
     var d=s.val();
     if(!d.nombre||!d.ts)return;
+    window._ultimaPropina=d.nombre;
     var esReciente=Date.now()-d.ts<15000;
     var esSorteado=d.nombre&&me.toUpperCase()===d.nombre.toUpperCase();
     var vistKey="propina_visto_"+d.ts;
@@ -4137,6 +4138,129 @@
     await set(ref(db,"config/fondoData/movimientos"),null);
     await set(rFondoCfg,Object.assign({},fondoCfg,{saldoInversion:0}));
     showToast("🗑️ Fondo borrado por completo");
+  };
+
+  // ══ PLACA DEL SÁBADO: imagen para compartir al grupo ══════════════════
+  function datosDelSabado(){
+    var pls={};
+    Object.values(orders).forEach(function(o){if(o.player)pls[o.player]=1;});
+    var galanesHoy=Object.keys(pls);
+    var recaudado=0;
+    Object.values(pagos||{}).forEach(function(p){recaudado+=(p.cash||0)+(p.transfer||0);});
+    var tots={};
+    Object.values(orders).forEach(function(o){
+      var k=o.drink||"?";
+      if(!tots[k])tots[k]={icon:o.icon||"☕",count:0};
+      tots[k].count++;
+    });
+    var top=Object.entries(tots).sort(function(a,b){return b[1].count-a[1].count;}).slice(0,3);
+    return {
+      galanes:galanesHoy.length,
+      pedidos:Object.values(orders).length,
+      recaudado:recaudado,
+      bar:totalBar||0,
+      top:top,
+      propina:(window._ultimaPropina||"")
+    };
+  }
+
+  window.generarPlaca=async function(){
+    var d=datosDelSabado();
+    if(!d.pedidos){await avisar("No hay pedidos para armar la placa.",{titulo:"Nada que mostrar",icono:"📸"});return;}
+    var W=1080,H=1350;
+    var cv=document.createElement("canvas");cv.width=W;cv.height=H;
+    var x=cv.getContext("2d");
+
+    // Fondo
+    var g=x.createLinearGradient(0,0,0,H);
+    g.addColorStop(0,"#15151c");g.addColorStop(1,"#0a0a0d");
+    x.fillStyle=g;x.fillRect(0,0,W,H);
+    // Textura sutil
+    x.strokeStyle="rgba(245,197,24,0.05)";x.lineWidth=2;
+    for(var i=-H;i<W;i+=70){x.beginPath();x.moveTo(i,0);x.lineTo(i+H,H);x.stroke();}
+
+    function ctr(txt,y,font,color,sp){
+      x.font=font;x.fillStyle=color;x.textAlign="center";
+      if(sp){
+        var chars=String(txt).split(""),tw=0;
+        chars.forEach(function(c){tw+=x.measureText(c).width+sp;});
+        tw-=sp;var cx=W/2-tw/2;
+        chars.forEach(function(c){x.fillText(c,cx+x.measureText(c).width/2,y);cx+=x.measureText(c).width+sp;});
+      } else x.fillText(txt,W/2,y);
+    }
+    var hoy=new Date(Date.now()-3*3600000);
+    var DIASL=["Domingo","Lunes","Martes","Miércoles","Jueves","Viernes","Sábado"];
+    var fechaTxt=DIASL[hoy.getUTCDay()]+" "+hoy.getUTCDate()+" de "+MESES[hoy.getUTCMonth()];
+
+    // Encabezado
+    ctr("MESA DE GALANES",150,"700 74px 'Bebas Neue', sans-serif","#ffffff",4);
+    ctr(fechaTxt.toUpperCase(),200,"600 26px Inter, sans-serif","#f5c518",3);
+    x.strokeStyle="rgba(245,197,24,0.35)";x.lineWidth=3;
+    x.beginPath();x.moveTo(W/2-110,235);x.lineTo(W/2+110,235);x.stroke();
+
+    // Números grandes
+    function bloque(cx,cy,num,lbl,color){
+      x.font="700 110px 'Bebas Neue', sans-serif";x.fillStyle=color;x.textAlign="center";
+      x.fillText(num,cx,cy);
+      x.font="600 22px Inter, sans-serif";x.fillStyle="rgba(255,255,255,0.45)";
+      x.fillText(lbl,cx,cy+38);
+    }
+    bloque(W/2-280,390,d.galanes,"GALANES","#60a5fa");
+    bloque(W/2,390,d.pedidos,"PEDIDOS","#4ade80");
+    bloque(W/2+280,390,d.top.length,"BEBIDAS","#f5c518");
+
+    // Recaudado
+    var ry=500;
+    x.fillStyle="rgba(245,197,24,0.09)";
+    x.strokeStyle="rgba(245,197,24,0.28)";x.lineWidth=2;
+    if(x.roundRect){x.beginPath();x.roundRect(90,ry,W-180,150,26);x.fill();x.stroke();}
+    else x.fillRect(90,ry,W-180,150);
+    ctr("LA CUENTA DEL BAR",ry+52,"600 22px Inter, sans-serif","rgba(255,255,255,0.45)",3);
+    ctr(fmt$(d.bar||d.recaudado),ry+118,"700 76px 'Bebas Neue', sans-serif","#f5c518",2);
+
+    // Top bebidas
+    var ty=720;
+    ctr("LO MÁS PEDIDO",ty,"600 22px Inter, sans-serif","rgba(255,255,255,0.4)",4);
+    var by=ty+60;
+    d.top.forEach(function(e,idx){
+      var nom=e[0],dd=e[1];
+      x.fillStyle=idx===0?"rgba(245,197,24,0.1)":"rgba(255,255,255,0.04)";
+      if(x.roundRect){x.beginPath();x.roundRect(110,by-40,W-220,74,18);x.fill();}
+      x.font="48px sans-serif";x.textAlign="left";x.fillText(dd.icon,150,by+12);
+      x.font=(idx===0?"700":"600")+" 34px Inter, sans-serif";
+      x.fillStyle=idx===0?"#ffffff":"rgba(255,255,255,0.62)";
+      var nm=nom.length>24?nom.slice(0,23)+"…":nom;
+      x.fillText(nm,225,by+12);
+      x.font="700 44px 'Bebas Neue', sans-serif";
+      x.fillStyle=idx===0?"#f5c518":"rgba(255,255,255,0.45)";
+      x.textAlign="right";x.fillText(dd.count+"x",W-150,by+14);
+      by+=92;
+    });
+
+    // Propina
+    if(d.propina){
+      var py=by+40;
+      ctr("🎲 LA PROPINA LA PUSO",py,"600 22px Inter, sans-serif","rgba(255,255,255,0.4)",3);
+      ctr(String(d.propina).toUpperCase(),py+62,"700 58px 'Bebas Neue', sans-serif","#a855f7",3);
+    }
+
+    // Pie
+    ctr("CRR TENIS · CLUB 7:45",H-70,"600 24px Inter, sans-serif","rgba(255,255,255,0.3)",5);
+
+    cv.toBlob(async function(blob){
+      if(!blob){showToast("⚠ No se pudo generar la placa");return;}
+      var file=new File([blob],"mesa-de-galanes.png",{type:"image/png"});
+      if(navigator.canShare&&navigator.canShare({files:[file]})){
+        try{
+          await navigator.share({files:[file],title:"Mesa de Galanes",text:"La mesa de hoy ☕"});
+          return;
+        }catch(e){ if(e&&e.name==="AbortError")return; }
+      }
+      var a=document.createElement("a");
+      a.href=URL.createObjectURL(blob);a.download="mesa-de-galanes.png";a.click();
+      setTimeout(function(){URL.revokeObjectURL(a.href);},2000);
+      showToast("📸 Placa descargada");
+    },"image/png");
   };
 
   window.registrarRetiro=async function(){
@@ -6903,6 +7027,12 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
                 white-space:nowrap;flex-shrink:0"></button>
             </div>
           </div>
+          <!-- Placa para compartir -->
+          <button onclick="generarPlaca()" style="width:100%;padding:13px;border-radius:13px;border:1.5px solid rgba(245,197,24,0.4);
+            background:rgba(245,197,24,0.1);color:var(--gold);font-family:var(--font-body);font-size:0.8rem;font-weight:800;
+            letter-spacing:0.04em;cursor:pointer;margin-bottom:14px;display:flex;align-items:center;justify-content:center;gap:8px">
+            📸 PLACA DEL SÁBADO
+          </button>
           <!-- Paso 2: archivar el día -->
           <div id="cierre-resumen" style="font-size:0.64rem;color:var(--mut);text-align:center;margin-bottom:10px;line-height:1.5"></div>
           <button onclick="cerrarMesa()" style="width:100%;padding:14px;border-radius:13px;border:1.5px solid rgba(239,68,68,0.35);
@@ -7219,7 +7349,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.182";
+  var APP_VERSION="10.0.183";
 
   var STORED_VERSION=localStorage.getItem("app_version");
 
