@@ -164,7 +164,7 @@
   const rFondoCfg=ref(db,"config/fondo");      // {monto, alias, saldoInversion}
   const rPozos=ref(db,"config/fondoData/pozos");
   const rMovs=ref(db,"config/fondoData/movimientos");    // {id:{tipo:"ingreso"|"retiro",monto,concepto,por,ts,pozoKey}}          // {id:{cumpleanero,fechaCumple,monto,estado,aportes:{}}}
-  var fondoCfg={},pozos={},movs={},mesaState={};
+  var fondoCfg={},pozos={},movs={},mesaState={},historico={};
   var pagoReqs={};
   const rKick=ref(db,"config/kickAll");
   window._rKick=rKick;
@@ -375,6 +375,13 @@
     });
     onValue(rPozos,function(s){
       try{pozos=s.exists()?s.val():{};renderFondo();renderAvisoFondo();}catch(e){console.error("rPozos",e);}
+    });
+    onValue(rH,function(s){
+      try{
+        historico=s.exists()?s.val():{};
+        if(typeof renderTitulos==="function")renderTitulos();
+        if(typeof renderSabados==="function")renderSabados();
+      }catch(e){console.error("rH",e);}
     });
     onValue(rMovs,function(s){
       try{movs=s.exists()?s.val():{};renderFondo();}catch(e){console.error("rMovs",e);}
@@ -3194,25 +3201,56 @@
     pDrink=null;pFor=null;
   };
 
+  // ══ PEDIDO HABITUAL: lo que más repitió cada uno en el historial ══════
+  function habitualDe(nombre){
+    if(!nombre)return null;
+    var cuenta={},n=normName(nombre);
+    Object.keys(historico||{}).forEach(function(f){
+      var dia=historico[f];if(!dia||!dia.pedidos)return;
+      Object.values(dia.pedidos).forEach(function(o){
+        if(!o||!o.player||normName(o.player)!==n)return;
+        var k=(o.drink||"")+"||"+(o.extra||"");
+        if(!cuenta[k])cuenta[k]={n:0,o:{drink:o.drink,icon:o.icon,drinkIdx:o.drinkIdx,extra:o.extra||null}};
+        cuenta[k].n++;
+      });
+    });
+    var top=Object.values(cuenta).sort(function(a,b){return b.n-a.n;})[0];
+    if(!top||top.n<2)return null;   // con una sola vez no es "lo de siempre"
+    return {veces:top.n,items:[top.o]};
+  }
+
+  // Devuelve el habitual: primero el favorito guardado, si no el del historial
+  async function miHabitual(){
+    try{
+      var snap=await get(rF());
+      if(snap.exists()){
+        var favs=snap.val();
+        if(favs&&favs.length)return {origen:"favorito",items:favs,veces:0};
+      }
+    }catch(e){}
+    var h=habitualDe(me);
+    return h?{origen:"historial",items:h.items,veces:h.veces}:null;
+  }
+
   window.mostrarLoDeSimepre=async function(){
     // Solo mostrar si no tiene pedido hoy y tiene favorito
     var yaHoyTienePedido=Object.values(orders).some(function(o){return o.player===me;});
     if(yaHoyTienePedido&&confirmado())return;  // solo bloquear si ambos son true
-    var snap=await get(rF());
-    if(!snap.exists())return;
-    var favs=snap.val();
-    if(!favs||!favs.length)return;
-    // Mostrar modal
-    var desc=favs.map(function(f){return f.icon+" "+f.drink;}).join(", ");
+    var hab=await miHabitual();
+    if(!hab)return;
+    window._habitualCache=hab;
+    var desc=hab.items.map(function(f){return (f.icon||"☕")+" "+f.drink;}).join(", ");
     document.getElementById("loMismo-desc").textContent=desc;
+    var sub=document.getElementById("loMismo-sub");
+    if(sub)sub.textContent=hab.origen==="historial"?("Lo pediste "+hab.veces+" veces"):"Tu pedido guardado";
     openModal("mloMismo");
     speak("Hola "+me+"! Tomás lo de siempre?");
   };
   window.pedirLoMismo=async function(){
     closeModal("mloMismo");
-    var snap=await get(rF());
-    if(!snap.exists())return;
-    var favs=snap.val();
+    var hab=window._habitualCache||await miHabitual();
+    if(!hab)return;
+    var favs=hab.items;
     // Borrar pedidos previos si los hay
     var en=Object.entries(orders);
     for(var i=0;i<en.length;i++)if(en[i][1].player===me)await remove(ref(db,"pedido/orders/"+en[i][0]));
@@ -3375,14 +3413,13 @@
       grid.parentNode.insertBefore(repWrap,grid);
     }
     // Favorito guardado tiene prioridad sobre "repetir último"
-    get(rF()).then(function(favSnap){
+    miHabitual().then(function(hab){
       if(!repWrap)return;
-      var hasFav=favSnap.exists()&&favSnap.val()&&favSnap.val().length;
       var last=me?localStorage.getItem("last_order_"+me):null;
       if(confirmado()||misPed.length){repWrap.style.display="none";return;}
-      if(hasFav){
-        var favs=favSnap.val();
-        var desc=favs.map(function(f){return f.icon+" "+f.drink;}).join(" + ");
+      if(hab){
+        var favs=hab.items;
+        var desc=favs.map(function(f){return (f.icon||"☕")+" "+f.drink;}).join(" + ");
         repWrap.innerHTML="<button onclick='mostrarLoDeSimepre()' style=\""
           +"width:100%;background:linear-gradient(135deg,rgba(245,197,24,0.14),rgba(245,197,24,0.04));border:1.5px solid rgba(245,197,24,0.4);"
           +"border-radius:100px;padding:8px 14px;display:flex;align-items:center;gap:8px;"
@@ -4262,6 +4299,196 @@
       showToast("📸 Placa descargada");
     },"image/png");
   };
+
+  // ══ TÍTULOS DEL AÑO: se calculan sobre el historial archivado ═════════
+  function statsHistoricas(){
+    var fechas=Object.keys(historico||{}).sort();
+    if(!fechas.length)return null;
+    var porGalan={};
+    function ref2(n){
+      var k=normName(n);
+      if(!porGalan[k])porGalan[k]={nombre:n,fue:0,bebidas:{},ultima:null,fechas:[]};
+      return porGalan[k];
+    }
+    fechas.forEach(function(f){
+      var dia=historico[f];if(!dia||!dia.pedidos)return;
+      var vistos={};
+      Object.values(dia.pedidos).forEach(function(o){
+        if(!o||!o.player)return;
+        var g=ref2(o.player);
+        var k=normName(o.player);
+        if(!vistos[k]){vistos[k]=1;g.fue++;g.fechas.push(f);g.ultima=f;}
+        var b=o.drink||"?";
+        g.bebidas[b]=(g.bebidas[b]||0)+1;
+      });
+    });
+    // Racha: sábados consecutivos del calendario de la mesa
+    Object.values(porGalan).forEach(function(g){
+      var mejor=0,act=0,prev=-1;
+      fechas.forEach(function(f,i){
+        if(g.fechas.indexOf(f)>-1){
+          act=(prev===i-1)?act+1:1;
+          prev=i;
+          if(act>mejor)mejor=act;
+        }
+      });
+      g.racha=mejor;
+      g.rachaViva=(g.fechas.indexOf(fechas[fechas.length-1])>-1);
+      var topB=Object.entries(g.bebidas).sort(function(a,b){return b[1]-a[1];})[0];
+      g.fiel=topB?{nombre:topB[0],veces:topB[1],pct:Math.round(topB[1]/Math.max(1,g.fue)*100)}:null;
+    });
+    var lista=Object.values(porGalan);
+    return {sabados:fechas.length,fechas:fechas,galanes:lista};
+  }
+
+  // ══ SÁBADOS ANTERIORES ════════════════════════════════════════════════
+  window.renderSabados=function(){
+    var el=document.getElementById("stats-sabados");if(!el)return;
+    var fechas=Object.keys(historico||{}).sort().reverse();
+    var h="<div style='display:flex;align-items:baseline;justify-content:space-between;margin-bottom:9px'>"
+      +"<span style='font-size:0.6rem;font-weight:700;color:var(--ink);letter-spacing:0.1em'>📅 SÁBADOS ANTERIORES</span>"
+      +(fechas.length>5?"<button onclick='window._verTodosSab=!window._verTodosSab;renderSabados()' style='background:none;border:none;color:var(--gold);font-size:0.58rem;font-weight:700;cursor:pointer'>"+(window._verTodosSab?"ver menos":"ver todos ("+fechas.length+")")+"</button>":"")
+      +"</div>";
+    if(!fechas.length){
+      el.innerHTML=h+"<div style='font-size:0.66rem;color:var(--mut);text-align:center;padding:10px'>Todavía no archivaste ningún sábado</div>";
+      return;
+    }
+    (window._verTodosSab?fechas:fechas.slice(0,5)).forEach(function(f){
+      var d=historico[f]||{};
+      var pls={};Object.values(d.pedidos||{}).forEach(function(o){if(o&&o.player)pls[o.player]=1;});
+      var nG=Object.keys(pls).length;
+      var p=f.split("-");
+      var fd=new Date(Date.UTC(+p[0],+p[1]-1,+p[2]));
+      var DIASL=["Dom","Lun","Mar","Mié","Jue","Vie","Sáb"];
+      var lbl=DIASL[fd.getUTCDay()]+" "+(+p[2])+" "+MESES_C[+p[1]-1]+" "+p[0];
+      h+="<div onclick=\"verSabado('"+f+"')\" style='display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--brd);cursor:pointer'>"
+        +"<span style='font-size:1.1rem;width:22px;text-align:center;flex-shrink:0'>☕</span>"
+        +"<div style='flex:1;min-width:0'>"
+        +"<div style='font-size:0.74rem;font-weight:700;color:var(--ink)'>"+lbl+"</div>"
+        +"<div style='font-size:0.58rem;color:var(--mut)'>"+nG+" galanes · "+Object.keys(d.pedidos||{}).length+" pedidos</div></div>"
+        +"<span style='font-family:\"Bebas Neue\",sans-serif;font-size:0.95rem;color:var(--grn);flex-shrink:0'>"+fmt$(d.totalBar||d.recaudado||0)+"</span>"
+        +"<span style='color:var(--mut);font-size:0.7rem;flex-shrink:0'>›</span>"
+        +"</div>";
+    });
+    el.innerHTML=h;
+  };
+
+  window.verSabado=function(f){
+    var d=historico[f];if(!d)return;
+    var p=f.split("-");
+    var fd=new Date(Date.UTC(+p[0],+p[1]-1,+p[2]));
+    var DIASL=["Domingo","Lunes","Martes","Miércoles","Jueves","Viernes","Sábado"];
+    var lbl=DIASL[fd.getUTCDay()]+" "+(+p[2])+" de "+MESES[+p[1]-1];
+
+    var porGalan={};
+    Object.values(d.pedidos||{}).forEach(function(o){
+      if(!o||!o.player)return;
+      if(!porGalan[o.player])porGalan[o.player]=[];
+      porGalan[o.player].push((o.icon||"☕")+" "+(o.drink||"?"));
+    });
+    var nombres=Object.keys(porGalan).sort();
+    var pagosDia=d.pagos||{};
+
+    var filas=nombres.map(function(n){
+      var pg=pagosDia[n]||{};
+      var tot=(pg.cash||0)+(pg.transfer||0);
+      return "<div style='display:flex;align-items:center;gap:9px;padding:7px 0;border-bottom:1px solid var(--brd)'>"
+        +"<span style='width:26px;height:26px;border-radius:50%;background:"+col(n)+";color:#fff;display:flex;align-items:center;justify-content:center;font-size:0.56rem;font-weight:800;flex-shrink:0'>"+esc(ini(n))+"</span>"
+        +"<div style='flex:1;min-width:0'>"
+        +"<div style='font-size:0.72rem;font-weight:700;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap'>"+esc(n)+"</div>"
+        +"<div style='font-size:0.58rem;color:var(--mut);overflow:hidden;text-overflow:ellipsis;white-space:nowrap'>"+esc(porGalan[n].join(" · "))+"</div></div>"
+        +(tot?"<span style='font-family:\"Bebas Neue\",sans-serif;font-size:0.85rem;color:var(--grn);flex-shrink:0'>"+fmt$(tot)+"</span>":"<span style='font-size:0.55rem;color:#fb923c;flex-shrink:0'>sin pago</span>")
+        +"</div>";
+    }).join("");
+
+    var ov=document.createElement("div");
+    ov.className="modal-overlay mc";ov.style.zIndex="99999";
+    ov.innerHTML="<div class='modal' style='max-width:360px;max-height:82vh;overflow-y:auto;box-sizing:border-box'>"
+      +"<div style='text-align:center;margin-bottom:14px'>"
+      +"<div style='font-size:1.8rem;line-height:1;margin-bottom:6px'>☕</div>"
+      +"<div style='font-family:\"Bebas Neue\",sans-serif;font-size:1.15rem;color:var(--ink);letter-spacing:0.04em'>"+lbl.toUpperCase()+"</div>"
+      +"<div style='font-size:0.62rem;color:var(--mut);margin-top:3px'>"+nombres.length+" galanes · cerrada "+esc(d.hora||"")+"</div></div>"
+      +"<div style='display:flex;gap:8px;margin-bottom:13px'>"
+      +"<div style='flex:1;background:var(--sur2);border-radius:11px;padding:10px;text-align:center'>"
+      +"<div style='font-size:0.52rem;color:var(--mut);letter-spacing:0.07em'>CUENTA DEL BAR</div>"
+      +"<div style='font-family:\"Bebas Neue\",sans-serif;font-size:1.2rem;color:var(--gold)'>"+fmt$(d.totalBar||0)+"</div></div>"
+      +"<div style='flex:1;background:var(--sur2);border-radius:11px;padding:10px;text-align:center'>"
+      +"<div style='font-size:0.52rem;color:var(--mut);letter-spacing:0.07em'>RECAUDADO</div>"
+      +"<div style='font-family:\"Bebas Neue\",sans-serif;font-size:1.2rem;color:var(--grn)'>"+fmt$(d.recaudado||0)+"</div></div>"
+      +"</div>"
+      +filas
+      +"<button onclick=\"this.closest('.modal-overlay').remove()\" style='width:100%;margin-top:14px;padding:12px;border-radius:12px;border:1.5px solid var(--brd);background:var(--sur2);color:var(--mut);font-size:0.78rem;font-weight:700;cursor:pointer'>Cerrar</button>"
+      +"</div>";
+    ov.onclick=function(e){if(e.target===ov)ov.remove();};
+    document.body.appendChild(ov);
+    requestAnimationFrame(function(){ov.classList.add("open");});
+  };
+
+  window.renderTitulos=function(){
+    var el=document.getElementById("stats-titulos");if(!el)return;
+    var st=statsHistoricas();
+    if(!st||!st.galanes.length){
+      el.innerHTML="<div style='font-size:0.6rem;font-weight:700;color:var(--gold);letter-spacing:0.1em;margin-bottom:8px'>🏆 TÍTULOS</div>"
+        +"<div style='font-size:0.66rem;color:var(--mut);text-align:center;padding:10px;line-height:1.5'>Todavía no hay sábados archivados.<br><span style='opacity:0.75'>Se arman solos a medida que cerrás mesas.</span></div>";
+      return;
+    }
+    var gs=st.galanes.slice();
+    function premio(icono,titulo,g,detalle,color){
+      if(!g)return "";
+      return "<div style='display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--brd)'>"
+        +"<span style='font-size:1.3rem;width:26px;text-align:center;flex-shrink:0'>"+icono+"</span>"
+        +"<div style='flex:1;min-width:0'>"
+        +"<div style='font-size:0.54rem;color:"+color+";letter-spacing:0.08em;font-weight:800'>"+titulo+"</div>"
+        +"<div style='font-size:0.76rem;font-weight:700;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap'>"+esc(g.nombre)+"</div>"
+        +"</div>"
+        +"<div style='font-size:0.62rem;color:var(--mut);text-align:right;flex-shrink:0;max-width:40%'>"+detalle+"</div>"
+        +"</div>";
+    }
+    var h="<div style='display:flex;align-items:baseline;justify-content:space-between;margin-bottom:8px'>"
+      +"<span style='font-size:0.6rem;font-weight:700;color:var(--gold);letter-spacing:0.1em'>🏆 TÍTULOS</span>"
+      +"<span style='font-size:0.55rem;color:var(--mut)'>"+st.sabados+" sábados</span></div>";
+
+    // El fiel de la casa — más sábados presentes
+    var masFue=gs.slice().sort(function(a,b){return b.fue-a.fue;})[0];
+    h+=premio("☕","EL FIEL DE LA CASA",masFue,masFue.fue+" de "+st.sabados,"var(--gold)");
+
+    // Racha más larga
+    var mejorRacha=gs.slice().sort(function(a,b){return b.racha-a.racha;})[0];
+    if(mejorRacha&&mejorRacha.racha>1)
+      h+=premio("🔥","LA RACHA MÁS LARGA",mejorRacha,mejorRacha.racha+" seguidos"+(mejorRacha.rachaViva?" · viva":""),"#fb923c");
+
+    // El que no cambia nunca
+    var monotema=gs.filter(function(g){return g.fue>=3&&g.fiel&&g.fiel.pct>=70;})
+      .sort(function(a,b){return b.fiel.pct-a.fiel.pct;})[0];
+    if(monotema)
+      h+=premio("🎯","EL QUE NO CAMBIA NUNCA",monotema,monotema.fiel.pct+"% "+esc(monotema.fiel.nombre.split(" ")[0]),"#4ade80");
+
+    // El fantasma — de la lista actual, el que menos vino
+    var fantasma=null;
+    (galanes||[]).forEach(function(g){
+      var k=normName(g);
+      var d=porGalanOf(gs,k);
+      var fue=d?d.fue:0;
+      if(!fantasma||fue<fantasma.fue)fantasma={nombre:g,fue:fue};
+    });
+    if(fantasma&&fantasma.fue<st.sabados)
+      h+=premio("👻","EL FANTASMA",fantasma,fantasma.fue?(fantasma.fue+" de "+st.sabados):"nunca vino","#a855f7");
+
+    // Propina
+    var pH=(window._propinaHistorial||[]);
+    if(pH.length){
+      var cuenta={};
+      pH.forEach(function(x){var n=(x.nombre||"").trim();if(n)cuenta[normName(n)]={nombre:n,n:((cuenta[normName(n)]||{}).n||0)+1};});
+      var topP=Object.values(cuenta).sort(function(a,b){return b.n-a.n;})[0];
+      if(topP)h+=premio("🎲","EL MÁS GENEROSO",topP,topP.n+" propina"+(topP.n>1?"s":""),"#c084fc");
+    }
+    h+="<div style='font-size:0.55rem;color:var(--mut);text-align:center;padding-top:9px;opacity:0.7'>Se calcula sobre los sábados archivados</div>";
+    el.innerHTML=h;
+  };
+  function porGalanOf(lista,k){
+    for(var i=0;i<lista.length;i++)if(normName(lista[i].nombre)===k)return lista[i];
+    return null;
+  }
 
   window.registrarRetiro=async function(){
     if(!isAdmin())return;
@@ -5189,6 +5416,8 @@
 
     renderMesaStats();
     renderAsistencia();
+    renderTitulos();
+    renderSabados();
 
     // Sección propinas históricas
     get(rPropina).then(function(ps){
@@ -5196,6 +5425,8 @@
       if(!spanel)return;
       if(!ps.exists()){spanel.innerHTML="<div style='font-size:0.68rem;color:var(--mut);text-align:center;padding:8px'>Sin sorteos registrados todavía</div>";return;}
       var pd=ps.val(),hh=(pd.historial||[]).slice().reverse();
+      window._propinaHistorial=(pd.historial||[]);
+      if(typeof renderTitulos==="function")renderTitulos();
       if(!hh.length){spanel.innerHTML="<div style='font-size:0.68rem;color:var(--mut);text-align:center;padding:8px'>Sin sorteos registrados todavía</div>";return;}
       // Contar cuántas veces le tocó a cada uno
       var conteo={};hh.forEach(function(h){conteo[h.nombre]=(conteo[h.nombre]||0)+1;});
@@ -6868,6 +7099,12 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
         <div id="stats-asistencia-panel"><div style="font-size:0.68rem;color:var(--mut);text-align:center;padding:12px">Cargando...</div></div>
       </div>
     </div>
+    <div style="padding:0 14px 14px">
+      <div id="stats-sabados" style="background:var(--sur);border:1px solid var(--brd);border-radius:14px;padding:14px"></div>
+    </div>
+    <div style="padding:0 14px 14px">
+      <div id="stats-titulos" style="background:rgba(245,197,24,0.06);border:1px solid rgba(245,197,24,0.18);border-radius:14px;padding:14px"></div>
+    </div>
     <div style="padding:0 14px 16px">
       <div style="background:rgba(168,85,247,0.08);border:1px solid rgba(168,85,247,0.2);border-radius:14px;padding:14px">
         <div style="font-size:0.6rem;font-weight:700;color:#c084fc;letter-spacing:0.1em;margin-bottom:10px">🎲 HISTORIAL PROPINAS</div>
@@ -7280,6 +7517,25 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
   </div>
 </div>
 
+<div class="modal-overlay mc" id="mloMismo" onclick="if(event.target===this)closeModal('mloMismo')">
+  <div class="modal" style="max-width:340px;box-sizing:border-box">
+    <div style="text-align:center;margin-bottom:16px">
+      <div style="font-size:2.4rem;line-height:1;margin-bottom:8px">☕</div>
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:1.3rem;color:var(--ink);letter-spacing:0.05em">¿LO DE SIEMPRE?</div>
+      <div id="loMismo-sub" style="font-size:0.62rem;color:var(--mut);margin-top:4px"></div>
+    </div>
+    <div style="background:var(--sur2);border:1.5px solid var(--gold);border-radius:14px;padding:15px;text-align:center;margin-bottom:16px">
+      <div id="loMismo-desc" style="font-size:0.88rem;font-weight:700;color:var(--ink);line-height:1.4"></div>
+    </div>
+    <button onclick="pedirLoMismo()" style="width:100%;padding:14px;border-radius:13px;border:none;background:var(--gold);color:#0a0805;font-family:var(--font-body);font-size:0.85rem;font-weight:800;letter-spacing:0.04em;cursor:pointer;margin-bottom:8px">
+      ✓ DALE, LO MISMO
+    </button>
+    <button onclick="closeModal('mloMismo')" style="width:100%;padding:12px;border-radius:12px;border:1.5px solid var(--brd);background:var(--sur2);color:var(--mut);font-family:var(--font-body);font-size:0.75rem;font-weight:700;cursor:pointer">
+      Hoy pido otra cosa
+    </button>
+  </div>
+</div>
+
 <div class="modal-overlay mc" id="mprecios" onclick="if(event.target===this)closeModal('mprecios')">
   <div class="modal" style="max-height:88vh;overflow-y:auto;overflow-x:hidden;width:calc(100% - 32px);max-width:480px;margin:0 16px;box-sizing:border-box">
     <div class="mh2"></div>
@@ -7349,7 +7605,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.183";
+  var APP_VERSION="10.0.184";
 
   var STORED_VERSION=localStorage.getItem("app_version");
 
