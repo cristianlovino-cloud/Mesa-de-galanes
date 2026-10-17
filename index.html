@@ -713,11 +713,26 @@
           +"</div>"
           +"</div>";
       } else if(misPed.length>0){
-        pills+="<div style='flex:1;min-width:140px;background:rgba(251,146,60,0.12);border:1.5px solid rgba(251,146,60,0.4);border-radius:14px;padding:12px 14px;display:flex;align-items:center;gap:10px;cursor:pointer' onclick='document.querySelector(\".cbtn\")&&document.querySelector(\".cbtn\").click()'>"
-          +"<span style='font-size:1.4rem'>🟠</span>"
-          +"<div><div style='font-size:0.72rem;font-weight:700;color:#fb923c;letter-spacing:0.06em'>SIN ENVIAR</div>"
-          +"<div style='font-size:0.68rem;color:var(--ink);margin-top:2px'>"+misPed[0].drink+"</div></div>"
-          +"</div>";
+        var cargadoPor=misPed[0].loadedBy;
+        var ajeno=cargadoPor==="admin"||cargadoPor==="sugerido"||cargadoPor==="reserva";
+        var tituloC=cargadoPor==="admin"?"TE CARGARON ESTE PEDIDO"
+          :cargadoPor==="sugerido"?"TE PRE-CARGAMOS LO DE SIEMPRE"
+          :cargadoPor==="reserva"?"PEDIDO DE TU RESERVA":"SIN ENVIAR";
+        pills+="<div style='width:100%;background:rgba(251,146,60,0.12);border:1.5px solid rgba(251,146,60,0.45);border-radius:16px;padding:14px'>"
+          +"<div style='display:flex;align-items:center;gap:11px'>"
+          +"<span style='font-size:1.6rem;flex-shrink:0'>"+(ajeno?"📝":"🟠")+"</span>"
+          +"<div style='flex:1;min-width:0'>"
+          +"<div style='font-size:0.62rem;font-weight:800;color:#ea580c;letter-spacing:0.08em'>"+tituloC+"</div>"
+          +"<div style='font-size:0.9rem;font-weight:700;color:var(--ink);margin-top:3px;line-height:1.3;word-break:break-word'>"+esc(misPed[0].drink)+"</div>"
+          +(misPed.length>1?"<div style='font-size:0.64rem;color:var(--mut);margin-top:2px'>+ "+(misPed.length-1)+" más</div>":"")
+          +"</div></div>"
+          +"<div style='font-size:0.68rem;color:var(--mut);margin:10px 0 9px;line-height:1.45'>"
+          +(ajeno?"Si está bien, deslizá para confirmarlo. Si no, cambialo."
+                 :"Todavía no lo enviaste. Deslizá abajo para mandarlo.")+"</div>"
+          +"<div style='display:flex;gap:7px'>"
+          +"<button onclick='document.querySelector(\".cbtn\")&&document.querySelector(\".cbtn\").click()' style='flex:1;padding:10px;border-radius:11px;border:none;background:#ea580c;color:#fff;font-size:0.72rem;font-weight:800;cursor:pointer'>✓ Está bien</button>"
+          +"<button onclick='window.modificarPedido&&window.modificarPedido()' style='flex:1;padding:10px;border-radius:11px;border:1.5px solid var(--brd);background:var(--sur2);color:var(--ink);font-size:0.72rem;font-weight:700;cursor:pointer'>✏️ Cambiar</button>"
+          +"</div></div>";
       }
       // Pill 2: saldo (solo si el admin cargó algo)
       if(!isAdmin()&&me){
@@ -1772,6 +1787,9 @@
         showToast("✅ "+n+" pedido"+(n>1?"s":"")+" cargado"+(n>1?"s":"")+"!");speak(n+" pedidos cargados.");
       } else {
         var player=pFor||me;
+        if(!pFor&&await chequearDuplicado()==="cancelar"){
+          pDrink=null;pFor=null;closeModal("mextra");return;
+        }
         var idxDrink=pDrink.idx,iconDrink=pDrink.icon; // guardar antes de cualquier await
         var obj={player:player,drinkIdx:idxDrink,drink:label,icon:iconDrink,extra:exVal,ts:Date.now()};
         if(player===me){var m2=await getClientMeta();obj.device=m2.device;obj.ip=m2.ip;}
@@ -3197,8 +3215,46 @@
     return _clientMeta;
   }
 
+  // Si ya tiene pedido cargado (propio o del admin), preguntar antes de duplicar
+  async function chequearDuplicado(){
+    var mios=Object.entries(orders).filter(function(e){return e[1].player===me;});
+    if(!mios.length)return "seguir";
+    var o=mios[0][1];
+    var quien=o.loadedBy==="admin"?"Te lo cargó el admin"
+      :o.loadedBy==="sugerido"?"Se pre-cargó automáticamente"
+      :o.loadedBy==="reserva"?"Viene de tu reserva":"Lo cargaste vos";
+    return new Promise(function(res){
+      var ov=document.createElement("div");
+      ov.className="modal-overlay mc";ov.style.zIndex="99999";
+      ov.innerHTML="<div class='modal' style='max-width:330px;box-sizing:border-box'>"
+        +"<div style='text-align:center;margin-bottom:14px'>"
+        +"<div style='font-size:2.2rem;line-height:1;margin-bottom:8px'>⚠️</div>"
+        +"<div style='font-family:\"Bebas Neue\",sans-serif;font-size:1.15rem;color:var(--ink);letter-spacing:0.05em'>YA TENÉS UN PEDIDO</div>"
+        +"<div style='font-size:0.66rem;color:var(--mut);margin-top:5px'>"+quien+"</div></div>"
+        +"<div style='background:var(--sur2);border:1.5px solid var(--brd);border-radius:12px;padding:13px;text-align:center;margin-bottom:14px'>"
+        +"<div style='font-size:0.85rem;font-weight:700;color:var(--ink)'>"+esc((o.icon||"☕")+" "+(o.drink||""))+"</div>"
+        +(mios.length>1?"<div style='font-size:0.62rem;color:var(--mut);margin-top:3px'>+ "+(mios.length-1)+" más</div>":"")
+        +"</div>"
+        +"<button id='dup-rep' style='width:100%;padding:13px;border-radius:12px;border:none;background:var(--gold);color:#0a0805;font-size:0.8rem;font-weight:800;cursor:pointer;margin-bottom:8px'>🔄 Reemplazarlo por el nuevo</button>"
+        +"<button id='dup-add' style='width:100%;padding:12px;border-radius:12px;border:1.5px solid var(--brd);background:var(--sur2);color:var(--ink);font-size:0.76rem;font-weight:700;cursor:pointer;margin-bottom:8px'>➕ Quiero los dos</button>"
+        +"<button id='dup-no' style='width:100%;padding:12px;border-radius:12px;border:none;background:none;color:var(--mut);font-size:0.74rem;font-weight:700;cursor:pointer'>Dejar como está</button>"
+        +"</div>";
+      document.body.appendChild(ov);
+      requestAnimationFrame(function(){ov.classList.add("open");});
+      function cerrar(r){if(ov.parentNode)ov.parentNode.removeChild(ov);res(r);}
+      ov.onclick=function(e){if(e.target===ov)cerrar("cancelar");};
+      ov.querySelector("#dup-rep").onclick=async function(){
+        for(var i=0;i<mios.length;i++)await remove(ref(db,"pedido/orders/"+mios[i][0]));
+        cerrar("seguir");
+      };
+      ov.querySelector("#dup-add").onclick=function(){cerrar("seguir");};
+      ov.querySelector("#dup-no").onclick=function(){cerrar("cancelar");};
+    });
+  }
+
   window.confirmOrderDirect=async function(d){
     if(!d)return;
+    if(await chequearDuplicado()==="cancelar"){pDrink=null;pFor=null;return;}
     var meta=await getClientMeta();
     var obj={player:me,drinkIdx:d.idx,drink:d.name,icon:d.icon,extra:null,ts:Date.now(),device:meta.device,ip:meta.ip};
     await push(rO,obj);
@@ -5197,22 +5253,22 @@
       row+="<div style='display:flex;gap:8px;align-items:baseline;margin-top:4px;flex-wrap:wrap'>";
       row+="<span style='font-family:\"Bebas Neue\",sans-serif;font-size:1.4rem;color:var(--grn);letter-spacing:0.04em'>$"+Math.round(total)+"</span>";
       if(cash>0&&tr>0){
-        row+="<span style='font-size:0.62rem;color:var(--mut)'>💵$"+Math.round(cash)+" + 📲$"+Math.round(tr)+"</span>";
+        row+="<span style='font-size:0.74rem;color:var(--mut);font-weight:600'>💵$"+Math.round(cash)+" + 📲$"+Math.round(tr)+"</span>";
       } else if(cash>0){
-        row+="<span style='font-size:0.62rem;color:var(--mut)'>💵 efectivo</span>";
+        row+="<span style='font-size:0.74rem;color:var(--mut);font-weight:600'>💵 efectivo</span>";
       } else if(tr>0){
-        row+="<span style='font-size:0.62rem;color:var(--mut)'>📲 transfer</span>";
+        row+="<span style='font-size:0.74rem;color:var(--mut);font-weight:600'>📲 transfer</span>";
       }
       row+="</div>";
       if(deuda>0){
         row+="<div style='display:flex;gap:8px;align-items:center;margin-top:3px;flex-wrap:wrap'>";
-        row+="<span style='font-size:0.6rem;color:var(--mut)'>Debe: <b style='color:rgba(245,197,24,0.85)'>$"+Math.round(deuda)+"</b></span>";
+        row+="<span style='font-size:0.78rem;color:var(--mut);font-weight:600'>Debe: <b style='color:var(--gold);font-size:0.86rem'>$"+Math.round(deuda)+"</b></span>";
         if(saldo!==null){
-          if(saldo===0) row+="<span style='font-size:0.6rem;color:#4ade80'>✓ Cuadra</span>";
-          else if(saldo>0) row+="<span style='font-size:0.6rem;color:#fbbf24'>↑ Sobran $"+Math.round(saldo)+"</span>";
-          else row+="<span style='font-size:0.6rem;color:#fb923c'>↓ Faltan $"+Math.round(Math.abs(saldo))+"</span>";
+          if(saldo===0) row+="<span style='font-size:0.78rem;color:#16a34a;font-weight:800'>✓ Cuadra</span>";
+          else if(saldo>0) row+="<span style='font-size:0.78rem;color:#d97706;font-weight:700'>↑ Sobran $"+Math.round(saldo)+"</span>";
+          else row+="<span style='font-size:0.78rem;color:#ea580c;font-weight:800'>↓ Faltan $"+Math.round(Math.abs(saldo))+"</span>";
         } else if(total===0){
-          row+="<span style='font-size:0.6rem;color:#fb923c'>⚠ Sin pagar</span>";
+          row+="<span style='font-size:0.78rem;color:#ea580c;font-weight:800'>⚠ Sin pagar</span>";
         }
         row+="</div>";
       }
@@ -7796,7 +7852,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.188";
+  var APP_VERSION="10.0.189";
 
   var STORED_VERSION=localStorage.getItem("app_version");
 
