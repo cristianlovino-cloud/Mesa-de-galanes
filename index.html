@@ -113,6 +113,11 @@
     var y=targetAr.getUTCFullYear(),mo=targetAr.getUTCMonth(),day=targetAr.getUTCDate();
     return new Date(Date.UTC(y,mo,day,12,15,0));
   }
+  // Próximo sábado en formato AAAA-MM-DD — faltaba y se usaba en tres lugares
+  function nextSatStr(){
+    var d=nextSat();
+    return d.getUTCFullYear()+"-"+String(d.getUTCMonth()+1).padStart(2,"0")+"-"+String(d.getUTCDate()).padStart(2,"0");
+  }
   // Sábado de esta semana (o el pasado si hoy no es sábado) — para identificar reservas viejas
   function thisSatStr(){
     var now=new Date(),d=now.getDay();
@@ -3278,6 +3283,40 @@
   window.grabarFav=async function(){var mo=Object.values(orders).filter(function(o){return o.player===me;});if(!mo.length){showToast("Primero hace tu pedido!");return;}await set(rF(),mo.map(function(o){return{drink:o.drink,icon:o.icon,drinkIdx:o.drinkIdx,extra:o.extra};}));showToast("⭐ Favorito guardado!");};
   window.cargarFav=async function(){var s=await get(rF());if(!s.exists()){showToast("No hay favorito guardado");return;}var favs=s.val(),en=Object.entries(orders);for(var i=0;i<en.length;i++)if(en[i][1].player===me)await remove(ref(db,"pedido/orders/"+en[i][0]));for(var j=0;j<favs.length;j++){var f=favs[j];await push(rO,{player:me,drinkIdx:f.drinkIdx,drink:f.drink,icon:f.icon,extra:f.extra||null,ts:Date.now()});}showToast("⭐ Mi habitual cargado!");};
 
+  // Selección de bebidas en el modal de reserva (faltaban: los botones no hacían nada)
+  window.toggleReservaSeleccion=function(i,btn){
+    if(!window._reservaSeleccion)window._reservaSeleccion=[];
+    var sel=window._reservaSeleccion;
+    var pos=sel.indexOf(i);
+    if(pos>-1){sel.splice(pos,1);btn.classList.remove("odbtn-on");}
+    else{sel.push(i);btn.classList.add("odbtn-on");}
+    var lbl=document.getElementById("reserva-sel-label");
+    if(lbl){
+      lbl.textContent=sel.length
+        ? sel.map(function(k){return (drinks[k]&&drinks[k].name)||"?";}).join(" + ").toUpperCase()
+        : "¿QUÉ TOMÁS?";
+      lbl.style.color=sel.length?"var(--gold)":"var(--mut)";
+    }
+  };
+
+  window.guardarPedidoReserva=async function(){
+    var sel=window._reservaSeleccion||[];
+    if(!me){showToast("Primero decí quién sos");return;}
+    if(!sel.length){showToast("Elegí al menos una bebida");return;}
+    var pedidos=sel.map(function(i){
+      var d=drinks[i]||{};
+      return {drinkIdx:i,drink:d.name||"?",icon:d.icon||"☕",extra:null};
+    });
+    var cur=Object.assign({},reservas[me]||{},{
+      asistencia:true,ts:Date.now(),sat:nextSatStr(),pedidos:pedidos
+    });
+    await set(ref(db,"reserva/"+me),cur);
+    window._reservaSeleccion=[];
+    closeModal("mpedirreserva");
+    showToast("✓ Anotado para el "+satLabel()+" · "+pedidos.map(function(p){return p.icon+" "+p.drink;}).join(", "));
+    speak("Listo! Te anoté para el próximo sábado.");
+  };
+
   window.confirmarSinPedir=function(){
     closeModal("mpedirreserva");
     showToast("✓ Anotado para el "+satLabel()+"! Agregá tu pedido cuando quieras ☕");
@@ -4337,6 +4376,131 @@
     },"image/png");
   };
 
+  // ══ MESA SUGERIDA: arma el sábado desde lo que pasó los sábados anteriores ══
+  function sugerenciaMesa(){
+    var fechas=Object.keys(historico||{}).sort();
+    if(!fechas.length)return null;
+    var ultimas=fechas.slice(-8);                 // ventana de 8 sábados
+    var yaTienen={};
+    Object.values(orders).forEach(function(o){if(o.player)yaTienen[normName(o.player)]=1;});
+
+    var asistencia={};
+    ultimas.forEach(function(f){
+      var dia=historico[f];if(!dia||!dia.pedidos)return;
+      var vistos={};
+      Object.values(dia.pedidos).forEach(function(o){
+        if(!o||!o.player)return;
+        var k=normName(o.player);
+        if(vistos[k])return;vistos[k]=1;
+        asistencia[k]=(asistencia[k]||0)+1;
+      });
+    });
+
+    var out=[];
+    (galanes||[]).forEach(function(g){
+      var k=normName(g);
+      if(yaTienen[k])return;                      // ya tiene pedido hoy
+      var vino=asistencia[k]||0;
+      if(vino===0)return;                         // nunca vino en la ventana
+      var hab=habitualDe(g);
+      out.push({
+        nombre:g,
+        vino:vino,
+        de:ultimas.length,
+        pct:Math.round(vino/ultimas.length*100),
+        pedido:hab?hab.items[0]:null
+      });
+    });
+    out.sort(function(a,b){return b.vino-a.vino;});
+    return {ventana:ultimas.length,lista:out};
+  }
+
+  window.abrirMesaSugerida=async function(){
+    if(!puedeOperar())return;
+    var sg=sugerenciaMesa();
+    if(!sg||!sg.lista.length){
+      await avisar("Todavía no hay sábados archivados suficientes para sugerir una mesa, o ya están todos cargados.",
+        {titulo:"Sin sugerencias",icono:"✨"});
+      return;
+    }
+    var sel={};
+    // Vienen marcados los habitués: 50% o más de asistencia Y con pedido conocido
+    sg.lista.forEach(function(c,i){if(c.pct>=50&&c.pedido)sel[i]=c;});
+
+    var ov=document.createElement("div");
+    ov.className="modal-overlay mc";ov.style.zIndex="99999";
+    var filas=sg.lista.map(function(c,i){
+      var on=!!sel[i];
+      var ped=c.pedido?((c.pedido.icon||"☕")+" "+c.pedido.drink):"sin pedido habitual";
+      return "<div data-sug='"+i+"' style='display:flex;align-items:center;gap:9px;padding:9px 11px;margin-bottom:6px;cursor:pointer;"
+        +"background:"+(on?"rgba(245,197,24,0.08)":"var(--sur2)")+";border:1.5px solid "+(on?"var(--gold)":"var(--brd)")+";border-radius:11px'>"
+        +"<span class='sg-chk' style='width:19px;height:19px;border-radius:6px;flex-shrink:0;border:2px solid "+(on?"var(--gold)":"var(--brd)")+";background:"+(on?"var(--gold)":"transparent")+";color:#0a0805;display:flex;align-items:center;justify-content:center;font-size:0.65rem;font-weight:800'>"+(on?"✓":"")+"</span>"
+        +"<span style='width:28px;height:28px;border-radius:50%;background:"+col(c.nombre)+";color:#fff;display:flex;align-items:center;justify-content:center;font-size:0.58rem;font-weight:800;flex-shrink:0'>"+esc(ini(c.nombre))+"</span>"
+        +"<div style='flex:1;min-width:0'>"
+        +"<div style='font-size:0.74rem;font-weight:700;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap'>"+esc(c.nombre)+"</div>"
+        +"<div style='font-size:0.6rem;color:"+(c.pedido?"var(--mut)":"#fb923c")+";overflow:hidden;text-overflow:ellipsis;white-space:nowrap'>"+esc(ped)+"</div></div>"
+        +"<span style='font-size:0.58rem;color:var(--mut);flex-shrink:0'>"+c.vino+"/"+c.de+"</span>"
+        +"</div>";
+    }).join("");
+
+    ov.innerHTML="<div class='modal' style='max-width:360px;max-height:84vh;overflow-y:auto;box-sizing:border-box'>"
+      +"<div style='text-align:center;margin-bottom:13px'>"
+      +"<div style='font-size:2rem;line-height:1;margin-bottom:6px'>✨</div>"
+      +"<div style='font-family:\"Bebas Neue\",sans-serif;font-size:1.2rem;color:var(--ink);letter-spacing:0.04em'>ARMAR LA MESA</div>"
+      +"<div style='font-size:0.64rem;color:var(--mut);margin-top:4px;line-height:1.4'>Según los últimos "+sg.ventana+" sábados.<br>Destildá al que no venga.</div></div>"
+      +filas
+      +"<button id='sug-ok' style='width:100%;margin-top:10px;padding:14px;border-radius:13px;border:none;background:var(--gold);color:#0a0805;font-size:0.82rem;font-weight:800;letter-spacing:0.03em;cursor:pointer'></button>"
+      +"<button id='sug-cancel' style='width:100%;margin-top:8px;padding:12px;border-radius:12px;border:1.5px solid var(--brd);background:var(--sur2);color:var(--mut);font-size:0.76rem;font-weight:700;cursor:pointer'>Cancelar</button>"
+      +"</div>";
+    document.body.appendChild(ov);
+    requestAnimationFrame(function(){ov.classList.add("open");});
+    function cerrar(){if(ov&&ov.parentNode)ov.parentNode.removeChild(ov);}
+    ov.onclick=function(e){if(e.target===ov)cerrar();};
+    ov.querySelector("#sug-cancel").onclick=cerrar;
+
+    var btn=ov.querySelector("#sug-ok");
+    function refrescar(){
+      var n=Object.keys(sel).length;
+      btn.textContent=n?("☕ CARGAR "+n+" PEDIDO"+(n>1?"S":"")):"Elegí al menos uno";
+      btn.disabled=!n;
+      btn.style.background=n?"var(--gold)":"var(--brd)";
+      btn.style.color=n?"#0a0805":"var(--mut)";
+      btn.style.cursor=n?"pointer":"default";
+    }
+    refrescar();
+
+    ov.addEventListener("click",function(e){
+      var row=e.target&&e.target.closest?e.target.closest("[data-sug]"):null;
+      if(!row)return;
+      var i=parseInt(row.getAttribute("data-sug")),c=sg.lista[i];
+      if(!c||!c.pedido){showToast("No sé qué pide "+c.nombre.split(" ")[0]+" · cargalo a mano");return;}
+      var chk=row.querySelector(".sg-chk");
+      if(sel[i]){delete sel[i];row.style.background="var(--sur2)";row.style.borderColor="var(--brd)";chk.style.background="transparent";chk.style.borderColor="var(--brd)";chk.textContent="";}
+      else{sel[i]=c;row.style.background="rgba(245,197,24,0.08)";row.style.borderColor="var(--gold)";chk.style.background="var(--gold)";chk.style.borderColor="var(--gold)";chk.textContent="✓";}
+      refrescar();
+    });
+
+    var _cargando=false;
+    btn.onclick=async function(){
+      var elegidos=Object.keys(sel).map(function(k){return sel[k];});
+      if(!elegidos.length||_cargando)return;
+      _cargando=true;btn.textContent="Cargando…";
+      try{
+        for(var i=0;i<elegidos.length;i++){
+          var c=elegidos[i],pd=c.pedido;
+          await push(rO,{player:c.nombre,drinkIdx:pd.drinkIdx,drink:pd.drink,icon:pd.icon||"☕",
+                         extra:pd.extra||null,loadedBy:"sugerido",ts:Date.now()+i});
+        }
+        cerrar();
+        showToast("✨ "+elegidos.length+" pedidos cargados · revisá antes de pasar la comanda");
+        speak("Mesa armada con "+elegidos.length+" pedidos.");
+      }catch(err){
+        console.error("mesaSugerida",err);_cargando=false;refrescar();
+        avisar(String((err&&(err.message||err.code))||err),{titulo:"No se pudieron cargar",icono:"⚠️"});
+      }
+    };
+  };
+
   window.registrarRetiro=async function(){
     if(!isAdmin())return;
     var v=await pedirTexto("¿Cuánto se retiró del fondo?","",{titulo:"Registrar retiro",icono:"↓",placeholder:"Ej: 45000",numero:true});
@@ -4576,7 +4740,10 @@
       }).join("")
       :"<div style='text-align:center;color:var(--mut);font-size:0.72rem;padding:16px'>Nadie pidió todavía ☕</div>";
     bp.innerHTML="<div style='padding:0 14px 12px'><div style='padding:14px' class='surf'>"
-      +"<div style='font-size:0.62rem;font-weight:700;color:var(--grn);letter-spacing:0.08em;margin-bottom:10px;font-family:\"JetBrains Mono\",monospace'>☕ TOP BEBIDAS HOY</div>"
+      +"<div style='display:flex;align-items:center;justify-content:space-between;margin-bottom:10px'>"
+      +"<span style='font-size:0.62rem;font-weight:700;color:var(--grn);letter-spacing:0.08em;font-family:\"JetBrains Mono\",monospace'>☕ TOP BEBIDAS HOY</span>"
+      +(puedeOperar()&&sortedB.length?"<button onclick='clearAll()' style='background:none;border:none;color:var(--mut);font-size:0.58rem;cursor:pointer;text-decoration:underline'>limpiar</button>":"")
+      +"</div>"
       +bebidasHtml+"</div></div>";
     // Este sábado
     var byP={};Object.values(orders).forEach(function(o){byP[o.player]=1;});
@@ -4631,7 +4798,7 @@
     for(var i=0;i<en.length;i++){var k=en[i][0],o=en[i][1];if(!by[o.player])by[o.player]=[];by[o.player].push({key:k,drink:o.drink,icon:o.icon});}
     var galanesCnt=Object.keys(by).length;
     var players=Object.keys(by).sort(),rows=[];
-    if(!players.length){document.getElementById("sum-panel").innerHTML="";var tp0=document.getElementById("totals-panel");tp0.innerHTML="<div class='es'>Nadie pidio nada todavia 👀</div>";tp0.style.display="block";var wb2=document.getElementById("ws-btn");if(wb2)wb2.style.display="none";renderMesaStats();return;}
+    if(!players.length){var cp0=document.getElementById("comanda-panel");if(cp0)cp0.style.display="none";var wb2=document.getElementById("ws-btn");if(wb2)wb2.style.display="none";renderMesaStats();return;}
     for(var p=0;p<players.length;p++){
       var pl=players[p],items=by[pl],mine=pl===me,canDel=mine||isAdmin();
       var pg=pagos[pl]||{},cash=pg.cash||0,transfer=pg.transfer||0,conf=confirmed[pl];
@@ -4666,12 +4833,11 @@
       }
       row+="</div></div>";rows.push(row);
     }
-    document.getElementById("sum-panel").innerHTML=rows.join("");
+    var spn=document.getElementById("sum-panel");if(spn)spn.innerHTML=rows.join("");
     var tots={};Object.values(orders).forEach(function(o){if(!tots[o.drink])tots[o.drink]={icon:o.icon,count:0};tots[o.drink].count++;});
-    var tk=Object.keys(tots),tp=document.getElementById("totals-panel");
+    var tk=Object.keys(tots);
     var cp=document.getElementById("comanda-panel");
-    if(tk.length){var th="";tk.forEach(function(d){th+="<div class='tr'><span>"+tots[d].icon+" "+d+"</span><span class='tq'>x"+tots[d].count+"</span></div>";});tp.innerHTML=th;tp.style.display="block";if(cp)cp.style.display="block";}
-    else{tp.style.display="none";if(cp)cp.style.display="none";}
+    if(cp)cp.style.display=tk.length?"block":"none";
     renderMesaStats();
     var wb=document.getElementById("ws-btn");if(wb)wb.style.display=puedeOperar()&&total>0?"inline-flex":"none";
     var pb=document.getElementById("propina-ws-btn");
@@ -6456,6 +6622,7 @@ button:not(.tab):not(.swipe-handle){transition:transform .1s ease,background-col
 @keyframes dotPulse{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.18);opacity:0.85}}
 .cst-badge{display:inline-flex;align-items:center;justify-content:center;min-width:16px;height:16px;padding:0 4px;border-radius:100px;background:#ef4444;color:#fff;font-size:0.56rem;font-weight:800;margin-left:4px;}
 .cst.cst-alerta{border-color:var(--gold)!important;background:rgba(245,197,24,0.12)!important;color:var(--gold)!important;}
+.odbtn-on{border-color:var(--gold)!important;background:rgba(245,197,24,0.14)!important;color:var(--gold)!important;font-weight:800;}
 .sintg{font-size:0.5rem;font-weight:800;letter-spacing:0.07em;padding:2px 7px;border-radius:100px;
   background:rgba(251,146,60,0.14);color:#fb923c;border:1px solid rgba(251,146,60,0.35);white-space:nowrap;}
 .att-sinenviar{border-left:3px solid rgba(251,146,60,0.5)!important;}
@@ -6471,7 +6638,6 @@ button:not(.tab):not(.swipe-handle){transition:transform .1s ease,background-col
 .ao .cdel,.ao .cedit{opacity:0.6;}.ao .cdel{font-size:0.9rem;color:var(--mut);}
 
 /* TOTALS */
-#totals-panel{margin:10px 12px 0;background:var(--card);border:1px solid var(--brd);backdrop-filter:blur(var(--blur));border-radius:20px;padding:14px 16px;display:none;box-shadow:var(--sh-card);}
 .tt{font-family:var(--font-display);font-size:0.9rem;letter-spacing:0.12em;color:var(--gold);margin-bottom:10px;opacity:0.85;font-style:normal;}
 .tr{display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--brd);font-size:0.88rem;color:var(--ink);font-weight:500;letter-spacing:0.03em;}.tr:last-child{border-bottom:none;}
 .tq{font-family:var(--font-display);font-size:0.88rem;font-weight:700;color:var(--gold);}
@@ -6968,10 +7134,6 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
         <div id="stats-tardones-panel"><div style="font-size:0.65rem;color:var(--mut);text-align:center;padding:8px">Nadie pidió todavía ☕</div></div>
       </div>
     </div>
-    <div class="slabel">Total por bebida <button class="clr" onclick="clearAll()">limpiar</button></div>
-    <div id="resumen-pagos-hint" style="display:none;font-size:0.6rem;color:var(--mut);padding:4px 14px 0;text-align:right">💡 Ver detalle por persona en Admin → Pedidos</div>
-    <div class="sp" id="sum-panel" style="display:none"></div>
-    <div id="totals-panel"></div>
     <div id="comanda-panel" style="display:none;padding:0 0 8px">
       <button onclick="abrirPantallaMovil()" style="width:100%;background:linear-gradient(135deg,var(--gold),#e5a93c);color:#0a0805;border:none;border-radius:14px;padding:13px;font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:0.08em;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 4px 12px rgba(245,197,24,0.3)">
         📋 PANTALLA MOZO
@@ -7018,6 +7180,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
           <button class="admin-action-btn" onclick="openTimerModal()">⏱ Timer</button>
           <button class="admin-action-btn" id="ws-btn" onclick="enviarWS()" style="display:none;background:rgba(34,197,94,0.15);color:#4ade80;border-color:rgba(34,197,94,0.3)">💬 WS</button>
           <button class="admin-action-btn" id="propina-ws-btn" onclick="sortearPropina()" style="display:none;background:rgba(168,85,247,0.15);color:#c084fc;border-color:rgba(168,85,247,0.3)">🎲 Propina</button>
+          <button class="admin-action-btn" id="sugerir-btn" onclick="abrirMesaSugerida()" style="background:rgba(245,197,24,0.15);color:var(--gold);border-color:rgba(245,197,24,0.35)">✨ Armar mesa</button>
           <button class="admin-action-btn" id="import-res-btn" onclick="importarReservas()" style="display:none;background:rgba(34,197,94,0.15);color:#4ade80;border-color:rgba(34,197,94,0.3)">📋 Importar</button>
           <button class="admin-action-btn" onclick="toggleAdminMas()" id="btn-admin-mas" style="background:var(--sur2);color:var(--mut);border-color:var(--brd)">⋯ Más</button>
         </div>
@@ -7452,7 +7615,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.185";
+  var APP_VERSION="10.0.187";
 
   var STORED_VERSION=localStorage.getItem("app_version");
 
