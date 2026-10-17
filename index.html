@@ -5246,44 +5246,37 @@
       misPed.forEach(function(o){deuda+=precioPedido(o);});
       var saldo=deuda>0?total-deuda:null;
 
-      var row="<div class='lista-row lista-pagado' style='cursor:default'>";
-      row+="<div class='lista-av' style='background:"+col(pl)+";width:42px;height:42px;font-size:1rem;flex-shrink:0'>"+ini(pl)+"</div>";
-      row+="<div class='lista-info' style='flex:1'>";
-      row+="<div class='lista-name' style='font-size:0.8rem'>"+pl+"</div>";
-      row+="<div style='display:flex;gap:8px;align-items:baseline;margin-top:4px;flex-wrap:wrap'>";
-      row+="<span style='font-family:\"Bebas Neue\",sans-serif;font-size:1.4rem;color:var(--grn);letter-spacing:0.04em'>$"+Math.round(total)+"</span>";
-      if(cash>0&&tr>0){
-        row+="<span style='font-size:0.74rem;color:var(--mut);font-weight:600'>💵$"+Math.round(cash)+" + 📲$"+Math.round(tr)+"</span>";
-      } else if(cash>0){
-        row+="<span style='font-size:0.74rem;color:var(--mut);font-weight:600'>💵 efectivo</span>";
-      } else if(tr>0){
-        row+="<span style='font-size:0.74rem;color:var(--mut);font-weight:600'>📲 transfer</span>";
-      }
-      row+="</div>";
+      // Estado en una sola etiqueta
+      var estado="";
       if(deuda>0){
-        row+="<div style='display:flex;gap:8px;align-items:center;margin-top:3px;flex-wrap:wrap'>";
-        row+="<span style='font-size:0.78rem;color:var(--mut);font-weight:600'>Debe: <b style='color:var(--gold);font-size:0.86rem'>$"+Math.round(deuda)+"</b></span>";
-        if(saldo!==null){
-          if(saldo===0) row+="<span style='font-size:0.78rem;color:#16a34a;font-weight:800'>✓ Cuadra</span>";
-          else if(saldo>0) row+="<span style='font-size:0.78rem;color:#d97706;font-weight:700'>↑ Sobran $"+Math.round(saldo)+"</span>";
-          else row+="<span style='font-size:0.78rem;color:#ea580c;font-weight:800'>↓ Faltan $"+Math.round(Math.abs(saldo))+"</span>";
-        } else if(total===0){
-          row+="<span style='font-size:0.78rem;color:#ea580c;font-weight:800'>⚠ Sin pagar</span>";
-        }
-        row+="</div>";
+        if(saldo===null&&total===0)estado="<span style='font-size:0.72rem;color:#ea580c;font-weight:800'>⚠ Sin pagar</span>";
+        else if(saldo===0)estado="<span style='font-size:0.72rem;color:#16a34a;font-weight:800'>✓ Cuadra</span>";
+        else if(saldo>0)estado="<span style='font-size:0.72rem;color:#d97706;font-weight:700'>↑ Sobran $"+Math.round(saldo)+"</span>";
+        else estado="<span style='font-size:0.72rem;color:#ea580c;font-weight:800'>↓ Faltan $"+Math.round(Math.abs(saldo))+"</span>";
       }
+      var medio=(cash>0&&tr>0)?"💵+📲":(cash>0?"💵":(tr>0?"📲":""));
+
+      var row="<div class='lista-row lista-pagado' style='cursor:default;align-items:center'>";
+      row+="<div class='lista-av' style='background:"+col(pl)+";width:38px;height:38px;font-size:0.9rem;flex-shrink:0'>"+ini(pl)+"</div>";
+      // Izquierda: nombre y lo que debe
+      row+="<div class='lista-info' style='flex:1;min-width:0'>";
+      row+="<div class='lista-name' style='font-size:0.78rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis'>"+pl+"</div>";
+      row+="<div style='font-size:0.72rem;color:var(--mut);margin-top:2px'>"+(deuda>0?("Debe <b style='color:var(--gold);font-size:0.8rem'>$"+Math.round(deuda)+"</b>"):"<span style='opacity:0.6'>sin pedido</span>")+"</div>";
+      row+="</div>";
+      // Derecha: pagado, estado y botones
+      row+="<div style='display:flex;flex-direction:column;align-items:flex-end;gap:3px;flex-shrink:0'>";
+      row+="<div style='display:flex;align-items:baseline;gap:5px'>"
+        +(medio?"<span style='font-size:0.68rem;opacity:0.7'>"+medio+"</span>":"")
+        +"<span style='font-family:\"Bebas Neue\",sans-serif;font-size:1.35rem;color:"+(total>0?"var(--grn)":"var(--mut)")+";letter-spacing:0.03em;line-height:1'>$"+Math.round(total)+"</span></div>";
+      if(estado)row+=estado;
       if(isAdmin()){
-        row+="</div>"; // cierra lista-info
-        row+="<div style='display:flex;flex-direction:column;gap:4px;align-items:flex-end;flex-shrink:0'>";
-        row+="<div style='display:flex;gap:4px'>";
+        row+="<div style='display:flex;gap:4px;margin-top:3px'>";
         row+="<button class='paybtn paybtn-cash"+(cash>0?" paybtn-on":"")+"' onclick='openPago(\""+pl+"\",\"cash\")'>💵 "+(cash>0?"$"+Math.round(cash):"EFVO")+"</button>";
         row+="<button class='paybtn paybtn-tr"+(tr>0?" paybtn-on":"")+"' onclick='openPago(\""+pl+"\",\"transfer\")'>📲 "+(tr>0?"$"+Math.round(tr):"TRANSF")+"</button>";
+        if(total>0)row+="<button class='icon-btn' style='font-size:0.6rem;padding:3px 7px;color:var(--red)' onclick='resetPago(\""+pl+"\")'>✕</button>";
         row+="</div>";
-        if(total>0)row+="<button class='icon-btn' style='font-size:0.55rem;padding:3px 8px;color:var(--red)' onclick='resetPago(\""+pl+"\")'>✕ reset</button>";
-        row+="</div>";
-      } else {
-        row+="</div>"; // cierra lista-info (no admin)
       }
+      row+="</div>";
       row+="</div>";rows.push(row);
     });
     rows.push("</div>");panel.innerHTML=rows.join("");
@@ -6664,10 +6657,14 @@ header::after{
   @keyframes pulseBanner{from{box-shadow:0 0 8px rgba(245,197,24,0.15);}to{box-shadow:0 0 24px rgba(245,197,24,0.4);}}
 
 /* TIMER */
-.tbar{display:none;background:rgba(13,11,7,0.95);border-bottom:1px solid rgba(245,158,11,0.15);padding:10px 16px;align-items:center;gap:10px;position:relative;}
-.tbar.turgent{background:rgba(234,88,12,0.1);animation:up 1s infinite;}.tbar.tclosed{background:rgba(16,185,129,0.08);}
-@keyframes up{0%,100%{opacity:1}50%{opacity:0.8}}
-#t-text{font-size:0.65rem;font-weight:600;color:rgba(253,248,240,0.6);flex:1;letter-spacing:0.05em;}
+.tbar{display:none;background:var(--sur2);border-bottom:1px solid var(--brd);padding:11px 16px;align-items:center;gap:10px;position:relative;}
+.tbar.turgent{background:#ea580c;animation:up 1s infinite;}
+.tbar.tclosed{background:#16a34a;}
+.tbar.turgent #t-text,.tbar.tclosed #t-text{color:#fff;font-weight:800;}
+.tbar.turgent #t-count,.tbar.tclosed #t-count{color:#fff;}
+.tbar.turgent .tcx,.tbar.tclosed .tcx{color:rgba(255,255,255,0.7);}
+@keyframes up{0%,100%{opacity:1}50%{opacity:0.85}}
+#t-text{font-size:0.74rem;font-weight:700;color:var(--ink);flex:1;letter-spacing:0.04em;}
 #t-count{font-family:var(--font-display);font-size:1.5rem;font-weight:700;color:var(--g2);min-width:60px;text-align:right;}
 .tpw{position:absolute;bottom:0;left:0;right:0;height:2px;background:rgba(255,255,255,0.05);}
 #t-prog{height:100%;background:linear-gradient(90deg,var(--acc),var(--acc2));transition:width 1s linear;}
@@ -7852,7 +7849,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.189";
+  var APP_VERSION="10.0.190";
 
   var STORED_VERSION=localStorage.getItem("app_version");
 
