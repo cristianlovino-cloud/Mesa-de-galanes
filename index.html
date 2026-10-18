@@ -3393,13 +3393,48 @@
   };
 
   // ── WS ────────────────────────────────────────────────────
-  window.enviarWS=function(){
-    var now=new Date(),fecha=now.toLocaleDateString("es-AR",{weekday:"long",day:"numeric",month:"long"}),hora=now.toLocaleTimeString("es-AR",{hour:"2-digit",minute:"2-digit"});
-    var g={};Object.values(orders).sort(function(a,b){return a.ts-b.ts;}).forEach(function(o){if(!g[o.drink])g[o.drink]={icon:o.icon,players:[]};g[o.drink].players.push(o.player);});
+  // ══ COMANDA: una sola forma de agrupar los pedidos en toda la app ══════
+  function consolidarPedidos(){
+    var map={};
+    Object.values(orders).forEach(function(o){
+      if(!o)return;
+      var drink=o.drink||"?";
+      var extra=(o.extra&&o.extra!=="Sin acompanamiento")?o.extra:"";
+      // si el acompañamiento ya está dentro del nombre, no lo repetimos
+      if(extra&&drink.toLowerCase().indexOf(extra.toLowerCase())>-1)extra="";
+      var label=drink+(extra?" + "+extra:"");
+      var k=label.toLowerCase().replace(/\s+/g," ").trim();
+      if(!map[k])map[k]={icon:o.icon||"☕",label:label,drink:drink,extra:extra,count:0,players:[]};
+      map[k].count++;
+      if(o.player&&map[k].players.indexOf(o.player)===-1)map[k].players.push(o.player);
+    });
+    return Object.values(map).sort(function(a,b){return b.count-a.count;});
+  }
+
+  function textoComanda(){
+    var now=new Date();
+    var fecha=now.toLocaleDateString("es-AR",{weekday:"long",day:"numeric",month:"long"});
+    var hora=now.toLocaleTimeString("es-AR",{hour:"2-digit",minute:"2-digit"});
+    var items=consolidarPedidos();
     var msg="☕ *Mesa de Galanes — "+fecha+" · "+hora+"*\n━━━━━━━━━━━━━━━━━━━━\n";
-    Object.keys(g).forEach(function(d){var x=g[d];msg+=x.icon+" "+d+" x"+x.players.length+" ("+x.players.join(", ")+")\n";});
-    msg+="━━━━━━━━━━━━━━━━━━━━\n_"+Object.keys(orders).length+" pedidos en total_";
-    speak("Pedido enviado al bar.");window.open("https://wa.me/?text="+encodeURIComponent(msg),"_blank");
+    items.forEach(function(v){
+      msg+=v.icon+" *"+v.count+"x* "+v.label+"\n   _"+v.players.join(", ")+"_\n";
+    });
+    var totalMesa=0;Object.values(orders).forEach(function(o){totalMesa+=precioPedido(o);});
+    msg+="━━━━━━━━━━━━━━━━━━━━\n_"+Object.values(orders).length+" pedidos";
+    if(totalMesa>0)msg+=" · total estimado $"+Math.round(totalMesa).toLocaleString("es-AR");
+    msg+="_";
+    return msg;
+  }
+
+  window.compartirComanda=function(){
+    if(!Object.keys(orders).length){showToast("No hay pedidos para compartir");return;}
+    window.open("https://wa.me/?text="+encodeURIComponent(textoComanda()),"_blank");
+  };
+
+  window.enviarWS=function(){
+    speak("Pedido enviado al bar.");
+    window.open("https://wa.me/?text="+encodeURIComponent(textoComanda()),"_blank");
   };
 
   // ── RENDERS ───────────────────────────────────────────────
@@ -5506,14 +5541,7 @@
 
   window.abrirPantallaMovil=function(){
     // Construir comanda agrupada
-    var tots={};
-    Object.values(orders).forEach(function(o){
-      var k=(o.extra&&o.extra!=="Sin acompanamiento")?o.drink+" + "+o.extra:o.drink;
-      var ki=(o.extra&&o.extra!=="Sin acompanamiento")?o.icon+"☕":o.icon;
-      if(!tots[k]){tots[k]={icon:ki,count:0,drink:o.drink,extra:o.extra};}
-      tots[k].count++;
-    });
-    var items=Object.entries(tots).sort(function(a,b){return b[1].count-a[1].count;});
+    var items=consolidarPedidos();
     if(!items.length){showToast("No hay pedidos todavía");return;}
     var totalPedidos=Object.values(orders).length;
     var html="<div id='pantalla-mozo' style='"
@@ -5522,25 +5550,23 @@
       +"padding:24px;overflow:auto'>"
       +"<div style='font-family:\"Bebas Neue\",sans-serif;font-size:1.2rem;letter-spacing:0.2em;color:#f5c518;margin-bottom:4px;text-align:center'>☕ MESA DE GALANES</div>"
       +"<div style='font-size:0.7rem;color:rgba(255,255,255,0.4);letter-spacing:0.1em;margin-bottom:32px;text-align:center'>"+totalPedidos+" PEDIDOS</div>";
-    items.forEach(function(e){
-      var nombre=e[0],data=e[1];
-      // Si el drink ya incluye el extra en su nombre (ej "Cafe con Leche + Tostadas"),
-      // no mostrar la línea de extra por separado para evitar duplicado
-      var extraYaEnNombre=data.extra&&data.extra!=="Sin acompanamiento"
-        &&data.drink.toUpperCase().indexOf(data.extra.toUpperCase())>-1;
+    items.forEach(function(data){
       html+="<div style='width:100%;max-width:380px;display:flex;align-items:center;gap:16px;padding:14px 0;border-bottom:1px solid rgba(255,255,255,0.08)'>";
       html+="<div style='font-family:\"Bebas Neue\",sans-serif;font-size:3.5rem;color:#f5c518;line-height:1;width:56px;text-align:right;flex-shrink:0'>"+data.count+"</div>";
       html+="<div style='flex:1'>";
-      html+="<div style='font-family:\"Bebas Neue\",sans-serif;font-size:1.5rem;color:#fff;letter-spacing:0.04em;line-height:1.1'>"+esc(data.drink.toUpperCase())+"</div>";
-      if(data.extra&&data.extra!=="Sin acompanamiento"&&!extraYaEnNombre)
-        html+="<div style='font-size:0.75rem;color:rgba(255,255,255,0.55);margin-top:3px;letter-spacing:0.06em'>+ "+esc(data.extra.toUpperCase())+"</div>";
+      html+="<div style='font-family:\"Bebas Neue\",sans-serif;font-size:1.5rem;color:#fff;letter-spacing:0.04em;line-height:1.1'>"+esc(data.label.toUpperCase())+"</div>";
       html+="</div></div>";
     });
-    html+="<button onclick='cerrarPantallaMovil()' style='"
-      +"margin-top:36px;background:#f5c518;color:#0a0805;border:none;border-radius:100px;"
-      +"padding:16px 48px;font-family:\"Bebas Neue\",sans-serif;font-size:1.3rem;letter-spacing:0.1em;"
+    html+="<div style='display:flex;gap:10px;margin-top:36px;flex-wrap:wrap;justify-content:center'>"
+      +"<button onclick='compartirComanda()' style='"
+      +"background:#25D366;color:#fff;border:none;border-radius:100px;"
+      +"padding:16px 30px;font-family:\"Bebas Neue\",sans-serif;font-size:1.2rem;letter-spacing:0.08em;"
+      +"cursor:pointer;box-shadow:0 8px 24px rgba(37,211,102,0.35)'>💬 MANDAR POR WS</button>"
+      +"<button onclick='cerrarPantallaMovil()' style='"
+      +"background:#f5c518;color:#0a0805;border:none;border-radius:100px;"
+      +"padding:16px 38px;font-family:\"Bebas Neue\",sans-serif;font-size:1.2rem;letter-spacing:0.08em;"
       +"cursor:pointer;box-shadow:0 8px 24px rgba(245,197,24,0.4)'>✓ TOMADO</button>"
-      +"</div>";
+      +"</div></div>";
     document.body.insertAdjacentHTML("beforeend",html);
     // Intentar pantalla completa
     if(document.documentElement.requestFullscreen)document.documentElement.requestFullscreen().catch(function(){});
@@ -6423,18 +6449,9 @@
     var totalMesa=0;
     Object.values(orders).forEach(function(o){totalMesa+=precioPedido(o);});
 
-    // Bebidas consolidadas
-    var bebMap={};
-    Object.values(orders).forEach(function(o){
-      var drink=o.drink||"?",extra=o.extra||"";
-      var ec=extra&&!drink.toLowerCase().includes(extra.toLowerCase())?extra:"";
-      var key=drink+"||"+ec;
-      if(!bebMap[key])bebMap[key]={icon:o.icon||"☕",drink:drink,extra:ec,count:0,players:[]};
-      bebMap[key].count++;
-      if(o.player)bebMap[key].players.push(o.player);
-    });
-    var bebs=Object.entries(bebMap).sort(function(a,b){return b[1].count-a[1].count;});
-    var maxB=bebs.length?Math.max.apply(null,bebs.map(function(b){return b[1].count;})):1;
+    // Bebidas consolidadas (misma lógica que la pantalla mozo y el WhatsApp)
+    var bebs=consolidarPedidos();
+    var maxB=bebs.length?bebs[0].count:1;
 
     var h="";
     // Stats
@@ -6456,10 +6473,9 @@
     // Bebidas consolidadas
     if(bebs.length){
       h+="<div style='font-size:0.52rem;color:var(--mut);letter-spacing:0.1em;margin-bottom:8px'>☕ PEDIDOS CONSOLIDADOS</div>";
-      bebs.forEach(function(entry){
-        var v=entry[1];
+      bebs.forEach(function(v){
         var pct=Math.round((v.count/maxB)*100);
-        var label=v.drink+(v.extra?" + "+v.extra:"");
+        var label=v.label;
         h+="<div style='background:var(--card);border:1px solid var(--brd);border-radius:12px;padding:12px 14px;margin-bottom:8px;display:flex;gap:12px;align-items:center'>";
         h+="<div style='font-size:1.6rem'>"+v.icon+"</div>";
         h+="<div style='flex:1;min-width:0'>";
@@ -7849,7 +7865,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.190";
+  var APP_VERSION="10.0.191";
 
   var STORED_VERSION=localStorage.getItem("app_version");
 
@@ -8001,7 +8017,8 @@ window.modificarPedido=function(){
     <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 16px 0;flex-shrink:0">
       <div style="font-family:var(--font-hd);font-size:1.4rem;color:var(--ink)">📺 <span style="color:#f5c518">LIVE</span></div>
       <div style="display:flex;gap:8px;align-items:center">
-        <button onclick="window.open('https://cristianlovino-cloud.github.io/Mesa-de-galanes/live.html','_blank')" style="background:rgba(239,68,68,0.15);color:#f87171;border:1.5px solid rgba(239,68,68,0.3);border-radius:10px;padding:7px 14px;font-family:var(--font-hd);font-size:0.85rem;cursor:pointer;letter-spacing:0.05em">📺 VER EN TV</button>
+        <button onclick="compartirComanda()" style="background:rgba(37,211,102,0.15);color:#16a34a;border:1.5px solid rgba(37,211,102,0.35);border-radius:10px;padding:7px 13px;font-family:var(--font-hd);font-size:0.85rem;cursor:pointer;letter-spacing:0.05em">💬 WS</button>
+        <button onclick="window.open('https://cristianlovino-cloud.github.io/Mesa-de-galanes/live.html','_blank')" style="background:rgba(239,68,68,0.15);color:#f87171;border:1.5px solid rgba(239,68,68,0.3);border-radius:10px;padding:7px 13px;font-family:var(--font-hd);font-size:0.85rem;cursor:pointer;letter-spacing:0.05em">📺 TV</button>
         <button onclick="closeModal('mlive')" style="background:none;border:none;color:var(--mut);font-size:1.3rem;cursor:pointer;padding:4px">✕</button>
       </div>
     </div>
