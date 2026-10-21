@@ -461,10 +461,36 @@
   // Actualizar timestamp en cada interacción
   document.addEventListener("click",function(){localStorage.setItem("last_activity",Date.now().toString());},{passive:true});
   document.addEventListener("touchstart",function(){localStorage.setItem("last_activity",Date.now().toString());},{passive:true});
-  // También al volver de background (visibilitychange)
-  document.addEventListener("visibilitychange",function(){
-    if(!document.hidden&&me&&!isAdmin())localStorage.setItem("last_activity",Date.now().toString());
-  });
+  // ── La app queda congelada en segundo plano: al volver hay que re-evaluar la fecha ──
+  function diaARStr(){
+    var d=new Date(Date.now()-3*3600000);
+    return d.getUTCFullYear()+"-"+(d.getUTCMonth()+1)+"-"+d.getUTCDate();
+  }
+  var _diaCargado=diaARStr();
+
+  function refrescarPorFecha(){
+    if(document.hidden)return;
+    if(me&&!isAdmin())localStorage.setItem("last_activity",Date.now().toString());
+    if(diaARStr()!==_diaCargado){
+      // Cambió el día: todo lo que depende de la fecha quedó viejo. Recargamos.
+      _diaCargado=diaARStr();
+      location.reload();
+      return;
+    }
+    // Mismo día: refrescar lo que depende de la hora
+    try{
+      if(typeof renderCumpleBanner==="function")renderCumpleBanner();
+      if(typeof renderAsadoBanner==="function"&&window._asadoConfig!==undefined)renderAsadoBanner();
+      if(typeof renderEstadoMesa==="function")renderEstadoMesa();
+      if(typeof autoAbrirMesa==="function")autoAbrirMesa();
+      if(typeof updateClock==="function")updateClock();
+    }catch(e){console.error("refrescarPorFecha",e);}
+  }
+  document.addEventListener("visibilitychange",refrescarPorFecha);
+  window.addEventListener("focus",refrescarPorFecha);
+  window.addEventListener("pageshow",function(e){if(e.persisted)refrescarPorFecha();});
+  // Chequeo periódico por si queda abierta cruzando la medianoche
+  setInterval(refrescarPorFecha,120000);
 
   // ── NOMBRE ────────────────────────────────────────────────
   window.setName=function(name){
@@ -695,7 +721,7 @@
       return;
     }
     if(banner){
-      var pills="<div style='display:flex;gap:8px;flex-wrap:wrap;margin:12px 12px 0;'>";
+      var pills="<div style='display:flex;gap:10px;flex-wrap:wrap;margin:16px 14px 4px;'>";
       // Pill 1: estado pedido
       if(confirmado()&&misPed.length>0){
         var tsOrder=misPed[0].ts?new Date(misPed[0].ts):null;
@@ -3625,7 +3651,7 @@
     // Calcular lo que debe según precio base + combo
     var deuda=0;
     misPed.forEach(function(o){deuda+=precioPedido(o);});
-    var html="<div class='surf' style='margin:14px 12px 0;padding:16px 18px'>";
+    var html="<div class='surf' style='margin:16px 14px 6px;padding:18px 20px'>";
     html+="<div style='font-size:0.65rem;color:var(--mut);letter-spacing:0.1em;margin-bottom:12px;font-family:\"JetBrains Mono\",monospace'>TU CUENTA</div>";
     html+="<div style='display:flex;align-items:stretch;gap:12px'>";
     // Pedido
@@ -5011,7 +5037,7 @@
           +"<b style='color:var(--grn);font-size:0.85rem;font-family:\"JetBrains Mono\",monospace'>"+e[1].count+"x</b></div>";
       }).join("")
       :"<div style='text-align:center;color:var(--mut);font-size:0.72rem;padding:16px'>Nadie pidió todavía ☕</div>";
-    bp.innerHTML="<div style='padding:0 14px 12px'><div style='padding:14px' class='surf'>"
+    bp.innerHTML="<div style='padding:0 14px 16px'><div style='padding:17px' class='surf'>"
       +"<div style='display:flex;align-items:center;justify-content:space-between;margin-bottom:10px'>"
       +"<span style='font-size:0.62rem;font-weight:700;color:var(--grn);letter-spacing:0.08em;font-family:\"JetBrains Mono\",monospace'>☕ TOP BEBIDAS HOY</span>"
       +(puedeOperar()&&sortedB.length?"<button onclick='clearAll()' style='background:none;border:none;color:var(--mut);font-size:0.58rem;cursor:pointer;text-decoration:underline'>limpiar</button>":"")
@@ -6743,11 +6769,11 @@ header::after{
 
 /* MAIN */
 .main{padding:0 0 100px;width:100%;}
-.slabel{font-family:var(--font-display);font-size:0.9rem;letter-spacing:0.12em;color:var(--g2);padding:11px 16px 7px;opacity:1;display:flex;align-items:center;gap:10px;font-style:normal;}
+.slabel{font-family:var(--font-display);font-size:0.9rem;letter-spacing:0.12em;color:var(--g2);padding:20px 16px 10px;opacity:1;display:flex;align-items:center;gap:10px;font-style:normal;}
 .slabel::after{content:"";flex:1;height:1px;background:linear-gradient(to right,rgba(126,231,135,0.4),transparent);}
 
 /* DRINKS — lista compacta premium */
-.dg{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:0 12px;padding:2px 0 12px;}
+.dg{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:0 14px;padding:6px 0 18px;}
 .dg.dg-edit{gap:8px;}
 /* SISTEMA DE SUPERFICIES — modelo "GOOD": todo superficie clara.
    .surf = superficie clara estándar (TODO el contenido)
@@ -6765,6 +6791,7 @@ button:not(.tab):not(.swipe-handle){transition:transform .1s ease,background-col
 
 .surf{
   background:var(--card);border:1px solid var(--brd);border-radius:20px;
+  margin-bottom:4px;
   backdrop-filter:blur(var(--blur));-webkit-backdrop-filter:blur(var(--blur));
   box-shadow:var(--sh-card);
 }
@@ -6821,7 +6848,7 @@ button:not(.tab):not(.swipe-handle){transition:transform .1s ease,background-col
 .rc{color:var(--mut);}
 
 /* RESUMEN */
-.sp{margin:0 12px;background:var(--sur);border:1px solid var(--brd);border-radius:14px;overflow:hidden;}
+.sp{margin:0 14px 14px;background:var(--sur);border:1px solid var(--brd);border-radius:14px;overflow:hidden;}
 .or{padding:14px 16px;border-bottom:1px solid var(--brd);}.or:last-child{border-bottom:none;}
 .ort{display:flex;align-items:center;gap:6px;margin-bottom:8px;}
 .pasm{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:var(--font-display);font-size:0.9rem;font-weight:700;color:white;flex-shrink:0;}
@@ -6924,7 +6951,7 @@ button:not(.tab):not(.swipe-handle){transition:transform .1s ease,background-col
 .lstat-warn{background:rgba(245,158,11,0.1);color:var(--g2);}
 .lstat-total{background:var(--brd);color:var(--mut);}
 .lista-grid{display:flex;flex-direction:column;gap:8px;}
-.lista-row{display:flex;align-items:flex-start;gap:10px;background:var(--card);border:1px solid var(--brd);border-radius:14px;padding:10px 12px;transition:border-color 0.15s,background 0.15s;}
+.lista-row{display:flex;align-items:flex-start;gap:11px;background:var(--card);border:1px solid var(--brd);border-radius:14px;padding:13px 14px;transition:border-color 0.15s,background 0.15s;}
 .lista-row:hover{background:rgba(255,255,255,0.07);border-color:var(--mut);}
 .lista-pidio{background:rgba(16,185,129,0.06);border-color:rgba(16,185,129,0.22);}
 .lista-pidio:hover{background:rgba(16,185,129,0.09);border-color:rgba(16,185,129,0.32);}
@@ -7058,7 +7085,7 @@ button:not(.tab):not(.swipe-handle){transition:transform .1s ease,background-col
 #multi-confirm{margin-top:10px;}
 .multi-info{font-size:0.65rem;color:var(--mut);line-height:1.4;margin-bottom:2px;letter-spacing:0.04em;text-transform:uppercase;}.multi-info b{color:var(--ink);}
 .dpt{font-size:0.64rem;color:var(--mut);margin-bottom:8px;font-weight:500;letter-spacing:0.04em;text-transform:uppercase;}
-.odg{display:grid;grid-template-columns:1fr 1fr;gap:6px;}
+.odg{display:grid;grid-template-columns:1fr 1fr;gap:9px;}
 .odbtn{background:var(--sur2);border:1px solid var(--brd);border-radius:10px;padding:10px 8px;font-family:var(--font-body);font-size:0.65rem;font-weight:500;color:var(--ink);cursor:pointer;transition:all 0.15s;text-align:center;letter-spacing:0.04em;text-transform:uppercase;}
 .odbtn:hover{border-color:var(--acc);color:var(--g2);}
 
@@ -7190,7 +7217,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 .asist-btn.asist-load:hover{background:rgba(245,158,11,0.3);border-color:var(--g2);}
 
 /* Estado visual en lista */
-.lista-row{gap:10px;padding:10px 12px;margin-bottom:2px;}
+.lista-row{gap:11px;padding:13px 14px;margin-bottom:7px;}
 .lista-row.lista-pidio{border-left:3px solid rgba(22,197,94,0.4);}
 .lista-row.lista-pendiente{border-left:3px solid var(--brd);}
 .lista-row.lista-pagado{border-left:3px solid rgba(245,158,11,0.5);background:rgba(245,158,11,0.04);}
@@ -7865,7 +7892,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.191";
+  var APP_VERSION="10.0.192";
 
   var STORED_VERSION=localStorage.getItem("app_version");
 
