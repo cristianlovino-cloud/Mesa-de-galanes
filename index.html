@@ -238,20 +238,25 @@
   loadVoice();
   window.speak=function(t){if(!voiceOn||!synth)return;synth.cancel();var u=new SpeechSynthesisUtterance(t);u.lang="es-AR";u.rate=1.05;if(esVoice)u.voice=esVoice;synth.speak(u);};
   window.toggleVoice=function(){voiceOn=!voiceOn;localStorage.setItem("voice",voiceOn?"1":"0");var b=document.getElementById("vbtn");if(b)b.textContent=voiceOn?"🔊":"🔇";if(voiceOn)speak("Audio activado.");};
+  var TEMAS=["dark","light","club"];
+  var TEMA_ICONO={dark:"🌙",light:"☀️",club:"🏆"};
+  var TEMA_NOMBRE={dark:"Oscuro",light:"Claro",club:"Club 7:45"};
   window.toggleTheme=function(){
     var cur=document.documentElement.getAttribute("data-theme")||"dark";
-    var next=cur==="dark"?"light":"dark";
+    var i=TEMAS.indexOf(cur);
+    var next=TEMAS[(i<0?0:i+1)%TEMAS.length];
     document.documentElement.setAttribute("data-theme",next);
     localStorage.setItem("theme",next);
     var btn=document.getElementById("theme-toggle-btn");
-    if(btn)btn.textContent=next==="dark"?"🌙":"☀️";
+    if(btn)btn.textContent=TEMA_ICONO[next]||"☀️";
+    if(typeof showToast==="function")showToast(TEMA_ICONO[next]+" Tema "+TEMA_NOMBRE[next]);
   };
   // Sincronizar ícono del botón con el tema ya aplicado al cargar
   (function(){
     var t=document.documentElement.getAttribute("data-theme")||"dark";
     document.addEventListener("DOMContentLoaded",function(){
       var btn=document.getElementById("theme-toggle-btn");
-      if(btn)btn.textContent=t==="dark"?"🌙":"☀️";
+      if(btn)btn.textContent=(t==="dark"?"🌙":t==="club"?"🏆":"☀️");
     });
   })();
 
@@ -6576,7 +6581,7 @@
   });
 </script>
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&family=Orbitron:wght@500;700;900&family=Rajdhani:wght@500;600;700&display=swap');
 /* TEMA — dorado/carbón con glassmorphism */
 :root,[data-theme="dark"]{
   --bg:#0a0d14;--sur:rgba(20,24,35,0.65);--sur2:rgba(28,33,46,0.75);--hbg:rgba(13,17,26,0.85);
@@ -6619,6 +6624,46 @@
   --blur:0px;
   color-scheme:light;
 }
+/* ══ TEMA CLUB — blanco puro, escudo grande, tipografía digital ══ */
+[data-theme="club"]{
+  --bg:#ffffff;--sur:#ffffff;--sur2:#f4f7fb;--hbg:#ffffff;
+  --club-cel:#1d7fc4;--club-ama:#e3b31d;
+  --gold:#1d7fc4;--g2:#0f6aa8;--gl:#4aa3dd;--gd:#0b4f7e;
+  --ink:#0d1b2a;--mut:#6a7b8c;--brd:rgba(13,27,42,0.10);--b2:rgba(13,27,42,0.18);
+  --grn:#0f9d58;--red:#d93025;--sh:rgba(13,27,42,0.07);
+  --acc:#1d7fc4;--acc2:#0f6aa8;--acc-ama:#e3b31d;
+  --card:#ffffff;
+  --font-hd:'Orbitron',sans-serif;
+  --font-display:'Orbitron',sans-serif;
+  --font-body:'Rajdhani',sans-serif;
+  --grass-line:rgba(0,0,0,0);
+  --watermark-op:0.05;
+  --sh-card:0 1px 3px rgba(13,27,42,0.07),0 6px 18px rgba(13,27,42,0.05);
+  --sh-card-hover:0 10px 26px rgba(13,27,42,0.12);
+  --sh-raised:0 4px 14px rgba(13,27,42,0.09);
+  --blur:0px;
+  color-scheme:light;
+}
+[data-theme="club"] body{box-shadow:none;}
+/* Las tarjetas se separan del blanco con borde, no con fondo */
+[data-theme="club"] .surf,[data-theme="club"] .lista-row,[data-theme="club"] .dc,[data-theme="club"] .modal{
+  border:1.5px solid rgba(13,27,42,0.09);
+}
+/* Bebas queda reemplazado por Orbitron en todo el tema */
+[data-theme="club"] [style*="Bebas"]{font-family:'Orbitron',sans-serif!important;letter-spacing:0.02em!important;}
+/* Rajdhani rinde chico: subimos un poco el cuerpo */
+[data-theme="club"]{font-size:16.5px;}
+[data-theme="club"] .lista-name,[data-theme="club"] .slabel{letter-spacing:0.06em;}
+/* El escudo del header, más presente */
+[data-theme="club"] header::before{
+  color:var(--club-cel);opacity:0.07;font-family:'Orbitron',sans-serif;font-size:6rem;letter-spacing:-2px;
+}
+[data-theme="club"] header{border-bottom:2px solid var(--club-ama);}
+[data-theme="club"] header img{width:54px!important;height:54px!important;opacity:1!important;filter:none!important;}
+[data-theme="club"] .htit{font-family:'Orbitron',sans-serif;font-size:1.5rem;font-weight:900;letter-spacing:-0.01em;}
+[data-theme="club"] .htit span{color:var(--club-cel);}
+[data-theme="club"] .tabs{background:#ffffff;border-top:1.5px solid rgba(13,27,42,0.08);}
+
 [data-theme="light"] body{box-shadow:none;}
 [data-theme="light"] .dc,[data-theme="light"] .modal,[data-theme="light"] .card,[data-theme="light"] [class*="card"]{
   box-shadow:0 1px 3px rgba(28,24,16,0.06);
@@ -7892,7 +7937,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.192";
+  var APP_VERSION="10.0.193";
 
   var STORED_VERSION=localStorage.getItem("app_version");
 
