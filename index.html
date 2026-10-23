@@ -393,6 +393,12 @@
         if(typeof renderSabados==="function")renderSabados();
       }catch(e){console.error("rH",e);}
     });
+    onValue(rPropina,function(s){
+      try{
+        window._propinaHistorial=s.exists()?(s.val().historial||[]):[];
+        if(typeof renderTitulos==="function")renderTitulos();
+      }catch(e){console.error("rPropina",e);}
+    });
     onValue(rMovs,function(s){
       try{movs=s.exists()?s.val():{};renderFondo();}catch(e){console.error("rMovs",e);}
     });
@@ -1422,7 +1428,13 @@
     var now=new Date(),fecha=now.toISOString().slice(0,10),hora=now.toLocaleTimeString("es-AR",{hour:"2-digit",minute:"2-digit"});
     var sumC=0,sumT=0;Object.values(pagos).forEach(function(pg){sumC+=(pg.cash||0);sumT+=(pg.transfer||0);});
     var precios={};drinks.forEach(function(d){if(d.precio)precios[d.id||d.name]=d.precio;});
-    await set(ref(db,"historial/"+fecha),{fecha:fecha,hora:hora,pedidos:orders,pagos:pagos,totalBar:totalBar,recaudado:sumC+sumT,precios:precios});
+    // Guardar también quién puso la propina, para que quede en el archivo del día
+    var propinaNombre=null;
+    try{
+      var pSnapC=await get(ref(db,"pedido/propina"));
+      if(pSnapC.exists()&&pSnapC.val().nombre)propinaNombre=pSnapC.val().nombre;
+    }catch(e){}
+    await set(ref(db,"historial/"+fecha),{fecha:fecha,hora:hora,pedidos:orders,pagos:pagos,totalBar:totalBar,recaudado:sumC+sumT,precios:precios,propina:propinaNombre});
     // Actualizar total real en historial de propinas antes de limpiar
     var propFinalSnap=await get(ref(db,"pedido/propina"));
     if(propFinalSnap.exists()&&propFinalSnap.val().nombre){
@@ -4759,8 +4771,22 @@
    }catch(e){console.error("renderSabados",e);}
   };
 
+  // Quién puso la propina ese sábado: lo guardado, o cruzando el historial por fecha
+  function propinaDelDia(f,d){
+    if(d&&d.propina)return d.propina;
+    var hist=window._propinaHistorial||[];
+    for(var i=0;i<hist.length;i++){
+      var h=hist[i];if(!h||!h.ts)continue;
+      var dt=new Date(h.ts-3*3600000);
+      var k=dt.getUTCFullYear()+"-"+String(dt.getUTCMonth()+1).padStart(2,"0")+"-"+String(dt.getUTCDate()).padStart(2,"0");
+      if(k===f)return h.nombre;
+    }
+    return null;
+  }
+
   window.verSabado=function(f){
     var d=historico[f];if(!d)return;
+    var ganadorProp=propinaDelDia(f,d);
     var p=String(f).split("-");
     var fd=new Date(Date.UTC(+p[0],+p[1]-1,+p[2]));
     var DIASL=["Domingo","Lunes","Martes","Miércoles","Jueves","Viernes","Sábado"];
@@ -4774,10 +4800,14 @@
     var nombres=Object.keys(porGalan).sort(),pagosDia=d.pagos||{};
     var filas=nombres.map(function(n){
       var pg=pagosDia[n]||{},tot=(pg.cash||0)+(pg.transfer||0);
-      return "<div style='display:flex;align-items:center;gap:9px;padding:7px 0;border-bottom:1px solid var(--brd)'>"
+      var esProp=ganadorProp&&normName(ganadorProp)===normName(n);
+      return "<div style='display:flex;align-items:center;gap:9px;padding:7px 0;border-bottom:1px solid var(--brd)"
+        +(esProp?";background:rgba(168,85,247,0.07);border-radius:9px;padding-left:6px;padding-right:6px":"")+"'>"
         +"<span style='width:26px;height:26px;border-radius:50%;background:"+col(n)+";color:#fff;display:flex;align-items:center;justify-content:center;font-size:0.56rem;font-weight:800;flex-shrink:0'>"+esc(ini(n))+"</span>"
         +"<div style='flex:1;min-width:0'>"
-        +"<div style='font-size:0.72rem;font-weight:700;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap'>"+esc(n)+"</div>"
+        +"<div style='font-size:0.72rem;font-weight:700;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap'>"+esc(n)
+        +(esProp?" <span style='background:rgba(168,85,247,0.16);color:#9333ea;padding:1px 6px;border-radius:6px;font-size:0.5rem;font-weight:800;letter-spacing:0.05em;vertical-align:middle'>🎲 PROPINA</span>":"")
+        +"</div>"
         +"<div style='font-size:0.58rem;color:var(--mut);overflow:hidden;text-overflow:ellipsis;white-space:nowrap'>"+esc(porGalan[n].join(" · "))+"</div></div>"
         +(tot?"<span style='font-family:\"Bebas Neue\",sans-serif;font-size:0.85rem;color:var(--grn);flex-shrink:0'>"+fmt$(tot)+"</span>":"<span style='font-size:0.55rem;color:#fb923c;flex-shrink:0'>sin pago</span>")
         +"</div>";
@@ -4788,7 +4818,9 @@
       +"<div style='text-align:center;margin-bottom:14px'>"
       +"<div style='font-size:1.8rem;line-height:1;margin-bottom:6px'>☕</div>"
       +"<div style='font-family:\"Bebas Neue\",sans-serif;font-size:1.15rem;color:var(--ink);letter-spacing:0.04em'>"+lbl.toUpperCase()+"</div>"
-      +"<div style='font-size:0.62rem;color:var(--mut);margin-top:3px'>"+nombres.length+" galanes · cerrada "+esc(d.hora||"")+"</div></div>"
+      +"<div style='font-size:0.62rem;color:var(--mut);margin-top:3px'>"+nombres.length+" galanes · cerrada "+esc(d.hora||"")+"</div>"
+      +(ganadorProp?"<div style='margin-top:8px;display:inline-block;background:rgba(168,85,247,0.1);border:1px solid rgba(168,85,247,0.3);border-radius:100px;padding:5px 13px;font-size:0.64rem;color:#9333ea;font-weight:700'>🎲 La propina la puso "+esc(ganadorProp)+"</div>":"")
+      +"</div>"
       +"<div style='display:flex;gap:8px;margin-bottom:13px'>"
       +"<div style='flex:1;background:var(--sur2);border-radius:11px;padding:10px;text-align:center'>"
       +"<div style='font-size:0.52rem;color:var(--mut);letter-spacing:0.07em'>CUENTA DEL BAR</div>"
@@ -7937,7 +7969,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.193";
+  var APP_VERSION="10.0.194";
 
   var STORED_VERSION=localStorage.getItem("app_version");
 
