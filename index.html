@@ -746,7 +746,10 @@
           +"<div style='font-size:0.88rem;font-weight:700;color:var(--ink);margin-top:3px;white-space:normal;word-break:break-word;line-height:1.3'>"+misPed[0].drink+"</div>"
           +(horaStr?"<div style='font-size:0.58rem;color:var(--mut);margin-top:2px;font-family:\"JetBrains Mono\",monospace'>"+fechaStr+" · "+horaStr+"</div>":"")
           +"</div>"
-          +"<button onclick='window.modificarPedido&&window.modificarPedido()' style='flex-shrink:0;background:var(--sur2);border:1.5px solid var(--brd);border-radius:10px;padding:9px 14px;color:var(--ink);font-size:0.7rem;font-weight:700;cursor:pointer;letter-spacing:0.04em'>✏️ Cambiar</button>"
+          +"</div>"
+          +"<div style='display:flex;gap:7px;margin-top:11px'>"
+          +"<button onclick='agregarAcomp()' style='flex:1;background:var(--sur2);border:1.5px solid var(--brd);border-radius:10px;padding:10px;color:var(--ink);font-size:0.72rem;font-weight:800;cursor:pointer'>🥐 Agregar algo</button>"
+          +"<button onclick='window.modificarPedido&&window.modificarPedido()' style='flex:1;background:var(--sur2);border:1.5px solid var(--brd);border-radius:10px;padding:10px;color:var(--ink);font-size:0.72rem;font-weight:700;cursor:pointer'>✏️ Cambiar</button>"
           +"</div>"
           +"</div>";
       } else if(misPed.length>0){
@@ -768,6 +771,7 @@
                  :"Todavía no lo enviaste. Deslizá abajo para mandarlo.")+"</div>"
           +"<div style='display:flex;gap:7px'>"
           +"<button onclick='document.querySelector(\".cbtn\")&&document.querySelector(\".cbtn\").click()' style='flex:1;padding:10px;border-radius:11px;border:none;background:#ea580c;color:#fff;font-size:0.72rem;font-weight:800;cursor:pointer'>✓ Está bien</button>"
+          +"<button onclick='agregarAcomp()' style='flex:1;padding:10px;border-radius:11px;border:1.5px solid var(--brd);background:var(--sur2);color:var(--ink);font-size:0.72rem;font-weight:800;cursor:pointer'>🥐 Agregar</button>"
           +"<button onclick='window.modificarPedido&&window.modificarPedido()' style='flex:1;padding:10px;border-radius:11px;border:1.5px solid var(--brd);background:var(--sur2);color:var(--ink);font-size:0.72rem;font-weight:700;cursor:pointer'>✏️ Cambiar</button>"
           +"</div></div>";
       }
@@ -1492,7 +1496,21 @@
     return best;
   }
   // Precio total de un pedido = base de la bebida + acompañamiento
+  // Precio global de un acompañamiento (el mismo en todas las bebidas)
+  function precioAcomp(nombre){
+    var k=ckey(nombre),p=0;
+    (drinks||[]).forEach(function(d){
+      if(!d||!d.comboPrices)return;
+      if(!p&&d.comboPrices[k]>0)p=d.comboPrices[k];
+    });
+    return p;
+  }
   function precioDetalle(o){
+    // Ítem suelto: solo acompañamiento, sin bebida
+    if(o&&o.soloExtra){
+      var pa=precioAcomp(o.drink);
+      return {ok:true,d:null,base:pa,add:0,total:pa,nombre:o.drink,extra:null,faltaBase:!pa,faltaAdd:false};
+    }
     var d=bebidaDe(o);
     if(!d)return {ok:false,d:null,base:0,add:0,total:0,nombre:(o&&o.drink)||"?",extra:null,faltaBase:true,faltaAdd:false};
     var base=d.precio||0,add=0,tieneExtra=!!(o.extra&&o.extra!=="Sin acompanamiento");
@@ -3294,6 +3312,87 @@
       ov.querySelector("#dup-no").onclick=function(){cerrar("cancelar");};
     });
   }
+
+  // ══ AGREGAR ALGO A UN PEDIDO YA HECHO ════════════════════════════════
+  window.agregarAcomp=async function(player){
+    var pl=player||me;
+    if(!pl)return;
+    if(!puedeOperar()&&pl!==me)return;
+    var mios=Object.entries(orders).filter(function(e){return e[1].player===pl;});
+    if(!mios.length){showToast("Ese galán no tiene pedido todavía");return;}
+
+    // Lista única de acompañamientos de todas las bebidas
+    var vistos={},lista=[];
+    (drinks||[]).forEach(function(d){
+      if(!d||!d.name)return;
+      extrasFor(d).forEach(function(ex){
+        var k=comboKeyOf(ex);
+        if(vistos[k])return;vistos[k]=1;
+        lista.push({nombre:ex,precio:precioAcomp(ex)});
+      });
+    });
+    if(!lista.length){await avisar("No hay acompañamientos configurados.",{titulo:"Nada para agregar",icono:"🥐"});return;}
+
+    // El primer pedido sin acompañamiento se puede completar en vez de duplicar
+    var sinExtra=mios.find(function(e){
+      var o=e[1];
+      return !o.soloExtra&&(!o.extra||o.extra==="Sin acompanamiento");
+    });
+
+    var ov=document.createElement("div");
+    ov.className="modal-overlay mc";ov.style.zIndex="99999";
+    ov.innerHTML="<div class='modal' style='max-width:340px;max-height:82vh;overflow-y:auto;box-sizing:border-box'>"
+      +"<div style='text-align:center;margin-bottom:13px'>"
+      +"<div style='font-size:2rem;line-height:1;margin-bottom:6px'>🥐</div>"
+      +"<div style='font-family:\"Bebas Neue\",sans-serif;font-size:1.2rem;color:var(--ink);letter-spacing:0.04em'>AGREGAR ALGO</div>"
+      +"<div style='font-size:0.65rem;color:var(--mut);margin-top:4px'>"
+      +(sinExtra?("Se suma a "+esc(sinExtra[1].drink)):("Se agrega como ítem aparte"))+"</div></div>"
+      +lista.map(function(x,i){
+        return "<button data-ac='"+i+"' style='width:100%;display:flex;align-items:center;gap:10px;background:var(--sur2);"
+          +"border:1.5px solid var(--brd);border-radius:12px;padding:12px 14px;margin-bottom:7px;cursor:pointer;text-align:left'>"
+          +"<span style='font-size:1.2rem;flex-shrink:0'>🥐</span>"
+          +"<span style='flex:1;min-width:0;font-size:0.8rem;font-weight:700;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap'>"+esc(x.nombre)+"</span>"
+          +"<span style='font-family:\"Bebas Neue\",sans-serif;font-size:1rem;color:"+(x.precio?"var(--gold)":"var(--mut)")+";flex-shrink:0'>"+(x.precio?fmt$(x.precio):"—")+"</span>"
+          +"</button>";
+      }).join("")
+      +"<button id='ac-cancel' style='width:100%;margin-top:6px;padding:12px;border-radius:12px;border:1.5px solid var(--brd);background:var(--sur2);color:var(--mut);font-size:0.76rem;font-weight:700;cursor:pointer'>Cancelar</button>"
+      +"</div>";
+    document.body.appendChild(ov);
+    requestAnimationFrame(function(){ov.classList.add("open");});
+    function cerrar(){if(ov.parentNode)ov.parentNode.removeChild(ov);}
+    ov.onclick=function(e){if(e.target===ov)cerrar();};
+    ov.querySelector("#ac-cancel").onclick=cerrar;
+
+    var _ocupado=false;
+    ov.addEventListener("click",async function(e){
+      var b=e.target&&e.target.closest?e.target.closest("[data-ac]"):null;
+      if(!b||_ocupado)return;
+      _ocupado=true;
+      var x=lista[parseInt(b.getAttribute("data-ac"))];
+      if(!x){_ocupado=false;return;}
+      try{
+        if(sinExtra){
+          // Completar el pedido existente: queda "Bebida + Acompañamiento"
+          var key=sinExtra[0],o=sinExtra[1];
+          await set(ref(db,"pedido/orders/"+key),Object.assign({},o,{
+            extra:x.nombre,
+            drink:(o.drink||"")+" + "+x.nombre,
+            editadoTs:Date.now()
+          }));
+        } else {
+          // Ítem aparte, con el precio del acompañamiento solo
+          await push(rO,{player:pl,drink:x.nombre,icon:"🥐",extra:null,soloExtra:true,
+                         loadedBy:(pl!==me?"admin":null),ts:Date.now()});
+        }
+        cerrar();
+        showToast("🥐 "+x.nombre+" agregado"+(pl!==me?" a "+pl:""));
+        if(pl!==me)await enviarNotif(pl,"🥐 Te agregaron "+x.nombre+" al pedido","info");
+      }catch(err){
+        console.error("agregarAcomp",err);_ocupado=false;
+        avisar(String((err&&(err.message||err.code))||err),{titulo:"No se pudo agregar",icono:"⚠️"});
+      }
+    });
+  };
 
   window.confirmOrderDirect=async function(d){
     if(!d)return;
@@ -5179,6 +5278,7 @@
     if(pb)pb.style.display=isAdmin()&&total>0?"inline-flex":"none";
   }
 
+  function puedeOperator2(items){return puedeOperar()&&items&&items.length;}
   function renderMesa(){
     var ab=document.getElementById("mesa-admin-bar");if(ab)ab.style.display=isAdmin()?"flex":"none";
     renderPendientes();
@@ -5253,6 +5353,7 @@
         }
         row2+="</div>";
       }
+      if(puedeOperator2(items2))row2+="<button class='ped-btn' style='margin-top:6px;background:rgba(245,197,24,0.12);color:var(--gold);border:1.5px solid rgba(245,197,24,0.35)' onclick='agregarAcomp(\""+esc(pl2)+"\")'>🥐 Agregar algo</button>";
       if(pago2)row2+="<span class='ait pg-info'>"+(cash2>0?"💵 $"+Math.round(cash2)+" ":"")+(tr2>0?"📲 $"+Math.round(tr2):"")+"</span>";
       row2+="</div></div></div>";rows2.push(row2);
     }
@@ -7969,7 +8070,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.194";
+  var APP_VERSION="10.0.195";
 
   var STORED_VERSION=localStorage.getItem("app_version");
 
