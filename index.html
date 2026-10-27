@@ -7610,6 +7610,14 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
   </div>
   <!-- ADMIN v9 -->
   <div id="v-admin" style="display:none">
+    <div id="pwa-install-card" onclick="installPWA()" style="display:none;align-items:center;gap:12px;margin:12px 14px 4px;padding:14px 16px;background:rgba(74,222,128,0.1);border:1.5px solid rgba(74,222,128,0.35);border-radius:14px;cursor:pointer">
+      <span style="font-size:1.6rem;flex-shrink:0">📲</span>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:0.78rem;font-weight:800;color:var(--grn)">Instalar la app en el teléfono</div>
+        <div style="font-size:0.64rem;color:var(--mut);margin-top:2px">Pantalla completa, ícono propio y abre más rápido</div>
+      </div>
+      <span style="color:var(--grn);font-size:0.9rem;font-weight:800;flex-shrink:0">→</span>
+    </div>
     <!-- Banner de nuevos usuarios no registrados -->
     <div id="nuevos-alert" style="display:none;background:rgba(239,68,68,0.08);border-bottom:1px solid rgba(239,68,68,0.2);margin-bottom:0"></div>
     <div id="mozo-aviso" style="display:none;background:rgba(74,222,128,0.08);border-bottom:1px solid rgba(74,222,128,0.2);padding:10px 14px;font-size:0.68rem;color:var(--grn);text-align:center">🏖️ <b>Modo vacaciones</b> · Podés cargar pedidos, marcar pagos y sortear la propina</div>
@@ -8070,34 +8078,80 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.195";
+  var APP_VERSION="10.0.196";
 
   var STORED_VERSION=localStorage.getItem("app_version");
 
-  // ── PWA Install prompt ──────────────────────────────────────────────────
+  // ── PWA Install ─────────────────────────────────────────────────────────
   var _installPrompt=null;
+
+  function appInstalada(){
+    try{
+      if(window.matchMedia&&window.matchMedia("(display-mode: standalone)").matches)return true;
+      if(window.navigator.standalone)return true;  // iOS
+    }catch(e){}
+    return false;
+  }
+
+  function refrescarBotonInstalar(){
+    var mostrar=!appInstalada();
+    ["pwa-install-btn","pwa-install-card"].forEach(function(id){
+      var el=document.getElementById(id);
+      if(el)el.style.display=mostrar?"flex":"none";
+    });
+  }
+
   window.addEventListener("beforeinstallprompt",function(e){
     e.preventDefault();
     _installPrompt=e;
-    var btn=document.getElementById("pwa-install-btn");
-    if(btn)btn.style.display="flex";
+    refrescarBotonInstalar();
   });
-  window.installPWA=function(){
-    if(!_installPrompt)return;
-    _installPrompt.prompt();
-    _installPrompt.userChoice.then(function(r){
-      if(r.outcome==="accepted"){
-        var btn=document.getElementById("pwa-install-btn");
-        if(btn)btn.style.display="none";
-      }
-      _installPrompt=null;
-    });
-  };
   window.addEventListener("appinstalled",function(){
-    var btn=document.getElementById("pwa-install-btn");
-    if(btn)btn.style.display="none";
     _installPrompt=null;
+    showToast("✓ App instalada!");
+    refrescarBotonInstalar();
   });
+  document.addEventListener("DOMContentLoaded",refrescarBotonInstalar);
+
+  window.installPWA=function(){
+    if(_installPrompt){
+      _installPrompt.prompt();
+      _installPrompt.userChoice.then(function(r){
+        if(r.outcome==="accepted")showToast("✓ Instalando…");
+        _installPrompt=null;
+        refrescarBotonInstalar();
+      });
+      return;
+    }
+    // Chrome no ofrece instalar: o ya la tiene registrada, o es iOS
+    var esIOS=/iphone|ipad|ipod/i.test(navigator.userAgent);
+    var ov=document.createElement("div");
+    ov.className="modal-overlay mc";ov.style.zIndex="99999";
+    var pasos=esIOS
+      ? "<li>Tocá el botón <b>Compartir</b> ⬆️ abajo en Safari</li>"
+        +"<li>Bajá y elegí <b>Agregar a pantalla de inicio</b></li>"
+        +"<li>Confirmá con <b>Agregar</b></li>"
+      : "<li>Abrí el menú <b>⋮</b> de Chrome, arriba a la derecha</li>"
+        +"<li>Elegí <b>Instalar app</b> o <b>Agregar a pantalla principal</b></li>"
+        +"<li>Si dice <b>\"Ya se instaló esta app\"</b> pero no abre, seguí los pasos de abajo</li>";
+    ov.innerHTML="<div class='modal' style='max-width:350px;max-height:85vh;overflow-y:auto;box-sizing:border-box'>"
+      +"<div style='text-align:center;margin-bottom:14px'>"
+      +"<div style='font-size:2.2rem;line-height:1;margin-bottom:8px'>📲</div>"
+      +"<div style='font-family:\"Bebas Neue\",sans-serif;font-size:1.2rem;color:var(--ink);letter-spacing:0.04em'>INSTALAR LA APP</div></div>"
+      +"<ol style='font-size:0.76rem;color:var(--ink);line-height:1.75;margin:0 0 4px 18px;padding:0'>"+pasos+"</ol>"
+      +(esIOS?"":"<div style='margin-top:14px;padding:13px;background:var(--sur2);border:1.5px solid var(--brd);border-radius:12px'>"
+        +"<div style='font-size:0.64rem;font-weight:800;color:#ea580c;letter-spacing:0.06em;margin-bottom:7px'>⚠️ SI DICE QUE YA ESTÁ INSTALADA</div>"
+        +"<div style='font-size:0.72rem;color:var(--mut);line-height:1.6'>Chrome guardó una instalación vieja que quedó rota. Para limpiarla:<br><br>"
+        +"<b style='color:var(--ink)'>1.</b> Buscá el ícono 7:45 en el cajón de apps, mantenelo apretado y elegí <b style='color:var(--ink)'>Desinstalar</b>.<br>"
+        +"<b style='color:var(--ink)'>2.</b> Si no está, andá a Ajustes → Apps y buscá <b style='color:var(--ink)'>Mesa 7:45</b>.<br>"
+        +"<b style='color:var(--ink)'>3.</b> En Chrome: ⋮ → Configuración → Configuración de sitios → Datos almacenados → buscá <b style='color:var(--ink)'>github.io</b> y borralos.<br>"
+        +"<b style='color:var(--ink)'>4.</b> Cerrá Chrome del todo, volvé a entrar y ya te deja instalar.</div></div>")
+      +"<button onclick=\"this.closest('.modal-overlay').remove()\" style='width:100%;margin-top:14px;padding:13px;border-radius:12px;border:none;background:var(--gold);color:#0a0805;font-size:0.8rem;font-weight:800;cursor:pointer'>Entendido</button>"
+      +"</div>";
+    ov.onclick=function(e){if(e.target===ov)ov.remove();};
+    document.body.appendChild(ov);
+    requestAnimationFrame(function(){ov.classList.add("open");});
+  };
 
   // Fallback de seguridad: garantiza que la píldora de asado se evalúe aunque
   // algún otro call-site no haya corrido todavía (carrera con el DOM/Firebase)
@@ -8308,7 +8362,7 @@ window.addEventListener("load",function(){
     <div onclick="toggleBadgeMenu();publicarVersion&&publicarVersion()" style="padding:14px 18px;font-size:0.8rem;cursor:pointer;border-bottom:1px solid var(--brd);color:#74aed6">📡 Publicar versión</div>
     <div onclick="toggleBadgeMenu();kickAllUsers()" style="padding:14px 18px;font-size:0.8rem;cursor:pointer;border-bottom:1px solid var(--brd);color:#fb923c">🚪 Cerrar sesiones</div>
   </div>
-  <div id="pwa-install-btn" onclick="toggleBadgeMenu();installPWA()" style="display:none;padding:14px 18px;font-size:0.8rem;cursor:pointer;border-bottom:1px solid var(--brd);color:#4ade80;align-items:center;gap:8px">📲 Instalar app</div>
+  <div id="pwa-install-btn" onclick="toggleBadgeMenu();installPWA()" style="display:flex;padding:14px 18px;font-size:0.8rem;cursor:pointer;border-bottom:1px solid var(--brd);color:#4ade80;align-items:center;gap:8px">📲 Instalar app</div>
   <div onclick="toggleBadgeMenu();logout()" style="padding:14px 18px;font-size:0.8rem;cursor:pointer;color:#f87171">🚪 Salir</div>
 </div>
 </body>
