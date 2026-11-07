@@ -1596,16 +1596,104 @@
     await set(ref(db,"config/propina/ronda"),null);
     showToast("↺ Ronda reseteada — el próximo sorteo arranca fresh");
   };
+  function fechaCortaTs(ts){
+    if(!ts)return "sin fecha";
+    var d=new Date(ts);
+    return d.getDate()+"/"+(d.getMonth()+1)+"/"+d.getFullYear();
+  }
+
+  // Borra UNA entrada, la más reciente de esa persona. Nunca todas.
   window.borrarHistorialPropina=async function(nombre){
     if(!isAdmin())return;
-    if(!await confirmar("Se borran todas sus entradas del historial de propinas.",{titulo:"Borrar a "+nombre+"?",icono:"🎲",okTxt:"Borrar",peligro:true}))return;
     var pSnap=await get(rPropina);
     if(!pSnap.exists())return;
-    var pd=pSnap.val();
-    var hh=(pd.historial||[]).filter(function(h){return h.nombre.toUpperCase()!==nombre.toUpperCase();});
-    await set(rPropina,Object.assign({},pd,{historial:hh}));
-    showToast("✓ "+nombre+" removido del historial");
-    renderStats(); // refrescar
+    var pd=pSnap.val(),hist=(pd.historial||[]).slice();
+    var idxs=[];
+    hist.forEach(function(h,i){if(h&&(h.nombre||"").toUpperCase()===nombre.toUpperCase())idxs.push(i);});
+    if(!idxs.length)return;
+    var ultimo=idxs[idxs.length-1];
+    var ok=await confirmar(
+      nombre+" tiene "+idxs.length+" propina"+(idxs.length>1?"s":"")+" registrada"+(idxs.length>1?"s":"")+".\n\n"
+      +"Se borra SOLO la del "+fechaCortaTs(hist[ultimo].ts)+(idxs.length>1?", las otras quedan.":"."),
+      {titulo:"Borrar una propina",icono:"🎲",okTxt:"Borrar esa",peligro:true});
+    if(!ok)return;
+    window._propinaUndo={hist:hist.slice(),ts:Date.now()};   // por si se arrepiente
+    hist.splice(ultimo,1);
+    await set(rPropina,Object.assign({},pd,{historial:hist}));
+    showToast("✓ Borrada la del "+fechaCortaTs((window._propinaUndo.hist[ultimo]||{}).ts)+" · tocá DESHACER arriba");
+    renderStats();
+  };
+
+  window.deshacerPropina=async function(){
+    if(!isAdmin()||!window._propinaUndo)return;
+    var pSnap=await get(rPropina);
+    var pd=pSnap.exists()?pSnap.val():{};
+    await set(rPropina,Object.assign({},pd,{historial:window._propinaUndo.hist}));
+    window._propinaUndo=null;
+    showToast("↩️ Historial restaurado");
+    renderStats();
+  };
+
+  // Cargar a mano una propina que falta o que se borró por error
+  window.agregarPropinaHistorial=async function(){
+    if(!isAdmin())return;
+    var lista=(galanes||[]).slice().sort();
+    if(!lista.length){showToast("No hay galanes cargados");return;}
+
+    var ov=document.createElement("div");
+    ov.className="modal-overlay mc";ov.style.zIndex="99999";
+    ov.innerHTML="<div class='modal' style='max-width:340px;max-height:84vh;overflow-y:auto;box-sizing:border-box'>"
+      +"<div style='text-align:center;margin-bottom:13px'>"
+      +"<div style='font-size:2rem;line-height:1;margin-bottom:6px'>🎲</div>"
+      +"<div style='font-family:\"Bebas Neue\",sans-serif;font-size:1.2rem;color:var(--ink);letter-spacing:0.04em'>AGREGAR AL HISTORIAL</div>"
+      +"<div style='font-size:0.64rem;color:var(--mut);margin-top:4px'>¿Quién pagó esa propina?</div></div>"
+      +"<label style='display:block;font-size:0.6rem;color:var(--mut);letter-spacing:0.07em;margin-bottom:5px'>FECHA</label>"
+      +"<input id='prop-fecha' type='date' class='inp' style='width:100%;margin-bottom:12px'>"
+      +lista.map(function(g,i){
+        return "<button data-g='"+i+"' style='width:100%;display:flex;align-items:center;gap:10px;background:var(--sur2);"
+          +"border:1.5px solid var(--brd);border-radius:11px;padding:10px 12px;margin-bottom:6px;cursor:pointer;text-align:left'>"
+          +"<span style='width:28px;height:28px;border-radius:50%;background:"+col(g)+";color:#fff;display:flex;align-items:center;justify-content:center;font-size:0.58rem;font-weight:800;flex-shrink:0'>"+esc(ini(g))+"</span>"
+          +"<span style='flex:1;min-width:0;font-size:0.78rem;font-weight:700;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap'>"+esc(g)+"</span>"
+          +"</button>";
+      }).join("")
+      +"<button id='prop-cancel' style='width:100%;margin-top:6px;padding:12px;border-radius:12px;border:1.5px solid var(--brd);background:var(--sur2);color:var(--mut);font-size:0.76rem;font-weight:700;cursor:pointer'>Cancelar</button>"
+      +"</div>";
+    document.body.appendChild(ov);
+    requestAnimationFrame(function(){ov.classList.add("open");});
+    // Por defecto, el sábado pasado
+    var hoy=new Date(Date.now()-3*3600000);
+    var atras=(hoy.getUTCDay()-6+7)%7;
+    var sab=new Date(hoy.getTime()-atras*864e5);
+    var inp=ov.querySelector("#prop-fecha");
+    inp.value=sab.getUTCFullYear()+"-"+String(sab.getUTCMonth()+1).padStart(2,"0")+"-"+String(sab.getUTCDate()).padStart(2,"0");
+
+    function cerrar(){if(ov.parentNode)ov.parentNode.removeChild(ov);}
+    ov.onclick=function(e){if(e.target===ov)cerrar();};
+    ov.querySelector("#prop-cancel").onclick=cerrar;
+
+    var _ocupado=false;
+    ov.addEventListener("click",async function(e){
+      var b=e.target&&e.target.closest?e.target.closest("[data-g]"):null;
+      if(!b||_ocupado)return;
+      _ocupado=true;
+      var nombre=lista[parseInt(b.getAttribute("data-g"))];
+      var fv=(inp.value||"").split("-");
+      var ts=fv.length===3?Date.UTC(+fv[0],+fv[1]-1,+fv[2],13,0,0):Date.now();
+      try{
+        var pSnap=await get(rPropina);
+        var pd=pSnap.exists()?pSnap.val():{};
+        var hist=(pd.historial||[]).slice();
+        hist.push({nombre:nombre,ts:ts,total:0});
+        hist.sort(function(a,b){return (a.ts||0)-(b.ts||0);});
+        await set(rPropina,Object.assign({},pd,{historial:hist}));
+        cerrar();
+        showToast("🎲 "+nombre+" agregado al "+fechaCortaTs(ts));
+        renderStats();
+      }catch(err){
+        console.error("agregarPropinaHistorial",err);_ocupado=false;
+        avisar(String((err&&(err.message||err.code))||err),{titulo:"No se pudo agregar",icono:"⚠️"});
+      }
+    });
   };
   window.corregirUltimaPropina=async function(){
     if(!isAdmin())return;
@@ -5864,7 +5952,14 @@
       // Contar cuántas veces le tocó a cada uno
       var conteo={};hh.forEach(function(h){conteo[h.nombre]=(conteo[h.nombre]||0)+1;});
       var ranking=Object.keys(conteo).sort(function(a,b){return conteo[b]-conteo[a];});
-      var html="<div style='margin-bottom:10px'>";
+      var html="";
+      if(isAdmin()){
+        html+="<div style='display:flex;gap:7px;margin-bottom:10px'>"
+          +"<button onclick='agregarPropinaHistorial()' style='flex:1;padding:9px;border-radius:10px;border:1.5px solid rgba(192,132,252,0.4);background:rgba(192,132,252,0.12);color:#9333ea;font-size:0.66rem;font-weight:800;cursor:pointer'>➕ Agregar</button>"
+          +(window._propinaUndo?"<button onclick='deshacerPropina()' style='flex:1;padding:9px;border-radius:10px;border:1.5px solid rgba(251,146,60,0.45);background:rgba(251,146,60,0.12);color:#ea580c;font-size:0.66rem;font-weight:800;cursor:pointer'>↩️ Deshacer</button>":"")
+          +"</div>";
+      }
+      html+="<div style='margin-bottom:10px'>";
       ranking.forEach(function(n,i){
         var veces=conteo[n];
         var esYo=me&&n.toUpperCase()===me.toUpperCase();
@@ -8078,7 +8173,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.196";
+  var APP_VERSION="10.0.197";
 
   var STORED_VERSION=localStorage.getItem("app_version");
 
