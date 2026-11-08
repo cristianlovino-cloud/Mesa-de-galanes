@@ -391,6 +391,7 @@
         historico=s.exists()?s.val():{};
         if(typeof renderTitulos==="function")renderTitulos();
         if(typeof renderSabados==="function")renderSabados();
+        if(typeof renderKPIs==="function")renderKPIs();
       }catch(e){console.error("rH",e);}
     });
     onValue(rPropina,function(s){
@@ -4863,13 +4864,51 @@
     return null;
   }
 
+  // ══ KPIs: cuatro números que resumen el año ══════════════════════════
+  window.renderKPIs=function(){
+   try{
+    var el=document.getElementById("stats-kpis");if(!el)return;
+    var fechas=Object.keys(historico||{}).sort();
+    if(!fechas.length){
+      el.innerHTML="<div style='background:var(--card);border:1px solid var(--brd);border-radius:16px;padding:20px;text-align:center;font-size:0.7rem;color:var(--mut);line-height:1.5'>Todavía no hay sábados archivados.<br><span style='opacity:0.75'>Los números aparecen al cerrar la primera mesa.</span></div>";
+      return;
+    }
+    var totGalanes=0,totGasto=0,conGasto=0,miAsist=0;
+    fechas.forEach(function(f){
+      var d=historico[f]||{},pls={};
+      Object.values(d.pedidos||{}).forEach(function(o){if(o&&o.player)pls[o.player]=1;});
+      totGalanes+=Object.keys(pls).length;
+      var g=d.totalBar||d.recaudado||0;
+      if(g>0){totGasto+=g;conGasto++;}
+      if(me&&Object.keys(pls).some(function(n){return normName(n)===normName(me);}))miAsist++;
+    });
+    var promG=Math.round(totGalanes/fechas.length);
+    var promGasto=conGasto?Math.round(totGasto/conGasto):0;
+    var miPct=Math.round(miAsist/fechas.length*100);
+
+    function tile(val,lbl,sub,color){
+      return "<div class='ktile'>"
+        +"<div class='kval'"+(color?" style='color:"+color+"'":"")+">"+val+"</div>"
+        +"<div class='klbl'>"+lbl+"</div>"
+        +(sub?"<div class='ksub'>"+sub+"</div>":"")
+        +"</div>";
+    }
+    var ultima=fechas[fechas.length-1].split("-");
+    el.innerHTML="<div class='kgrid'>"
+      +tile(fechas.length,"SÁBADOS","último "+(+ultima[2])+"/"+(+ultima[1]))
+      +tile(promG,"GALANES PROMEDIO","por sábado")
+      +tile(fmt$(promGasto),"MESA PROMEDIO",conGasto<fechas.length?("sobre "+conGasto+" con total"):"por sábado","var(--gold)")
+      +tile(miAsist+"<span style='font-size:1.1rem;opacity:0.5'>/"+fechas.length+"</span>","TU ASISTENCIA",miPct+"% de los sábados",miPct>=70?"var(--grn)":(miPct>=40?"var(--gold)":"var(--mut)"))
+      +"</div>";
+   }catch(e){console.error("renderKPIs",e);}
+  };
+
   window.renderTitulos=function(){
    try{
     var el=document.getElementById("stats-titulos");if(!el)return;
     var st=statsHistoricas();
     if(!st||!st.galanes.length){
-      el.innerHTML="<div style='font-size:0.6rem;font-weight:700;color:var(--gold);letter-spacing:0.1em;margin-bottom:8px'>🏆 TÍTULOS</div>"
-        +"<div style='font-size:0.66rem;color:var(--mut);text-align:center;padding:10px;line-height:1.5'>Todavía no hay sábados archivados.<br><span style='opacity:0.75'>Se arman solos a medida que cerrás mesas.</span></div>";
+      el.innerHTML="<div style='font-size:0.66rem;color:var(--mut);text-align:center;padding:10px;line-height:1.5'>Todavía no hay sábados archivados.<br><span style='opacity:0.75'>Se arman solos a medida que cerrás mesas.</span></div>";
       return;
     }
     var gs=st.galanes.slice();
@@ -4884,9 +4923,7 @@
         +"<div style='font-size:0.62rem;color:var(--mut);text-align:right;flex-shrink:0;max-width:40%'>"+detalle+"</div>"
         +"</div>";
     }
-    var h="<div style='display:flex;align-items:baseline;justify-content:space-between;margin-bottom:8px'>"
-      +"<span style='font-size:0.6rem;font-weight:700;color:var(--gold);letter-spacing:0.1em'>🏆 TÍTULOS</span>"
-      +"<span style='font-size:0.55rem;color:var(--mut)'>"+st.sabados+" sábados</span></div>";
+    var h="<div style='font-size:0.55rem;color:var(--mut);text-align:right;margin-bottom:4px'>sobre "+st.sabados+" sábados</div>";
 
     var masFue=gs.slice().sort(function(a,b){return b.fue-a.fue;})[0];
     h+=premio("☕","EL FIEL DE LA CASA",masFue,masFue.fue+" de "+st.sabados,"var(--gold)");
@@ -4930,10 +4967,7 @@
    try{
     var el=document.getElementById("stats-sabados");if(!el)return;
     var fechas=Object.keys(historico||{}).sort().reverse();
-    var h="<div style='display:flex;align-items:baseline;justify-content:space-between;margin-bottom:9px'>"
-      +"<span style='font-size:0.6rem;font-weight:700;color:var(--ink);letter-spacing:0.1em'>📅 SÁBADOS ANTERIORES</span>"
-      +(fechas.length>5?"<button onclick='window._verTodosSab=!window._verTodosSab;renderSabados()' style='background:none;border:none;color:var(--gold);font-size:0.58rem;font-weight:700;cursor:pointer'>"+(window._verTodosSab?"ver menos":"ver todos ("+fechas.length+")")+"</button>":"")
-      +"</div>";
+    var h=(fechas.length>5?"<div style='text-align:right;margin-bottom:6px'><button onclick='window._verTodosSab=!window._verTodosSab;renderSabados()' style='background:none;border:none;color:var(--gold);font-size:0.6rem;font-weight:700;cursor:pointer'>"+(window._verTodosSab?"ver menos":"ver todos ("+fechas.length+")")+"</button></div>":"");
     if(!fechas.length){
       el.innerHTML=h+"<div style='font-size:0.66rem;color:var(--mut);text-align:center;padding:10px'>Todavía no archivaste ningún sábado</div>";
       return;
@@ -5937,6 +5971,7 @@
 
     renderMesaStats();
     renderAsistencia();
+    try{renderKPIs();}catch(e){console.error("renderKPIs",e);}
     try{renderTitulos();}catch(e){console.error("renderTitulos",e);}
     try{renderSabados();}catch(e){console.error("renderSabados",e);}
 
@@ -7173,6 +7208,21 @@ button:not(.tab):not(.swipe-handle){transition:transform .1s ease,background-col
 .cst-badge{display:inline-flex;align-items:center;justify-content:center;min-width:16px;height:16px;padding:0 4px;border-radius:100px;background:#ef4444;color:#fff;font-size:0.56rem;font-weight:800;margin-left:4px;}
 .cst.cst-alerta{border-color:var(--gold)!important;background:rgba(245,197,24,0.12)!important;color:var(--gold)!important;}
 .odbtn-on{border-color:var(--gold)!important;background:rgba(245,197,24,0.14)!important;color:var(--gold)!important;font-weight:800;}
+/* ── Stats: secciones colapsables ── */
+.stsec{margin:0 14px 10px;background:var(--card);border:1px solid var(--brd);border-radius:16px;overflow:hidden;box-shadow:var(--sh-card);}
+.stsec>summary{list-style:none;cursor:pointer;padding:15px 16px;display:flex;align-items:center;justify-content:space-between;
+  font-size:0.66rem;font-weight:800;letter-spacing:0.1em;color:var(--ink);user-select:none;}
+.stsec>summary::-webkit-details-marker{display:none;}
+.stsec .stchev{color:var(--mut);font-size:0.8rem;transition:transform 0.2s;}
+.stsec[open] .stchev{transform:rotate(180deg);}
+.stsec>*:not(summary){padding:0 16px 16px;}
+.stsec[open]>summary{border-bottom:1px solid var(--brd);margin-bottom:13px;}
+/* ── KPI tiles ── */
+.kgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.ktile{background:var(--card);border:1px solid var(--brd);border-radius:16px;padding:14px 15px;box-shadow:var(--sh-card);}
+.kval{font-family:var(--font-display);font-size:2.1rem;line-height:1;color:var(--ink);letter-spacing:0.02em;}
+.klbl{font-size:0.56rem;font-weight:700;letter-spacing:0.1em;color:var(--mut);margin-top:5px;}
+.ksub{font-size:0.6rem;color:var(--mut);margin-top:3px;opacity:0.85;}
 .sintg{font-size:0.5rem;font-weight:800;letter-spacing:0.07em;padding:2px 7px;border-radius:100px;
   background:rgba(251,146,60,0.14);color:#fb923c;border:1px solid rgba(251,146,60,0.35);white-space:nowrap;}
 .att-sinenviar{border-left:3px solid rgba(251,146,60,0.5)!important;}
@@ -7650,31 +7700,40 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
     </div>
   </div>
   <div id="v-stats" style="display:none;padding:0 0 80px">
-    <div id="stats-content" style="padding:12px 14px">
-      <div class="es" style="padding:40px 0;opacity:0.5">Cargando stats... 📊</div>
-    </div>
-    <div style="padding:0 14px 14px">
-      <div style="background:rgba(245,197,24,0.06);border:1px solid rgba(245,197,24,0.18);border-radius:14px;padding:14px;overflow:hidden">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-          <div style="font-size:0.6rem;font-weight:700;color:var(--gold);letter-spacing:0.1em">📅 ASISTENCIA GALANES</div>
-          <div id="asistencia-toggle" style="display:none;font-size:0.55rem;color:var(--mut);cursor:pointer;text-decoration:underline" onclick="toggleAsistenciaAdmin()">ver todos</div>
-        </div>
-        <div id="stats-asistencia-panel"><div style="font-size:0.68rem;color:var(--mut);text-align:center;padding:12px">Cargando...</div></div>
+    <!-- KPIs: lo que importa de un vistazo -->
+    <div id="stats-kpis" style="padding:14px 14px 6px"></div>
+
+    <details class="stsec" open>
+      <summary><span>📊 ESTE SÁBADO</span><span class="stchev">▾</span></summary>
+      <div id="stats-content" style="padding:4px 0 2px">
+        <div class="es" style="padding:24px 0;opacity:0.5">Cargando stats... 📊</div>
       </div>
-    </div>
-    <div style="padding:0 14px 14px">
-      <div id="stats-sabados" style="background:var(--sur);border:1px solid var(--brd);border-radius:14px;padding:14px"></div>
-    </div>
-    <div style="padding:0 14px 14px">
-      <div id="stats-titulos" style="background:rgba(245,197,24,0.06);border:1px solid rgba(245,197,24,0.18);border-radius:14px;padding:14px"></div>
-    </div>
-    <div style="padding:0 14px 16px">
-      <div style="background:rgba(168,85,247,0.08);border:1px solid rgba(168,85,247,0.2);border-radius:14px;padding:14px">
-        <div style="font-size:0.6rem;font-weight:700;color:#c084fc;letter-spacing:0.1em;margin-bottom:10px">🎲 HISTORIAL PROPINAS</div>
-        <div id="stats-propina-panel"><div style="font-size:0.68rem;color:var(--mut);text-align:center;padding:8px">Cargando...</div></div>
+    </details>
+
+    <details class="stsec">
+      <summary><span>🏆 TÍTULOS</span><span class="stchev">▾</span></summary>
+      <div id="stats-titulos"></div>
+    </details>
+
+    <details class="stsec">
+      <summary><span>📅 ASISTENCIA</span><span class="stchev">▾</span></summary>
+      <div style="display:flex;justify-content:flex-end;margin-bottom:8px">
+        <div id="asistencia-toggle" style="display:none;font-size:0.58rem;color:var(--gold);cursor:pointer;font-weight:700" onclick="toggleAsistenciaAdmin()">ver todos</div>
       </div>
-    </div>
+      <div id="stats-asistencia-panel"><div style="font-size:0.68rem;color:var(--mut);text-align:center;padding:12px">Cargando...</div></div>
+    </details>
+
+    <details class="stsec">
+      <summary><span>☕ SÁBADOS ANTERIORES</span><span class="stchev">▾</span></summary>
+      <div id="stats-sabados"></div>
+    </details>
+
+    <details class="stsec">
+      <summary><span>🎲 PROPINAS</span><span class="stchev">▾</span></summary>
+      <div id="stats-propina-panel"><div style="font-size:0.68rem;color:var(--mut);text-align:center;padding:8px">Cargando...</div></div>
+    </details>
   </div>
+
   <div id="v-resumen" style="display:none">
     <div id="mesa-bebidas-panel"></div>
     <div id="mesa-sabado-panel"></div>
@@ -8173,7 +8232,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.197";
+  var APP_VERSION="10.0.198";
 
   var STORED_VERSION=localStorage.getItem("app_version");
 
