@@ -394,6 +394,13 @@
         if(typeof renderKPIs==="function")renderKPIs();
       }catch(e){console.error("rH",e);}
     });
+    onValue(rPapelera,function(s){
+      try{
+        papelera=s.exists()?s.val():{};
+        renderPapelera();
+      }catch(e){console.error("rPapelera",e);}
+    });
+    setTimeout(function(){try{purgarPapelera();}catch(e){}},8000);
     onValue(rPropina,function(s){
       try{
         window._propinaHistorial=s.exists()?(s.val().historial||[]):[];
@@ -1618,7 +1625,9 @@
       +"Se borra SOLO la del "+fechaCortaTs(hist[ultimo].ts)+(idxs.length>1?", las otras quedan.":"."),
       {titulo:"Borrar una propina",icono:"🎲",okTxt:"Borrar esa",peligro:true});
     if(!ok)return;
-    window._propinaUndo={hist:hist.slice(),ts:Date.now()};   // por si se arrepiente
+    window._propinaUndo={hist:hist.slice(),ts:Date.now()};   // deshacer inmediato
+    await aPapelera("propina","config/propina/historial",hist.slice(),
+                    "Propina de "+nombre+" · "+fechaCortaTs(hist[ultimo].ts));
     hist.splice(ultimo,1);
     await set(rPropina,Object.assign({},pd,{historial:hist}));
     showToast("✓ Borrada la del "+fechaCortaTs((window._propinaUndo.hist[ultimo]||{}).ts)+" · tocá DESHACER arriba");
@@ -1991,8 +2000,116 @@
     showExtras(drinks[idx]);
   };
 
-  window.removeOrder=async function(key){await remove(ref(db,"pedido/orders/"+key));};
-  window.clearAll=async function(){if(!puedeOperar()){showToast("Solo el admin puede limpiar");return;}if(!await confirmar("Se borran todos los pedidos y pagos del día.",{titulo:"Limpiar la mesa?",icono:"🧹",okTxt:"Limpiar",peligro:true}))return;await set(rO,null);await set(rC,null);await set(rP,null);};
+  // ══ PAPELERA: todo borrado se puede deshacer por 30 días ══════════════
+  const rPapelera=ref(db,"config/papelera");
+  var papelera={};
+
+  function aPapelera(tipo,path,data,label){
+    if(data===undefined||data===null)return Promise.resolve();
+    return push(rPapelera,{
+      tipo:tipo,path:path,
+      data:JSON.stringify(data),
+      label:String(label||tipo),
+      por:me||"?",ts:Date.now()
+    }).catch(function(e){console.error("aPapelera",e);});
+  }
+
+  // Borra guardando copia. Devuelve true si salió bien.
+  async function borrarConRespaldo(tipo,path,label){
+    try{
+      var snap=await get(ref(db,path));
+      if(snap.exists())await aPapelera(tipo,path,snap.val(),label);
+      await set(ref(db,path),null);
+      return true;
+    }catch(e){console.error("borrarConRespaldo",path,e);return false;}
+  }
+
+  window.restaurarDePapelera=async function(id){
+    if(!isAdmin())return;
+    var it=papelera[id];if(!it)return;
+    if(!await confirmar("Se vuelve a poner como estaba: "+it.label,{titulo:"Restaurar",icono:"↩️",okTxt:"Restaurar"}))return;
+    try{
+      await set(ref(db,it.path),JSON.parse(it.data));
+      await set(ref(db,"config/papelera/"+id),null);
+      showToast("↩️ Restaurado: "+it.label);
+      renderPapelera();
+    }catch(e){
+      console.error("restaurar",e);
+      avisar(String((e&&(e.message||e.code))||e),{titulo:"No se pudo restaurar",icono:"⚠️"});
+    }
+  };
+
+  window.vaciarPapelera=async function(){
+    if(!isAdmin())return;
+    var n=Object.keys(papelera||{}).length;
+    if(!n){showToast("La papelera ya está vacía");return;}
+    if(!await confirmar("Se eliminan definitivamente "+n+" elemento(s). Esto sí no se puede deshacer.",
+      {titulo:"Vaciar papelera",icono:"🗑️",okTxt:"Vaciar",peligro:true}))return;
+    await set(rPapelera,null);
+    showToast("🗑️ Papelera vacía");
+  };
+
+  // Limpieza automática de lo que pasó los 30 días
+  async function purgarPapelera(){
+    if(!isAdmin())return;
+    var limite=Date.now()-30*864e5,viejos=[];
+    Object.keys(papelera||{}).forEach(function(k){
+      if((papelera[k].ts||0)<limite)viejos.push(k);
+    });
+    for(var i=0;i<viejos.length;i++){
+      try{await set(ref(db,"config/papelera/"+viejos[i]),null);}catch(e){}
+    }
+  }
+
+  window.renderPapelera=function(){
+   try{
+    var el=document.getElementById("papelera-panel");if(!el)return;
+    var items=Object.keys(papelera||{}).map(function(k){
+      return Object.assign({},papelera[k],{id:k});
+    }).sort(function(a,b){return (b.ts||0)-(a.ts||0);});
+
+    var cont=document.getElementById("papelera-count");
+    if(cont){
+      cont.textContent=items.length?("("+items.length+")"):"";
+      cont.style.color=items.length?"var(--gold)":"var(--mut)";
+    }
+    if(!items.length){
+      el.innerHTML="<div style='font-size:0.68rem;color:var(--mut);text-align:center;padding:14px;line-height:1.5'>Nada borrado últimamente.<br><span style='opacity:0.75'>Lo que borres aparece acá por 30 días.</span></div>";
+      return;
+    }
+    var ICON={pedido:"☕",pago:"💰",propina:"🎲",pozo:"🎉",movimiento:"📒",mesa:"🧹",galan:"👤"};
+    var h=items.map(function(it){
+      var dias=Math.floor((Date.now()-(it.ts||0))/864e5);
+      var quedan=30-dias;
+      return "<div style='display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--brd)'>"
+        +"<span style='font-size:1.2rem;width:26px;text-align:center;flex-shrink:0'>"+(ICON[it.tipo]||"🗑️")+"</span>"
+        +"<div style='flex:1;min-width:0'>"
+        +"<div style='font-size:0.74rem;font-weight:700;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap'>"+esc(it.label)+"</div>"
+        +"<div style='font-size:0.58rem;color:var(--mut);margin-top:1px'>"+fechaCorta(it.ts)+" · por "+esc(it.por)+" · quedan "+quedan+"d</div>"
+        +"</div>"
+        +"<button onclick='restaurarDePapelera(\""+it.id+"\")' style='flex-shrink:0;background:rgba(74,222,128,0.12);border:1.5px solid rgba(74,222,128,0.35);border-radius:9px;padding:7px 11px;color:var(--grn);font-size:0.66rem;font-weight:800;cursor:pointer'>↩️ Restaurar</button>"
+        +"</div>";
+    }).join("");
+    h+="<button onclick='vaciarPapelera()' style='width:100%;margin-top:11px;padding:9px;border-radius:10px;border:1.5px solid var(--brd);background:var(--sur2);color:var(--mut);font-size:0.64rem;font-weight:700;cursor:pointer'>Vaciar papelera</button>";
+    el.innerHTML=h;
+   }catch(e){console.error("renderPapelera",e);}
+  };
+
+  window.removeOrder=async function(key){
+    var o=orders[key]||{};
+    await borrarConRespaldo("pedido","pedido/orders/"+key,
+      (o.player||"?")+" · "+(o.drink||"pedido"));
+    showToast("🗑️ Pedido borrado · se puede restaurar");
+  };
+  window.clearAll=async function(){
+    if(!puedeOperar()){showToast("Solo el admin puede limpiar");return;}
+    if(!await confirmar("Se borran todos los pedidos y pagos del día.",{titulo:"Limpiar la mesa?",icono:"🧹",okTxt:"Limpiar",peligro:true}))return;
+    var n=Object.keys(orders||{}).length;
+    await aPapelera("mesa","pedido/orders",orders,"Mesa entera · "+n+" pedidos");
+    await aPapelera("pago","pedido/pagos",pagos,"Pagos del día");
+    await set(rO,null);await set(rC,null);await set(rP,null);
+    showToast("🧹 Mesa limpia · se puede restaurar");
+  };
 
   window.repetirUltimo=async function(){
     if(!me)return;
@@ -4510,8 +4627,8 @@
       return;
     }
     if(!await confirmar("Se borra el pozo de "+p.cumpleanero+" (sin aportes).",{titulo:"Borrar pozo",icono:"🗑️",okTxt:"Borrar",peligro:true}))return;
-    await set(ref(db,"config/fondoData/pozos/"+k),null);
-    showToast("🗑️ Pozo borrado");
+    await borrarConRespaldo("pozo","config/fondoData/pozos/"+k,"Pozo de "+p.cumpleanero);
+    showToast("🗑️ Pozo borrado · se puede restaurar");
   };
 
   window.vaciarFondo=async function(){
@@ -5071,8 +5188,8 @@
     if(!isAdmin()||!movs[k])return;
     var m=movs[k];
     if(!await confirmar(esc(m.concepto||"")+" · "+fmt$(m.monto),{titulo:"Borrar movimiento",icono:"🗑️",okTxt:"Borrar",peligro:true}))return;
-    await set(ref(db,"config/fondoData/movimientos/"+k),null);
-    showToast("🗑️ Movimiento borrado");
+    await borrarConRespaldo("movimiento","config/fondoData/movimientos/"+k,(m.concepto||"Movimiento")+" · "+fmt$(m.monto));
+    showToast("🗑️ Movimiento borrado · se puede restaurar");
   };
 
   window.abrirPozoModal=async function(){
@@ -5605,8 +5722,8 @@
 
   window.resetPago=async function(pl){
     if(!await confirmar("Se borra lo cargado para "+pl+".",{titulo:"Borrar pago?",icono:"💰",okTxt:"Borrar",peligro:true}))return;
-    await set(ref(db,"pedido/pagos/"+pl),null);
-    showToast("Pago de "+pl+" reseteado");
+    await borrarConRespaldo("pago","pedido/pagos/"+pl,"Pago de "+pl);
+    showToast("Pago de "+pl+" reseteado · se puede restaurar");
   };
 
   function renderLista(){
@@ -7787,7 +7904,11 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
         <div id="galanes-stats" style="display:flex;gap:8px;flex-wrap:wrap"></div>
         <button class="admin-action-btn" onclick="openModal('mgalan')">+ Nuevo</button>
       </div>
-      <div id="lista-panel" style="padding:0 12px 80px"></div>
+      <div id="lista-panel" style="padding:0 12px 10px"></div>
+      <details class="stsec" style="margin-bottom:80px">
+        <summary><span>🗑️ PAPELERA <span id="papelera-count" style="color:var(--mut);font-weight:700"></span></span><span class="stchev">▾</span></summary>
+        <div id="papelera-panel"></div>
+      </details>
     </div>
     <!-- Pedidos -->
     <div id="vadmin-pedidos" style="display:none">
@@ -8232,7 +8353,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.198";
+  var APP_VERSION="10.0.199";
 
   var STORED_VERSION=localStorage.getItem("app_version");
 
