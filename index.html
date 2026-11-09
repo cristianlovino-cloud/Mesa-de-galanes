@@ -622,13 +622,24 @@
     if(tab==="mundial"&&!window._mundialLoaded)renderMundial();
   };
   window.switchAdminTab=function(stab){
-    ["galanes","pedidos","pagos"].forEach(function(s){
+    ["galanes","pedidos","pagos","ajustes"].forEach(function(s){
       var v=document.getElementById("vadmin-"+s);if(v)v.style.display=s===stab?"block":"none";
       var b=document.querySelector("[data-stab='"+s+"']");if(b)b.classList.toggle("active",s===stab);
     });
     window._ordenesEnAdmin=(stab==="pedidos"||stab==="pagos");
     window._adminStab=stab;
     if(stab==="galanes"){renderLista();renderPendientes();}
+    if(stab==="ajustes"){
+      renderPapelera();
+      var v=document.getElementById("aj-version");if(v)v.textContent=APP_VERSION;
+      // Reflejar el estado de los toggles
+      var bm=document.getElementById("btn-mozo-toggle");
+      if(bm)bm.classList.toggle("aj-on",window._modoMozo===true);
+      var bl=document.getElementById("btn-mozos-lista");
+      if(bl)bl.style.display=window._modoMozo===true?"flex":"none";
+      var bw=document.getElementById("btn-mundial-toggle");
+      if(bw)bw.classList.toggle("aj-on",window._mundialActivo!==false);
+    }
     if(stab==="pedidos")renderMesa();
     if(stab==="pagos"){renderPagosDetail();renderPagosPendientes();renderCierreResumen();renderEstadoMesa();
       // Cargar saldo guardado en el input si no está ya
@@ -2892,6 +2903,9 @@
     }
   });
   window.toggleAdminMas=function(){
+    switchAdminTab("ajustes");
+  };
+  window._toggleAdminMasViejo=function(){
     var p=document.getElementById("admin-mas-panel");
     var b=document.getElementById("btn-admin-mas");
     if(!p)return;
@@ -7325,6 +7339,16 @@ button:not(.tab):not(.swipe-handle){transition:transform .1s ease,background-col
 .cst-badge{display:inline-flex;align-items:center;justify-content:center;min-width:16px;height:16px;padding:0 4px;border-radius:100px;background:#ef4444;color:#fff;font-size:0.56rem;font-weight:800;margin-left:4px;}
 .cst.cst-alerta{border-color:var(--gold)!important;background:rgba(245,197,24,0.12)!important;color:var(--gold)!important;}
 .odbtn-on{border-color:var(--gold)!important;background:rgba(245,197,24,0.14)!important;color:var(--gold)!important;font-weight:800;}
+/* ── Ajustes: botones con descripción ── */
+.ajgrid{display:grid;grid-template-columns:1fr 1fr;gap:9px;}
+.ajbtn{display:flex;flex-direction:column;align-items:flex-start;gap:2px;background:var(--sur2);border:1.5px solid var(--brd);
+  border-radius:13px;padding:13px 12px;cursor:pointer;text-align:left;font-family:var(--font-body);transition:border-color 0.15s;}
+.ajbtn:active{border-color:var(--gold);}
+.ajbtn span{font-size:1.3rem;line-height:1;margin-bottom:4px;}
+.ajbtn b{font-size:0.76rem;font-weight:800;color:var(--ink);}
+.ajbtn i{font-size:0.6rem;color:var(--mut);font-style:normal;line-height:1.35;}
+.ajbtn.aj-on{border-color:var(--grn);background:rgba(74,222,128,0.1);}
+.ajbtn.aj-on b{color:var(--grn);}
 /* ── Stats: secciones colapsables ── */
 .stsec{margin:0 14px 10px;background:var(--card);border:1px solid var(--brd);border-radius:16px;overflow:hidden;box-shadow:var(--sh-card);}
 .stsec>summary{list-style:none;cursor:pointer;padding:15px 16px;display:flex;align-items:center;justify-content:space-between;
@@ -7896,6 +7920,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
       <button class="admin-stab active" data-solo-admin data-stab="galanes" onclick="switchAdminTab('galanes')">👥 Galanes</button>
       <button class="admin-stab" data-stab="pedidos" onclick="switchAdminTab('pedidos')">☕ Pedidos</button>
       <button class="admin-stab" data-stab="pagos" onclick="switchAdminTab('pagos')">💰 Pagos</button>
+      <button class="admin-stab" data-solo-admin data-stab="ajustes" onclick="switchAdminTab('ajustes')">⚙️ Ajustes</button>
     </div>
     <!-- Galanes -->
     <div id="vadmin-galanes">
@@ -7904,12 +7929,64 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
         <div id="galanes-stats" style="display:flex;gap:8px;flex-wrap:wrap"></div>
         <button class="admin-action-btn" onclick="openModal('mgalan')">+ Nuevo</button>
       </div>
-      <div id="lista-panel" style="padding:0 12px 10px"></div>
-      <details class="stsec" style="margin-bottom:80px">
+      <div id="lista-panel" style="padding:0 12px 80px"></div>
+    </div>
+    <!-- Ajustes: todo lo que se configura una vez cada tanto -->
+    <div id="vadmin-ajustes" style="display:none;padding-top:8px">
+      <details class="stsec" open>
+        <summary><span>☕ LA MESA</span><span class="stchev">▾</span></summary>
+        <div class="ajgrid">
+          <button class="ajbtn" onclick="abrirPrecios()"><span>💲</span><b>Precios</b><i>Bebidas y acompañamientos</i></button>
+          <button class="ajbtn" onclick="refreshDrinkIcons()"><span>🔄</span><b>Emojis</b><i>Refrescar íconos de bebidas</i></button>
+        </div>
+      </details>
+
+      <details class="stsec">
+        <summary><span>👥 GALANES</span><span class="stchev">▾</span></summary>
+        <div class="ajgrid">
+          <button class="ajbtn" onclick="abrirMergeMasivo()"><span>⇄</span><b>Fusionar</b><i>Unir nombres repetidos</i></button>
+          <button class="ajbtn" onclick="limpiarNuevosFantasma()"><span>🧹</span><b>Limpiar avisos</b><i>Sacar los nuevos fantasma</i></button>
+        </div>
+      </details>
+
+      <details class="stsec">
+        <summary><span>🏖️ DELEGACIÓN</span><span class="stchev">▾</span></summary>
+        <div style="font-size:0.66rem;color:var(--mut);line-height:1.5;margin-bottom:10px">Cuando no estás, los galanes que designes pueden cargar pedidos, marcar pagos y sortear la propina. No pueden cerrar la mesa ni tocar precios.</div>
+        <div class="ajgrid">
+          <button class="ajbtn" onclick="toggleModoMozo()" id="btn-mozo-toggle"><span>🏖️</span><b>Modo vacaciones</b><i>Activar o desactivar</i></button>
+          <button class="ajbtn" onclick="abrirMozosModal()" id="btn-mozos-lista"><span>👥</span><b>Designar</b><i>Quiénes pueden operar</i></button>
+        </div>
+      </details>
+
+      <details class="stsec">
+        <summary><span>🎉 EXTRAS</span><span class="stchev">▾</span></summary>
+        <div class="ajgrid">
+          <button class="ajbtn" onclick="activarArgBanner()"><span>🇦🇷</span><b>Banner</b><i>Cartel argentino con música</i></button>
+          <button class="ajbtn" onclick="toggleMundial()" id="btn-mundial-toggle"><span>🌍</span><b>Mundial</b><i>Mostrar u ocultar el tab</i></button>
+        </div>
+      </details>
+
+      <details class="stsec">
+        <summary><span>🎂 CUMPLES Y FONDO</span><span class="stchev">▾</span></summary>
+        <div style="font-size:0.66rem;color:var(--mut);line-height:1.5;margin-bottom:10px">El aporte por cumple, el alias y el saldo se configuran en su propia pantalla.</div>
+        <button class="ajbtn" style="width:100%" onclick="switchTab('cumples');setTimeout(function(){switchCumpleTab('fondo')},120)"><span>🎂</span><b>Ir al fondo</b><i>Aporte, alias, saldo y retiros</i></button>
+      </details>
+
+      <details class="stsec">
         <summary><span>🗑️ PAPELERA <span id="papelera-count" style="color:var(--mut);font-weight:700"></span></span><span class="stchev">▾</span></summary>
         <div id="papelera-panel"></div>
       </details>
+
+      <details class="stsec" style="margin-bottom:90px">
+        <summary><span>📲 LA APP</span><span class="stchev">▾</span></summary>
+        <div class="ajgrid">
+          <button class="ajbtn" onclick="installPWA()"><span>📲</span><b>Instalar</b><i>Ícono propio y pantalla completa</i></button>
+          <button class="ajbtn" onclick="toggleTheme()"><span>🎨</span><b>Tema</b><i>Oscuro, claro o Club</i></button>
+        </div>
+        <div style="text-align:center;font-size:0.6rem;color:var(--mut);margin-top:12px;opacity:0.7">Mesa de Galanes · v<span id="aj-version"></span></div>
+      </details>
     </div>
+
     <!-- Pedidos -->
     <div id="vadmin-pedidos" style="display:none">
       <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 14px 10px;flex-wrap:wrap;gap:8px">
@@ -7920,36 +7997,9 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
           <button class="admin-action-btn" id="propina-ws-btn" onclick="sortearPropina()" style="display:none;background:rgba(168,85,247,0.15);color:#c084fc;border-color:rgba(168,85,247,0.3)">🎲 Propina</button>
           <button class="admin-action-btn" id="sugerir-btn" onclick="abrirMesaSugerida()" style="background:rgba(245,197,24,0.15);color:var(--gold);border-color:rgba(245,197,24,0.35)">✨ Armar mesa</button>
           <button class="admin-action-btn" id="import-res-btn" onclick="importarReservas()" style="display:none;background:rgba(34,197,94,0.15);color:#4ade80;border-color:rgba(34,197,94,0.3)">📋 Importar</button>
-          <button class="admin-action-btn" onclick="toggleAdminMas()" id="btn-admin-mas" style="background:var(--sur2);color:var(--mut);border-color:var(--brd)">⋯ Más</button>
         </div>
       </div>
       <!-- Panel desplegable con el resto de acciones -->
-      <div id="admin-mas-panel" style="display:none;padding:0 14px 12px">
-        <div style="background:var(--sur2);border:1px solid var(--brd);border-radius:14px;padding:12px">
-          <div data-solo-admin>
-            <div style="font-size:0.55rem;color:var(--mut);letter-spacing:0.1em;margin-bottom:8px">MESA</div>
-            <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">
-              <button class="admin-action-btn" onclick="abrirPrecios()" style="background:rgba(245,197,24,0.12);color:var(--g2);border-color:rgba(245,197,24,0.3)">💲 Precios</button>
-              <button class="admin-action-btn" onclick="abrirMergeMasivo()" style="background:rgba(99,102,241,0.12);color:#a5b4fc;border-color:rgba(99,102,241,0.3)">⇄ Fusionar</button>
-              <button class="admin-action-btn" onclick="refreshDrinkIcons()">🔄 Emojis</button>
-              <button class="admin-action-btn" onclick="limpiarNuevosFantasma()">🧹 Limpiar avisos</button>
-            </div>
-          </div>
-          <div style="font-size:0.55rem;color:var(--mut);letter-spacing:0.1em;margin-bottom:8px">EXTRAS</div>
-          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">
-            <button class="admin-action-btn" onclick="openLiveModal()" style="background:rgba(239,68,68,0.12);color:#f87171;border-color:rgba(239,68,68,0.25)">📺 Live</button>
-            <button class="admin-action-btn" data-solo-admin onclick="activarArgBanner()" style="background:rgba(116,172,223,0.15);color:#74ACDF;border-color:rgba(116,172,223,0.35)">🇦🇷 Banner</button>
-            <button class="admin-action-btn" data-solo-admin onclick="toggleMundial()" id="btn-mundial-toggle" style="background:rgba(100,180,100,0.1);color:var(--mut);border-color:var(--brd)">🌍 Mundial</button>
-          </div>
-          <div data-solo-admin>
-            <div style="font-size:0.55rem;color:var(--mut);letter-spacing:0.1em;margin-bottom:8px">DELEGACIÓN</div>
-            <div style="display:flex;gap:6px;flex-wrap:wrap">
-              <button class="admin-action-btn" onclick="toggleModoMozo()" id="btn-mozo-toggle" style="background:rgba(100,100,100,0.08);color:var(--mut);border-color:var(--brd)">🏖️ Modo vacaciones</button>
-              <button class="admin-action-btn" onclick="abrirMozosModal()" id="btn-mozos-lista" style="display:none;background:rgba(74,222,128,0.1);color:#4ade80;border-color:rgba(74,222,128,0.3)">👥 Designar</button>
-            </div>
-          </div>
-        </div>
-      </div>
       <div id="mesa-reserva-info" style="display:none"></div>
       <div class="mg" id="mesa-panel" style="padding-bottom:20px"><div class="es">Nadie se anoto todavia 👀</div></div>
     </div>
@@ -8353,7 +8403,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.199";
+  var APP_VERSION="10.0.200";
 
   var STORED_VERSION=localStorage.getItem("app_version");
 
