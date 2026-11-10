@@ -394,6 +394,13 @@
         if(typeof renderKPIs==="function")renderKPIs();
       }catch(e){console.error("rH",e);}
     });
+    onValue(rDeudas,function(s){
+      try{
+        deudas=s.exists()?s.val():{};
+        if(typeof renderDeudas==="function")renderDeudas();
+        if(typeof renderMiSaldo==="function")renderMiSaldo();
+      }catch(e){console.error("rDeudas",e);}
+    });
     onValue(rPapelera,function(s){
       try{
         papelera=s.exists()?s.val():{};
@@ -641,7 +648,7 @@
       if(bw)bw.classList.toggle("aj-on",window._mundialActivo!==false);
     }
     if(stab==="pedidos")renderMesa();
-    if(stab==="pagos"){renderPagosDetail();renderPagosPendientes();renderCierreResumen();renderEstadoMesa();
+    if(stab==="pagos"){renderPagosDetail();renderPagosPendientes();renderCierreResumen();renderEstadoMesa();renderDeudas();
       // Cargar saldo guardado en el input si no está ya
       var mpInp=document.getElementById("mp-saldo-inicio");
       if(mpInp&&window._mpSaldoInicio!==undefined&&!mpInp.value)mpInp.value=window._mpSaldoInicio;
@@ -1458,6 +1465,34 @@
       if(pSnapC.exists()&&pSnapC.val().nombre)propinaNombre=pSnapC.val().nombre;
     }catch(e){}
     await set(ref(db,"historial/"+fecha),{fecha:fecha,hora:hora,pedidos:orders,pagos:pagos,totalBar:totalBar,recaudado:sumC+sumT,precios:precios,propina:propinaNombre});
+
+    // ── Lo que quedó debiendo cada uno se arrastra al próximo sábado ──
+    try{
+      var porPlayer={};
+      Object.values(orders).forEach(function(o){
+        if(!o||!o.player)return;
+        porPlayer[o.player]=(porPlayer[o.player]||0)+precioPedido(o);
+      });
+      var nuevasDeudas=Object.assign({},deudas);
+      var fechaCta=(+fecha.slice(8,10))+"/"+(+fecha.slice(5,7));
+      Object.keys(porPlayer).forEach(function(pl){
+        var pg=pagos[pl]||{};
+        var pagado=(pg.cash||0)+(pg.transfer||0);
+        var saldo=Math.round(porPlayer[pl]-pagado);     // >0 debe, <0 pagó de más
+        if(Math.abs(saldo)<1)return;
+        var k=normName(pl).replace(/[.#$/\[\]]/g,"_");
+        var prev=nuevasDeudas[k];
+        var acum=Math.round((prev?prev.monto:0)+saldo);
+        if(Math.abs(acum)<1){delete nuevasDeudas[k];return;}
+        nuevasDeudas[k]={
+          nombre:pl,monto:acum,
+          desde:(prev&&prev.desde)?prev.desde:fechaCta,
+          ultima:fechaCta,
+          detalle:(saldo>0?"debe ":"a favor ")+Math.abs(saldo)+" del "+fechaCta
+        };
+      });
+      await set(rDeudas,Object.keys(nuevasDeudas).length?nuevasDeudas:null);
+    }catch(e){console.error("deudas",e);}
     // Actualizar total real en historial de propinas antes de limpiar
     var propFinalSnap=await get(ref(db,"pedido/propina"));
     if(propFinalSnap.exists()&&propFinalSnap.val().nombre){
@@ -2014,6 +2049,8 @@
   // ══ PAPELERA: todo borrado se puede deshacer por 30 días ══════════════
   const rPapelera=ref(db,"config/papelera");
   var papelera={};
+  const rDeudas=ref(db,"config/deudas");   // {galanKey:{nombre,monto,desde,detalle}}
+  var deudas={};
 
   function aPapelera(tipo,path,data,label){
     if(data===undefined||data===null)return Promise.resolve();
@@ -2071,6 +2108,65 @@
       try{await set(ref(db,"config/papelera/"+viejos[i]),null);}catch(e){}
     }
   }
+
+  function miDeuda(){
+    if(!me)return null;
+    var k=normName(me).replace(/[.#$/\[\]]/g,"_");
+    var d=deudas&&deudas[k];
+    return (d&&Math.abs(d.monto||0)>=1)?d:null;
+  }
+
+  window.saldarDeuda=async function(k){
+    if(!puedeOperar())return;
+    var d=deudas&&deudas[k];if(!d)return;
+    var esDeuda=d.monto>0;
+    if(!await confirmar(
+      esDeuda?("Marcás que "+d.nombre+" saldó los "+fmt$(d.monto)+" que debía.")
+             :(d.nombre+" tenía "+fmt$(Math.abs(d.monto))+" a favor. Se da por usado."),
+      {titulo:esDeuda?"Saldar deuda":"Cerrar saldo",icono:"✅",okTxt:"Confirmar"}))return;
+    await borrarConRespaldo("deuda","config/deudas/"+k,(esDeuda?"Deuda de ":"Saldo a favor de ")+d.nombre+" · "+fmt$(Math.abs(d.monto)));
+    showToast("✓ Saldo de "+d.nombre+" cerrado");
+  };
+
+  window.renderDeudas=function(){
+   try{
+    var el=document.getElementById("deudas-panel");if(!el)return;
+    var items=Object.keys(deudas||{}).map(function(k){
+      return Object.assign({},deudas[k],{key:k});
+    }).filter(function(d){return Math.abs(d.monto||0)>=1;})
+      .sort(function(a,b){return b.monto-a.monto;});
+
+    var wrap=document.getElementById("deudas-wrap");
+    if(!items.length){
+      if(wrap)wrap.style.display="none";
+      el.innerHTML="";
+      return;
+    }
+    if(wrap)wrap.style.display="block";
+    var deben=items.filter(function(d){return d.monto>0;});
+    var favor=items.filter(function(d){return d.monto<0;});
+    var totalDeben=deben.reduce(function(a,d){return a+d.monto;},0);
+
+    var h="<div style='display:flex;align-items:baseline;justify-content:space-between;margin-bottom:9px'>"
+      +"<span style='font-size:0.58rem;font-weight:800;color:#ea580c;letter-spacing:0.09em'>⏳ VIENE DE ANTES</span>"
+      +(totalDeben>0?"<span style='font-family:\"Bebas Neue\",sans-serif;font-size:1.1rem;color:#ea580c'>"+fmt$(totalDeben)+"</span>":"")
+      +"</div>";
+    h+=items.map(function(d){
+      var debe=d.monto>0;
+      return "<div style='display:flex;align-items:center;gap:9px;padding:8px 0;border-bottom:1px solid var(--brd)'>"
+        +"<span style='width:28px;height:28px;border-radius:50%;background:"+col(d.nombre)+";color:#fff;display:flex;align-items:center;justify-content:center;font-size:0.56rem;font-weight:800;flex-shrink:0'>"+esc(ini(d.nombre))+"</span>"
+        +"<div style='flex:1;min-width:0'>"
+        +"<div style='font-size:0.74rem;font-weight:700;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap'>"+esc(d.nombre)+"</div>"
+        +"<div style='font-size:0.58rem;color:var(--mut)'>desde el "+esc(d.desde||"?")+"</div></div>"
+        +"<span style='font-family:\"Bebas Neue\",sans-serif;font-size:1.05rem;color:"+(debe?"#ea580c":"var(--grn)")+";flex-shrink:0'>"
+        +(debe?"":"+")+fmt$(Math.abs(d.monto))+"</span>"
+        +(puedeOperar()?"<button onclick='saldarDeuda(\""+d.key+"\")' style='flex-shrink:0;background:rgba(74,222,128,0.12);border:1.5px solid rgba(74,222,128,0.35);border-radius:9px;padding:6px 9px;color:var(--grn);font-size:0.62rem;font-weight:800;cursor:pointer'>✓</button>":"")
+        +"</div>";
+    }).join("");
+    if(favor.length)h+="<div style='font-size:0.58rem;color:var(--mut);margin-top:8px;opacity:0.8'>En verde, los que pagaron de más y tienen crédito.</div>";
+    el.innerHTML=h;
+   }catch(e){console.error("renderDeudas",e);}
+  };
 
   window.renderPapelera=function(){
    try{
@@ -3997,6 +4093,17 @@
         +"<div style='font-size:0.8rem;font-weight:600;color:var(--ink);line-height:1.3'>"+misPed[0].icon+" "+misPed[0].drink+"</div>"
         +(deuda>0?"<div style='font-family:\"Bebas Neue\",sans-serif;font-size:1rem;color:var(--gold);margin-top:4px;letter-spacing:0.04em'>Precio: $"+Math.round(deuda)+"</div>":"")
         +desgloseHtml(misPed)
+        +(function(){
+          var md=miDeuda();if(!md)return "";
+          var debe=md.monto>0;
+          return "<div style='margin-top:9px;padding:9px 11px;border-radius:11px;line-height:1.45;"
+            +"background:"+(debe?"rgba(234,88,12,0.1)":"rgba(74,222,128,0.1)")+";"
+            +"border:1.5px solid "+(debe?"rgba(234,88,12,0.35)":"rgba(74,222,128,0.35)")+"'>"
+            +"<div style='font-size:0.62rem;font-weight:800;letter-spacing:0.06em;color:"+(debe?"#ea580c":"var(--grn)")+"'>"
+            +(debe?"⏳ TENÉS UNA CUENTA PENDIENTE":"✓ TENÉS SALDO A FAVOR")+"</div>"
+            +"<div style='font-size:0.74rem;color:var(--ink);margin-top:3px'>"
+            +(debe?"Debés ":"Te quedaron ")+"<b>"+fmt$(Math.abs(md.monto))+"</b> desde el "+esc(md.desde||"")+"</div></div>";
+        })()
         +"</div>";
     }
     // Saldo
@@ -4955,6 +5062,147 @@
   };
 
   // ══ TÍTULOS DEL AÑO ═══════════════════════════════════════════════════
+  // ══ WRAPPED: el año de cada galán en la mesa ══════════════════════════
+  function wrappedDe(nombre){
+    var fechas=Object.keys(historico||{}).sort();
+    if(!fechas.length||!nombre)return null;
+    var anio=String(new Date().getFullYear());
+    var delAnio=fechas.filter(function(f){return f.slice(0,4)===anio;});
+    if(delAnio.length<2)delAnio=fechas;      // si el año recién arranca, tomamos todo
+
+    var n=normName(nombre);
+    var fue=0,gasto=0,bebidas={},misFechas=[],maxDia=null;
+    delAnio.forEach(function(f){
+      var dia=historico[f];if(!dia||!dia.pedidos)return;
+      var vino=false,gastoDia=0;
+      Object.values(dia.pedidos).forEach(function(o){
+        if(!o||!o.player||normName(o.player)!==n)return;
+        vino=true;
+        var b=o.drink||"?";
+        bebidas[b]=(bebidas[b]||0)+1;
+        gastoDia+=precioPedido(o);
+      });
+      if(vino){
+        fue++;misFechas.push(f);gasto+=gastoDia;
+        if(!maxDia||gastoDia>maxDia.monto)maxDia={fecha:f,monto:gastoDia};
+      }
+    });
+    if(!fue)return null;
+
+    // Racha más larga de sábados consecutivos
+    var mejor=0,act=0,prev=-1;
+    delAnio.forEach(function(f,i){
+      if(misFechas.indexOf(f)>-1){act=(prev===i-1)?act+1:1;prev=i;if(act>mejor)mejor=act;}
+    });
+
+    // Puesto en asistencia
+    var asis={};
+    delAnio.forEach(function(f){
+      var dia=historico[f];if(!dia||!dia.pedidos)return;
+      var vistos={};
+      Object.values(dia.pedidos).forEach(function(o){
+        if(!o||!o.player)return;
+        var k=normName(o.player);
+        if(vistos[k])return;vistos[k]=1;
+        asis[k]=(asis[k]||0)+1;
+      });
+    });
+    var orden=Object.keys(asis).sort(function(a,b){return asis[b]-asis[a];});
+    var puesto=orden.indexOf(n)+1;
+
+    var topB=Object.entries(bebidas).sort(function(a,b){return b[1]-a[1];})[0];
+    var propinas=(window._propinaHistorial||[]).filter(function(h){
+      return h&&normName(h.nombre||"")===n&&String(new Date(h.ts||0).getFullYear())===anio;
+    }).length;
+
+    return {
+      nombre:nombre,anio:anio,
+      fue:fue,de:delAnio.length,pct:Math.round(fue/delAnio.length*100),
+      puesto:puesto,total:orden.length,
+      bebida:topB?{nombre:topB[0],veces:topB[1],pct:Math.round(topB[1]/fue*100)}:null,
+      gasto:Math.round(gasto),racha:mejor,propinas:propinas,
+      maxDia:maxDia
+    };
+  }
+
+  window.generarWrapped=async function(quien){
+    var pl=quien||me;
+    if(!pl){showToast("Primero decí quién sos");return;}
+    var w=wrappedDe(pl);
+    if(!w){await avisar("Todavía no hay sábados archivados tuyos para armar el resumen.",{titulo:"Sin datos",icono:"🎁"});return;}
+    var escudo=await cargarImg("icon-transparent.png");
+
+    var W=1080,H=1700;
+    var cv=document.createElement("canvas");cv.width=W;cv.height=H;
+    var x=cv.getContext("2d");
+    var g=x.createLinearGradient(0,0,W,H);
+    g.addColorStop(0,"#16121f");g.addColorStop(0.55,"#120f18");g.addColorStop(1,"#0a0a0d");
+    x.fillStyle=g;x.fillRect(0,0,W,H);
+    x.strokeStyle="rgba(245,197,24,0.05)";x.lineWidth=2;
+    for(var i=-H;i<W;i+=70){x.beginPath();x.moveTo(i,0);x.lineTo(i+H,H);x.stroke();}
+
+    function ctr(t,y,font,color,sp){
+      x.font=font;x.fillStyle=color;x.textAlign="center";
+      if(sp){
+        var cs=String(t).split(""),tw=0;
+        cs.forEach(function(c){tw+=x.measureText(c).width+sp;});
+        tw-=sp;var cx=W/2-tw/2;
+        cs.forEach(function(c){x.fillText(c,cx+x.measureText(c).width/2,y);cx+=x.measureText(c).width+sp;});
+      } else x.fillText(t,W/2,y);
+    }
+    function fit(t,maxW,peso,base,min){
+      var f=base;
+      while(f>min){x.font=peso+" "+f+"px Inter, sans-serif";if(x.measureText(t).width<=maxW)return x.font;f-=2;}
+      return peso+" "+min+"px Inter, sans-serif";
+    }
+    function bloque(y,emoji,titulo,valor,sub,color){
+      x.fillStyle="rgba(255,255,255,0.04)";
+      if(x.roundRect){x.beginPath();x.roundRect(80,y,W-160,180,24);x.fill();}
+      x.textAlign="left";
+      x.font="54px sans-serif";x.fillText(emoji,125,y+78);
+      x.font="600 23px Inter, sans-serif";x.fillStyle="rgba(255,255,255,0.4)";
+      x.fillText(titulo,205,y+58);
+      x.font=fit(valor,W-160-205+80,"700",46,28);
+      x.fillStyle=color;x.fillText(valor,205,y+112);
+      if(sub){
+        x.font="500 22px Inter, sans-serif";x.fillStyle="rgba(255,255,255,0.38)";
+        x.fillText(sub,205,y+150);
+      }
+      return y+205;
+    }
+
+    var y=80;
+    if(escudo){x.save();x.globalAlpha=0.95;x.shadowColor="rgba(126,231,135,0.3)";x.shadowBlur=22;x.drawImage(escudo,W/2-55,y,110,110);x.restore();y+=150;}
+    ctr("MI AÑO EN LA MESA",y,"700 46px 'Bebas Neue', sans-serif","rgba(255,255,255,0.55)",6);y+=78;
+    ctr(String(w.nombre).toUpperCase(),y,"700 86px 'Bebas Neue', sans-serif","#f5c518",2);y+=40;
+    ctr(w.anio,y+22,"600 26px Inter, sans-serif","rgba(255,255,255,0.3)",8);y+=90;
+
+    y=bloque(y,"☕","SÁBADOS EN LA MESA",w.fue+" de "+w.de,
+      "puesto "+w.puesto+" de "+w.total+" · "+w.pct+"% de asistencia","#4ade80");
+    if(w.bebida)
+      y=bloque(y,"🏆","TU BEBIDA DEL AÑO",w.bebida.nombre,
+        w.bebida.veces+" veces · el "+w.bebida.pct+"% de tus pedidos","#60a5fa");
+    y=bloque(y,"💸","LO QUE DEJASTE EN EL BAR",fmt$(w.gasto),
+      "unos "+fmt$(Math.round(w.gasto/w.fue))+" por sábado","#f5c518");
+    y=bloque(y,"🔥","TU RACHA MÁS LARGA",w.racha+" sábados seguidos",
+      w.propinas?("y pagaste "+w.propinas+" propina"+(w.propinas>1?"s":"")+" 🎲"):"sin pagar una sola propina 🎲","#fb923c");
+
+    ctr("MESA DE GALANES · CRR TENIS · 7:45",H-60,"600 24px Inter, sans-serif","rgba(255,255,255,0.28)",4);
+
+    cv.toBlob(async function(blob){
+      if(!blob){showToast("⚠ No se pudo generar");return;}
+      var file=new File([blob],"mi-ano-en-la-mesa.png",{type:"image/png"});
+      if(navigator.canShare&&navigator.canShare({files:[file]})){
+        try{await navigator.share({files:[file],title:"Mi año en la Mesa",text:"Mi 2026 en la Mesa de Galanes ☕"});return;}
+        catch(e){if(e&&e.name==="AbortError")return;}
+      }
+      var a=document.createElement("a");
+      a.href=URL.createObjectURL(blob);a.download="mi-ano-en-la-mesa.png";a.click();
+      setTimeout(function(){URL.revokeObjectURL(a.href);},2000);
+      showToast("🎁 Resumen descargado");
+    },"image/png");
+  };
+
   function statsHistoricas(){
     var fechas=Object.keys(historico||{}).sort();
     if(!fechas.length)return null;
@@ -7841,6 +8089,16 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
     </div>
   </div>
   <div id="v-stats" style="display:none;padding:0 0 80px">
+    <button onclick="generarWrapped()" style="display:flex;align-items:center;gap:12px;width:calc(100% - 28px);margin:14px 14px 4px;padding:15px 16px;
+      background:linear-gradient(120deg,rgba(245,197,24,0.16),rgba(168,85,247,0.14));border:1.5px solid rgba(245,197,24,0.4);
+      border-radius:16px;cursor:pointer;font-family:var(--font-body);text-align:left">
+      <span style="font-size:1.7rem;flex-shrink:0">🎁</span>
+      <span style="flex:1;min-width:0">
+        <span style="display:block;font-size:0.82rem;font-weight:800;color:var(--gold)">Mi año en la Mesa</span>
+        <span style="display:block;font-size:0.64rem;color:var(--mut);margin-top:2px">Tu resumen del año, listo para compartir</span>
+      </span>
+      <span style="color:var(--gold);font-size:1rem;font-weight:800;flex-shrink:0">→</span>
+    </button>
     <!-- KPIs: lo que importa de un vistazo -->
     <div id="stats-kpis" style="padding:14px 14px 6px"></div>
 
@@ -8007,6 +8265,9 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
     <div id="vadmin-pagos" style="display:none">
       <div style="padding:12px 14px 80px">
         <!-- Verificador saldo MP -->
+        <div id="deudas-wrap" class="surf" style="display:none;margin:0 0 12px;padding:14px 16px;border-left:3px solid #ea580c">
+          <div id="deudas-panel"></div>
+        </div>
         <div id="pagos-pendientes" class="surf" style="display:none;margin:0 0 12px;padding:14px 16px;border-left:3px solid var(--gold)"></div>
         <div id="mp-saldo-panel" class="surf" data-solo-admin style="margin:0 0 12px;padding:14px 16px">
           <div style="font-size:0.6rem;font-weight:700;color:var(--gold);letter-spacing:0.08em;margin-bottom:10px">💚 VERIFICADOR MERCADO PAGO</div>
@@ -8403,7 +8664,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.200";
+  var APP_VERSION="10.0.202";
 
   var STORED_VERSION=localStorage.getItem("app_version");
 
