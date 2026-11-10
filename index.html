@@ -308,9 +308,9 @@
       renderDrinks();
       var sp=document.getElementById('splash-screen');if(sp){sp.style.opacity='0';setTimeout(function(){if(sp.parentNode)sp.parentNode.removeChild(sp);},500);}
     });
-    onValue(rO,function(s){try{orders=s.exists()?s.val():{};renderDrinks();renderOrders();renderMesa();renderLista();renderConfirmBtn();maybeRenderStats();renderPagosDetail();renderPagosHeader();if(document.getElementById("mlive")&&document.getElementById("mlive").classList.contains("open"))renderLiveModal();}catch(e){console.error("rO",e);}});
-    onValue(rC,function(s){try{confirmed=s.exists()?s.val():{};renderConfirmBtn();renderDrinks();renderMiSaldo();renderOrders();renderMesa();renderLista();}catch(e){console.error("rC",e);}});
-    onValue(rP,function(s){try{pagos=s.exists()?s.val():{};renderOrders();renderMesa();renderLista();renderPagosDetail();renderMiSaldo();renderConfirmBtn();if(typeof calcularSaldoMP==="function")calcularSaldoMP();if(typeof renderCierreResumen==="function")renderCierreResumen();}catch(e){console.error("rP",e);}});
+    onValue(rO,function(s){try{orders=s.exists()?s.val():{};renderDrinks();renderOrders();renderMesa();renderLista();renderConfirmBtn();maybeRenderStats();renderPagosDetail();renderPagosHeader();_refrescarAccion();if(document.getElementById("mlive")&&document.getElementById("mlive").classList.contains("open"))renderLiveModal();}catch(e){console.error("rO",e);}});
+    onValue(rC,function(s){try{confirmed=s.exists()?s.val():{};renderConfirmBtn();renderDrinks();renderMiSaldo();renderOrders();renderMesa();renderLista();_refrescarAccion();}catch(e){console.error("rC",e);}});
+    onValue(rP,function(s){try{pagos=s.exists()?s.val():{};renderOrders();renderMesa();renderLista();renderPagosDetail();renderMiSaldo();renderConfirmBtn();if(typeof calcularSaldoMP==="function")calcularSaldoMP();if(typeof renderCierreResumen==="function")renderCierreResumen();_refrescarAccion();}catch(e){console.error("rP",e);}});
 
     // ── NOTIFICACIONES IN-APP ──────────────────────────────────────────────────
     // Cada galan escucha su propio nodo. Cuando el admin escribe ahí, recibe un toast.
@@ -418,7 +418,7 @@
       try{movs=s.exists()?s.val():{};renderFondo();}catch(e){console.error("rMovs",e);}
     });
     onValue(rPagoReq,function(s){
-      try{pagoReqs=s.exists()?s.val():{};renderMiSaldo();renderPagosPendientes();}catch(e){console.error("rPagoReq",e);}
+      try{pagoReqs=s.exists()?s.val():{};renderMiSaldo();renderPagosPendientes();renderAccionContextual();}catch(e){console.error("rPagoReq",e);}
     });
     onValue(rNuevos,function(s){
       // Fuente unica de verdad: checkNuevosAlert (filtra por estaEnLista y limpia el badge)
@@ -613,6 +613,7 @@
   };
 
   // ── TABS ─────────────────────────────────────────────────
+  window._refrescarAccion=function(){if(typeof renderAccionContextual==="function")renderAccionContextual();};
   window.switchTab=function(tab,force){
     if(!me&&!force){showLoginScreen();return;}
     if(tab==="admin"&&!puedeOperar()){showToast("Solo el admin puede ver esta sección");return;}
@@ -635,6 +636,7 @@
     });
     window._ordenesEnAdmin=(stab==="pedidos"||stab==="pagos");
     window._adminStab=stab;
+    _refrescarAccion();
     if(stab==="galanes"){renderLista();renderPendientes();}
     if(stab==="ajustes"){
       renderPapelera();
@@ -740,6 +742,98 @@
   // ── CONFIRMAR ─────────────────────────────────────────────
   function tengo(){return me&&Object.values(orders).some(function(o){return o.player===me;});}
   function confirmado(){return me&&confirmed[me]&&(confirmed[me]===true||confirmed[me].ok)&&Object.values(orders).some(function(o){return o.player===me;});}
+
+  // ══ BARRA CONTEXTUAL: la acción del momento, al alcance del pulgar ═════
+  function accionDelMomento(){
+    if(!me)return null;
+    var hayPedidos=Object.keys(orders||{}).length>0;
+    var mios=Object.values(orders||{}).filter(function(o){return o.player===me;});
+    var abierta=(typeof mesaAbierta==="function")?mesaAbierta():true;
+
+    // Lo del admin primero: si hay algo que destrabar, va eso
+    if(puedeOperar()){
+      var pend=Object.keys(pagoReqs||{}).length;
+      if(pend)return {txt:"✓ Validar "+pend+" pago"+(pend>1?"s":""),color:"#16a34a",fn:function(){switchTab("admin");switchAdminTab("pagos");}};
+      if(hayPedidos&&!totalBar)
+        return {txt:"💰 Cargar el total del bar",color:"var(--gold)",fn:function(){switchTab("admin");switchAdminTab("pagos");setTimeout(function(){var i=document.getElementById("total-bar-input");if(i){i.scrollIntoView({block:"center"});i.focus();}},250);}};
+      if(hayPedidos&&totalBar){
+        var sinPagar=Object.values(orders).map(function(o){return o.player;})
+          .filter(function(p,i,a){return p&&a.indexOf(p)===i;})
+          .filter(function(p){var pg=(pagos||{})[p]||{};return !((pg.cash||0)+(pg.transfer||0));});
+        if(sinPagar.length)
+          return {txt:"💸 Faltan "+sinPagar.length+" por pagar",color:"#ea580c",fn:function(){switchTab("admin");switchAdminTab("pagos");}};
+        return {txt:"🔒 Cerrar la mesa",color:"#16a34a",fn:function(){switchTab("admin");switchAdminTab("pagos");setTimeout(function(){var b=document.getElementById("cierre-resumen");if(b)b.scrollIntoView({block:"center"});},250);}};
+      }
+    }
+    // Lo del galán
+    if(!abierta)return null;
+    if(!mios.length)return {txt:"☕ Hacer mi pedido",color:"var(--gold)",fn:function(){switchTab("pedir");}};
+    if(!confirmado())return {txt:"✓ Enviar mi pedido",color:"#ea580c",fn:function(){
+      switchTab("pedir");
+      setTimeout(function(){var c=document.querySelector(".cbtn");if(c)c.scrollIntoView({block:"center"});},250);
+    }};
+    return null;
+  }
+
+  // ══ ESTADOS VACÍOS: decir qué pasa, no dejar "Cargando..." para siempre ══
+  window.estadoPanel=function(id,opts){
+    var el=document.getElementById(id);if(!el)return;
+    var o=opts||{};
+    el.innerHTML="<div style='text-align:center;padding:"+(o.compacto?"14px 10px":"22px 14px")+";line-height:1.55'>"
+      +"<div style='font-size:"+(o.compacto?"1.4rem":"1.9rem")+";margin-bottom:7px;opacity:0.45'>"+(o.icono||"📭")+"</div>"
+      +"<div style='font-size:0.74rem;font-weight:700;color:var(--ink)'>"+esc(o.titulo||"Sin datos")+"</div>"
+      +(o.sub?"<div style='font-size:0.65rem;color:var(--mut);margin-top:4px'>"+esc(o.sub)+"</div>":"")
+      +(o.accion?"<button onclick='"+o.accion.fn+"' style='margin-top:12px;padding:9px 18px;border-radius:10px;border:1.5px solid var(--brd);background:var(--sur2);color:var(--gold);font-size:0.7rem;font-weight:800;cursor:pointer'>"+esc(o.accion.txt)+"</button>":"")
+      +"</div>";
+  };
+
+  // Vigía: si un panel queda en "Cargando..." más de 12s, algo falló
+  function vigilarCargando(){
+    var paneles=[
+      {id:"stats-propina-panel",nombre:"el historial de propinas"},
+      {id:"stats-asistencia-panel",nombre:"la asistencia"},
+      {id:"stats-content",nombre:"las estadísticas"},
+      {id:"papelera-panel",nombre:"la papelera"}
+    ];
+    paneles.forEach(function(p){
+      var el=document.getElementById(p.id);
+      if(!el||!/Cargando/i.test(el.textContent||""))return;
+      estadoPanel(p.id,{
+        icono:"⚠️",titulo:"No se pudo cargar "+p.nombre,
+        sub:"Puede ser la conexión. Probá de nuevo.",
+        accion:{txt:"🔄 Reintentar",fn:"renderStats();renderPapelera();"}
+      });
+    });
+  }
+  setInterval(function(){
+    var v=document.getElementById("v-stats");
+    if(v&&v.style.display!=="none")vigilarCargando();
+  },12000);
+
+  window.renderAccionContextual=function(){
+   try{
+    var bar=document.getElementById("accion-ctx");if(!bar)return;
+    if(window._ocultarAccionCtx){bar.style.display="none";return;}
+    var a=accionDelMomento();
+    if(!a){bar.style.display="none";document.body.classList.remove("con-accion");return;}
+    bar.style.display="flex";
+    document.body.classList.add("con-accion");
+    bar.style.background=a.color;
+    bar.querySelector("#accion-ctx-txt").textContent=a.txt;
+    bar.onclick=function(e){
+      if(e.target&&e.target.id==="accion-ctx-x")return;
+      a.fn();
+    };
+   }catch(e){console.error("accionCtx",e);}
+  };
+  window.cerrarAccionCtx=function(e){
+    if(e&&e.stopPropagation)e.stopPropagation();
+    window._ocultarAccionCtx=true;
+    var bar=document.getElementById("accion-ctx");
+    if(bar)bar.style.display="none";
+    document.body.classList.remove("con-accion");
+    setTimeout(function(){window._ocultarAccionCtx=false;},10*60000);  // vuelve en 10 min
+  };
   // Mantiene el espaciador del final sincronizado con el swipe fijo
   function syncEspacioPedir(){
     var w=document.getElementById("confirm-wrap");
@@ -6358,11 +6452,11 @@
     get(rPropina).then(function(ps){
       var spanel=document.getElementById("stats-propina-panel");
       if(!spanel)return;
-      if(!ps.exists()){spanel.innerHTML="<div style='font-size:0.68rem;color:var(--mut);text-align:center;padding:8px'>Sin sorteos registrados todavía</div>";return;}
+      if(!ps.exists()){estadoPanel("stats-propina-panel",{icono:"🎲",titulo:"Todavía no se sorteó ninguna propina",sub:"El primer sorteo arranca el historial.",compacto:true});return;}
       var pd=ps.val(),hh=(pd.historial||[]).slice().reverse();
       window._propinaHistorial=(pd.historial||[]);
       if(typeof renderTitulos==="function")renderTitulos();
-      if(!hh.length){spanel.innerHTML="<div style='font-size:0.68rem;color:var(--mut);text-align:center;padding:8px'>Sin sorteos registrados todavía</div>";return;}
+      if(!hh.length){estadoPanel("stats-propina-panel",{icono:"🎲",titulo:"Todavía no se sorteó ninguna propina",sub:isAdmin()?"Podés cargar una a mano con ➕ Agregar.":"El primer sorteo arranca el historial.",compacto:true});return;}
       // Contar cuántas veces le tocó a cada uno
       var conteo={};hh.forEach(function(h){conteo[h.nombre]=(conteo[h.nombre]||0)+1;});
       var ranking=Object.keys(conteo).sort(function(a,b){return conteo[b]-conteo[a];});
@@ -6395,7 +6489,12 @@
       var pendientesAhora=pendientesCicloPropina(pd,jugadoresHoy);
       html+="<div style='font-size:0.58rem;color:var(--mut);text-align:center;margin-top:4px'>Quedan <b style='color:var(--ink)'>"+pendientesAhora.length+"</b> en la ronda actual</div>";
       spanel.innerHTML=html;
-    }).catch(function(){});
+    }).catch(function(err){
+      console.error("propinas",err);
+      estadoPanel("stats-propina-panel",{icono:"⚠️",titulo:"No se pudo leer el historial",
+        sub:String((err&&err.code)||"Revisá la conexión"),compacto:true,
+        accion:{txt:"🔄 Reintentar",fn:"renderStats()"}});
+    });
 
     if(window._sTimer)clearInterval(window._sTimer);
     window._sTimer=setInterval(function(){
@@ -7401,6 +7500,16 @@ header::after{
 
 /* TABS */
 /* DOCK FLOTANTE INFERIOR — reemplaza el tab bar superior */
+#accion-ctx{
+  position:fixed;bottom:84px;left:50%;transform:translateX(-50%);
+  width:calc(100% - 28px);max-width:460px;
+  align-items:center;gap:4px;
+  padding:14px 16px;border-radius:16px;border:none;
+  color:#fff;font-family:var(--font-body);font-size:0.84rem;font-weight:800;letter-spacing:0.02em;
+  box-shadow:0 10px 30px rgba(0,0,0,0.3);cursor:pointer;z-index:199;
+  animation:accionIn 0.3s cubic-bezier(0.2,0.9,0.3,1.2);
+}
+@keyframes accionIn{from{opacity:0;transform:translate(-50%,14px)}to{opacity:1;transform:translate(-50%,0)}}
 .tabs{
   position:fixed;bottom:16px;left:50%;transform:translateX(-50%);
   display:flex;align-items:center;justify-content:space-around;gap:2px;
@@ -8664,7 +8773,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.202";
+  var APP_VERSION="10.0.203";
 
   var STORED_VERSION=localStorage.getItem("app_version");
 
