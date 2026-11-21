@@ -2446,7 +2446,7 @@
     showToast("✓ "+obj.name+(precioVal>0?" · $"+Math.round(precioVal):""));
   };
   var DEFAULT_EXTRAS=["Sin acompanamiento","2 Medialunas saladas","2 Medialunas dulces","Tostadas","Huevos revueltos","Huevos revueltos con palta","Alfajor de maicena"];
-  function comboKeyOf(ex){return ex.toLowerCase().replace(/\s+/g,"_");}
+  function comboKeyOf(ex){return ckey(ex);}   // misma clave que usa el cálculo
   function extrasFor(d){return (d.extras&&d.extras.length?d.extras:DEFAULT_EXTRAS).filter(function(e){return e&&e.trim()&&e!=="Sin acompanamiento";});}
   function keysFor(d){return extrasFor(d).map(comboKeyOf);}
 
@@ -2527,19 +2527,35 @@
     openModal("mprecios");
   };
 
+  var _preciosTimer=null,_preciosSucio=false;
   function setupPreciosAutoSave(){
     var grid=document.getElementById("precios-grid");
     if(!grid||grid._autosaveBound)return;
     grid._autosaveBound=true;
-    var saveTimer=null;
     grid.addEventListener("input",function(e){
       if(!e.target||e.target.tagName!=="INPUT")return;
+      _preciosSucio=true;
       var ind=document.getElementById("precios-save-ind");
       if(ind){ind.textContent="Guardando…";ind.style.opacity="1";}
-      clearTimeout(saveTimer);
-      saveTimer=setTimeout(window.guardarPreciosAuto,650);
+      clearTimeout(_preciosTimer);
+      _preciosTimer=setTimeout(window.guardarPreciosAuto,650);
     });
+    // Al salir del campo se guarda ya, sin esperar
+    grid.addEventListener("focusout",function(e){
+      if(!e.target||e.target.tagName!=="INPUT"||!_preciosSucio)return;
+      clearTimeout(_preciosTimer);
+      window.guardarPreciosAuto();
+    },true);
   }
+
+  // Fuerza el guardado pendiente antes de cerrar
+  window.cerrarPrecios=async function(){
+    if(_preciosSucio){
+      clearTimeout(_preciosTimer);
+      try{await window.guardarPreciosAuto();}catch(e){console.error("cerrarPrecios",e);}
+    }
+    closeModal("mprecios");
+  };
 
   window.guardarPreciosAuto=async function(){
     var grid=document.getElementById("precios-grid");if(!grid)return;
@@ -2578,7 +2594,8 @@
     drinks=nd;
     await set(rD,nd);
     await set(rSolos,Object.keys(solos).length?solos:null);
-    renderDrinks();
+    _preciosSucio=false;
+    renderDrinks();renderOrders();renderMiSaldo();
     var ind=document.getElementById("precios-save-ind");
     if(ind){ind.textContent="✓ Guardado";setTimeout(function(){if(ind)ind.style.opacity="0";},1400);}
   };
@@ -8848,7 +8865,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
   </div>
 </div>
 
-<div class="modal-overlay mc" id="mprecios" onclick="if(event.target===this)closeModal('mprecios')">
+<div class="modal-overlay mc" id="mprecios" onclick="if(event.target===this)cerrarPrecios()">
   <div class="modal" style="max-height:88vh;overflow-y:auto;overflow-x:hidden;width:calc(100% - 32px);max-width:480px;margin:0 16px;box-sizing:border-box">
     <div class="mh2"></div>
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
@@ -8869,7 +8886,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
     <div id="precios-grid" style="max-width:100%;overflow-x:hidden"></div>
     <div id="precios-preview" style="margin-top:14px;padding:10px 12px;background:var(--sur2);border:1px solid var(--brd);border-radius:12px"></div>
     <div class="ma" style="margin-top:14px">
-      <button class="bp" style="flex:1" onclick="closeModal('mprecios')">Listo ✓</button>
+      <button class="bp" style="flex:1" onclick="cerrarPrecios()">Listo ✓</button>
     </div>
   </div>
 </div>
@@ -8917,7 +8934,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.208";
+  var APP_VERSION="10.0.209";
 
   var STORED_VERSION=localStorage.getItem("app_version");
 
