@@ -1573,6 +1573,17 @@
         if(!o||!o.player)return;
         porPlayer[o.player]=(porPlayer[o.player]||0)+precioPedido(o);
       });
+      // Se graba el saldo del dia, calculado con los precios de HOY.
+      // Es la unica forma de que el detalle no cambie cuando cambien los precios.
+      var saldosDia={};
+      Object.keys(porPlayer).forEach(function(pl){
+        var pgx=pagos[pl]||{};
+        var pagx=(pgx.cash||0)+(pgx.transfer||0);
+        saldosDia[pl]={consumo:Math.round(porPlayer[pl]),pagado:Math.round(pagx),
+                       saldo:Math.round(porPlayer[pl]-pagx)};
+      });
+      await set(ref(db,"historial/"+fecha+"/saldos"),Object.keys(saldosDia).length?saldosDia:null);
+
       var deudasAntes=JSON.parse(JSON.stringify(deudas||{}));
       var nuevasDeudas=Object.assign({},deudas);
       var fechaCta=(+fecha.slice(8,10))+"/"+(+fecha.slice(5,7));
@@ -2305,27 +2316,21 @@
 
   // Reconstruye de donde sale la deuda, sabado por sabado, leyendo el historial.
   // No hace falta guardar nada nuevo: sale de lo que ya esta registrado.
+  // Lee los saldos que quedaron grabados en cada cierre de mesa.
+  // No recalcula nada: un sabado viejo se valua con los precios de ese sabado.
   function movimientosDe(nombre){
     if(!nombre)return [];
     var objetivo=normName(nombre),out=[];
     Object.keys(historico||{}).sort().forEach(function(f){
-      var dia=historico[f]; if(!dia)return;
-      var consumo=0,hubo=false;
-      Object.keys(dia.pedidos||{}).forEach(function(i){
-        var o=dia.pedidos[i];
-        if(!o||!o.player||normName(o.player)!==objetivo)return;
-        hubo=true; consumo+=precioPedido(o);
-      });
-      var pagado=0;
-      Object.keys(dia.pagos||{}).forEach(function(pl){
+      var dia=historico[f]; if(!dia||!dia.saldos)return;
+      Object.keys(dia.saldos).forEach(function(pl){
         if(normName(pl)!==objetivo)return;
-        var pg=dia.pagos[pl]||{}; pagado+=(pg.cash||0)+(pg.transfer||0);
-        if(pagado)hubo=true;
+        var sd=dia.saldos[pl]||{};
+        if(Math.abs(sd.saldo||0)<1)return;
+        out.push({fecha:(+f.slice(8,10))+"/"+(+f.slice(5,7)),
+                  consumo:Math.round(sd.consumo||0),pagado:Math.round(sd.pagado||0),
+                  saldo:Math.round(sd.saldo)});
       });
-      if(!hubo)return;
-      var saldo=Math.round(consumo-pagado);
-      if(Math.abs(saldo)<1)return;
-      out.push({fecha:(+f.slice(8,10))+"/"+(+f.slice(5,7)),consumo:Math.round(consumo),pagado:Math.round(pagado),saldo:saldo});
     });
     return out;
   }
@@ -2350,14 +2355,16 @@
         +"color:"+(debe?"#ea580c":"var(--grn)")+"'>"+(debe?"":"+")+fmt$(Math.abs(m.saldo))+"</b>"
         +"</div>";
     }).join("");
+    // Lo que viene de antes de que se empezara a guardar el detalle por sabado.
+    // No es un ajuste: es saldo real sin desglose, y se dice asi.
     if(Math.abs(ajuste)>=1){
-      filas+="<div style='display:flex;align-items:baseline;gap:8px;padding:8px 0;border-bottom:1px solid var(--brd)'>"
-        +"<span style='font-family:\"JetBrains Mono\",monospace;font-size:0.62rem;color:var(--mut);flex-shrink:0;width:42px'>\u2014</span>"
-        +"<span style='flex:1;font-size:0.65rem;color:var(--mut)'>ajuste hecho a mano</span>"
-        +"<b style='font-family:\"Bebas Neue\",sans-serif;font-size:1.05rem;flex-shrink:0;color:var(--mut)'>"
-        +(ajuste>0?"":"+")+fmt$(Math.abs(ajuste))+"</b></div>";
+      filas="<div style='display:flex;align-items:baseline;gap:8px;padding:8px 0;border-bottom:1px solid var(--brd)'>"
+        +"<span style='font-family:\"JetBrains Mono\",monospace;font-size:0.62rem;color:var(--mut);flex-shrink:0;width:42px'>antes</span>"
+        +"<span style='flex:1;font-size:0.65rem;color:var(--mut);line-height:1.4'>arrastre anterior<br><span style='opacity:0.75'>sin detalle por sabado</span></span>"
+        +"<b style='font-family:\"Bebas Neue\",sans-serif;font-size:1.05rem;flex-shrink:0;color:"+(ajuste>0?"#ea580c":"var(--grn)")+"'>"
+        +(ajuste>0?"":"+")+fmt$(Math.abs(ajuste))+"</b></div>"+filas;
     }
-    if(!filas)filas="<div style='font-size:0.68rem;color:var(--mut);padding:10px 0'>No hay sabados registrados con saldo.</div>";
+    if(!filas)filas="<div style='font-size:0.68rem;color:var(--mut);padding:10px 0'>Todavia no hay saldo registrado.</div>";
 
     var debeTot=total>0;
     var ov=document.createElement("div");
@@ -2370,7 +2377,7 @@
       +"<span style='font-size:0.68rem;font-weight:800;color:var(--ink)'>"+(debeTot?"Debe":"A favor")+"</span>"
       +"<b style='font-family:\"Bebas Neue\",sans-serif;font-size:1.5rem;letter-spacing:0.03em;color:"+(debeTot?"#ea580c":"var(--grn)")+"'>"
       +fmt$(Math.abs(total))+"</b></div>"
-      +"<div style='font-size:0.56rem;color:var(--mut);margin-top:8px;line-height:1.45'>Cada renglon es un sabado: lo que pediste menos lo que pagaste.</div>"
+      +"<div style='font-size:0.56rem;color:var(--mut);margin-top:8px;line-height:1.45'>Cada renglon es un sabado, con los precios de ese dia. Cambiar precios hoy no toca lo de atras.</div>"
       +"<button onclick=\"this.closest('.modal-overlay').remove()\" style='width:100%;margin-top:14px;padding:12px;border-radius:12px;border:1.5px solid var(--brd);background:var(--sur2);color:var(--mut);font-size:0.76rem;font-weight:700;cursor:pointer'>Cerrar</button>"
       +"</div>";
     ov.onclick=function(e){if(e.target===ov)ov.remove();};
@@ -9201,7 +9208,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.2.0";
+  var APP_VERSION="10.2.1";
 
   var STORED_VERSION=localStorage.getItem("app_version");
 
