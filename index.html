@@ -2303,6 +2303,81 @@
     return (d&&Math.abs(d.monto||0)>=1)?d:null;
   }
 
+  // Reconstruye de donde sale la deuda, sabado por sabado, leyendo el historial.
+  // No hace falta guardar nada nuevo: sale de lo que ya esta registrado.
+  function movimientosDe(nombre){
+    if(!nombre)return [];
+    var objetivo=normName(nombre),out=[];
+    Object.keys(historico||{}).sort().forEach(function(f){
+      var dia=historico[f]; if(!dia)return;
+      var consumo=0,hubo=false;
+      Object.keys(dia.pedidos||{}).forEach(function(i){
+        var o=dia.pedidos[i];
+        if(!o||!o.player||normName(o.player)!==objetivo)return;
+        hubo=true; consumo+=precioPedido(o);
+      });
+      var pagado=0;
+      Object.keys(dia.pagos||{}).forEach(function(pl){
+        if(normName(pl)!==objetivo)return;
+        var pg=dia.pagos[pl]||{}; pagado+=(pg.cash||0)+(pg.transfer||0);
+        if(pagado)hubo=true;
+      });
+      if(!hubo)return;
+      var saldo=Math.round(consumo-pagado);
+      if(Math.abs(saldo)<1)return;
+      out.push({fecha:(+f.slice(8,10))+"/"+(+f.slice(5,7)),consumo:Math.round(consumo),pagado:Math.round(pagado),saldo:saldo});
+    });
+    return out;
+  }
+
+  window.verDetalleDeuda=function(nombre){
+    var md=null;
+    Object.keys(deudas||{}).forEach(function(k){
+      if(deudas[k]&&normName(deudas[k].nombre||"")===normName(nombre))md=deudas[k];
+    });
+    var movs=movimientosDe(nombre);
+    var suma=movs.reduce(function(a,m){return a+m.saldo;},0);
+    var total=md?Math.round(md.monto):suma;
+    var ajuste=total-suma;
+
+    var filas=movs.map(function(m){
+      var debe=m.saldo>0;
+      return "<div style='display:flex;align-items:baseline;gap:8px;padding:8px 0;border-bottom:1px solid var(--brd)'>"
+        +"<span style='font-family:\"JetBrains Mono\",monospace;font-size:0.62rem;color:var(--mut);flex-shrink:0;width:42px'>"+esc(m.fecha)+"</span>"
+        +"<span style='flex:1;min-width:0;font-size:0.65rem;color:var(--mut);line-height:1.4'>"
+        +"pidio "+fmt$(m.consumo)+"<br>pago "+fmt$(m.pagado)+"</span>"
+        +"<b style='font-family:\"Bebas Neue\",sans-serif;font-size:1.05rem;letter-spacing:0.03em;flex-shrink:0;"
+        +"color:"+(debe?"#ea580c":"var(--grn)")+"'>"+(debe?"":"+")+fmt$(Math.abs(m.saldo))+"</b>"
+        +"</div>";
+    }).join("");
+    if(Math.abs(ajuste)>=1){
+      filas+="<div style='display:flex;align-items:baseline;gap:8px;padding:8px 0;border-bottom:1px solid var(--brd)'>"
+        +"<span style='font-family:\"JetBrains Mono\",monospace;font-size:0.62rem;color:var(--mut);flex-shrink:0;width:42px'>\u2014</span>"
+        +"<span style='flex:1;font-size:0.65rem;color:var(--mut)'>ajuste hecho a mano</span>"
+        +"<b style='font-family:\"Bebas Neue\",sans-serif;font-size:1.05rem;flex-shrink:0;color:var(--mut)'>"
+        +(ajuste>0?"":"+")+fmt$(Math.abs(ajuste))+"</b></div>";
+    }
+    if(!filas)filas="<div style='font-size:0.68rem;color:var(--mut);padding:10px 0'>No hay sabados registrados con saldo.</div>";
+
+    var debeTot=total>0;
+    var ov=document.createElement("div");
+    ov.className="modal-overlay mc";ov.style.zIndex="100001";
+    ov.innerHTML="<div class='modal' style='max-width:340px;max-height:82vh;overflow-y:auto;box-sizing:border-box'>"
+      +"<div style='font-family:\"Bebas Neue\",sans-serif;font-size:1.15rem;color:var(--ink);letter-spacing:0.04em'>DE DONDE SALE</div>"
+      +"<div style='font-size:0.68rem;color:var(--mut);margin-bottom:14px'>"+esc(nombre)+"</div>"
+      +filas
+      +"<div style='display:flex;align-items:baseline;justify-content:space-between;margin-top:12px;padding-top:10px;border-top:2px solid var(--brd)'>"
+      +"<span style='font-size:0.68rem;font-weight:800;color:var(--ink)'>"+(debeTot?"Debe":"A favor")+"</span>"
+      +"<b style='font-family:\"Bebas Neue\",sans-serif;font-size:1.5rem;letter-spacing:0.03em;color:"+(debeTot?"#ea580c":"var(--grn)")+"'>"
+      +fmt$(Math.abs(total))+"</b></div>"
+      +"<div style='font-size:0.56rem;color:var(--mut);margin-top:8px;line-height:1.45'>Cada renglon es un sabado: lo que pediste menos lo que pagaste.</div>"
+      +"<button onclick=\"this.closest('.modal-overlay').remove()\" style='width:100%;margin-top:14px;padding:12px;border-radius:12px;border:1.5px solid var(--brd);background:var(--sur2);color:var(--mut);font-size:0.76rem;font-weight:700;cursor:pointer'>Cerrar</button>"
+      +"</div>";
+    ov.onclick=function(e){if(e.target===ov)ov.remove();};
+    document.body.appendChild(ov);
+    requestAnimationFrame(function(){ov.classList.add("open");});
+  };
+
   window.saldarDeuda=async function(k){
     if(!puedeOperar())return;
     var d=deudas&&deudas[k];if(!d)return;
@@ -2344,8 +2419,8 @@
         +"<span style='width:28px;height:28px;border-radius:50%;background:"+col(d.nombre)+";color:#fff;display:flex;align-items:center;justify-content:center;font-size:0.56rem;font-weight:800;flex-shrink:0'>"+esc(ini(d.nombre))+"</span>"
         +"<div style='flex:1;min-width:0'>"
         +"<div style='font-size:0.74rem;font-weight:700;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap'>"+esc(d.nombre)+"</div>"
-        +"<div style='font-size:0.58rem;color:var(--mut)'>desde el "+esc(d.desde||"?")+"</div></div>"
-        +"<span style='font-family:\"Bebas Neue\",sans-serif;font-size:1.05rem;color:"+(debe?"#ea580c":"var(--grn)")+";flex-shrink:0'>"
+        +"<div style='font-size:0.58rem;color:var(--mut)'>desde el "+esc(d.desde||"?")+" \u00b7 <span style='color:var(--gold);font-weight:700'>ver detalle</span></div></div>"
+        +"<span onclick='verDetalleDeuda(\""+esc(d.nombre).replace(/"/g,"")+"\")' style='cursor:pointer;font-family:\"Bebas Neue\",sans-serif;font-size:1.05rem;color:"+(debe?"#ea580c":"var(--grn)")+";flex-shrink:0'>"
         +(debe?"":"+")+fmt$(Math.abs(d.monto))+"</span>"
         +(puedeOperar()?"<button onclick='saldarDeuda(\""+d.key+"\")' style='flex-shrink:0;background:rgba(74,222,128,0.12);border:1.5px solid rgba(74,222,128,0.35);border-radius:9px;padding:6px 9px;color:var(--grn);font-size:0.62rem;font-weight:800;cursor:pointer'>✓</button>":"")
         +"</div>";
@@ -4442,13 +4517,39 @@
       div.style.display="block";
     }).catch(function(){});
   }
+  // Bloque "tenes una cuenta pendiente", tocable para ver el detalle
+  function cardDeudaHtml(md){
+    if(!md)return "";
+    var debe=md.monto>0;
+    return "<div onclick='verDetalleDeuda(\""+esc(md.nombre||"").replace(/"/g,"")+"\")' "
+      +"style='cursor:pointer;margin-top:9px;padding:10px 12px;border-radius:11px;line-height:1.45;"
+      +"background:"+(debe?"rgba(234,88,12,0.1)":"rgba(74,222,128,0.1)")+";"
+      +"border:1.5px solid "+(debe?"rgba(234,88,12,0.35)":"rgba(74,222,128,0.35)")+"'>"
+      +"<div style='font-size:0.62rem;font-weight:800;letter-spacing:0.06em;color:"+(debe?"#ea580c":"var(--grn)")+"'>"
+      +(debe?"\u23f3 TEN\u00c9S UNA CUENTA PENDIENTE":"\u2713 TEN\u00c9S SALDO A FAVOR")+"</div>"
+      +"<div style='font-size:0.74rem;color:var(--ink);margin-top:3px'>"
+      +(debe?"Deb\u00e9s ":"Te quedaron ")+"<b>"+fmt$(Math.abs(md.monto))+"</b> desde el "+esc(md.desde||"")+"</div>"
+      +"<div style='font-size:0.6rem;color:var(--gold);font-weight:700;margin-top:5px'>\u2192 Ver de d\u00f3nde sale</div>"
+      +"</div>";
+  }
+
   function renderMiSaldo(){
     var card=document.getElementById("mi-saldo-card");if(!card||!me)return;
     var pg=pagos[me]||{},pagado=(pg.cash||0)+(pg.transfer||0);
     var misPed=Object.values(orders).filter(function(o){return o.player===me;});
     // Mostrar solo si confirmó o ya pagó
-    if(!confirmado()&&!pagado){card.innerHTML="";return;}
-    if(!misPed.length&&!pagado){card.innerHTML="";return;}
+    // Aunque no haya pedido ni mesa abierta, la deuda se muestra igual:
+    // es plata que se debe, no puede depender de que sea sabado.
+    function soloDeuda(){
+      var md=miDeuda();
+      if(!md){card.innerHTML="";return true;}
+      card.innerHTML="<div class='surf' style='margin:16px 14px 6px;padding:16px 18px'>"
+        +"<div style='font-size:0.65rem;color:var(--mut);letter-spacing:0.1em;font-family:\"JetBrains Mono\",monospace'>TU CUENTA</div>"
+        +cardDeudaHtml(md)+"</div>";
+      return true;
+    }
+    if(!confirmado()&&!pagado){soloDeuda();return;}
+    if(!misPed.length&&!pagado){soloDeuda();return;}
     // Calcular lo que debe según precio base + combo
     var deuda=0;
     misPed.forEach(function(o){deuda+=precioPedido(o);});
@@ -4462,17 +4563,7 @@
         +"<div style='font-size:0.8rem;font-weight:600;color:var(--ink);line-height:1.3'>"+misPed[0].icon+" "+misPed[0].drink+"</div>"
         +(deuda>0?"<div style='font-family:\"Bebas Neue\",sans-serif;font-size:1rem;color:var(--gold);margin-top:4px;letter-spacing:0.04em'>Precio: $"+Math.round(deuda)+"</div>":"")
         +desgloseHtml(misPed)
-        +(function(){
-          var md=miDeuda();if(!md)return "";
-          var debe=md.monto>0;
-          return "<div style='margin-top:9px;padding:9px 11px;border-radius:11px;line-height:1.45;"
-            +"background:"+(debe?"rgba(234,88,12,0.1)":"rgba(74,222,128,0.1)")+";"
-            +"border:1.5px solid "+(debe?"rgba(234,88,12,0.35)":"rgba(74,222,128,0.35)")+"'>"
-            +"<div style='font-size:0.62rem;font-weight:800;letter-spacing:0.06em;color:"+(debe?"#ea580c":"var(--grn)")+"'>"
-            +(debe?"⏳ TENÉS UNA CUENTA PENDIENTE":"✓ TENÉS SALDO A FAVOR")+"</div>"
-            +"<div style='font-size:0.74rem;color:var(--ink);margin-top:3px'>"
-            +(debe?"Debés ":"Te quedaron ")+"<b>"+fmt$(Math.abs(md.monto))+"</b> desde el "+esc(md.desde||"")+"</div></div>";
-        })()
+        +cardDeudaHtml(miDeuda())
         +"</div>";
     }
     // Saldo
@@ -9110,7 +9201,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.1.2";
+  var APP_VERSION="10.2.0";
 
   var STORED_VERSION=localStorage.getItem("app_version");
 
