@@ -2385,6 +2385,16 @@
     requestAnimationFrame(function(){ov.classList.add("open");});
   };
 
+  // El nombre del pedido a veces ya trae el acompanamiento adentro.
+  function nombrePedido(o){
+    if(!o)return "?";
+    var base=String(o.drink||"?");
+    var ex=(o.extra&&o.extra!=="Sin acompanamiento")?String(o.extra):"";
+    if(!ex)return base;
+    if(ckey(base).indexOf(ckey(ex))>=0)return base;   // ya esta adentro
+    return base+" + "+ex;
+  }
+
   // Recalcula un sabado ya cerrado con los precios de AHORA.
   // Se usa cuando el precio estaba mal cargado, no cuando el bar aumento.
   window.recalcularUltimoSabado=async function(){
@@ -2409,13 +2419,18 @@
       var pagado=(pg.cash||0)+(pg.transfer||0);
       var nuevoSaldo=Math.round(consumo[pl]-pagado);
       var k=normName(pl).replace(/[.#$/\[\]]/g,"_");
-      var deudaHoy=Math.round((deudas&&deudas[k]&&deudas[k].monto)||0);
-      var deudaAntes=Math.round((prev[k]&&prev[k].monto)||0);
-      var viejoSaldo=deudaHoy-deudaAntes;              // lo que ese dia sumo
-      if(Math.abs(nuevoSaldo-viejoSaldo)<1)return;
+      var dInfo=(deudas&&deudas[k])||null;
+      var deudaHoy=Math.round((dInfo&&dInfo.monto)||0);
+      // Cuanto traia de ANTES de ese sabado. Si la deuda nacio ese dia, nada.
+      var deudaAntes;
+      if(dInfo&&dInfo.desde===fCorta)deudaAntes=0;
+      else if(prev[k])deudaAntes=Math.round(prev[k].monto||0);
+      else deudaAntes=deudaHoy-nuevoSaldo;             // sin datos: lo dejamos igual
+      var deudaNueva=Math.round(deudaAntes+nuevoSaldo);
+      if(Math.abs(deudaNueva-deudaHoy)<1)return;
       cambios.push({player:pl,key:k,consumo:Math.round(consumo[pl]),pagado:Math.round(pagado),
-                    viejo:viejoSaldo,nuevo:nuevoSaldo,deudaHoy:deudaHoy,
-                    deudaNueva:Math.round(deudaAntes+nuevoSaldo)});
+                    viejo:deudaHoy-deudaAntes,nuevo:nuevoSaldo,deudaHoy:deudaHoy,
+                    deudaNueva:deudaNueva});
     });
 
     // Nada que cambiar: igual mostramos la cuenta, asi se ve POR QUE no cambia.
@@ -2428,8 +2443,7 @@
           return dia.pedidos[i]&&dia.pedidos[i].player===pl;
         }).map(function(i){
           var o=dia.pedidos[i];
-          var ex=(o.extra&&o.extra!=="Sin acompanamiento")?" + "+o.extra:"";
-          return esc((o.drink||"?")+ex)+" <b>"+fmt$(precioPedido(o))+"</b>";
+          return esc(nombrePedido(o))+" <b>"+fmt$(precioPedido(o))+"</b>";
         }).join("<br>"):"");
         return "<div style='padding:9px 0;border-bottom:1px solid var(--brd)'>"
           +"<div style='display:flex;align-items:baseline;gap:8px'>"
@@ -9310,7 +9324,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.2.3";
+  var APP_VERSION="10.2.4";
 
   var STORED_VERSION=localStorage.getItem("app_version");
 
