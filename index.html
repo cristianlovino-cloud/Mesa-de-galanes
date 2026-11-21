@@ -397,6 +397,9 @@
     onValue(rSolos,function(s){
       try{preciosSolos=s.exists()?s.val():{};renderOrders();renderMiSaldo();}catch(e){console.error("rSolos",e);}
     });
+    onValue(rLista,function(s){
+      try{listaPrecios=s.exists()?s.val():{};renderDrinks();renderOrders();renderMiSaldo();}catch(e){console.error("rLista",e);}
+    });
     onValue(rDeudas,function(s){
       try{
         deudas=s.exists()?s.val():{};
@@ -1662,11 +1665,32 @@
     });
     return p;
   }
+  // Clave del renglon de la lista que le corresponde a un pedido
+  function keyLinea(o){
+    if(!o)return "";
+    if(o.soloExtra)return "solo|"+ckey(o.drink);
+    var d=bebidaDe(o);
+    if(!d)return "";
+    var tieneExtra=!!(o.extra&&o.extra!=="Sin acompanamiento");
+    return ckey(d.name)+"|"+(tieneExtra?ckey(o.extra):"solo");
+  }
+  function precioLista(o){
+    var k=keyLinea(o);
+    return (k&&listaPrecios&&listaPrecios[k]>0)?listaPrecios[k]:0;
+  }
   function precioDetalle(o){
     // Precio cargado a mano: manda sobre cualquier cálculo
     if(o&&o.precioManual>0){
       return {ok:true,d:null,base:o.precioManual,add:0,total:o.precioManual,
               nombre:o.drink||"Otro",extra:null,faltaBase:false,faltaAdd:false};
+    }
+    // LISTA PLANA: si el renglon tiene precio cargado, ese es el precio. Fin.
+    var pl=precioLista(o);
+    if(pl>0){
+      var dd=o.soloExtra?null:bebidaDe(o);
+      var tx=!!(o&&o.extra&&o.extra!=="Sin acompanamiento");
+      return {ok:true,d:dd,base:pl,add:0,total:pl,nombre:dd?dd.name:(o.drink||"?"),
+              extra:tx?o.extra:null,faltaBase:false,faltaAdd:false,esCombo:tx};
     }
     // Ítem suelto: solo acompañamiento, sin bebida
     if(o&&o.soloExtra){
@@ -2181,6 +2205,11 @@
   const rDeudas=ref(db,"config/deudas");   // {galanKey:{nombre,monto,desde,detalle}}
   var deudas={};
   const rSolos=ref(db,"config/preciosSolos");  // {extraKey:precio} cuando se pide sin bebida
+  // LISTA PLANA: un renglon = un precio, igual que el ticket del bar.
+  //   "cafe_con_leche|tostadas"  -> 8000     (bebida + acompañamiento)
+  //   "cafe_con_leche|solo"      -> 4000     (bebida sola)
+  //   "solo|tostadas"            -> 5500     (acompañamiento sin bebida)
+  const rLista=ref(db,"config/lista");  var listaPrecios={};
   var preciosSolos={};
 
   function aPapelera(tipo,path,data,label){
@@ -2457,6 +2486,84 @@
   function extrasFor(d){return (d.extras&&d.extras.length?d.extras:DEFAULT_EXTRAS).filter(function(e){return e&&e.trim()&&e!=="Sin acompanamiento";});}
   function keysFor(d){return extrasFor(d).map(comboKeyOf);}
 
+  var _preciosVerTodo=false;
+
+  // Arma la lista plana. Cada fila es un renglon con un solo precio.
+  // Por defecto solo se muestran los renglones que realmente se pidieron
+  // (o que ya tienen precio); el resto queda detras del boton "ver todas".
+  function filasPrecios(verTodo){
+    var nombreDe={},iconDe={};
+    (drinks||[]).forEach(function(d){
+      if(!d||!d.name)return;
+      nombreDe[ckey(d.name)]=d.name; iconDe[ckey(d.name)]=d.icon||"\u2615";
+      (extrasFor(d)||[]).forEach(function(ex){nombreDe[ckey(ex)]=ex;});
+    });
+    DEFAULT_EXTRAS.forEach(function(ex){if(ex!=="Sin acompanamiento")nombreDe[ckey(ex)]=ex;});
+
+    // Cuantas veces se pidio cada renglon: mesa actual + todo el historial
+    var veces={};
+    function contar(ps){
+      (ps||[]).forEach(function(o){
+        if(!o||o.precioManual>0)return;
+        var k=keyLinea(o); if(k)veces[k]=(veces[k]||0)+1;
+      });
+    }
+    contar(Object.keys(orders||{}).map(function(id){return orders[id];}));
+    Object.keys(historico||{}).forEach(function(f){
+      var dia=historico[f]; if(!dia||!dia.pedidos)return;
+      contar(Object.keys(dia.pedidos).map(function(i){return dia.pedidos[i];}));
+    });
+
+    var filas=[],visto={};
+    function agregar(key,label,grupo,siempre){
+      if(!key||visto[key])return; visto[key]=1;
+      var pr=(listaPrecios&&listaPrecios[key]>0)?listaPrecios[key]:precioViejoDe(key);
+      var v=veces[key]||0;
+      filas.push({key:key,label:label,grupo:grupo,precio:pr,veces:v,
+                  mostrar:!!(verTodo||siempre||v>0||(listaPrecios&&listaPrecios[key]>0))});
+    }
+    (drinks||[]).forEach(function(d){
+      if(!d||!d.name)return;
+      var ck=ckey(d.name);
+      agregar(ck+"|solo",(d.icon||"\u2615")+" "+d.name+" sola","pedido",true);
+    });
+    // los pares que de verdad se piden, ordenados por frecuencia
+    Object.keys(veces).sort(function(a,b){return veces[b]-veces[a];}).forEach(function(k){
+      if(visto[k])return;
+      var pt=k.split("|");
+      if(pt[0]==="solo")agregar(k,(nombreDe[pt[1]]||pt[1])+" (sin bebida)","solo");
+      else agregar(k,(iconDe[pt[0]]||"\u2615")+" "+(nombreDe[pt[0]]||pt[0])+" + "+(nombreDe[pt[1]]||pt[1]),"pedido");
+    });
+    // y el resto de las combinaciones posibles, escondidas
+    (drinks||[]).forEach(function(d){
+      if(!d||!d.name)return;
+      var ck=ckey(d.name);
+      (extrasFor(d)||[]).forEach(function(ex){
+        agregar(ck+"|"+ckey(ex),(d.icon||"\u2615")+" "+d.name+" + "+ex,"resto");
+      });
+    });
+    Object.keys(nombreDe).forEach(function(k){
+      if(iconDe[k])return;
+      agregar("solo|"+k,nombreDe[k]+" (sin bebida)","solo");
+    });
+    return filas;
+  }
+
+  // Precio que tendria ese renglon con el modelo viejo (para la migracion)
+  function precioViejoDe(key){
+    var pt=String(key||"").split("|");
+    if(pt[0]==="solo")return precioAcomp(pt[1])||0;
+    var d=null;
+    (drinks||[]).forEach(function(x){if(x&&x.name&&ckey(x.name)===pt[0])d=x;});
+    if(!d)return 0;
+    var base=d.precio||0;
+    if(pt[1]==="solo")return base;
+    var ct=(d.comboTotal||{})[pt[1]]||0;
+    if(ct>0)return ct;
+    var add=(d.comboPrices||{})[pt[1]]||0;
+    return add>0?base+add:0;
+  }
+
   window.abrirPrecios=function(){
     if(!isAdmin())return;
 
@@ -2469,62 +2576,46 @@
         +"text-align:right;outline:none;letter-spacing:0.03em'></div>";
     }
 
+    var filas=filasPrecios(_preciosVerTodo);
+    var vistas=filas.filter(function(f){return f.mostrar;});
+
     var html="<div style='font-size:0.6rem;color:var(--mut);line-height:1.5;margin:0 2px 10px'>"
-      +"Cada renglón es <b style='color:var(--ink)'>lo que cobra el bar</b> por esa combinación. "
-      +"Vienen con la suma puesta: pisá solo las que el bar cobre distinto.</div>";
+      +"Un renglon = <b style='color:var(--ink)'>un precio</b>, igual que el ticket del bar. "
+      +"Sin sumas ni plus: el numero que pones es lo que se cobra.</div>";
 
-    // ── Una tarjeta por bebida, con todos sus pares ──
-    drinks.forEach(function(d,i){
-      if(!d||!d.name)return;
-      var base=d.precio||0;
-      var exs=extrasFor(d)||[];
-      html+="<details class='prdrink'"+(i===0?" open":"")+">"
-        +"<summary>"
-        +"<span style='font-size:1.1rem;flex-shrink:0'>"+(d.icon||"☕")+"</span>"
-        +"<span style='flex:1;min-width:0;font-size:0.8rem;font-weight:800;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap'>"+esc(d.name)+"</span>"
-        +"<span style='font-family:\"Bebas Neue\",sans-serif;font-size:1rem;color:var(--gold);flex-shrink:0'>"+(base?fmt$(base):"—")+"</span>"
-        +"<span class='stchev' style='flex-shrink:0;color:var(--mut)'>▾</span>"
-        +"</summary>"
-        +"<div style='padding:4px 0 10px'>"
-        +"<div style='display:flex;align-items:center;gap:10px;padding:8px 12px;background:rgba(245,197,24,0.07);border-radius:10px;margin-bottom:8px'>"
-        +"<span style='flex:1;font-size:0.74rem;font-weight:800;color:var(--ink)'>Sola</span>"
-        +inputPrecio("data-base='"+i+"'",base,true)
-        +"</div>";
-      exs.forEach(function(ex){
-        var k=comboKeyOf(ex);
-        var fin=(d.comboTotal&&d.comboTotal[k]>0)?d.comboTotal[k]:(base+((d.comboPrices||{})[k]||0));
-        var esPropio=!!(d.comboTotal&&d.comboTotal[k]>0);
-        html+="<div style='display:flex;align-items:center;gap:10px;padding:7px 12px;border-bottom:1px solid var(--brd)'>"
-          +"<span style='flex:1;min-width:0;font-size:0.72rem;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap'>"
-          +"<span style='color:var(--mut)'>+</span> "+esc(ex)
-          +(esPropio?" <span style='font-size:0.52rem;color:var(--gold);font-weight:800'>·BAR</span>":"")+"</span>"
-          +inputPrecio("data-par='"+i+"' data-k='"+k+"'",fin,false)
-          +"</div>";
-      });
-      html+="</div></details>";
-    });
-
-    // ── Acompañamientos pedidos solos ──
-    var vistos={},solos=[];
-    drinks.forEach(function(d){
-      if(!d||!d.name)return;
-      (extrasFor(d)||[]).forEach(function(ex){
-        var k=comboKeyOf(ex);
-        if(vistos[k])return;vistos[k]=1;
-        solos.push({nombre:ex,key:k,precio:precioAcomp(ex)});
-      });
-    });
-    if(solos.length){
-      html+="<div style='font-size:0.58rem;color:var(--mut);letter-spacing:0.11em;font-weight:700;margin:18px 2px 7px'>🥐 PEDIDOS SOLOS "
-        +"<span style='font-weight:400;letter-spacing:0.03em;text-transform:none'>· sin bebida</span></div>";
-      html+="<div class='surf' style='padding:0;overflow:hidden;max-width:100%'>";
-      solos.forEach(function(x){
+    var grupos=[["pedido","\u2615 LO QUE SE PIDE","lo que aparecio en pedidos"],
+                ["solo","\uD83E\uDD50 SIN BEBIDA","acompanamiento suelto"],
+                ["resto","\u2026 EL RESTO","por si alguna vez lo piden"]];
+    grupos.forEach(function(g){
+      var ff=vistas.filter(function(x){return x.grupo===g[0];});
+      if(!ff.length)return;
+      html+="<div style='font-size:0.58rem;color:var(--mut);letter-spacing:0.11em;font-weight:700;margin:16px 2px 7px'>"+g[1]
+        +" <span style='font-weight:400;letter-spacing:0.03em;text-transform:none'>\u00b7 "+g[2]+"</span></div>"
+        +"<div class='surf' style='padding:0;overflow:hidden;max-width:100%'>";
+      ff.forEach(function(x){
+        var cargado=x.precio>0;
         html+="<div style='display:flex;align-items:center;gap:10px;padding:9px 12px;border-bottom:1px solid var(--brd)'>"
-          +"<span style='flex:1;min-width:0;font-size:0.74rem;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap'>"+esc(x.nombre)+"</span>"
-          +inputPrecio("data-solo='"+x.key+"'",x.precio,false)
+          +"<span style='flex:1;min-width:0;font-size:0.73rem;color:var(--ink);line-height:1.3'>"
+          +esc(x.label)
+          +(x.veces?" <span style='font-size:0.52rem;color:var(--mut)'>\u00b7 "+x.veces+"x</span>":"")
+          +(cargado?"":" <span style='font-size:0.52rem;color:#fb923c;font-weight:800'>\u00b7 FALTA</span>")
+          +"</span>"
+          +"<div style='position:relative;width:104px;flex-shrink:0'>"
+          +"<span style='position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:0.72rem;color:var(--mut);pointer-events:none'>$</span>"
+          +"<input type='number' inputmode='numeric' data-linea='"+x.key+"' placeholder='0' min='0' step='100' value='"+(x.precio||"")+"' "
+          +"style='width:100%;box-sizing:border-box;background:var(--sur2);border:1px solid "+(cargado?"var(--brd)":"#fb923c")+";border-radius:9px;"
+          +"padding:8px 10px 8px 21px;font-family:\"Bebas Neue\",sans-serif;font-size:1rem;color:var(--ink);"
+          +"text-align:right;outline:none;letter-spacing:0.03em'></div>"
           +"</div>";
       });
       html+="</div>";
+    });
+
+    var ocultas=filas.length-vistas.length;
+    if(ocultas>0||_preciosVerTodo){
+      html+="<button onclick='togglePreciosTodo()' style='width:100%;margin-top:12px;padding:11px;border-radius:12px;border:1.5px dashed var(--brd);"
+        +"background:transparent;color:var(--mut);font-size:0.7rem;font-weight:700;cursor:pointer'>"
+        +(_preciosVerTodo?"Mostrar solo lo que se pide":"Ver las otras "+ocultas+" combinaciones")+"</button>";
     }
 
     document.getElementById("precios-grid").innerHTML=html;
@@ -2533,20 +2624,19 @@
     setupPreciosAutoSave();
     openModal("mprecios");
 
-    // Primera vez: dejamos escrito el precio de cada par, así deja de ser
-    // "la suma en pantalla" y pasa a ser un número real que se puede editar.
-    var yaNormalizado=(drinks||[]).some(function(d){
-      return d&&d.comboTotal&&Object.keys(d.comboTotal).some(function(k){return d.comboTotal[k]>0;});
-    });
-    if(!yaNormalizado){
+    // Migracion: la primera vez dejamos escritos los precios que ya existian
+    // en el modelo viejo, asi la lista arranca cargada y no de cero.
+    if(!Object.keys(listaPrecios||{}).length&&filas.some(function(f){return f.precio>0;})){
       setTimeout(function(){
-        window.guardarPreciosAuto().then(function(){
-          showToast("✓ Precios normalizados · ya podés editarlos");
+        window.guardarPreciosAuto(true).then(function(){
+          showToast("\u2713 Precios pasados a la lista nueva");
           abrirPrecios();
-        }).catch(function(e){console.error("normalizar",e);});
+        }).catch(function(e){console.error("migrar",e);});
       },300);
     }
   };
+
+  window.togglePreciosTodo=function(){_preciosVerTodo=!_preciosVerTodo;abrirPrecios();};
 
   var _preciosTimer=null,_preciosSucio=false;
   function setupPreciosAutoSave(){
@@ -2572,29 +2662,19 @@
   // Fuerza el guardado pendiente antes de cerrar
   window.verPreciosGuardados=async function(){
     if(!isAdmin())return;
-    var snap=await get(rD);
-    var ds=snap.exists()?snap.val():[];
-    var txt=(ds||[]).map(function(d){
-      if(!d||!d.name)return "";
-      var ct=d.comboTotal||{};
-      var ks=Object.keys(ct).filter(function(k){return ct[k]>0;});
-      return "<div style='margin-bottom:9px'>"
-        +"<b style='color:var(--ink)'>"+esc(d.name)+"</b> <span style='color:var(--gold)'>"+fmt$(d.precio||0)+"</span>"
-        +(ks.length?ks.map(function(k){return "<div style='padding-left:10px;color:var(--mut)'>+ "+esc(k)+" → <b style='color:var(--gold)'>"+fmt$(ct[k])+"</b></div>";}).join("")
-                   :"<div style='padding-left:10px;color:#fb923c'>sin precios de combo guardados</div>")
-        +"</div>";
-    }).join("");
-    var sn=await get(rSolos);
-    var sv=sn.exists()?sn.val():{};
-    txt+="<div style='margin-top:10px;padding-top:9px;border-top:1px solid var(--brd)'><b style='color:var(--ink)'>Solos</b>"
-      +(Object.keys(sv).length?Object.keys(sv).map(function(k){return "<div style='padding-left:10px;color:var(--mut)'>"+esc(k)+" → <b>"+fmt$(sv[k])+"</b></div>";}).join("")
-                              :"<div style='padding-left:10px;color:#fb923c'>ninguno</div>")+"</div>";
+    var snap=await get(rLista);
+    var lp=snap.exists()?snap.val():{};
+    var ks=Object.keys(lp).filter(function(k){return lp[k]>0;}).sort();
+    var txt=ks.length
+      ? ks.map(function(k){return "<div style='display:flex;gap:8px;padding:2px 0'><span style='flex:1;color:var(--mut);word-break:break-all'>"+esc(k)
+          +"</span><b style='color:var(--gold)'>"+fmt$(lp[k])+"</b></div>";}).join("")
+      : "<div style='color:#fb923c'>La lista esta vacia \u2014 abri Precios y carga los renglones.</div>";
     var ov=document.createElement("div");
     ov.className="modal-overlay mc";ov.style.zIndex="100001";
     ov.innerHTML="<div class='modal' style='max-width:340px;max-height:82vh;overflow-y:auto;box-sizing:border-box'>"
-      +"<div style='font-family:\"Bebas Neue\",sans-serif;font-size:1.1rem;color:var(--ink);letter-spacing:0.04em;margin-bottom:4px'>🔎 LO QUE HAY GUARDADO</div>"
-      +"<div style='font-size:0.6rem;color:var(--mut);margin-bottom:12px'>Leído de Firebase ahora mismo</div>"
-      +"<div style='font-size:0.68rem;line-height:1.5'>"+txt+"</div>"
+      +"<div style='font-family:\"Bebas Neue\",sans-serif;font-size:1.1rem;color:var(--ink);letter-spacing:0.04em;margin-bottom:4px'>\uD83D\uDD0E LA LISTA GUARDADA</div>"
+      +"<div style='font-size:0.6rem;color:var(--mut);margin-bottom:12px'>Leido de Firebase ahora mismo \u00b7 "+ks.length+" renglones</div>"
+      +"<div style='font-size:0.66rem;line-height:1.5'>"+txt+"</div>"
       +"<button onclick=\"this.closest('.modal-overlay').remove()\" style='width:100%;margin-top:14px;padding:12px;border-radius:12px;border:1.5px solid var(--brd);background:var(--sur2);color:var(--mut);font-size:0.76rem;font-weight:700;cursor:pointer'>Cerrar</button>"
       +"</div>";
     ov.onclick=function(e){if(e.target===ov)ov.remove();};
@@ -2610,48 +2690,20 @@
     closeModal("mprecios");
   };
 
-  window.guardarPreciosAuto=async function(){
+  window.guardarPreciosAuto=async function(migrando){
     var grid=document.getElementById("precios-grid");
-    if(!grid||!grid.querySelector("input[data-base]"))return;
-    var nd=drinks.map(function(d){return Object.assign({},d,{comboPrices:Object.assign({},d.comboPrices||{}),comboTotal:Object.assign({},d.comboTotal||{})});});
-
-    // 1) Precio de la bebida sola
-    grid.querySelectorAll("input[data-base]").forEach(function(inp){
-      var i=parseInt(inp.getAttribute("data-base"));
-      if(!nd[i])return;
-      var v=parseFloat(inp.value)||0;
-      if(v>0)nd[i].precio=v;else delete nd[i].precio;
+    if(!grid||!grid.querySelector("input[data-linea]"))return;
+    var nueva=Object.assign({},listaPrecios||{});
+    grid.querySelectorAll("input[data-linea]").forEach(function(inp){
+      var k=inp.getAttribute("data-linea"),v=parseFloat(inp.value)||0;
+      if(v>0)nueva[k]=v; else delete nueva[k];
     });
-
-    // 2) Precio final de cada par bebida+acompañamiento
-    grid.querySelectorAll("input[data-par]").forEach(function(inp){
-      var i=parseInt(inp.getAttribute("data-par")),k=inp.getAttribute("data-k");
-      if(!nd[i])return;
-      var fin=parseFloat(inp.value)||0;
-      var base=nd[i].precio||0;
-      if(fin>0){
-        nd[i].comboTotal[k]=fin;
-        nd[i].comboPrices[k]=Math.max(0,fin-base);   // compatibilidad con lo viejo
-      } else {
-        delete nd[i].comboTotal[k];
-        delete nd[i].comboPrices[k];
-      }
-    });
-
-    // 3) Acompañamientos pedidos solos
-    var solos={};
-    grid.querySelectorAll("input[data-solo]").forEach(function(inp){
-      var v=parseFloat(inp.value)||0;
-      if(v>0)solos[inp.getAttribute("data-solo")]=v;
-    });
-
-    drinks=nd;
-    await set(rD,nd);
-    await set(rSolos,Object.keys(solos).length?solos:null);
+    listaPrecios=nueva;
+    await set(rLista,Object.keys(nueva).length?nueva:null);
     _preciosSucio=false;
     renderDrinks();renderOrders();renderMiSaldo();
     var ind=document.getElementById("precios-save-ind");
-    if(ind){ind.textContent="✓ Guardado";setTimeout(function(){if(ind)ind.style.opacity="0";},1400);}
+    if(ind&&!migrando){ind.textContent="\u2713 Guardado";ind.style.opacity="1";setTimeout(function(){if(ind)ind.style.opacity="0";},1400);}
   };
 
   window.procesarTicket=function(input){
@@ -8992,7 +9044,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.211";
+  var APP_VERSION="10.1.0";
 
   var STORED_VERSION=localStorage.getItem("app_version");
 
