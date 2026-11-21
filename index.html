@@ -3731,17 +3731,25 @@
     var mios=Object.entries(orders).filter(function(e){return e[1].player===pl;});
     if(!mios.length){showToast("Ese galán no tiene pedido todavía");return;}
 
-    // Lista única de acompañamientos de todas las bebidas
-    var vistos={},lista=[];
+    // Acompañamientos: lista única de todas las bebidas
+    var vistos={},acomps=[];
     (drinks||[]).forEach(function(d){
       if(!d||!d.name)return;
       extrasFor(d).forEach(function(ex){
         var k=comboKeyOf(ex);
         if(vistos[k])return;vistos[k]=1;
-        lista.push({nombre:ex,precio:precioAcomp(ex)});
+        acomps.push({tipo:"acomp",nombre:ex,icon:"🥐",precio:precioAcomp(ex)});
       });
     });
-    if(!lista.length){await avisar("No hay acompañamientos configurados.",{titulo:"Nada para agregar",icono:"🥐"});return;}
+    // Bebidas: se suman siempre como pedido aparte
+    var bebidas=[];
+    (drinks||[]).forEach(function(d,i){
+      if(!d||!d.name)return;
+      bebidas.push({tipo:"bebida",nombre:d.name,icon:d.icon||"☕",precio:d.precio||0,idx:i});
+    });
+    if(!acomps.length&&!bebidas.length){await avisar("No hay nada configurado para agregar.",{titulo:"Nada para agregar",icono:"🥐"});return;}
+
+    var lista=acomps.concat(bebidas);   // índices continuos para el click
 
     // El primer pedido sin acompañamiento se puede completar en vez de duplicar
     var sinExtra=mios.find(function(e){
@@ -3749,22 +3757,37 @@
       return !o.soloExtra&&(!o.extra||o.extra==="Sin acompanamiento");
     });
 
+    function fila(x,i){
+      return "<button data-ac='"+i+"' style='width:100%;display:flex;align-items:center;gap:10px;background:var(--sur2);"
+        +"border:1.5px solid var(--brd);border-radius:12px;padding:12px 14px;margin-bottom:7px;cursor:pointer;text-align:left'>"
+        +"<span style='font-size:1.2rem;flex-shrink:0'>"+(x.icon||"☕")+"</span>"
+        +"<span style='flex:1;min-width:0;font-size:0.8rem;font-weight:700;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap'>"+esc(x.nombre)+"</span>"
+        +"<span style='font-family:\"Bebas Neue\",sans-serif;font-size:1rem;color:"+(x.precio?"var(--gold)":"var(--mut)")+";flex-shrink:0'>"+(x.precio?fmt$(x.precio):"—")+"</span>"
+        +"</button>";
+    }
+    function titulo(t,sub){
+      return "<div style='font-size:0.55rem;color:var(--mut);letter-spacing:0.11em;font-weight:800;margin:4px 2px 7px'>"+t
+        +(sub?" <span style='font-weight:400;letter-spacing:0.03em;text-transform:none;opacity:0.8'>· "+sub+"</span>":"")+"</div>";
+    }
+
+    var cuerpo="";
+    if(acomps.length){
+      cuerpo+=titulo("🥐 PARA ACOMPAÑAR",sinExtra?("se suma a "+esc(sinExtra[1].drink)):"ítem aparte");
+      cuerpo+=acomps.map(function(x,i){return fila(x,i);}).join("");
+    }
+    if(bebidas.length){
+      cuerpo+=titulo("☕ OTRA BEBIDA","se agrega como pedido aparte");
+      cuerpo+=bebidas.map(function(x,i){return fila(x,acomps.length+i);}).join("");
+    }
+
     var ov=document.createElement("div");
     ov.className="modal-overlay mc";ov.style.zIndex="99999";
-    ov.innerHTML="<div class='modal' style='max-width:340px;max-height:82vh;overflow-y:auto;box-sizing:border-box'>"
-      +"<div style='text-align:center;margin-bottom:13px'>"
-      +"<div style='font-size:2rem;line-height:1;margin-bottom:6px'>🥐</div>"
+    ov.innerHTML="<div class='modal' style='max-width:340px;max-height:84vh;overflow-y:auto;box-sizing:border-box'>"
+      +"<div style='text-align:center;margin-bottom:14px'>"
+      +"<div style='font-size:2rem;line-height:1;margin-bottom:6px'>➕</div>"
       +"<div style='font-family:\"Bebas Neue\",sans-serif;font-size:1.2rem;color:var(--ink);letter-spacing:0.04em'>AGREGAR ALGO</div>"
-      +"<div style='font-size:0.65rem;color:var(--mut);margin-top:4px'>"
-      +(sinExtra?("Se suma a "+esc(sinExtra[1].drink)):("Se agrega como ítem aparte"))+"</div></div>"
-      +lista.map(function(x,i){
-        return "<button data-ac='"+i+"' style='width:100%;display:flex;align-items:center;gap:10px;background:var(--sur2);"
-          +"border:1.5px solid var(--brd);border-radius:12px;padding:12px 14px;margin-bottom:7px;cursor:pointer;text-align:left'>"
-          +"<span style='font-size:1.2rem;flex-shrink:0'>🥐</span>"
-          +"<span style='flex:1;min-width:0;font-size:0.8rem;font-weight:700;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap'>"+esc(x.nombre)+"</span>"
-          +"<span style='font-family:\"Bebas Neue\",sans-serif;font-size:1rem;color:"+(x.precio?"var(--gold)":"var(--mut)")+";flex-shrink:0'>"+(x.precio?fmt$(x.precio):"—")+"</span>"
-          +"</button>";
-      }).join("")
+      +"<div style='font-size:0.65rem;color:var(--mut);margin-top:4px'>"+(pl!==me?("al pedido de "+esc(pl)):"a tu pedido")+"</div></div>"
+      +cuerpo
       +"<button id='ac-cancel' style='width:100%;margin-top:6px;padding:12px;border-radius:12px;border:1.5px solid var(--brd);background:var(--sur2);color:var(--mut);font-size:0.76rem;font-weight:700;cursor:pointer'>Cancelar</button>"
       +"</div>";
     document.body.appendChild(ov);
@@ -3781,7 +3804,11 @@
       var x=lista[parseInt(b.getAttribute("data-ac"))];
       if(!x){_ocupado=false;return;}
       try{
-        if(sinExtra){
+        if(x.tipo==="bebida"){
+          // Bebida nueva: siempre pedido aparte, con su precio normal
+          await push(rO,{player:pl,drinkIdx:x.idx,drink:x.nombre,icon:x.icon,extra:null,
+                         loadedBy:(pl!==me?"admin":null),ts:Date.now()});
+        } else if(sinExtra){
           // Completar el pedido existente: queda "Bebida + Acompañamiento"
           var key=sinExtra[0],o=sinExtra[1];
           await set(ref(db,"pedido/orders/"+key),Object.assign({},o,{
@@ -3790,13 +3817,13 @@
             editadoTs:Date.now()
           }));
         } else {
-          // Ítem aparte, con el precio del acompañamiento solo
+          // Acompañamiento suelto, con el precio del acompañamiento solo
           await push(rO,{player:pl,drink:x.nombre,icon:"🥐",extra:null,soloExtra:true,
                          loadedBy:(pl!==me?"admin":null),ts:Date.now()});
         }
         cerrar();
-        showToast("🥐 "+x.nombre+" agregado"+(pl!==me?" a "+pl:""));
-        if(pl!==me)await enviarNotif(pl,"🥐 Te agregaron "+x.nombre+" al pedido","info");
+        showToast((x.icon||"➕")+" "+x.nombre+" agregado"+(pl!==me?" a "+pl:""));
+        if(pl!==me)await enviarNotif(pl,(x.icon||"➕")+" Te agregaron "+x.nombre+" al pedido","info");
       }catch(err){
         console.error("agregarAcomp",err);_ocupado=false;
         avisar(String((err&&(err.message||err.code))||err),{titulo:"No se pudo agregar",icono:"⚠️"});
@@ -8773,7 +8800,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.203";
+  var APP_VERSION="10.0.204";
 
   var STORED_VERSION=localStorage.getItem("app_version");
 
