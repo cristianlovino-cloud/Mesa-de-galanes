@@ -1654,6 +1654,11 @@
     return p;
   }
   function precioDetalle(o){
+    // Precio cargado a mano: manda sobre cualquier cálculo
+    if(o&&o.precioManual>0){
+      return {ok:true,d:null,base:o.precioManual,add:0,total:o.precioManual,
+              nombre:o.drink||"Otro",extra:null,faltaBase:false,faltaAdd:false};
+    }
     // Ítem suelto: solo acompañamiento, sin bebida
     if(o&&o.soloExtra){
       var pa=precioAcomp(o.drink);
@@ -1673,6 +1678,10 @@
     var out="",falta=false;
     peds.forEach(function(o){
       var x=precioDetalle(o);
+      if(o&&o.precioManual>0){
+        out+="<div class='dsg-l'>"+esc(x.nombre)+" <b>"+fmt$(x.total)+"</b> <span style='opacity:0.7'>· cargado a mano</span></div>";
+        return;
+      }
       if(!x.ok){falta=true;out+="<div class='dsg-l dsg-w'>⚠ "+esc(x.nombre)+" — bebida no encontrada en la lista</div>";return;}
       out+="<div class='dsg-l'>"+esc(x.nombre)+" <b>$"+Math.round(x.base)+"</b>"
         +(x.faltaBase?" <span class='dsg-w'>⚠ sin precio</span>":"")
@@ -3771,6 +3780,13 @@
     }
 
     var cuerpo="";
+    cuerpo+="<button data-otro='1' style='width:100%;display:flex;align-items:center;gap:10px;background:rgba(245,197,24,0.1);"
+      +"border:1.5px dashed rgba(245,197,24,0.5);border-radius:12px;padding:12px 14px;margin-bottom:12px;cursor:pointer;text-align:left'>"
+      +"<span style='font-size:1.2rem;flex-shrink:0'>🧾</span>"
+      +"<span style='flex:1;min-width:0'>"
+      +"<span style='display:block;font-size:0.8rem;font-weight:800;color:var(--gold)'>Otro · monto a mano</span>"
+      +"<span style='display:block;font-size:0.6rem;color:var(--mut);margin-top:1px'>Algo que no está en la lista</span></span>"
+      +"</button>";
     if(acomps.length){
       cuerpo+=titulo("🥐 PARA ACOMPAÑAR",sinExtra?("se suma a "+esc(sinExtra[1].drink)):"ítem aparte");
       cuerpo+=acomps.map(function(x,i){return fila(x,i);}).join("");
@@ -3797,6 +3813,24 @@
     ov.querySelector("#ac-cancel").onclick=cerrar;
 
     var _ocupado=false;
+    ov.querySelector("[data-otro]").onclick=async function(){
+      if(_ocupado)return;_ocupado=true;
+      cerrar();
+      var nom=await pedirTexto("¿Qué pidió?","",{titulo:"Otro ítem",icono:"🧾",placeholder:"Ej: Promo Infusión Clásica"});
+      if(!nom||!nom.trim()){_ocupado=false;return;}
+      var mv=await pedirTexto("¿Cuánto sale?","",{titulo:esc(nom.trim()),icono:"💲",placeholder:"Ej: 2500",numero:true});
+      var monto=parseFloat(mv)||0;
+      if(!monto){showToast("Sin monto no se puede cargar");return;}
+      try{
+        await push(rO,{player:pl,drink:nom.trim(),icon:"🧾",extra:null,soloExtra:true,
+                       precioManual:monto,loadedBy:(pl!==me?"admin":null),ts:Date.now()});
+        showToast("🧾 "+nom.trim()+" · "+fmt$(monto)+" agregado"+(pl!==me?" a "+pl:""));
+        if(pl!==me)await enviarNotif(pl,"🧾 Te agregaron "+nom.trim()+" ("+fmt$(monto)+")","info");
+      }catch(err){
+        console.error("otroItem",err);
+        avisar(String((err&&(err.message||err.code))||err),{titulo:"No se pudo agregar",icono:"⚠️"});
+      }
+    };
     ov.addEventListener("click",async function(e){
       var b=e.target&&e.target.closest?e.target.closest("[data-ac]"):null;
       if(!b||_ocupado)return;
@@ -8800,7 +8834,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.204";
+  var APP_VERSION="10.0.205";
 
   var STORED_VERSION=localStorage.getItem("app_version");
 
