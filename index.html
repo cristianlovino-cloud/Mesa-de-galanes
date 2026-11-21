@@ -2385,6 +2385,73 @@
     requestAnimationFrame(function(){ov.classList.add("open");});
   };
 
+  // Recalcula un sabado ya cerrado con los precios de AHORA.
+  // Se usa cuando el precio estaba mal cargado, no cuando el bar aumento.
+  window.recalcularUltimoSabado=async function(){
+    if(!puedeOperar())return;
+    var fechas=Object.keys(historico||{}).sort();
+    if(!fechas.length){showToast("No hay sabados cerrados");return;}
+    var f=fechas[fechas.length-1],dia=historico[f]||{};
+    if(!dia.pedidos){showToast("Ese sabado no tiene pedidos guardados");return;}
+    var fCorta=(+f.slice(8,10))+"/"+(+f.slice(5,7));
+    var prev=dia.deudasPrev||{};
+
+    // Lo que costaria hoy cada pedido de ese dia
+    var consumo={};
+    Object.keys(dia.pedidos).forEach(function(i){
+      var o=dia.pedidos[i]; if(!o||!o.player)return;
+      consumo[o.player]=(consumo[o.player]||0)+precioPedido(o);
+    });
+
+    var cambios=[];
+    Object.keys(consumo).forEach(function(pl){
+      var pg=(dia.pagos||{})[pl]||{};
+      var pagado=(pg.cash||0)+(pg.transfer||0);
+      var nuevoSaldo=Math.round(consumo[pl]-pagado);
+      var k=normName(pl).replace(/[.#$/\[\]]/g,"_");
+      var deudaHoy=Math.round((deudas&&deudas[k]&&deudas[k].monto)||0);
+      var deudaAntes=Math.round((prev[k]&&prev[k].monto)||0);
+      var viejoSaldo=deudaHoy-deudaAntes;              // lo que ese dia sumo
+      if(Math.abs(nuevoSaldo-viejoSaldo)<1)return;
+      cambios.push({player:pl,key:k,consumo:Math.round(consumo[pl]),pagado:Math.round(pagado),
+                    viejo:viejoSaldo,nuevo:nuevoSaldo,deudaHoy:deudaHoy,
+                    deudaNueva:Math.round(deudaAntes+nuevoSaldo)});
+    });
+
+    if(!cambios.length){showToast("\u2713 El "+fCorta+" ya esta bien");return;}
+
+    var det=cambios.map(function(c){
+      return "\u2022 "+c.player+": debia "+fmt$(c.deudaHoy)+" \u2192 "+fmt$(c.deudaNueva);
+    }).join("\n");
+    if(!await confirmar(
+      "Sabado "+fCorta+". Se recalculan los pedidos de ese dia con los precios de ahora:\n\n"+det
+      +"\n\nSolo para cuando el precio estaba mal cargado.",
+      {titulo:"Recalcular "+fCorta,icono:"\uD83E\uDDEE",okTxt:"Recalcular"}))return;
+
+    // Saldo del dia, ahora si, grabado
+    var saldosDia={};
+    Object.keys(consumo).forEach(function(pl){
+      var pg=(dia.pagos||{})[pl]||{};
+      var pagado=(pg.cash||0)+(pg.transfer||0);
+      saldosDia[pl]={consumo:Math.round(consumo[pl]),pagado:Math.round(pagado),
+                     saldo:Math.round(consumo[pl]-pagado)};
+    });
+    await set(ref(db,"historial/"+f+"/saldos"),saldosDia);
+
+    var nuevas=Object.assign({},deudas||{});
+    cambios.forEach(function(c){
+      if(Math.abs(c.deudaNueva)<1){delete nuevas[c.key];return;}
+      nuevas[c.key]=Object.assign({},nuevas[c.key]||{},{
+        nombre:c.player,monto:c.deudaNueva,
+        desde:(nuevas[c.key]&&nuevas[c.key].desde)||fCorta,
+        ultima:fCorta,
+        detalle:"recalculado el "+fCorta
+      });
+    });
+    await set(rDeudas,Object.keys(nuevas).length?nuevas:null);
+    showToast("\u2713 "+fCorta+" recalculado \u00b7 "+cambios.length+" ajuste"+(cambios.length>1?"s":""));
+  };
+
   window.saldarDeuda=async function(k){
     if(!puedeOperar())return;
     var d=deudas&&deudas[k];if(!d)return;
@@ -2433,6 +2500,7 @@
         +"</div>";
     }).join("");
     if(favor.length)h+="<div style='font-size:0.58rem;color:var(--mut);margin-top:8px;opacity:0.8'>En verde, los que pagaron de más y tienen crédito.</div>";
+    if(puedeOperar())h+="<button onclick='recalcularUltimoSabado()' style='width:100%;margin-top:10px;padding:9px;border-radius:10px;border:1.5px dashed var(--brd);background:transparent;color:var(--mut);font-size:0.63rem;font-weight:700;cursor:pointer'>\uD83E\uDDEE Recalcular el ultimo sabado con los precios de ahora</button>";
     el.innerHTML=h;
    }catch(e){console.error("renderDeudas",e);}
   };
@@ -9208,7 +9276,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.2.1";
+  var APP_VERSION="10.2.2";
 
   var STORED_VERSION=localStorage.getItem("app_version");
 
