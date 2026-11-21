@@ -2418,7 +2418,41 @@
                     deudaNueva:Math.round(deudaAntes+nuevoSaldo)});
     });
 
-    if(!cambios.length){showToast("\u2713 El "+fCorta+" ya esta bien");return;}
+    // Nada que cambiar: igual mostramos la cuenta, asi se ve POR QUE no cambia.
+    if(!cambios.length){
+      var fl=Object.keys(consumo).sort().map(function(pl){
+        var pg=(dia.pagos||{})[pl]||{};
+        var pagado=(pg.cash||0)+(pg.transfer||0);
+        var sal=Math.round(consumo[pl]-pagado);
+        var det=(dia.pedidos?Object.keys(dia.pedidos).filter(function(i){
+          return dia.pedidos[i]&&dia.pedidos[i].player===pl;
+        }).map(function(i){
+          var o=dia.pedidos[i];
+          var ex=(o.extra&&o.extra!=="Sin acompanamiento")?" + "+o.extra:"";
+          return esc((o.drink||"?")+ex)+" <b>"+fmt$(precioPedido(o))+"</b>";
+        }).join("<br>"):"");
+        return "<div style='padding:9px 0;border-bottom:1px solid var(--brd)'>"
+          +"<div style='display:flex;align-items:baseline;gap:8px'>"
+          +"<span style='flex:1;font-size:0.72rem;font-weight:700;color:var(--ink)'>"+esc(pl)+"</span>"
+          +"<b style='font-family:\"Bebas Neue\",sans-serif;font-size:1.05rem;color:"+(sal>0?"#ea580c":"var(--grn)")+"'>"
+          +(sal>0?"":"+")+fmt$(Math.abs(sal))+"</b></div>"
+          +"<div style='font-size:0.62rem;color:var(--mut);line-height:1.5;margin-top:3px'>"+det
+          +"<br>pago "+fmt$(pagado)+"</div></div>";
+      }).join("");
+      var ov2=document.createElement("div");
+      ov2.className="modal-overlay mc";ov2.style.zIndex="100001";
+      ov2.innerHTML="<div class='modal' style='max-width:340px;max-height:82vh;overflow-y:auto;box-sizing:border-box'>"
+        +"<div style='font-family:\"Bebas Neue\",sans-serif;font-size:1.15rem;color:var(--ink);letter-spacing:0.04em'>SIN CAMBIOS</div>"
+        +"<div style='font-size:0.64rem;color:var(--mut);margin-bottom:12px;line-height:1.45'>Con los precios que hay <b>ahora</b> en la lista, el "
+        +fCorta+" da lo mismo que ya estaba guardado. Si algun precio de abajo esta mal, corregilo en Precios y volve a recalcular.</div>"
+        +fl
+        +"<button onclick=\"this.closest('.modal-overlay').remove()\" style='width:100%;margin-top:14px;padding:12px;border-radius:12px;border:1.5px solid var(--brd);background:var(--sur2);color:var(--mut);font-size:0.76rem;font-weight:700;cursor:pointer'>Cerrar</button>"
+        +"</div>";
+      ov2.onclick=function(e){if(e.target===ov2)ov2.remove();};
+      document.body.appendChild(ov2);
+      requestAnimationFrame(function(){ov2.classList.add("open");});
+      return;
+    }
 
     var det=cambios.map(function(c){
       return "\u2022 "+c.player+": debia "+fmt$(c.deudaHoy)+" \u2192 "+fmt$(c.deudaNueva);
@@ -9276,7 +9310,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.2.2";
+  var APP_VERSION="10.2.3";
 
   var STORED_VERSION=localStorage.getItem("app_version");
 
