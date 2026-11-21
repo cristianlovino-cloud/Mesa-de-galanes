@@ -2532,6 +2532,20 @@
     if(prev)prev.style.display="none";
     setupPreciosAutoSave();
     openModal("mprecios");
+
+    // Primera vez: dejamos escrito el precio de cada par, así deja de ser
+    // "la suma en pantalla" y pasa a ser un número real que se puede editar.
+    var yaNormalizado=(drinks||[]).some(function(d){
+      return d&&d.comboTotal&&Object.keys(d.comboTotal).some(function(k){return d.comboTotal[k]>0;});
+    });
+    if(!yaNormalizado){
+      setTimeout(function(){
+        window.guardarPreciosAuto().then(function(){
+          showToast("✓ Precios normalizados · ya podés editarlos");
+          abrirPrecios();
+        }).catch(function(e){console.error("normalizar",e);});
+      },300);
+    }
   };
 
   var _preciosTimer=null,_preciosSucio=false;
@@ -2597,7 +2611,8 @@
   };
 
   window.guardarPreciosAuto=async function(){
-    var grid=document.getElementById("precios-grid");if(!grid)return;
+    var grid=document.getElementById("precios-grid");
+    if(!grid||!grid.querySelector("input[data-base]"))return;
     var nd=drinks.map(function(d){return Object.assign({},d,{comboPrices:Object.assign({},d.comboPrices||{}),comboTotal:Object.assign({},d.comboTotal||{})});});
 
     // 1) Precio de la bebida sola
@@ -8927,6 +8942,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
     <div id="precios-grid" style="max-width:100%;overflow-x:hidden"></div>
     <div id="precios-preview" style="margin-top:14px;padding:10px 12px;background:var(--sur2);border:1px solid var(--brd);border-radius:12px"></div>
     <div class="ma" style="margin-top:14px">
+      <button class="bp2" style="flex:0.6" onclick="guardarPreciosAuto().then(function(){showToast('✓ Todo guardado');})">💾</button>
       <button class="bp2" style="flex:0.6" onclick="verPreciosGuardados()">🔎</button>
       <button class="bp" style="flex:1" onclick="cerrarPrecios()">Listo ✓</button>
     </div>
@@ -8976,7 +8992,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.210";
+  var APP_VERSION="10.0.211";
 
   var STORED_VERSION=localStorage.getItem("app_version");
 
