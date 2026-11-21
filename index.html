@@ -1567,6 +1567,7 @@
         if(!o||!o.player)return;
         porPlayer[o.player]=(porPlayer[o.player]||0)+precioPedido(o);
       });
+      var deudasAntes=JSON.parse(JSON.stringify(deudas||{}));
       var nuevasDeudas=Object.assign({},deudas);
       var fechaCta=(+fecha.slice(8,10))+"/"+(+fecha.slice(5,7));
       Object.keys(porPlayer).forEach(function(pl){
@@ -1586,6 +1587,9 @@
         };
       });
       await set(rDeudas,Object.keys(nuevasDeudas).length?nuevasDeudas:null);
+      // Guardamos cómo estaban las deudas, para poder reabrir sin duplicarlas
+      await set(ref(db,"historial/"+fecha+"/deudasPrev"),deudasAntes);
+      await set(ref(db,"historial/"+fecha+"/confirmed"),confirmed||null);
     }catch(e){console.error("deudas",e);}
     // Actualizar total real en historial de propinas antes de limpiar
     var propFinalSnap=await get(ref(db,"pedido/propina"));
@@ -1668,6 +1672,12 @@
     if(!d)return {ok:false,d:null,base:0,add:0,total:0,nombre:(o&&o.drink)||"?",extra:null,faltaBase:true,faltaAdd:false};
     var base=d.precio||0,add=0,tieneExtra=!!(o.extra&&o.extra!=="Sin acompanamiento");
     if(tieneExtra&&d.comboPrices)add=d.comboPrices[ckey(o.extra)]||0;
+    // Si el bar vende ese combo a precio cerrado, ese precio manda
+    var cTot=(tieneExtra&&d.comboTotal)?(d.comboTotal[ckey(o.extra)]||0):0;
+    if(cTot>0){
+      return {ok:true,d:d,base:cTot,add:0,total:cTot,nombre:d.name,extra:tieneExtra?o.extra:null,
+              faltaBase:false,faltaAdd:false,esCombo:true};
+    }
     return {ok:true,d:d,base:base,add:add,total:base+add,nombre:d.name,extra:tieneExtra?o.extra:null,
             faltaBase:!base,faltaAdd:tieneExtra&&!add};
   }
@@ -1683,6 +1693,10 @@
         return;
       }
       if(!x.ok){falta=true;out+="<div class='dsg-l dsg-w'>⚠ "+esc(x.nombre)+" — bebida no encontrada en la lista</div>";return;}
+      if(x.esCombo){
+        out+="<div class='dsg-l'>"+esc(x.nombre)+" + "+esc(x.extra)+" <b>"+fmt$(x.total)+"</b> <span style='opacity:0.7'>· combo del bar</span></div>";
+        return;
+      }
       out+="<div class='dsg-l'>"+esc(x.nombre)+" <b>$"+Math.round(x.base)+"</b>"
         +(x.faltaBase?" <span class='dsg-w'>⚠ sin precio</span>":"")
         +(x.extra?" · + "+esc(x.extra)+" <b>$"+Math.round(x.add)+"</b>"+(x.faltaAdd?" <span class='dsg-w'>⚠ sin precio</span>":""):"")
@@ -2474,6 +2488,36 @@
       });
       html+="</div>";
     }
+    // BLOQUE 3 — combos que el bar cobra a precio cerrado
+    html+="<div style='font-size:0.58rem;color:var(--mut);letter-spacing:0.12em;font-weight:700;margin:16px 2px 6px'>🧾 COMBOS DEL BAR "
+      +"<span style='font-weight:400;letter-spacing:0.04em;text-transform:none'>· precio cerrado, pisa la suma</span></div>";
+    var combos=[];
+    drinks.forEach(function(d,i){
+      if(!d||!d.name||!d.comboTotal)return;
+      Object.keys(d.comboTotal).forEach(function(k){
+        if(!(d.comboTotal[k]>0))return;
+        var exNom=(extrasFor(d)||[]).find(function(e){return comboKeyOf(e)===k;})||k;
+        combos.push({idx:i,drink:d.name,key:k,extra:exNom,precio:d.comboTotal[k]});
+      });
+    });
+    html+="<div class='surf' style='padding:0;overflow:hidden;max-width:100%'>";
+    if(!combos.length){
+      html+="<div style='padding:13px;font-size:0.65rem;color:var(--mut);line-height:1.5;text-align:center'>"
+        +"Sin combos cargados.<br><span style='opacity:0.8'>Usalos cuando el bar cobre menos que la suma, como Café con Leche + 2 Medialunas.</span></div>";
+    } else {
+      combos.forEach(function(c){
+        html+="<div style='display:flex;align-items:center;gap:9px;padding:10px 12px;border-bottom:1px solid var(--brd)'>"
+          +"<span style='flex:1;min-width:0'>"
+          +"<span style='display:block;font-size:0.74rem;font-weight:700;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap'>"+esc(c.drink)+" + "+esc(c.extra)+"</span>"
+          +"<span style='display:block;font-size:0.58rem;color:var(--mut)'>en vez de "+fmt$((drinks[c.idx].precio||0)+((drinks[c.idx].comboPrices||{})[c.key]||0))+"</span></span>"
+          +"<span style='font-family:\"Bebas Neue\",sans-serif;font-size:1.1rem;color:var(--gold);flex-shrink:0'>"+fmt$(c.precio)+"</span>"
+          +"<button onclick='borrarCombo("+c.idx+",\""+c.key+"\")' style='background:none;border:none;color:var(--mut);font-size:0.8rem;cursor:pointer;padding:0 2px;opacity:0.55;flex-shrink:0'>✕</button>"
+          +"</div>";
+      });
+    }
+    html+="<button onclick='agregarCombo()' style='width:100%;padding:11px;border:none;background:var(--sur2);color:var(--gold);font-size:0.7rem;font-weight:800;cursor:pointer'>➕ Agregar combo</button>";
+    html+="</div>";
+
     document.getElementById("precios-grid").innerHTML=html;
     renderPreciosPreview();
     setupPreciosAutoSave();
@@ -2481,6 +2525,87 @@
   };
 
   // Vista previa: cómo queda el combo más caro y el más barato, para chequear de un vistazo
+  window.borrarCombo=async function(idx,key){
+    if(!isAdmin())return;
+    var d=drinks[idx];if(!d||!d.comboTotal)return;
+    var nd=drinks.map(function(x){return Object.assign({},x);});
+    if(nd[idx].comboTotal)delete nd[idx].comboTotal[key];
+    drinks=nd;await set(rD,nd);
+    abrirPrecios();
+    showToast("Combo eliminado · vuelve a sumar base + acompañamiento");
+  };
+
+  window.agregarCombo=async function(){
+    if(!isAdmin())return;
+    var ov=document.createElement("div");
+    ov.className="modal-overlay mc";ov.style.zIndex="100000";
+    var validas=drinks.map(function(d,i){return {d:d,i:i};}).filter(function(x){return x.d&&x.d.name;});
+    ov.innerHTML="<div class='modal' style='max-width:330px;max-height:80vh;overflow-y:auto;box-sizing:border-box'>"
+      +"<div style='text-align:center;margin-bottom:12px'>"
+      +"<div style='font-size:1.9rem;line-height:1;margin-bottom:6px'>🧾</div>"
+      +"<div style='font-family:\"Bebas Neue\",sans-serif;font-size:1.15rem;color:var(--ink);letter-spacing:0.04em'>¿QUÉ BEBIDA?</div></div>"
+      +validas.map(function(x){
+        return "<button data-cb='"+x.i+"' style='width:100%;display:flex;align-items:center;gap:10px;background:var(--sur2);border:1.5px solid var(--brd);border-radius:11px;padding:11px 13px;margin-bottom:6px;cursor:pointer;text-align:left'>"
+          +"<span style='font-size:1.1rem'>"+(x.d.icon||"☕")+"</span>"
+          +"<span style='flex:1;font-size:0.78rem;font-weight:700;color:var(--ink)'>"+esc(x.d.name)+"</span></button>";
+      }).join("")
+      +"<button id='cb-cancel' style='width:100%;margin-top:4px;padding:11px;border-radius:11px;border:1.5px solid var(--brd);background:var(--sur2);color:var(--mut);font-size:0.74rem;font-weight:700;cursor:pointer'>Cancelar</button>"
+      +"</div>";
+    document.body.appendChild(ov);
+    requestAnimationFrame(function(){ov.classList.add("open");});
+    function cerrar(){if(ov.parentNode)ov.parentNode.removeChild(ov);}
+    ov.onclick=function(e){if(e.target===ov)cerrar();};
+    ov.querySelector("#cb-cancel").onclick=cerrar;
+
+    ov.addEventListener("click",async function(e){
+      var b=e.target&&e.target.closest?e.target.closest("[data-cb]"):null;
+      if(!b)return;
+      var idx=parseInt(b.getAttribute("data-cb"));
+      var d=drinks[idx];if(!d)return;
+      cerrar();
+      var exs=extrasFor(d)||[];
+      if(!exs.length){await avisar("Esa bebida no tiene acompañamientos.",{titulo:"Sin opciones",icono:"🥐"});return;}
+
+      var ov2=document.createElement("div");
+      ov2.className="modal-overlay mc";ov2.style.zIndex="100000";
+      ov2.innerHTML="<div class='modal' style='max-width:330px;max-height:80vh;overflow-y:auto;box-sizing:border-box'>"
+        +"<div style='text-align:center;margin-bottom:12px'>"
+        +"<div style='font-size:1.9rem;line-height:1;margin-bottom:6px'>🥐</div>"
+        +"<div style='font-family:\"Bebas Neue\",sans-serif;font-size:1.15rem;color:var(--ink);letter-spacing:0.04em'>¿CON QUÉ?</div>"
+        +"<div style='font-size:0.64rem;color:var(--mut);margin-top:3px'>"+esc(d.name)+"</div></div>"
+        +exs.map(function(ex,j){
+          var suma=(d.precio||0)+((d.comboPrices||{})[comboKeyOf(ex)]||0);
+          return "<button data-ex='"+j+"' style='width:100%;display:flex;align-items:center;gap:9px;background:var(--sur2);border:1.5px solid var(--brd);border-radius:11px;padding:11px 13px;margin-bottom:6px;cursor:pointer;text-align:left'>"
+            +"<span style='flex:1;min-width:0;font-size:0.76rem;font-weight:700;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap'>"+esc(ex)+"</span>"
+            +"<span style='font-size:0.6rem;color:var(--mut);flex-shrink:0'>hoy "+fmt$(suma)+"</span></button>";
+        }).join("")
+        +"<button id='cb2-cancel' style='width:100%;margin-top:4px;padding:11px;border-radius:11px;border:1.5px solid var(--brd);background:var(--sur2);color:var(--mut);font-size:0.74rem;font-weight:700;cursor:pointer'>Cancelar</button>"
+        +"</div>";
+      document.body.appendChild(ov2);
+      requestAnimationFrame(function(){ov2.classList.add("open");});
+      function cerrar2(){if(ov2.parentNode)ov2.parentNode.removeChild(ov2);}
+      ov2.onclick=function(ev){if(ev.target===ov2)cerrar2();};
+      ov2.querySelector("#cb2-cancel").onclick=cerrar2;
+
+      ov2.addEventListener("click",async function(ev){
+        var b2=ev.target&&ev.target.closest?ev.target.closest("[data-ex]"):null;
+        if(!b2)return;
+        var ex=exs[parseInt(b2.getAttribute("data-ex"))];
+        cerrar2();
+        var v=await pedirTexto("¿Cuánto cobra el bar por "+d.name+" + "+ex+"?","",
+          {titulo:"Precio del combo",icono:"🧾",placeholder:"Ej: 5000",numero:true});
+        var monto=parseFloat(v)||0;
+        if(!monto)return;
+        var nd=drinks.map(function(x){return Object.assign({},x);});
+        if(!nd[idx].comboTotal)nd[idx].comboTotal={};
+        nd[idx].comboTotal[comboKeyOf(ex)]=monto;
+        drinks=nd;await set(rD,nd);
+        abrirPrecios();
+        showToast("🧾 Combo cargado · "+fmt$(monto));
+      });
+    });
+  };
+
   window.renderPreciosPreview=function(){
     var el=document.getElementById("precios-preview");if(!el)return;
     var grid=document.getElementById("precios-grid");if(!grid)return;
@@ -4379,6 +4504,16 @@
     if(sinEnviar.length)avisos.push("📤 <b style='color:#fb923c'>"+sinEnviar.length+" sin enviar</b>: <span style='opacity:0.85'>"+esc(sinEnviar.join(", "))+"</span>");
     if(sinPagar.length)avisos.push("⚠️ <b style='color:#fb923c'>"+sinPagar.length+" sin pagar</b>: <span style='opacity:0.85'>"+esc(sinPagar.join(", "))+"</span>");
     if(!totalBar)avisos.push("⚠️ <b style='color:#fb923c'>Falta el total del bar</b>");
+    else{
+      // Comparar lo que calcula la app contra el ticket del bar
+      var calc=0;Object.values(orders).forEach(function(o){calc+=precioPedido(o);});
+      var dif=Math.round(calc-totalBar);
+      if(Math.abs(dif)>=100){
+        avisos.push("🧾 <b style='color:"+(dif>0?"#ea580c":"#2563eb")+"'>La app calcula "+fmt$(Math.abs(dif))+" "+(dif>0?"MÁS":"MENOS")+" que el ticket</b>"
+          +"<br><span style='opacity:0.8;font-size:0.95em'>App "+fmt$(calc)+" vs bar "+fmt$(totalBar)+". "
+          +(dif>0?"Puede faltar cargar un combo en Precios.":"Puede faltar un ítem en algún pedido.")+"</span>");
+      }
+    }
     var pend=Object.keys(pagoReqs||{}).filter(function(k){return pagoReqs[k].estado==="pendiente";}).length;
     if(pend)avisos.push("⏳ <b style='color:var(--gold)'>"+pend+" aviso(s) sin validar</b>");
     el.innerHTML=avisos.length
@@ -5589,6 +5724,44 @@
     ov.onclick=function(e){if(e.target===ov)ov.remove();};
     document.body.appendChild(ov);
     requestAnimationFrame(function(){ov.classList.add("open");});
+  };
+
+  // ══ REABRIR: devuelve el último sábado archivado a la mesa en vivo ════
+  window.reabrirUltimaMesa=async function(){
+    if(!isAdmin())return;
+    var fechas=Object.keys(historico||{}).sort();
+    if(!fechas.length){await avisar("No hay ningún sábado archivado.",{titulo:"Nada para reabrir",icono:"↩️"});return;}
+    var f=fechas[fechas.length-1];
+    var d=historico[f]||{};
+    var nPed=Object.keys(d.pedidos||{}).length;
+
+    if(Object.keys(orders||{}).length){
+      if(!await confirmar("La mesa de hoy tiene pedidos cargados. Se reemplazan por los del "+f+".",
+        {titulo:"Hay una mesa en curso",icono:"⚠️",okTxt:"Reemplazar",peligro:true}))return;
+      await aPapelera("mesa","pedido/orders",orders,"Mesa reemplazada al reabrir el "+f);
+    }
+    if(!await confirmar("Se vuelven a poner los "+nPed+" pedidos del "+f+" con sus pagos, y el día sale del historial.",
+      {titulo:"Reabrir ese sábado",icono:"↩️",okTxt:"Reabrir"}))return;
+
+    try{
+      await set(rO,d.pedidos||null);
+      await set(rP,d.pagos||null);
+      await set(rC,d.confirmed||null);
+      await set(rB,d.totalBar||0);
+      // Revertir las deudas que había calculado ese cierre
+      if(d.deudasPrev!==undefined)
+        await set(rDeudas,Object.keys(d.deudasPrev||{}).length?d.deudasPrev:null);
+      // Dejar la mesa abierta
+      await set(rS,Object.assign({},mesaState,{abiertaTs:Date.now(),cerradaTs:0}));
+      // El día sale del historial para que al cerrar se vuelva a archivar limpio
+      await aPapelera("mesa","historial/"+f,d,"Sábado "+f+" reabierto");
+      await set(ref(db,"historial/"+f),null);
+      showToast("↩️ Mesa del "+f+" reabierta · "+nPed+" pedidos");
+      switchAdminTab("pedidos");
+    }catch(err){
+      console.error("reabrir",err);
+      avisar(String((err&&(err.message||err.code))||err),{titulo:"No se pudo reabrir",icono:"⚠️"});
+    }
   };
 
   window.registrarRetiro=async function(){
@@ -8506,6 +8679,9 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
             letter-spacing:0.05em;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px">
             📦 CERRAR CUENTAS Y ARCHIVAR
           </button>
+          <button onclick="reabrirUltimaMesa()" data-solo-admin style="width:100%;margin-top:9px;padding:11px;border-radius:12px;
+            border:1.5px solid var(--brd);background:var(--sur2);color:var(--mut);font-family:var(--font-body);
+            font-size:0.72rem;font-weight:700;cursor:pointer">↩️ Reabrir el último sábado</button>
           <div style="font-size:0.58rem;color:var(--mut);text-align:center;margin-top:7px;opacity:0.8">
             Guarda el historial, limpia los pedidos y deja la mesa cerrada hasta el viernes
           </div>
@@ -8834,7 +9010,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.0.205";
+  var APP_VERSION="10.0.207";
 
   var STORED_VERSION=localStorage.getItem("app_version");
 
