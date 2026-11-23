@@ -310,7 +310,7 @@
       renderDrinks();
       var sp=document.getElementById('splash-screen');if(sp){sp.style.opacity='0';setTimeout(function(){if(sp.parentNode)sp.parentNode.removeChild(sp);},500);}
     });
-    onValue(rO,function(s){try{orders=s.exists()?s.val():{};renderDrinks();renderOrders();renderMesa();renderLista();renderConfirmBtn();maybeRenderStats();renderPagosDetail();renderPagosHeader();_refrescarAccion();if(document.getElementById("mlive")&&document.getElementById("mlive").classList.contains("open"))renderLiveModal();}catch(e){console.error("rO",e);}});
+    onValue(rO,function(s){try{orders=s.exists()?s.val():{};renderDrinks();renderOrders();renderMesa();renderLista();renderConfirmBtn();maybeRenderStats();renderPagosDetail();renderPagosHeader();_refrescarAccion();if(typeof renderCampana==="function")renderCampana();if(document.getElementById("mlive")&&document.getElementById("mlive").classList.contains("open"))renderLiveModal();}catch(e){console.error("rO",e);}});
     onValue(rC,function(s){try{confirmed=s.exists()?s.val():{};renderConfirmBtn();renderDrinks();renderMiSaldo();renderOrders();renderMesa();renderLista();_refrescarAccion();}catch(e){console.error("rC",e);}});
     onValue(rP,function(s){try{pagos=s.exists()?s.val():{};renderOrders();renderMesa();renderLista();renderPagosDetail();renderMiSaldo();renderConfirmBtn();if(typeof calcularSaldoMP==="function")calcularSaldoMP();if(typeof renderCierreResumen==="function")renderCierreResumen();_refrescarAccion();}catch(e){console.error("rP",e);}});
 
@@ -326,6 +326,8 @@
         // Mostrar solo si es nueva (último 60 seg) y no la vimos ya
         var ahora=Date.now();
         var visto=parseInt(localStorage.getItem("notif_ts_"+key)||"0");
+        window._notifMia=n;
+        if(typeof renderCampana==="function")renderCampana();
         if(n.ts>visto&&(ahora-n.ts)<60000){
           localStorage.setItem("notif_ts_"+key,n.ts);
           showNotifBanner(n.msg,n.tipo||"info");
@@ -372,12 +374,12 @@
     onValue(rT,function(s){timerD=s.exists()?s.val():null;renderTimer();});
     onValue(rR,function(s){try{reservas=s.exists()?s.val():{};renderReserva();renderMesa();renderLista();if(document.getElementById("v-stats")&&document.getElementById("v-stats").style.display!=="none")renderStats();}catch(e){console.error("rR",e);}});
     onValue(rA,function(s){accesos=s.exists()?s.val():{};renderLista();});
-    onValue(rCump,function(s){cumples=s.exists()?s.val():{};renderCumples();renderCumpleBanner();});
+    onValue(rCump,function(s){cumples=s.exists()?s.val():{};renderCumples();renderCumpleBanner();if(typeof renderCampana==="function")renderCampana();});
     setTimeout(function(){try{purgarSaludos();}catch(e){}},6000);
     onValue(rSaludos,function(s){
       try{
         saludos=s.exists()?s.val():{};
-        renderCumpleBanner();renderCumples();marcarBadgeCumple();avisarSaludosPropios();
+        renderCumpleBanner();renderCumples();marcarBadgeCumple();avisarSaludosPropios();renderCampana();
       }catch(e){console.error("rSaludos",e);}
     });
     onValue(rPend,function(s){pendientes=s.exists()?s.val():{};renderPendientes();});
@@ -433,7 +435,7 @@
       try{movs=s.exists()?s.val():{};renderFondo();}catch(e){console.error("rMovs",e);}
     });
     onValue(rPagoReq,function(s){
-      try{pagoReqs=s.exists()?s.val():{};renderMiSaldo();renderPagosPendientes();renderAccionContextual();}catch(e){console.error("rPagoReq",e);}
+      try{pagoReqs=s.exists()?s.val():{};renderMiSaldo();renderPagosPendientes();renderAccionContextual();renderCampana();}catch(e){console.error("rPagoReq",e);}
     });
     onValue(rNuevos,function(s){
       // Fuente unica de verdad: checkNuevosAlert (filtra por estaEnLista y limpia el badge)
@@ -1120,6 +1122,149 @@
     delete cumples[name];
     showToast("🗑️ Borrado el cumple de "+name);
     renderCumples();renderCumpleBanner();
+  };
+
+  // ══ CAMPANA DE AVISOS ════════════════════════════════════════════════════
+  function haceCuanto(ts){
+    if(!ts)return "";
+    var d=Date.now()-ts;
+    if(d<60000)return "recien";
+    var m=Math.floor(d/60000); if(m<60)return "hace "+m+" min";
+    var h=Math.floor(m/60);    if(h<24)return "hace "+h+" h";
+    var dd=Math.floor(h/24);   return "hace "+dd+" d";
+  }
+  function hoy0(){var n=new Date();return new Date(n.getFullYear(),n.getMonth(),n.getDate()).getTime();}
+
+  // Junta todo lo que paso, de la data que ya tenemos. Nada nuevo que guardar.
+  function avisosLista(){
+    var av=[];
+    function add(o){if(o&&o.titulo)av.push(o);}
+
+    // Cumples: hoy y los que vienen
+    cumplesActivos().forEach(function(a){
+      var n=a.nombre,soyYo=me&&ckey(me)===ckey(n);
+      var cuando=a.dias===0?"HOY":(a.dias===1?"manana":"en "+a.dias+" dias");
+      var cnt=saludosDe(n).length;
+      add({ts:hoy0()+a.dias,tipo:"cumple",icono:"\uD83C\uDF82",
+        titulo:"<b>"+esc(n)+"</b> cumple "+(a.dias===0?"a\u00f1os <b>HOY</b>":"a\u00f1os "+cuando),
+        sub:cnt+" saludo"+(cnt===1?"":"s"),
+        accion:soyYo
+          ?"<button class='av-btn' onclick=\"cerrarAvisos();verSaludos('"+esc(n).replace(/'/g,"")+"')\">VER</button>"
+          :"<button class='av-btn av-btn-on' onclick=\"cerrarAvisos();abrirSaludar('"+esc(n).replace(/'/g,"")+"')\">"+(yaSalude(n)?"\u2713":"SALUDAR")+"</button>",
+        noCuenta:true,sinHora:true});
+    });
+
+    // Saludos que me llegaron
+    if(me&&cumples[me]){
+      saludosDe(me).forEach(function(x){
+        add({ts:x.ts,tipo:"saludo",icono:"\uD83C\uDF89",
+          titulo:"<b>"+esc(x.de||"?")+"</b> te salud\u00f3",sub:esc(x.texto)});
+      });
+    }
+
+    // Pedidos de la mesa de hoy
+    Object.keys(orders||{}).forEach(function(id){
+      var o=orders[id]; if(!o||!o.player)return;
+      add({ts:o.ts,tipo:"pedido",icono:o.icon||"\u2615",
+        titulo:"<b>"+esc(o.player)+"</b> pidi\u00f3 "+esc(nombrePedido(o))});
+    });
+
+    // Avisos de pago sin validar
+    Object.keys(pagoReqs||{}).forEach(function(k){
+      var r=pagoReqs[k]; if(!r||r.estado!=="pendiente")return;
+      add({ts:r.ts,tipo:"pago",icono:r.tipo==="cash"?"\uD83D\uDCB5":"\uD83D\uDCF2",
+        titulo:"<b>"+esc(r.player)+"</b> avis\u00f3 que pag\u00f3 "+fmt$(r.monto),
+        sub:(r.tipo==="cash"?"efectivo":"transferencia")+(r.nota?" \u00b7 "+esc(r.nota):""),
+        accion:puedeOperar()
+          ?"<button class='av-btn av-btn-ok' onclick=\"validarPagoReq('"+k+"',true);renderCampana()\">\u2713</button>"
+          :""});
+    });
+
+    // Mi notificacion personal (la que ya mandaba el admin)
+    if(window._notifMia&&window._notifMia.msg){
+      add({ts:window._notifMia.ts,tipo:"notif",icono:"\u2139\uFE0F",titulo:esc(window._notifMia.msg)});
+    }
+
+    // Propina sorteada
+    if(window._ultimaPropina){
+      add({ts:window._propinaTs||0,tipo:"propina",icono:"\uD83C\uDFB2",
+        titulo:"<b>"+esc(window._ultimaPropina)+"</b> pag\u00f3 la propina",noCuenta:!window._propinaTs});
+    }
+
+    // Mi cuenta pendiente
+    var md=(typeof miDeuda==="function")?miDeuda():null;
+    if(md){
+      add({ts:hoy0()-1,tipo:"deuda",icono:md.monto>0?"\u23F3":"\u2705",
+        titulo:md.monto>0?("Deb\u00e9s <b>"+fmt$(md.monto)+"</b>"):("Ten\u00e9s <b>"+fmt$(Math.abs(md.monto))+"</b> a favor"),
+        sub:"desde el "+esc(md.desde||""),
+        accion:"<button class='av-btn' onclick=\"cerrarAvisos();verDetalleDeuda('"+esc(md.nombre||"").replace(/'/g,"")+"')\">VER</button>",
+        noCuenta:true,sinHora:true});
+    }
+
+    // Precios sin cargar (solo admin)
+    if(isAdmin()){
+      var sinPrecio=Object.keys(orders||{}).filter(function(id){
+        var o=orders[id];return o&&!(o.precioManual>0)&&precioPedido(o)<=0;
+      }).length;
+      if(sinPrecio){
+        add({ts:Date.now(),tipo:"precio",icono:"\u26A0",
+          titulo:"Falta cargar "+sinPrecio+" precio"+(sinPrecio>1?"s":""),
+          sub:"la mesa no cierra bien sin eso",
+          accion:"<button class='av-btn av-btn-on' onclick=\"cerrarAvisos();abrirPrecios()\">CARGAR</button>",
+          noCuenta:true,sinHora:true});
+      }
+    }
+
+    return av.sort(function(a,b){return (b.ts||0)-(a.ts||0);});
+  }
+
+  function avisosVistoTs(){
+    try{return parseInt(localStorage.getItem("avisos_visto")||"0")||0;}catch(e){return 0;}
+  }
+  function avisosNuevos(){
+    var v=avisosVistoTs();
+    return avisosLista().filter(function(a){return !a.noCuenta&&(a.ts||0)>v;}).length;
+  }
+  window.renderCampana=function(){
+    try{
+      var el=document.getElementById("campana-cnt");if(!el)return;
+      var n=avisosNuevos();
+      el.textContent=n>9?"9+":String(n);
+      el.style.display=n>0?"block":"none";
+    }catch(e){}
+  };
+  window.cerrarAvisos=function(){
+    var ov=document.getElementById("avisos-ov");if(ov)ov.remove();
+  };
+  window.abrirAvisos=function(){
+    var lista=avisosLista(),visto=avisosVistoTs();
+    var cuerpo=lista.length?lista.map(function(a){
+      var nuevo=!a.noCuenta&&(a.ts||0)>visto;
+      return "<div class='av-row"+(nuevo?" av-new":"")+"'>"
+        +"<div class='av-ic'>"+a.icono+"</div>"
+        +"<div class='av-tx'><div class='av-t'>"+a.titulo+"</div>"
+        +(a.sub?"<div class='av-s'>"+a.sub+"</div>":"")
+        +((a.ts&&!a.sinHora)?"<div class='av-s'>"+haceCuanto(a.ts)+"</div>":"")
+        +"</div>"
+        +(a.accion||"")
+        +"</div>";
+    }).join("")
+    : "<div style='font-size:0.7rem;color:var(--mut);padding:18px 0;text-align:center;line-height:1.5'>Nada nuevo por ac\u00e1 \u2615<br><span style='opacity:0.7'>Los pedidos, pagos y cumples aparecen solos.</span></div>";
+
+    var ov=document.createElement("div");
+    ov.id="avisos-ov";ov.className="modal-overlay mc";ov.style.zIndex="100002";
+    ov.innerHTML="<div class='modal' style='max-width:360px;max-height:84vh;overflow-y:auto;box-sizing:border-box'>"
+      +"<div style='display:flex;align-items:center;gap:9px;margin-bottom:12px'>"
+      +"<span style='font-size:1.3rem'>\uD83D\uDD14</span>"
+      +"<span style='flex:1;font-family:\"Bebas Neue\",sans-serif;font-size:1.25rem;color:var(--ink);letter-spacing:0.05em'>AVISOS</span>"
+      +"<button onclick='cerrarAvisos()' style='background:var(--sur2);border:1.5px solid var(--brd);border-radius:10px;width:32px;height:32px;color:var(--mut);font-size:0.9rem;cursor:pointer'>\u2715</button>"
+      +"</div>"+cuerpo+"</div>";
+    ov.onclick=function(e){if(e.target===ov)cerrarAvisos();};
+    document.body.appendChild(ov);
+    requestAnimationFrame(function(){ov.classList.add("open");});
+    // Al abrirlos quedan vistos
+    try{localStorage.setItem("avisos_visto",String(Date.now()));}catch(e){}
+    setTimeout(renderCampana,120);
   };
 
   // ══ SALUDOS DE CUMPLE ═══════════════════════════════════════════════════
@@ -2012,7 +2157,8 @@
     if(!s.exists()||!me)return;
     var d=s.val();
     if(!d.nombre||!d.ts)return;
-    window._ultimaPropina=d.nombre;
+    window._ultimaPropina=d.nombre; window._propinaTs=d.ts||0;
+    if(typeof renderCampana==="function")renderCampana();
     var esReciente=Date.now()-d.ts<15000;
     var esSorteado=d.nombre&&me.toUpperCase()===d.nombre.toUpperCase();
     var vistKey="propina_visto_"+d.ts;
@@ -8448,6 +8594,20 @@ button:not(.tab):not(.swipe-handle){transition:transform .1s ease,background-col
 .dsg{margin-top:6px;font-size:0.6rem;color:var(--mut);line-height:1.5}
 .dsg-l b{color:var(--ink);font-weight:700}
 .dsg-w{color:#fb923c;font-weight:700}
+#campana-cnt{position:absolute;top:-3px;right:-3px;min-width:16px;height:16px;padding:0 4px;border-radius:100px;
+  background:#ea580c;color:#fff;font-family:var(--font-body);font-size:0.55rem;font-weight:800;line-height:16px;
+  text-align:center;box-shadow:0 0 0 2px var(--bg)}
+.av-row{display:flex;gap:11px;padding:11px 0;border-bottom:1px solid var(--brd)}
+.av-ic{font-size:1.15rem;width:26px;text-align:center;flex-shrink:0;line-height:1.3}
+.av-tx{flex:1;min-width:0}
+.av-t{font-size:0.72rem;color:var(--ink);line-height:1.45}
+.av-s{font-size:0.56rem;color:var(--mut);margin-top:2px}
+.av-new{background:linear-gradient(90deg,rgba(245,197,24,0.10),transparent);border-radius:8px;padding-left:6px;margin-left:-6px}
+.av-btn{flex-shrink:0;align-self:center;padding:8px 12px;border-radius:10px;border:1.5px solid var(--brd);
+  background:var(--sur2);color:var(--ink);font-family:var(--font-body);font-size:0.62rem;font-weight:800;
+  letter-spacing:0.05em;cursor:pointer}
+.av-btn-on{background:var(--gold);color:#1a1205;border-color:transparent}
+.av-btn-ok{background:rgba(74,222,128,0.15);color:#16a34a;border-color:rgba(74,222,128,0.4)}
 .tab-dot{position:absolute;top:4px;right:calc(50% - 18px);min-width:9px;height:9px;padding:0 3px;border-radius:100px;background:#ef4444;color:#fff;font-size:0.5rem;font-weight:800;display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 2px var(--hbg);animation:dotPulse 2s ease-in-out infinite;}
 @keyframes dotPulse{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.18);opacity:0.85}}
 .cst-badge{display:inline-flex;align-items:center;justify-content:center;min-width:16px;height:16px;padding:0 4px;border-radius:100px;background:#ef4444;color:#fff;font-size:0.56rem;font-weight:800;margin-left:4px;}
@@ -8924,7 +9084,8 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
   <div class="nz">
     <div id="prompt" onclick="showLoginScreen()" style="cursor:pointer">👤 Quien sos?</div>
     <div id="badge" onclick="toggleBadgeMenu()" style="cursor:pointer;position:relative"></div>
-    <button id="theme-toggle-btn" onclick="toggleTheme()" style="margin-left:auto" title="Cambiar tema">🌙</button>
+    <button id="campana-btn" onclick="abrirAvisos()" style="margin-left:auto;position:relative" title="Avisos">🔔<span id="campana-cnt" style="display:none"></span></button>
+    <button id="theme-toggle-btn" onclick="toggleTheme()" title="Cambiar tema">🌙</button>
     <button id="vbtn" onclick="toggleVoice()">🔇</button>
   </div>
 </header>
@@ -9544,7 +9705,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.3.0";
+  var APP_VERSION="10.4.1";
 
   var STORED_VERSION=localStorage.getItem("app_version");
 
