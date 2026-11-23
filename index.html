@@ -164,6 +164,8 @@
   const rP=ref(db,"pedido/pagos"),rB=ref(db,"pedido/totalBar");
   const rG=ref(db,"config/galanes"),rR=ref(db,"reserva"),rH=ref(db,"historial");
   const rA=ref(db,"config/accesos"),rCump=ref(db,"config/cumples"),rPend=ref(db,"config/pendientes"),rPres=ref(db,"pedido/presentes");
+  // Saludos de cumple: config/saludos/{nombre_mes_dia}/{quien} = {de,texto,ts}
+  const rSaludos=ref(db,"config/saludos");  var saludos={};
   const rNuevos=ref(db,"config/nuevos");
   const rPagoReq=ref(db,"pedido/pagoRequests");
   const rFondoCfg=ref(db,"config/fondo");      // {monto, alias, saldoInversion}
@@ -371,6 +373,13 @@
     onValue(rR,function(s){try{reservas=s.exists()?s.val():{};renderReserva();renderMesa();renderLista();if(document.getElementById("v-stats")&&document.getElementById("v-stats").style.display!=="none")renderStats();}catch(e){console.error("rR",e);}});
     onValue(rA,function(s){accesos=s.exists()?s.val():{};renderLista();});
     onValue(rCump,function(s){cumples=s.exists()?s.val():{};renderCumples();renderCumpleBanner();});
+    setTimeout(function(){try{purgarSaludos();}catch(e){}},6000);
+    onValue(rSaludos,function(s){
+      try{
+        saludos=s.exists()?s.val():{};
+        renderCumpleBanner();renderCumples();marcarBadgeCumple();avisarSaludosPropios();
+      }catch(e){console.error("rSaludos",e);}
+    });
     onValue(rPend,function(s){pendientes=s.exists()?s.val():{};renderPendientes();});
     onValue(rPres,function(s){presentes=s.exists()?s.val():{};renderLista();});
     onValue(rS,function(s){
@@ -1113,6 +1122,172 @@
     renderCumples();renderCumpleBanner();
   };
 
+  // ══ SALUDOS DE CUMPLE ═══════════════════════════════════════════════════
+  var RAPIDOS=["Feliz cumple crack! \uD83C\uDF89","Que lo disfrutes \uD83E\uDD73","Abrazo grande \uD83E\uDD1D"];
+
+  function claveSaludo(nombre){
+    var c=cumples[nombre]; if(!c)return "";
+    return ckey(nombre)+"_"+c.mes+"_"+c.dia;
+  }
+  function saludosDe(nombre){
+    var k=claveSaludo(nombre); if(!k)return [];
+    var o=(saludos||{})[k]||{};
+    return Object.keys(o).map(function(q){return Object.assign({},o[q],{quien:q});})
+      .filter(function(x){return x&&x.texto;})
+      .sort(function(a,b){return (a.ts||0)-(b.ts||0);});
+  }
+  function yaSalude(nombre){
+    var k=claveSaludo(nombre); if(!k||!me)return false;
+    var o=(saludos||{})[k]||{};
+    return !!o[ckey(me)];
+  }
+  // Cumples activos: hoy y los 7 dias que vienen. Se puede saludar desde antes.
+  function cumplesActivos(){
+    var now=new Date(),hd=now.getDate(),hm=now.getMonth()+1,out=[];
+    Object.keys(cumples||{}).forEach(function(n){
+      var c=cumples[n]; if(!c||!c.dia||!c.mes)return;
+      if(c.dia===hd&&c.mes===hm){out.push({nombre:n,dias:0});return;}
+      var fut=new Date(now.getFullYear()+(c.mes<hm||(c.mes===hm&&c.dia<hd)?1:0),c.mes-1,c.dia);
+      var df=Math.ceil((fut-now)/864e5);
+      if(df>0&&df<=7)out.push({nombre:n,dias:df});
+    });
+    return out.sort(function(a,b){return a.dias-b.dias;});
+  }
+
+  window.abrirSaludar=function(nombre){
+    if(!me){showToast("Entra con tu nombre para saludar");return;}
+    if(ckey(me)===ckey(nombre)){showToast("No te podes saludar solo \uD83D\uDE05");return;}
+    var previo=null;
+    var k=claveSaludo(nombre);
+    if(k&&(saludos||{})[k]&&saludos[k][ckey(me)])previo=saludos[k][ckey(me)];
+
+    var ov=document.createElement("div");
+    ov.className="modal-overlay mc";ov.style.zIndex="100001";
+    ov.innerHTML="<div class='modal' style='max-width:340px;box-sizing:border-box'>"
+      +"<div style='font-family:\"Bebas Neue\",sans-serif;font-size:1.2rem;color:var(--ink);letter-spacing:0.04em'>\uD83C\uDF89 SALUDAR A "+esc(nombre.toUpperCase())+"</div>"
+      +"<div style='font-size:0.62rem;color:var(--mut);margin-bottom:12px'>"+(previo?"Ya lo saludaste. Si mandas otro, reemplaza al anterior.":"Queda firmado con tu nombre.")+"</div>"
+      +RAPIDOS.map(function(t){
+        return "<button onclick=\"document.getElementById('saludo-txt').value="+JSON.stringify(t).replace(/"/g,"&quot;")+"\" "
+          +"style='width:100%;margin-bottom:7px;padding:11px;border-radius:11px;border:1.5px solid var(--brd);background:var(--sur2);"
+          +"color:var(--ink);font-size:0.74rem;font-weight:600;cursor:pointer;text-align:left'>"+esc(t)+"</button>";
+      }).join("")
+      +"<textarea id='saludo-txt' rows='3' maxlength='180' placeholder='O escribi el tuyo...' "
+      +"style='width:100%;box-sizing:border-box;margin-top:5px;background:var(--sur2);border:1.5px solid var(--brd);border-radius:11px;"
+      +"padding:11px;font-size:0.75rem;color:var(--ink);outline:none;resize:none;font-family:inherit'>"+esc((previo&&previo.texto)||"")+"</textarea>"
+      +"<div style='display:flex;gap:8px;margin-top:12px'>"
+      +"<button onclick=\"this.closest('.modal-overlay').remove()\" style='flex:1;padding:12px;border-radius:12px;border:1.5px solid var(--brd);background:var(--sur2);color:var(--mut);font-size:0.76rem;font-weight:700;cursor:pointer'>Cancelar</button>"
+      +"<button onclick=\"enviarSaludo('"+esc(nombre).replace(/'/g,"")+"')\" style='flex:1.4;padding:12px;border-radius:12px;border:none;background:var(--gold);color:#1a1205;font-size:0.76rem;font-weight:800;cursor:pointer'>Mandar \uD83C\uDF89</button>"
+      +"</div></div>";
+    ov.onclick=function(e){if(e.target===ov)ov.remove();};
+    document.body.appendChild(ov);
+    requestAnimationFrame(function(){ov.classList.add("open");
+      var t=document.getElementById("saludo-txt");if(t)t.focus();});
+  };
+
+  window.enviarSaludo=async function(nombre){
+    var t=document.getElementById("saludo-txt");
+    var texto=t?String(t.value||"").trim():"";
+    if(!texto){showToast("Escribi algo o eleg\u00ed uno de arriba");return;}
+    var k=claveSaludo(nombre);
+    if(!k){showToast("Ese cumple no esta cargado");return;}
+    try{
+      await set(ref(db,"config/saludos/"+k+"/"+ckey(me)),{de:me,texto:texto.slice(0,180),ts:Date.now()});
+      var ov=document.querySelector(".modal-overlay.mc");if(ov)ov.remove();
+      showToast("\uD83C\uDF89 Saludo mandado a "+nombre);
+    }catch(e){console.error("enviarSaludo",e);showToast("No se pudo mandar");}
+  };
+
+  window.borrarMiSaludo=async function(nombre){
+    var k=claveSaludo(nombre); if(!k||!me)return;
+    if(!await confirmar("Se borra tu saludo a "+nombre+".",{titulo:"Borrar saludo",icono:"\uD83D\uDDD1\uFE0F",okTxt:"Borrar"}))return;
+    await set(ref(db,"config/saludos/"+k+"/"+ckey(me)),null);
+    showToast("Saludo borrado");
+  };
+
+  window.verSaludos=function(nombre){
+    var lista=saludosDe(nombre);
+    var cuerpo=lista.length?lista.map(function(x){
+      return "<div style='display:flex;gap:10px;padding:10px 0;border-bottom:1px solid var(--brd)'>"
+        +"<div class='pasm' style='background:"+col(x.de||"")+";flex-shrink:0'>"+ini(x.de||"?")+"</div>"
+        +"<div style='flex:1;min-width:0'>"
+        +"<div style='font-size:0.68rem;font-weight:800;color:var(--ink)'>"+esc(x.de||"?")+"</div>"
+        +"<div style='font-size:0.75rem;color:var(--ink);line-height:1.45;margin-top:2px'>"+esc(x.texto)+"</div>"
+        +"</div>"
+        +((me&&ckey(x.de||"")===ckey(me))
+          ?"<span onclick=\"this.closest('.modal-overlay').remove();borrarMiSaludo('"+esc(nombre).replace(/'/g,"")+"')\" style='cursor:pointer;color:var(--mut);font-size:0.8rem;flex-shrink:0;padding:2px 4px' title='Borrar el mio'>\u2715</span>"
+          :"")
+        +"</div>";
+    }).join("")
+    : "<div style='font-size:0.7rem;color:var(--mut);padding:14px 0;line-height:1.5'>Todavia no hay saludos.<br><span style='opacity:0.75'>Se\u00e1 el primero \uD83C\uDF89</span></div>";
+
+    var ov=document.createElement("div");
+    ov.className="modal-overlay mc";ov.style.zIndex="100001";
+    ov.innerHTML="<div class='modal' style='max-width:340px;max-height:82vh;overflow-y:auto;box-sizing:border-box'>"
+      +"<div style='font-family:\"Bebas Neue\",sans-serif;font-size:1.2rem;color:var(--ink);letter-spacing:0.04em'>\uD83C\uDF82 SALUDOS PARA "+esc(nombre.toUpperCase())+"</div>"
+      +"<div style='font-size:0.62rem;color:var(--mut);margin-bottom:10px'>"+lista.length+" saludo"+(lista.length===1?"":"s")+"</div>"
+      +cuerpo
+      +"<div style='display:flex;gap:8px;margin-top:14px'>"
+      +(lista.length?"<button onclick=\"compartirSaludos('"+esc(nombre).replace(/'/g,"")+"')\" style='flex:1;padding:12px;border-radius:12px;border:none;background:#25D366;color:#fff;font-size:0.74rem;font-weight:800;cursor:pointer'>Compartir</button>":"")
+      +(me&&ckey(me)!==ckey(nombre)?"<button onclick=\"this.closest('.modal-overlay').remove();abrirSaludar('"+esc(nombre).replace(/'/g,"")+"')\" style='flex:1.2;padding:12px;border-radius:12px;border:none;background:var(--gold);color:#1a1205;font-size:0.74rem;font-weight:800;cursor:pointer'>"+(yaSalude(nombre)?"Cambiar el mio":"Saludar \uD83C\uDF89")+"</button>":"")
+      +"<button onclick=\"this.closest('.modal-overlay').remove()\" style='flex:0.8;padding:12px;border-radius:12px;border:1.5px solid var(--brd);background:var(--sur2);color:var(--mut);font-size:0.74rem;font-weight:700;cursor:pointer'>Cerrar</button>"
+      +"</div></div>";
+    ov.onclick=function(e){if(e.target===ov)ov.remove();};
+    document.body.appendChild(ov);
+    requestAnimationFrame(function(){ov.classList.add("open");});
+    marcarSaludosVistos(nombre);
+  };
+
+  window.compartirSaludos=function(nombre){
+    var lista=saludosDe(nombre);
+    var txt="\uD83C\uDF82 *SALUDOS PARA "+nombre.toUpperCase()+"*\n\n"
+      +lista.map(function(x){return "\u2022 "+x.de+": "+x.texto;}).join("\n")
+      +"\n\n_Mesa de Galanes_ \u2615";
+    window.open("https://wa.me/?text="+encodeURIComponent(txt),"_blank");
+  };
+
+  // ── Aviso al que cumple: una sola vez por saludo nuevo ──
+  function claveVistos(nombre){return "saludos_vistos_"+claveSaludo(nombre);}
+  function marcarSaludosVistos(nombre){
+    if(!me||ckey(me)!==ckey(nombre))return;
+    try{localStorage.setItem(claveVistos(nombre),String(saludosDe(nombre).length));}catch(e){}
+    marcarBadgeCumple();
+  }
+  function saludosNuevosPropios(){
+    if(!me||!cumples[me])return 0;
+    var hay=saludosDe(me).length;
+    var vistos=0;
+    try{vistos=parseInt(localStorage.getItem(claveVistos(me))||"0")||0;}catch(e){}
+    return Math.max(0,hay-vistos);
+  }
+  function avisarSaludosPropios(){
+    var n=saludosNuevosPropios();
+    if(n>0&&!window._avisoSaludos){
+      window._avisoSaludos=true;
+      setTimeout(function(){
+        showToast("\uD83C\uDF89 Ten\u00e9s "+n+" saludo"+(n===1?"":"s")+" de cumple!");
+        window._avisoSaludos=false;
+      },900);
+    }
+  }
+  function marcarBadgeCumple(){
+    try{
+      var b=document.querySelector('.tab[data-tab="cumples"] span');
+      if(!b)return;
+      b.textContent=saludosNuevosPropios()>0?"\uD83C\uDF81":"\uD83C\uDF82";
+    }catch(e){}
+  }
+
+  // Limpieza: los saludos de mas de 20 dias se van solos
+  async function purgarSaludos(){
+    if(!isAdmin())return;
+    var lim=Date.now()-20*864e5;
+    for(var k in (saludos||{})){
+      var g=saludos[k]||{},vivos=0,total=0;
+      for(var q in g){total++;if((g[q]&&g[q].ts||0)>lim)vivos++;}
+      if(total&&!vivos){try{await set(ref(db,"config/saludos/"+k),null);}catch(e){}}
+    }
+  }
+
   function renderCumpleBanner(){
     var banner=document.getElementById("cumple-banner");if(!banner)return;
     var now=new Date(),hd=now.getDate(),hm=now.getMonth()+1;
@@ -1127,29 +1302,49 @@
       var df=Math.ceil((futuro-now)/(1000*60*60*24));
       return df>0&&df<=7;
     });
-    function bannerRow(emoji,titulo,subtitulo,extra){
+    function botonesSaludo(nombre){
+      if(!cumples[nombre])return "";
+      var n=saludosDe(nombre).length;
+      var soyYo=me&&ckey(me)===ckey(nombre);
+      var h="<div style='display:flex;gap:7px;margin-top:8px'>";
+      if(!soyYo){
+        h+="<button onclick=\"event.stopPropagation();abrirSaludar('"+esc(nombre).replace(/'/g,"")+"')\" "
+          +"style='flex:1;padding:9px;border-radius:10px;border:none;background:var(--gold);color:#1a1205;"
+          +"font-size:0.68rem;font-weight:800;cursor:pointer'>"+(yaSalude(nombre)?"\u2713 Ya saludaste":"\uD83C\uDF89 Saludar")+"</button>";
+      }
+      h+="<button onclick=\"event.stopPropagation();verSaludos('"+esc(nombre).replace(/'/g,"")+"')\" "
+        +"style='flex:"+(soyYo?"1":"0.9")+";padding:9px;border-radius:10px;border:1.5px solid var(--brd);"
+        +"background:var(--sur2);color:var(--ink);font-size:0.68rem;font-weight:700;cursor:pointer'>"
+        +(soyYo?"\uD83C\uDF81 Ver mis saludos ("+n+")":"Ver ("+n+")")+"</button>";
+      return h+"</div>";
+    }
+    function bannerRow(emoji,titulo,subtitulo,extra,botones){
       var ea=extra||"";
       return "<div style='display:flex;align-items:center;gap:14px;padding:14px 16px;background:linear-gradient(135deg,rgba(245,197,24,0.15),rgba(234,88,12,0.10));border:1.5px solid rgba(245,197,24,0.4);border-radius:16px"+ea+"'>"        +"<div style='font-size:2rem;flex-shrink:0'>"+emoji+"</div>"
         +"<div style='flex:1'>"
         +"<div style='font-family:\"Bebas Neue\",sans-serif;font-size:1.1rem;letter-spacing:0.06em;color:var(--g2);line-height:1.1'>"+titulo+"</div>"
         +"<div style='font-size:0.7rem;color:var(--ink);margin-top:3px;letter-spacing:0.04em'>"+subtitulo+"</div>"
+        +(botones||"")
         +"</div></div>";
     }
     banner.style.cssText="display:none;margin:0 0 10px";
     if(cumplHoy.length){
-      var noms=cumplHoy.join(" · ");
       banner.style.cssText="display:block;margin:0 0 10px";
-      banner.innerHTML=bannerRow("🎂","HOY CUMPLE"+(cumplHoy.length>1?"N":"")+"! — "+noms.toUpperCase()+" 🎉","¡Felicitalo en el café! 🥳",";animation:pulseBanner 1.5s ease-in-out infinite alternate");
+      banner.innerHTML=cumplHoy.map(function(n){
+        return bannerRow("🎂","HOY CUMPLE "+n.toUpperCase()+"! 🎉","¡Felicitalo! 🥳",
+          ";animation:pulseBanner 1.5s ease-in-out infinite alternate",botonesSaludo(n));
+      }).join("");
     } else if(cumplSat.length){
-      var noms2=cumplSat.join(" · ");
       banner.style.cssText="display:block;margin:0 0 10px";
-      banner.innerHTML=bannerRow("🎂","EL SÁBADO CUMPLE"+(cumplSat.length>1?"N":"")+"! — "+noms2.toUpperCase(),"¡Se festeja en el café! 🥩","");
+      banner.innerHTML=cumplSat.map(function(n){
+        return bannerRow("🎂","EL SÁBADO CUMPLE "+n.toUpperCase()+"!","¡Se festeja en el café! 🥩","",botonesSaludo(n));
+      }).join("");
     } else if(cumplProx.length){
       var rows=cumplProx.map(function(n){
         var futuro=new Date(now.getFullYear()+(cumples[n].mes<hm||(cumples[n].mes===hm&&cumples[n].dia<hd)?1:0),cumples[n].mes-1,cumples[n].dia);
         var df=Math.ceil((futuro-now)/(1000*60*60*24));
         var label=df===1?"mañana":"en "+df+" días";
-        return bannerRow("🎂",n.toUpperCase()+" CUMPLE "+label.toUpperCase(),"Próximamente 🎉","");
+        return bannerRow("🎂",n.toUpperCase()+" CUMPLE "+label.toUpperCase(),"Próximamente 🎉","",botonesSaludo(n));
       });
       banner.style.cssText="display:block;margin:0 0 10px";
       banner.innerHTML=rows.join("");
@@ -1161,6 +1356,31 @@
     var now=new Date(),hm=now.getMonth()+1,hd=now.getDate();
     var tieneCumple=me&&cumples[me];
     var keys=Object.keys(cumples);
+
+    // Muro de saludos: lo que se puede saludar ahora mismo
+    var act=cumplesActivos();
+    var muro="";
+    if(act.length){
+      muro="<div style='font-size:0.58rem;color:var(--mut);letter-spacing:0.11em;font-weight:700;margin:0 2px 8px'>\uD83C\uDF89 SALUDOS "
+        +"<span style='font-weight:400;letter-spacing:0.03em;text-transform:none'>\u00b7 ahora y los proximos 7 dias</span></div>"
+        +"<div class='surf' style='padding:0;overflow:hidden;margin-bottom:16px'>"
+        +act.map(function(a){
+          var n=a.nombre,cnt=saludosDe(n).length;
+          var soyYo=me&&ckey(me)===ckey(n);
+          var cuando=a.dias===0?"hoy":(a.dias===1?"mañana":"en "+a.dias+" dias");
+          return "<div style='display:flex;align-items:center;gap:10px;padding:11px 13px;border-bottom:1px solid var(--brd)'>"
+            +"<div class='pasm' style='background:"+col(n)+";flex-shrink:0'>"+ini(n)+"</div>"
+            +"<div style='flex:1;min-width:0'>"
+            +"<div style='font-size:0.74rem;font-weight:700;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap'>"+esc(n)+"</div>"
+            +"<div style='font-size:0.6rem;color:var(--mut)'>cumple "+cuando+" \u00b7 "+cnt+" saludo"+(cnt===1?"":"s")+"</div>"
+            +"</div>"
+            +(soyYo
+              ?"<button onclick=\"verSaludos('"+esc(n).replace(/'/g,"")+"')\" style='flex-shrink:0;padding:8px 11px;border-radius:10px;border:1.5px solid var(--brd);background:var(--sur2);color:var(--ink);font-size:0.66rem;font-weight:700;cursor:pointer'>\uD83C\uDF81 Ver</button>"
+              :"<button onclick=\"abrirSaludar('"+esc(n).replace(/'/g,"")+"')\" style='flex-shrink:0;padding:8px 11px;border-radius:10px;border:none;background:"+(yaSalude(n)?"var(--sur2)":"var(--gold)")+";color:"+(yaSalude(n)?"var(--mut)":"#1a1205")+";font-size:0.66rem;font-weight:800;cursor:pointer'>"+(yaSalude(n)?"\u2713":"\uD83C\uDF89 Saludar")+"</button>")
+            +"</div>";
+        }).join("")
+        +"</div>";
+    }
 
     // Siempre mostrar el botón de acción para el usuario propio
     var miBtn=me
@@ -1181,7 +1401,7 @@
         +"</div>")
       :"";
 
-    if(!keys.length){panel.innerHTML=miBtn+"<div class='es'>Nadie más cargó su cumpleaños todavía 🎂</div>";return;}
+    if(!keys.length){panel.innerHTML=muro+miBtn+"<div class='es'>Nadie más cargó su cumpleaños todavía 🎂</div>";return;}
 
     var sorted=keys.map(function(n){var c=cumples[n];return{name:n,dia:c.dia,mes:c.mes};});
     sorted.sort(function(a,b){
@@ -1192,7 +1412,7 @@
     });
     var byMes={};sorted.forEach(function(c){if(!byMes[c.mes])byMes[c.mes]=[];byMes[c.mes].push(c);});
     var mesOrder=Object.keys(byMes).sort(function(a,b){return((parseInt(a)-hm+12)%12)-((parseInt(b)-hm+12)%12);});
-    var rows=[miBtn];
+    var rows=[muro,miBtn];
     mesOrder.forEach(function(m){
       rows.push("<div class='cumple-mes-title'>"+MESES[parseInt(m)-1]+"</div>");
       byMes[m].forEach(function(c){
@@ -9324,7 +9544,7 @@ header::after{background:linear-gradient(90deg,transparent,var(--club-cel) 35%,v
 </div>
 
 <script>
-  var APP_VERSION="10.2.4";
+  var APP_VERSION="10.3.0";
 
   var STORED_VERSION=localStorage.getItem("app_version");
 
